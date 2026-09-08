@@ -246,18 +246,23 @@
         .mt-badge { font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-light); padding:2px 7px; border-radius:5px; }
 
         /* ===== NEXT INFO ===== */
-        .next-info-card .card-body { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-        .next-info-card .ni-icon { width:38px; height:38px; border-radius:10px; background:var(--blue-light); color:var(--blue); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .next-info-card .ni-body { flex:1; min-width:150px; }
+        .next-info-card .card-body { display:flex; flex-direction:column; gap:14px; }
+        .ni-hero { display:flex; align-items:center; gap:16px; background:var(--blue-light); border-radius:12px; padding:16px 18px; }
+        .ni-hero.past { background:#fdeaea; }
+        .ni-hero.today { background:#fef3e2; }
+        .ni-big-num { font-size:46px; font-weight:800; line-height:.95; color:var(--blue); min-width:56px; text-align:center; }
+        .ni-hero.past .ni-big-num { color:var(--red); }
+        .ni-hero.today .ni-big-num { color:#b45309; font-size:30px; }
+        .ni-big-text { font-size:15px; font-weight:700; color:var(--navy); }
+        .ni-hero.past .ni-big-text { color:var(--red); }
+        .ni-hero.today .ni-big-text { color:#b45309; }
+        .ni-big-date { font-size:12px; color:var(--muted); margin-top:3px; font-weight:500; }
         .next-info-card label { display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
         .next-info-card input[type="datetime-local"] {
             width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
             font-size:14px; font-family:inherit; color:var(--text); font-weight:600; outline:none; background:#fff;
         }
         .next-info-card input:focus { border-color:var(--blue); }
-        .ni-countdown { margin-top:8px; display:inline-block; font-size:12px; font-weight:700; color:var(--blue); background:var(--blue-light); padding:4px 10px; border-radius:20px; }
-        .ni-countdown:empty { display:none; }
-        .ni-countdown.past { color:var(--red); background:#fdeaea; }
 
         /* ===== SIDE WIDGETS ===== */
         .info-list { display:flex; flex-direction:column; }
@@ -461,13 +466,16 @@
                 <!-- KÖVETKEZŐ INFO IDŐPONTJA -->
                 <section class="card next-info-card">
                     <div class="card-body">
-                        <div class="ni-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                        <div class="ni-hero" id="niHero">
+                            <div class="ni-big-num" id="niBigNum">–</div>
+                            <div>
+                                <div class="ni-big-text" id="niBigText">Következő INFO</div>
+                                <div class="ni-big-date" id="niBigDate"></div>
+                            </div>
                         </div>
                         <div class="ni-body">
                             <label for="nextInfo">Következő INFO időpontja</label>
                             <input type="datetime-local" id="nextInfo">
-                            <div class="ni-countdown" id="nextInfoCountdown"></div>
                         </div>
                     </div>
                 </section>
@@ -763,20 +771,22 @@ window.sfMarkResult = function(list, index){
 const nextInfoEl = document.getElementById('nextInfo');
 nextInfoEl.value = store.load('sf_nextInfo', '2025-09-15T18:00');
 function updateNextInfoCountdown(){
-    const el = document.getElementById('nextInfoCountdown');
-    if(!el) return;
+    const num = document.getElementById('niBigNum');
+    const txt = document.getElementById('niBigText');
+    const hero = document.getElementById('niHero');
+    const dateEl = document.getElementById('niBigDate');
+    if(!num || !txt || !hero) return;
     const val = nextInfoEl.value;
-    if(!val){ el.textContent=''; el.className='ni-countdown'; return; }
+    if(!val){ num.textContent='–'; txt.textContent='nincs időpont'; hero.className='ni-hero'; if(dateEl) dateEl.textContent=''; return; }
+    const target = new Date(val);
     const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-    const diff = Math.round((startOfDay(new Date(val)) - startOfDay(new Date())) / 86400000);
-    let text;
-    if(diff > 1) text = diff + ' nap múlva';
-    else if(diff === 1) text = 'Holnap';
-    else if(diff === 0) text = 'Ma';
-    else if(diff === -1) text = 'Tegnap volt';
-    else text = Math.abs(diff) + ' napja volt';
-    el.textContent = text;
-    el.className = 'ni-countdown' + (diff < 0 ? ' past' : '');
+    const diff = Math.round((startOfDay(target) - startOfDay(new Date())) / 86400000);
+    if(diff > 0){ num.textContent = diff; txt.textContent = (diff === 1 ? 'nap az INFO-ig (holnap)' : 'nap az INFO-ig'); hero.className = 'ni-hero'; }
+    else if(diff === 0){ num.textContent = 'Ma'; txt.textContent = 'van az INFO!'; hero.className = 'ni-hero today'; }
+    else { num.textContent = Math.abs(diff); txt.textContent = (diff === -1 ? 'napja volt (tegnap)' : 'napja volt'); hero.className = 'ni-hero past'; }
+    const HM = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+    const p = n => String(n).padStart(2,'0');
+    if(dateEl) dateEl.textContent = `${target.getFullYear()}. ${HM[target.getMonth()]} ${target.getDate()}. ${p(target.getHours())}:${p(target.getMinutes())}`;
 }
 nextInfoEl.addEventListener('change', ()=>{ store.save('sf_nextInfo', nextInfoEl.value); updateNextInfoCountdown(); });
 updateNextInfoCountdown();
