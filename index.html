@@ -113,8 +113,8 @@
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
         @media (max-width:800px){ .havi-grid-fields { grid-template-columns:repeat(2,1fr); } }
         .havi-field label { display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
-        .havi-field input { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; }
-        .havi-field input:focus { border-color:var(--blue); }
+        .havi-field input, .havi-field select { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
+        .havi-field input:focus, .havi-field select:focus { border-color:var(--blue); }
         .havi-section-title { font-size:15px; font-weight:700; color:var(--navy); margin:6px 0 12px; }
         .havi-formula { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; margin-bottom:24px; }
         @media (max-width:900px){ .havi-formula { grid-template-columns:repeat(4,1fr); } }
@@ -424,7 +424,7 @@
         <div id="adminPanel" hidden style="padding:12px 16px; border-top:1px solid rgba(255,255,255,.09);">
             <button class="su-logout" id="adminInfoBtn" style="width:100%; justify-content:center; gap:8px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                INFO időpontok
+                Admin
             </button>
         </div>
     </aside>
@@ -916,8 +916,10 @@ function loadHavi(d){
         for(let i=0;i<8;i++){ b.weeks[w].cel[i]=(rw.cel&&rw.cel[i])??""; b.weeks[w].van[i]=(rw.van&&rw.van[i])??""; }
     }
     if(Array.isArray(raw.clients)) b.clients = raw.clients.map(c=>({ name:(c&&c.name)||"", units:(c&&c.units)||"" }));
+    if(!b.nev) b.nev = (window.sfUserName || "");
     return b;
 }
+function haviRate(){ const r=(window.sfRankRates)||{R1:225,R2:425,R3:675,GST:1012}; return haviNum(r[haviData.rang]); }
 function saveHavi(){ store.save(haviKey(haviAnchor), haviData); }
 function haviNum(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
 let haviWeekCount = 5;
@@ -946,12 +948,15 @@ function renderHavi(){
     haviWeekCount = ranges.length;
     const th=['<th></th>'].concat(HAVI_METRICS.map(m=>`<th>${m}</th>`)).join('');
     const field=(id,label,val)=>`<div class="havi-field"><label>${label}</label><input data-hf="${id}" value="${esc(val)}"></div>`;
+    const rr = (window.sfRankRates) || {R1:225,R2:425,R3:675,GST:1012};
+    const rankSelect = `<div class="havi-field"><label>Rang</label><select data-hf="rang"><option value="">—</option>`+
+        ['R1','R2','R3','GST'].map(r=>`<option value="${r}"${haviData.rang===r?' selected':''}>${r} — ${rr[r]} Ft/EH</option>`).join('')+`</select></div>`;
     const topHtml = `<div class="havi-top">
         <div class="havi-block">
             <div class="havi-block-title">Saját</div>
             <div class="havi-grid-fields">
                 ${field('nev','Név',haviData.nev)}
-                ${field('rang','Rang',haviData.rang)}
+                ${rankSelect}
                 ${field('celPenz','Célom pénzben (Ft)',haviData.celPenz)}
                 ${field('celES','Célom ES-ben (EH)',haviData.celES)}
             </div>
@@ -1018,7 +1023,15 @@ function recomputeHavi(){
 }
 document.getElementById('haviBody').addEventListener('input', e=>{
     const t=e.target;
-    if(t.dataset.hf!==undefined){ haviData[t.dataset.hf]=t.value; saveHavi(); return; }
+    if(t.dataset.hf!==undefined){
+        const f=t.dataset.hf;
+        haviData[f]=t.value;
+        const rate=haviRate();
+        if(f==='celES' && rate>0){ haviData.celPenz=Math.round(haviNum(t.value)*rate); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviData.celPenz; }
+        else if(f==='celPenz' && rate>0){ haviData.celES=Math.round(haviNum(t.value)/rate); const ee=document.querySelector('#haviBody [data-hf="celES"]'); if(ee) ee.value=haviData.celES; }
+        else if(f==='rang' && rate>0){ haviData.celPenz=Math.round(haviNum(haviData.celES)*rate); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviData.celPenz; }
+        saveHavi(); return;
+    }
     if(t.dataset.hformula!==undefined){ haviData.formula[+t.dataset.hformula]=t.value; saveHavi(); return; }
     if(t.dataset.hw!==undefined){ haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm]=t.value; saveHavi(); recomputeHavi(); updateHaviEgysegCard(); return; }
     if(t.dataset.cl!==undefined){ haviData.clients[+t.dataset.cl][t.dataset.clf]=t.value; saveHavi(); recomputeHaviClients(); return; }
@@ -1048,11 +1061,20 @@ function updateHaviEgysegCard(){
 }
 updateHaviEgysegCard();
 (function(){ const gh=document.getElementById('goHavi'); if(gh) gh.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="havi"]'); if(l) l.click(); }); })();
+
+// A modul-script hívja meg, amikor a megosztott config (név, rangok) megérkezett
+window.sfOnConfig = function(){
+    const hp=document.getElementById('page-havi');
+    if(hp && !hp.hidden) renderHavi();
+    updateHaviEgysegCard();
+};
 </script>
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, getAppConfig, saveInfoDates, isAdmin } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, getAppConfig, saveInfoDates, saveAppConfig, isAdmin } from "./auth.js";
+    const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
+    const RANK_ORDER = ["R1","R2","R3","GST"];
 
     function initials(name, email){
         const src = (name || email || "?").trim();
@@ -1070,12 +1092,16 @@ updateHaviEgysegCard();
         if (avatarEl) avatarEl.textContent = initials(user.displayName, user.email);
         if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
         initCalendar();
+        window.sfUserName = user.displayName || user.email || "";
         getAppConfig().then(cfg => {
-            const dates = (cfg && cfg.infoDates) || [];
-            updateInfoCard(dates);
-            if (isAdmin(user)) setupAdminPanel(dates);
+            currentConfig = cfg || {};
+            window.sfRankRates = (cfg && cfg.ranks) || DEFAULT_RANKS;
+            updateInfoCard((cfg && cfg.infoDates) || []);
+            if (isAdmin(user)) setupAdminPanel();
+            if (typeof window.sfOnConfig === "function") window.sfOnConfig();
         });
     });
+    let currentConfig = {};
 
     // ===== KÖVETKEZŐ INFO KÁRTYA + ADMIN =====
     const PHASE_LABELS = ["Potenciál Gyűjtés", "Potenciál Gyűjtés / Felvételi Egyeztetés", "Felvételi Egyeztetés / Felvételi", "Felvételi / Info"];
@@ -1107,26 +1133,35 @@ updateHaviEgysegCard();
         if(phaseEl) phaseEl.innerHTML = `<span class="ni-phase-badge">${phase}. hét</span>${PHASE_LABELS[phase-1]}`;
     }
 
-    function setupAdminPanel(dates){
+    function setupAdminPanel(){
         const panel = document.getElementById("adminPanel");
         const btn = document.getElementById("adminInfoBtn");
         if(!panel || !btn) return;
         panel.hidden = false;
-        btn.onclick = () => openInfoDatesModal(currentInfoDates.slice());
+        btn.onclick = () => openAdminModal();
     }
 
-    function openInfoDatesModal(dates){
+    function openAdminModal(){
+        const dates = currentInfoDates.slice();
+        const ranks = Object.assign({}, DEFAULT_RANKS, (currentConfig && currentConfig.ranks) || {});
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         const rowsHtml = () => dates.map((d,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
             <input type="date" data-idx="${i}" value="${escM(String(d).slice(0,10))}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
             <button class="row-del" data-del="${i}" title="Törlés">🗑</button></div>`).join("") || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont felvéve.</div>`;
+        const ranksHtml = RANK_ORDER.map(r=>`<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+            <span style="width:48px;font-weight:700;color:var(--navy);">${r}</span>
+            <input type="number" data-rank="${r}" value="${escM(ranks[r])}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
+            <span style="color:var(--muted);font-size:13px;">Ft / 1 EH</span></div>`).join("");
         overlay.innerHTML = `
-            <div class="modal" style="max-width:420px;">
-                <div class="modal-head">INFO időpontok (admin)</div>
+            <div class="modal" style="max-width:460px;">
+                <div class="modal-head">Admin beállítások</div>
                 <div class="modal-body">
+                    <div class="havi-section-title" style="margin-top:0;">INFO időpontok</div>
                     <div id="idList">${rowsHtml()}</div>
-                    <button class="add-row" id="idAdd">+ Új időpont</button>
+                    <button class="add-row" id="idAdd" style="margin-bottom:6px;">+ Új időpont</button>
+                    <div class="havi-section-title">Rangok (Ft / 1 EH)</div>
+                    <div id="rankList">${ranksHtml}</div>
                 </div>
                 <div class="modal-foot">
                     <button class="btn" id="idCancel">Mégse</button>
@@ -1142,11 +1177,19 @@ updateHaviEgysegCard();
         list.addEventListener("input", e => { if(e.target.dataset.idx !== undefined) dates[+e.target.dataset.idx] = e.target.value; });
         list.addEventListener("click", e => { const d=e.target.closest("[data-del]"); if(d){ dates.splice(+d.dataset.del,1); rerender(); } });
         overlay.querySelector("#idAdd").addEventListener("click", () => { dates.push(""); rerender(); });
+        overlay.querySelector("#rankList").addEventListener("input", e => { const r=e.target.dataset.rank; if(r) ranks[r] = e.target.value; });
         overlay.querySelector("#idSave").addEventListener("click", async e => {
-            const clean = dates.map(x=>String(x||"").slice(0,10)).filter(Boolean).sort();
+            const cleanDates = dates.map(x=>String(x||"").slice(0,10)).filter(Boolean).sort();
+            const cleanRanks = {}; RANK_ORDER.forEach(r=>{ const n=parseFloat(ranks[r]); cleanRanks[r]=isNaN(n)?DEFAULT_RANKS[r]:n; });
             e.currentTarget.disabled = true;
-            try { await saveInfoDates(clean); updateInfoCard(clean); close(); }
-            catch(err){ alert("Nem sikerült menteni: " + (err.message||err)); e.currentTarget.disabled = false; }
+            try {
+                await saveAppConfig({ infoDates: cleanDates, ranks: cleanRanks });
+                currentConfig = Object.assign({}, currentConfig, { infoDates: cleanDates, ranks: cleanRanks });
+                window.sfRankRates = cleanRanks;
+                updateInfoCard(cleanDates);
+                if (typeof window.sfOnConfig === "function") window.sfOnConfig();
+                close();
+            } catch(err){ alert("Nem sikerült menteni: " + (err.message||err)); e.currentTarget.disabled = false; }
         });
     }
 
