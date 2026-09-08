@@ -299,11 +299,15 @@
                     <span class="dot">3</span>
                 </div>
                 <div class="user">
-                    <div class="avatar">SM</div>
-                    <span class="user-name">Szécsi Márk
+                    <div class="avatar" id="userAvatar">SM</div>
+                    <span class="user-name" id="userName">Szécsi Márk
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                     </span>
                 </div>
+                <button class="btn-edit" id="logoutBtn" hidden title="Kilépés">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+                    Kilépés
+                </button>
             </div>
         </header>
 
@@ -686,6 +690,29 @@ nextInfoEl.addEventListener('change', ()=> store.save('sf_nextInfo', nextInfoEl.
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
+</script>
+
+<!-- ===== BELÉPÉS-VÉDELEM (Firebase) ===== -->
+<script type="module">
+    import { requireAuth, logout, isConfigured } from "./auth.js";
+
+    function initials(name, email){
+        const src = (name || email || "?").trim();
+        const parts = src.split(/\s+/);
+        return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || src[0].toUpperCase();
+    }
+
+    // Ha a Firebase be van állítva: csak engedélyezett, belépett user maradhat.
+    // Amíg nincs beállítva, a demó szabadon nyitva marad (requireAuth ilyenkor nem irányít át).
+    requireAuth((user) => {
+        if (!user) return; // demó mód
+        const nameEl = document.getElementById("userName");
+        const avatarEl = document.getElementById("userAvatar");
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (nameEl) nameEl.childNodes[0].nodeValue = (user.displayName || user.email) + " ";
+        if (avatarEl) avatarEl.textContent = initials(user.displayName, user.email);
+        if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
+    });
 </script>
 </body>
 </html>
