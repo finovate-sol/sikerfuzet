@@ -76,6 +76,23 @@ export async function loginWithGoogle() {
     return result.user;
 }
 
+// --- A session-re eltárolt Google naptár access token ---
+export function getCalendarToken() {
+    try { return sessionStorage.getItem("sf_gcal_token"); } catch (e) { return null; }
+}
+
+// --- Naptár újra-összekötése (friss access token kérése popup-pal) ---
+export async function reconnectCalendar() {
+    if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    const provider = new GoogleAuthProvider();
+    provider.addScope(CALENDAR_SCOPE);
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential && credential.accessToken;
+    if (token) { try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {} }
+    return token;
+}
+
 // --- Kilépés ---
 export async function logout() {
     try { sessionStorage.removeItem("sf_gcal_token"); } catch (e) {}

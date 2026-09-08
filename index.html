@@ -162,6 +162,31 @@
         .ev.red { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
         .ev.amber { background:#fef3e2; border-color:#d97706; color:#7c3a06; }
 
+        /* ===== HETI NAPTÁR (valós Google Calendar) ===== */
+        .wk-head { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
+        .wk-head .h { padding:10px 4px; text-align:center; font-size:12px; color:var(--muted); font-weight:600; }
+        .wk-head .h .num { display:block; font-size:16px; color:var(--text); font-weight:700; margin-top:2px; }
+        .wk-head .h.today .num { background:var(--blue); color:#fff; width:26px; height:26px; line-height:26px; border-radius:50%; margin:2px auto 0; }
+        .wk-allday { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
+        .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
+        .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
+        .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+        .wk-grid { display:flex; max-height:540px; overflow-y:auto; }
+        .wk-times { width:52px; flex-shrink:0; }
+        .wk-times .t { height:44px; font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
+        .wk-canvas { position:relative; flex:1; }
+        .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
+        .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
+        .wk-ev { position:absolute; border-radius:6px; padding:3px 6px; font-size:11px; line-height:1.2; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:default; }
+        .wk-ev b { display:block; font-weight:600; font-size:10px; }
+        .wk-ev.c0 { background:#e8f0fc; border-color:#1f5fd0; color:#1a3f7a; }
+        .wk-ev.c1 { background:#e6f6ec; border-color:#16a34a; color:#14532d; }
+        .wk-ev.c2 { background:#efeafe; border-color:#7c3aed; color:#4c1d95; }
+        .wk-ev.c3 { background:#fef3e2; border-color:#d97706; color:#7c3a06; }
+        .wk-ev.c4 { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
+        .wk-msg { position:absolute; top:0; left:0; right:0; padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
+        .wk-msg .btn { margin-top:12px; }
+
         /* ===== HETI TERVEZÉS ===== */
         .week-range { font-size:13px; color:var(--muted); }
         .week-range b { color:var(--text); }
@@ -480,24 +505,8 @@ const store = {
 };
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ===== STATIC SAMPLE DATA (naptár, heti terv, gyorsműveletek) =====
-const events = [
-    { day:0, start:9,  title:"Csapat meeting",         cls:"blue" },
-    { day:0, start:13, title:"Termék tréning",         cls:"red" },
-    { day:1, start:10, title:"Ügyfél - Kovács Péter",  cls:"green" },
-    { day:1, start:15, title:"Ügyfél - Szabó Anna",    cls:"blue" },
-    { day:2, start:9,  title:"Új munkatárs interjú",   cls:"blue" },
-    { day:2, start:11, title:"Vezetői egyeztetés",     cls:"purple" },
-    { day:3, start:10, title:"Ajánlat készítés",       cls:"green" },
-    { day:3, start:14, title:"Follow up hívások",      cls:"red" },
-    { day:4, start:9,  title:"Régiós megbeszélés",     cls:"blue" },
-    { day:4, start:16, title:"Heti értékelés",         cls:"purple" },
-];
-const days = [
-    {n:"H", d:8}, {n:"K", d:9}, {n:"Sze", d:10, today:true},
-    {n:"Cs", d:11}, {n:"P", d:12}, {n:"Szo", d:13}, {n:"V", d:14}
-];
-const hours = [8,9,10,11,12,13,14,15,16,17];
+// ===== STATIC SAMPLE DATA (heti terv, gyorsműveletek) =====
+// A naptár már valós Google Calendar adatból dolgozik (lásd lentebb a modul-scriptet).
 const weekPlan = [
     { label:"Kontaktus",  cel:15, van:5 }, { label:"EL időpont", cel:10, van:3 },
     { label:"Elemzés",    cel:9,  van:1 }, { label:"TA időpont", cel:6,  van:1 },
@@ -533,21 +542,6 @@ let money  = store.load('sf_money',  defaultMoney);
 let career = store.load('sf_career', defaultCareer);
 let info   = store.load('sf_info',   defaultInfo);
 const editMode = { money:false, career:false, info:false };
-
-// ===== RENDER: CALENDAR =====
-(function(){
-    let html = '<div class="head"></div>';
-    days.forEach(d => html += `<div class="head${d.today?' today':''}">${d.n}<span class="num">${d.d}</span></div>`);
-    hours.forEach(h => {
-        html += `<div class="time">${String(h).padStart(2,'0')}:00</div>`;
-        for (let day=0; day<7; day++){
-            const ev = events.find(e => e.day===day && e.start===h);
-            const inner = ev ? `<div class="ev ${ev.cls}"><b>${String(ev.start).padStart(2,'0')}:00</b>${ev.title}</div>` : '';
-            html += `<div class="slot">${inner}</div>`;
-        }
-    });
-    document.getElementById('calGrid').innerHTML = html;
-})();
 
 // ===== RENDER: WEEK PLAN =====
 document.getElementById('planGrid').innerHTML = weekPlan.map(p => {
@@ -692,9 +686,9 @@ nextInfoEl.addEventListener('change', ()=> store.save('sf_nextInfo', nextInfoEl.
 renderMoney(); renderCareer(); renderInfo();
 </script>
 
-<!-- ===== BELÉPÉS-VÉDELEM (Firebase) ===== -->
+<!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar } from "./auth.js";
 
     function initials(name, email){
         const src = (name || email || "?").trim();
@@ -703,16 +697,154 @@ renderMoney(); renderCareer(); renderInfo();
     }
 
     // Ha a Firebase be van állítva: csak engedélyezett, belépett user maradhat.
-    // Amíg nincs beállítva, a demó szabadon nyitva marad (requireAuth ilyenkor nem irányít át).
     requireAuth((user) => {
-        if (!user) return; // demó mód
+        if (!user) return; // demó mód (nincs config)
         const nameEl = document.getElementById("userName");
         const avatarEl = document.getElementById("userAvatar");
         const logoutBtn = document.getElementById("logoutBtn");
         if (nameEl) nameEl.childNodes[0].nodeValue = (user.displayName || user.email) + " ";
         if (avatarEl) avatarEl.textContent = initials(user.displayName, user.email);
         if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
+        initCalendar();
     });
+
+    // ===================== GOOGLE NAPTÁR =====================
+    const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
+    const HU_MONTHS = ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
+    const START_H = 7, END_H = 21, ROW = 44;      // 07:00–21:00, 44px / óra
+    const escM = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+    const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+
+    function weekBounds(){
+        const now = new Date();
+        const dow = (now.getDay()+6) % 7;                 // hétfő = 0
+        const start = new Date(now); start.setHours(0,0,0,0); start.setDate(now.getDate()-dow);
+        const end = addDays(start, 7);
+        return { start, end, now };
+    }
+    function dayIndex(start, d){ return Math.floor((d - start) / 86400000); }
+    function fmtRange(start){
+        const e = addDays(start, 6);
+        if (start.getMonth() === e.getMonth())
+            return `${start.getFullYear()}. ${HU_MONTHS[start.getMonth()]} ${start.getDate()}. – ${e.getDate()}.`;
+        return `${start.getFullYear()}. ${HU_MONTHS[start.getMonth()]} ${start.getDate()}. – ${HU_MONTHS[e.getMonth()]} ${e.getDate()}.`;
+    }
+
+    function renderShell(grid, start, now){
+        const head = ['<div class="h"></div>'];
+        for (let i=0;i<7;i++){
+            const d = addDays(start,i);
+            head.push(`<div class="h${sameDay(d,now)?' today':''}">${HU_DAYS[i]}<span class="num">${d.getDate()}</span></div>`);
+        }
+        const hoursCount = END_H - START_H;
+        let times = "";
+        for (let h=START_H; h<END_H; h++) times += `<div class="t">${String(h).padStart(2,"0")}:00</div>`;
+        let lines = "";
+        for (let i=0;i<=hoursCount;i++) lines += `<div class="wk-line" style="top:${i*ROW}px"></div>`;
+        let cols = "";
+        for (let i=0;i<7;i++) cols += `<div class="wk-col" style="left:${i*(100/7)}%; width:${100/7}%"></div>`;
+        grid.innerHTML =
+            `<div class="wk-head">${head.join("")}</div>` +
+            `<div class="wk-allday" id="wkAllday"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(7)}</div>` +
+            `<div class="wk-grid">` +
+                `<div class="wk-times">${times}</div>` +
+                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${lines}${cols}</div>` +
+            `</div>`;
+    }
+
+    function showMsg(html){
+        const canvas = document.getElementById("wkCanvas");
+        if (!canvas) return;
+        const el = document.createElement("div");
+        el.className = "wk-msg";
+        el.innerHTML = html;
+        canvas.appendChild(el);
+        const btn = document.getElementById("calConnectBtn");
+        if (btn) btn.addEventListener("click", async () => {
+            try { const t = await reconnectCalendar(); if (t) initCalendar(); }
+            catch(e){ alert("Nem sikerült összekötni a naptárat: " + (e.message||e)); }
+        });
+    }
+
+    async function fetchEvents(token, start, end){
+        const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+            + "?singleEvents=true&orderBy=startTime&maxResults=250"
+            + "&timeMin=" + encodeURIComponent(start.toISOString())
+            + "&timeMax=" + encodeURIComponent(end.toISOString());
+        const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok){ const err = new Error("Naptár lekérési hiba: " + res.status); err.status = res.status; throw err; }
+        const data = await res.json();
+        return data.items || [];
+    }
+
+    function renderEvents(start, events){
+        const canvas = document.getElementById("wkCanvas");
+        const alldayCells = document.querySelectorAll("#wkAllday .cell");
+        const maxH = (END_H - START_H) * ROW;
+        let ci = 0;
+        events.forEach(ev => {
+            const color = "c" + (ci++ % 5);
+            if (!ev.start.dateTime){                       // egész napos
+                const d = new Date((ev.start.date || "") + "T00:00:00");
+                const idx = dayIndex(start, d);
+                if (idx>=0 && idx<7){
+                    const chip = document.createElement("div");
+                    chip.className = "allday-ev";
+                    chip.textContent = ev.summary || "(névtelen)";
+                    chip.title = chip.textContent;
+                    alldayCells[idx].appendChild(chip);
+                }
+                return;
+            }
+            const s = new Date(ev.start.dateTime), e = new Date(ev.end.dateTime);
+            const idx = dayIndex(start, s);
+            if (idx<0 || idx>=7) return;
+            const startDec = s.getHours() + s.getMinutes()/60;
+            const endDec = e.getHours() + e.getMinutes()/60;
+            let top = (startDec - START_H) * ROW;
+            let height = Math.max(20, (endDec - startDec) * ROW);
+            if (top < 0){ height += top; top = 0; }
+            if (top >= maxH) return;
+            if (top + height > maxH) height = maxH - top;
+            const hh = String(s.getHours()).padStart(2,"0") + ":" + String(s.getMinutes()).padStart(2,"0");
+            const div = document.createElement("div");
+            div.className = "wk-ev " + color;
+            div.style.left = `calc(${idx*(100/7)}% + 3px)`;
+            div.style.width = `calc(${100/7}% - 6px)`;
+            div.style.top = top + "px";
+            div.style.height = height + "px";
+            div.innerHTML = `<b>${hh}</b>${escM(ev.summary || "(névtelen)")}`;
+            div.title = (ev.summary || "") + " — " + hh;
+            canvas.appendChild(div);
+        });
+    }
+
+    async function initCalendar(){
+        const grid = document.getElementById("calGrid");
+        if (!grid) return;
+        const { start, now } = weekBounds();
+        const dateLabel = document.querySelector(".cal-date");
+        if (dateLabel) dateLabel.textContent = fmtRange(start);
+        renderShell(grid, start, now);
+
+        const token = getCalendarToken();
+        if (!token){
+            showMsg('A naptár megjelenítéséhez kösd össze a Google Naptárad.<br><button class="btn" id="calConnectBtn">Naptár összekötése</button>');
+            return;
+        }
+        try {
+            const events = await fetchEvents(token, start, addDays(start,7));
+            renderEvents(start, events);
+        } catch (e){
+            if (e.status === 401 || e.status === 403){
+                try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
+                showMsg('A naptár hozzáférés lejárt vagy hiányzik.<br><button class="btn" id="calConnectBtn">Naptár újra-összekötése</button>');
+            } else {
+                showMsg("A naptár betöltése nem sikerült: " + escM(e.message || e));
+            }
+        }
+    }
 </script>
 </body>
 </html>
