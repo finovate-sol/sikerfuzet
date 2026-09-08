@@ -340,6 +340,7 @@
         .res.ok { background:#e6f6ec; color:var(--green); }
         .res.no { background:#fdeaea; color:var(--red); }
         .res.pending { background:#eef1f5; color:var(--muted); }
+        .res-cyc { cursor:pointer; display:inline-block; }
         .mt-badge { font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-light); padding:2px 7px; border-radius:5px; }
 
         /* ===== NEXT INFO ===== */
@@ -507,10 +508,7 @@
                         <div class="calls-head">
                             <span class="tag money">3 - 2 - 1</span>
                             <h2>Saját PÉNZEM</h2>
-                            <button class="btn-edit" id="moneyEditBtn" style="margin-left:auto;" onclick="toggleEdit('money')">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                                Szerkesztés
-                            </button>
+                            <a class="link" href="#" id="goUgyfelekTP" style="margin-left:auto;">Nyilvántartó →</a>
                         </div>
                         <table>
                             <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
@@ -523,13 +521,10 @@
                         <div class="calls-head">
                             <span class="tag career">3 - 2 - 1</span>
                             <h2>Saját KARRIEREM</h2>
-                            <button class="btn-edit" id="careerEditBtn" style="margin-left:auto;" onclick="toggleEdit('career')">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                                Szerkesztés
-                            </button>
+                            <a class="link" href="#" id="goUgyfelekMT" style="margin-left:auto;">Nyilvántartó →</a>
                         </div>
                         <table>
-                            <thead><tr><th>Név</th><th>MT</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
+                            <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
                             <tbody id="careerTable"></tbody>
                         </table>
                     </section>
@@ -702,7 +697,9 @@ let career = store.load('sf_career', defaultCareer);
 let info   = store.load('sf_info',   defaultInfo);
 let weekPlan = store.load('sf_weekplan', defaultWeekPlan);
 let planEdit = false;
-const editMode = { money:false, career:false, info:false };
+let registry = store.load('sf_registry', []);
+const editMode = { info:false };
+function refreshMoneyCareer(){ renderMoney(); renderCareer(); }
 
 // ===== RENDER: WEEK PLAN (szerkeszthető) =====
 function renderPlan(){
@@ -781,39 +778,27 @@ function resSelect(i, r){
     </select>`;
 }
 
-// ===== RENDER: PÉNZEM =====
+// ===== RENDER: PÉNZEM (a nyilvántartó TP jelöléséből) =====
 function renderMoney(){
-    const tb = document.getElementById('moneyTable');
-    if(editMode.money){
-        tb.innerHTML = money.map((c,i)=>`<tr>
-            <td><input data-i="${i}" data-f="name" value="${esc(c.name)}" placeholder="Név"></td>
-            <td><input data-i="${i}" data-f="phone" value="${esc(c.phone)}" placeholder="Tel.szám"></td>
-            <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
-        </tr>`).join('') + `<tr><td colspan="3"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
-    } else {
-        tb.innerHTML = money.length ? money.map((c,i)=>`<tr draggable="true" data-name="${esc(c.name)}" data-list="money" data-index="${i}" title="Húzd a naptárba">
-            <td><strong>${esc(c.name)}</strong></td><td class="phone">${esc(c.phone)}</td>
-            <td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
-            : `<tr><td colspan="3" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
-    }
+    const tb = document.getElementById('moneyTable'); if(!tb) return;
+    const list = registry.map((r,gi)=>({r,gi})).filter(x=>x.r.tp);
+    tb.innerHTML = list.length ? list.map(({r,gi})=>`<tr draggable="true" data-name="${esc(r.name)}" data-list="money" data-regidx="${gi}" title="Húzd a naptárba">
+        <td><strong>${esc(r.name)||'(névtelen)'}</strong></td>
+        <td class="phone">${esc(r.phone)}</td>
+        <td style="text-align:center;"><span class="res-cyc" data-resmoney="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resPenz||'pending')}</span></td>
+    </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs TP-vel jelölt ügyfél.</td></tr>`;
 }
-// ===== RENDER: KARRIEREM =====
+// ===== RENDER: KARRIEREM (a nyilvántartó MT jelöléséből) =====
 function renderCareer(){
-    const tb = document.getElementById('careerTable');
-    if(editMode.career){
-        tb.innerHTML = career.map((c,i)=>`<tr>
-            <td><input data-i="${i}" data-f="name" value="${esc(c.name)}" placeholder="Név"></td>
-            <td><input data-i="${i}" data-f="mt" value="${esc(c.mt)}" placeholder="MT" style="max-width:70px;"></td>
-            <td><input data-i="${i}" data-f="phone" value="${esc(c.phone)}" placeholder="Tel.szám"></td>
-            <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
-        </tr>`).join('') + `<tr><td colspan="4"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
-    } else {
-        tb.innerHTML = career.length ? career.map((c,i)=>`<tr draggable="true" data-name="${esc(c.name)}" data-list="career" data-index="${i}" title="Húzd a naptárba">
-            <td><strong>${esc(c.name)}</strong></td><td><span class="mt-badge">${esc(c.mt)}</span></td>
-            <td class="phone">${esc(c.phone)}</td><td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
-            : `<tr><td colspan="4" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
-    }
+    const tb = document.getElementById('careerTable'); if(!tb) return;
+    const list = registry.map((r,gi)=>({r,gi})).filter(x=>x.r.mt);
+    tb.innerHTML = list.length ? list.map(({r,gi})=>`<tr draggable="true" data-name="${esc(r.name)}" data-list="career" data-regidx="${gi}" title="Húzd a naptárba">
+        <td><strong>${esc(r.name)||'(névtelen)'}</strong></td>
+        <td class="phone">${esc(r.phone)}</td>
+        <td style="text-align:center;"><span class="res-cyc" data-rescareer="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resKarrier||'pending')}</span></td>
+    </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs MT-vel jelölt ügyfél.</td></tr>`;
 }
+function cycleRes(v){ return v==='pending'?'ok':(v==='ok'?'no':'pending'); }
 // ===== RENDER: INFO RÉSZTVEVŐK =====
 function renderInfo(){
     const el = document.getElementById('infoList');
@@ -835,8 +820,6 @@ function renderInfo(){
 
 // ===== EDIT TOGGLE =====
 const cfg = {
-    money:  { arr:()=>money,  set:v=>money=v,  key:'sf_money',  render:renderMoney,  btn:'moneyEditBtn',  blank:()=>({name:'',phone:'',res:'pending'}) },
-    career: { arr:()=>career, set:v=>career=v, key:'sf_career', render:renderCareer, btn:'careerEditBtn', blank:()=>({name:'',mt:'',phone:'',res:'pending'}) },
     info:   { arr:()=>info,   set:v=>info=v,   key:'sf_info',   render:renderInfo,   btn:'infoEditBtn',   blank:()=>'' },
 };
 function toggleEdit(which){
@@ -880,9 +863,19 @@ function wire(containerId, which){
         }
     });
 }
-wire('moneyTable','money');
-wire('careerTable','career');
 wire('infoList','info');
+
+// Eredmény váltás kattintással (PÉNZEM / KARRIEREM)
+document.getElementById('moneyTable').addEventListener('click', e=>{
+    const s=e.target.closest('[data-resmoney]'); if(!s) return;
+    const r=registry[+s.dataset.resmoney]; if(!r) return;
+    r.resPenz=cycleRes(r.resPenz||'pending'); store.save('sf_registry', registry); renderMoney();
+});
+document.getElementById('careerTable').addEventListener('click', e=>{
+    const s=e.target.closest('[data-rescareer]'); if(!s) return;
+    const r=registry[+s.dataset.rescareer]; if(!r) return;
+    r.resKarrier=cycleRes(r.resKarrier||'pending'); store.save('sf_registry', registry); renderCareer();
+});
 
 // ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
 function enableRowDrag(tbodyId){
@@ -890,7 +883,7 @@ function enableRowDrag(tbodyId){
     el.addEventListener('dragstart', e=>{
         const tr = e.target.closest('tr[data-name]');
         if(!tr){ return; }
-        const payload = { name: tr.dataset.name, list: tr.dataset.list, index: +tr.dataset.index };
+        const payload = { name: tr.dataset.name, list: tr.dataset.list, regidx: +tr.dataset.regidx };
         e.dataTransfer.setData('text/plain', JSON.stringify(payload));
         e.dataTransfer.effectAllowed = 'copy';
         // Húzás közben csak a név látszódjon (nem a teljes sor)
@@ -905,13 +898,14 @@ function enableRowDrag(tbodyId){
 enableRowDrag('moneyTable');
 enableRowDrag('careerTable');
 
-// A naptárba mentés után az adott sor eredményét "sikeres"-re állítjuk.
-window.sfMarkResult = function(list, index){
-    const arr = list === 'money' ? money : (list === 'career' ? career : null);
-    if(!arr || !arr[index]) return;
-    arr[index].res = 'ok';
-    store.save(list === 'money' ? 'sf_money' : 'sf_career', arr);
-    if(list === 'money') renderMoney(); else renderCareer();
+// A naptárba mentés után az adott ügyfél eredménye "sikeres" lesz.
+window.sfMarkResult = function(list, regIdx){
+    const r = registry[regIdx]; if(!r) return;
+    if(list === 'money') r.resPenz = 'ok';
+    else if(list === 'career') r.resKarrier = 'ok';
+    else return;
+    store.save('sf_registry', registry);
+    renderMoney(); renderCareer();
 };
 
 // (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
@@ -1102,10 +1096,12 @@ function updateHaviEgysegCard(){
     b.style.width=pct+'%';
 }
 updateHaviEgysegCard();
-(function(){ const gh=document.getElementById('goHavi'); if(gh) gh.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="havi"]'); if(l) l.click(); }); })();
+(function(){
+    const goPage = id => { const b=document.getElementById(id); if(b) b.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="'+(id==='goHavi'?'havi':'ugyfelek')+'"]'); if(l) l.click(); }); };
+    goPage('goHavi'); goPage('goUgyfelekTP'); goPage('goUgyfelekMT');
+})();
 
 // ===== ÜGYFÉL NYILVÁNTARTÓ =====
-let registry = store.load('sf_registry', []);
 const REG_STATUS = [
     ['To-do', ['Telefonra Vár']],
     ['In progress', ['Folyamatban']],
@@ -1176,7 +1172,7 @@ function openRegDetail(i){
         else return;
         store.save('sf_registry', registry);
     });
-    const close=()=>{ overlay.remove(); renderRegistry(); };
+    const close=()=>{ overlay.remove(); renderRegistry(); refreshMoneyCareer(); };
     overlay.querySelector('#rdClose').addEventListener('click', close);
     overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
 }
@@ -1186,17 +1182,17 @@ function openRegDetail(i){
     tbl.addEventListener('input', e=>{
         const t=e.target;
         if(t.dataset.ri===undefined || t.type==='checkbox') return;
-        registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry);
+        registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); refreshMoneyCareer();
     });
     tbl.addEventListener('change', e=>{
         const t=e.target;
         if(t.dataset.ri===undefined) return;
-        if(t.type==='checkbox'){ registry[+t.dataset.ri][t.dataset.rf]=t.checked; store.save('sf_registry', registry); }
+        if(t.type==='checkbox'){ registry[+t.dataset.ri][t.dataset.rf]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer(); }
         else if(t.tagName==='SELECT'){ registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); }
     });
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
-        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); return; }
+        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return; }
         const o=e.target.closest('[data-open]');
         if(o){ openRegDetail(+o.dataset.open); }
     });
@@ -1534,7 +1530,7 @@ window.sfOnConfig = function(){
             const start = new Date(currentColumns[idx]);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
-            openEventModal(name, start, payload.list, payload.index);
+            openEventModal(name, start, payload.list, payload.regidx);
         });
     }
 
