@@ -17,6 +17,20 @@ export { isConfigured };
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 // Ebbe a kollekcióba kerülnek a belépni jogosult emailek (doc-id = email).
 const ALLOWLIST = "allowed_users";
+// Admin (info-időpontok beállítása)
+const ADMIN_EMAIL = "szecsimark@gmail.com";
+export function isAdmin(user){ return !!user && String(user.email||"").toLowerCase() === ADMIN_EMAIL; }
+
+// Megosztott app-konfiguráció (config/app dokumentum)
+export async function getAppConfig(){
+    if(!isConfigured || !db) return {};
+    try { const snap = await getDoc(doc(db, "config", "app")); return snap.exists() ? (snap.data() || {}) : {}; }
+    catch(e){ console.warn("config olvasás sikertelen:", e); return {}; }
+}
+export async function saveInfoDates(dates){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "config", "app"), { infoDates: dates }, { merge: true });
+}
 
 let app, auth, db;
 if (isConfigured) {
