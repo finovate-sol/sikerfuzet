@@ -121,6 +121,13 @@
         table.reg input[type="checkbox"] { width:18px; height:18px; cursor:pointer; accent-color:var(--blue); }
         table.reg td select { width:100%; min-width:160px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
         table.reg td select:focus { border-color:var(--blue); }
+        .reg-search { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:7px 12px; color:var(--muted); max-width:280px; }
+        .reg-search input { border:none; background:transparent; outline:none; font-size:14px; font-family:inherit; color:var(--text); width:100%; }
+        .status-sel.status-green { background:#e6f6ec; color:#15803d; border-color:#bfe6cd; }
+        .status-sel.status-blue { background:#e8f0fc; color:#1a56b8; border-color:#c5d9f7; }
+        .status-sel.status-red { background:#fdeaea; color:#b42318; border-color:#f6c9c5; }
+        .status-sel.status-gray { background:#eef1f5; color:#5b6472; border-color:#dde2e9; }
+        .status-sel { font-weight:600; }
         .reg-name { background:none; border:none; padding:6px 8px; font-family:inherit; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; text-align:left; width:100%; min-width:130px; border-radius:6px; }
         .reg-name:hover { background:var(--blue-light); color:var(--blue); }
         .modal.modal-lg { max-width:540px; }
@@ -169,6 +176,17 @@
         .havi-cl-row input.cln { flex:1; min-width:0; }
         .havi-cl-row input.clu { width:66px; text-align:center; }
         .havi-cl-total { padding:12px 14px; font-weight:700; color:var(--navy); display:flex; justify-content:space-between; background:#fbfcfe; }
+
+        /* ===== ÉVES TERV ===== */
+        table.eves { border-collapse:collapse; width:100%; min-width:1100px; }
+        table.eves th, table.eves td { border:1px solid var(--border); padding:5px 6px; text-align:center; font-size:12px; }
+        table.eves thead th { background:#f5f7fa; color:var(--navy); font-weight:700; }
+        table.eves td.ev-month, table.eves th.ev-month { text-align:left; font-weight:700; color:var(--muted); white-space:nowrap; }
+        table.eves tr.ev-sub td { background:#eef2f7; font-weight:700; color:var(--navy); }
+        table.eves tr.ev-tot td { background:#e8f0fc; font-weight:800; color:var(--navy); }
+        table.eves input { width:58px; text-align:center; border:1px solid transparent; border-radius:5px; padding:4px; font-size:12px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
+        table.eves input:hover { border-color:var(--border); }
+        table.eves input:focus { border-color:var(--blue); background:#fff; }
 
         /* ===== CARD ===== */
         .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -411,17 +429,13 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
                 Sikerfüzet
             </a>
-            <a href="#" data-page="soon">
+            <a href="#" data-page="eves">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
                 Éves Terv
             </a>
             <a href="#" data-page="havi">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
                 Havi Terv
-            </a>
-            <a href="#" data-page="soon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M7 14h2M11 14h2M15 14h2"/></svg>
-                Heti Terv
             </a>
             <a href="#" data-page="soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
@@ -629,13 +643,30 @@
           </div>
         </div>
 
+        <!-- ÉVES TERV -->
+        <div id="page-eves" class="page" hidden>
+          <div class="page-wrap">
+            <section class="card">
+              <div class="cal-toolbar">
+                <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Éves terv</h2>
+                <button class="btn" id="evesToday">Aktuális év</button>
+                <button class="btn icon-btn" id="evesPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+                <button class="btn icon-btn" id="evesNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+                <span class="cal-date" id="evesYearLabel"></span>
+              </div>
+              <div class="card-body" style="overflow-x:auto;" id="evesBody"></div>
+            </section>
+          </div>
+        </div>
+
         <!-- ÜGYFÉL NYILVÁNTARTÓ -->
         <div id="page-ugyfelek" class="page" hidden>
           <div class="page-wrap">
             <section class="card">
               <div class="cal-toolbar">
                 <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span>Ügyfél nyilvántartó</h2>
-                <button class="btn primary" id="regAdd" style="margin-left:auto;background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
+                <div class="reg-search" style="margin-left:auto;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés mindenre..."></div>
+                <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
               </div>
               <div class="card-body" style="overflow-x:auto;">
                 <table class="reg" id="regTable"></table>
@@ -923,6 +954,7 @@ renderMoney(); renderCareer(); renderInfo();
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
         if(p === 'havi') renderHavi();
+        if(p === 'eves') renderEves();
     }));
 })();
 
@@ -1081,6 +1113,70 @@ document.getElementById('haviPrev').addEventListener('click', ()=>{ haviAnchor=n
 document.getElementById('haviNext').addEventListener('click', ()=>{ haviAnchor=new Date(haviAnchor.getFullYear(), haviAnchor.getMonth()+1, 1); renderHavi(); });
 document.getElementById('haviToday').addEventListener('click', ()=>{ haviAnchor=new Date(); renderHavi(); });
 
+// ===== ÉVES TERV =====
+const EVES_GROUPS = [
+    {key:'csapat',    label:'Csapat összesen'},
+    {key:'dircsapat', label:'dir. Csapat'},
+    {key:'sajat',     label:'Saját'},
+    {key:'gst',       label:'dir. GST'},
+    {key:'rep2',      label:'dir. Rep 2'},
+    {key:'mt',        label:'dir. MT'},
+    {key:'mtcsapat',  label:'MT dir. Csapat'},
+];
+const EVES_MONTHS = ['Jan.','Feb.','Már.','Ápr.','Máj.','Jún.','Júl.','Aug.','Szept.','Okt.','Nov.','Dec.'];
+const EVES_QUARTERS = [[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
+let evesAnchor = new Date().getFullYear();
+let evesData = null;
+function evesKey(y){ return `sf_eves_${y}`; }
+function blankEves(){ return { months: Array.from({length:12}, ()=>{ const o={}; EVES_GROUPS.forEach(g=>o[g.key]={t:'',e:''}); return o; }) }; }
+function loadEves(y){
+    const raw = store.load(evesKey(y), null);
+    const b = blankEves();
+    if(raw && Array.isArray(raw.months)) for(let m=0;m<12 && m<raw.months.length;m++){ EVES_GROUPS.forEach(g=>{ const c=(raw.months[m]||{})[g.key]||{}; b.months[m][g.key]={t:c.t||'',e:c.e||''}; }); }
+    return b;
+}
+function saveEves(){ store.save(evesKey(evesAnchor), evesData); }
+function renderEves(){
+    const body=document.getElementById('evesBody'); if(!body) return;
+    evesData=loadEves(evesAnchor);
+    document.getElementById('evesYearLabel').textContent = evesAnchor + '.';
+    let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map(g=>`<th colspan="2" class="ev-grp">${g.label}</th>`).join('') + `</tr>`;
+    let h2 = `<tr>` + EVES_GROUPS.map(()=>`<th>Terv</th><th>Elért</th>`).join('') + `</tr>`;
+    const cell=(m,g)=>`<td><input type="number" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td><input type="number" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
+    const comp=(id)=>`<td><span id="${id}-t"></span></td><td><span id="${id}-e"></span></td>`;
+    let rows='';
+    EVES_QUARTERS.forEach((q,qi)=>{
+        q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map(g=>cell(m,g.key)).join('')+`</tr>`; });
+        rows+=`<tr class="ev-sub"><td class="ev-month">Negyedév</td>`+EVES_GROUPS.map(g=>comp(`evq-${qi}-${g.key}`)).join('')+`</tr>`;
+    });
+    rows+=`<tr class="ev-tot"><td class="ev-month">Összesen</td>`+EVES_GROUPS.map(g=>comp(`evtot-${g.key}`)).join('')+`</tr>`;
+    body.innerHTML=`<table class="eves"><thead>${h1}${h2}</thead><tbody>${rows}</tbody></table>`;
+    recomputeEves();
+}
+function recomputeEves(){
+    EVES_GROUPS.forEach(g=>{
+        let totT=0, totE=0;
+        EVES_QUARTERS.forEach((q,qi)=>{
+            let qt=0, qe=0;
+            q.forEach(m=>{ qt+=haviNum(evesData.months[m][g.key].t); qe+=haviNum(evesData.months[m][g.key].e); });
+            totT+=qt; totE+=qe;
+            const et=document.getElementById(`evq-${qi}-${g.key}-t`); if(et) et.textContent=qt;
+            const ee=document.getElementById(`evq-${qi}-${g.key}-e`); if(ee) ee.textContent=qe;
+        });
+        const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT;
+        const te=document.getElementById(`evtot-${g.key}-e`); if(te) te.textContent=totE;
+    });
+}
+document.getElementById('evesBody').addEventListener('input', e=>{
+    const t=e.target;
+    if(t.dataset.em===undefined) return;
+    evesData.months[+t.dataset.em][t.dataset.eg][t.dataset.ef]=t.value;
+    saveEves(); recomputeEves();
+});
+document.getElementById('evesPrev').addEventListener('click', ()=>{ evesAnchor--; renderEves(); });
+document.getElementById('evesNext').addEventListener('click', ()=>{ evesAnchor++; renderEves(); });
+document.getElementById('evesToday').addEventListener('click', ()=>{ evesAnchor=new Date().getFullYear(); renderEves(); });
+
 // Dashboard "Havi egység" kártya – az aktuális havi terv Egység sorából
 function updateHaviEgysegCard(){
     const t=document.getElementById('haviEgysegText'), p=document.getElementById('haviEgysegPct'), b=document.getElementById('haviEgysegBar');
@@ -1102,15 +1198,21 @@ updateHaviEgysegCard();
 })();
 
 // ===== ÜGYFÉL NYILVÁNTARTÓ =====
+let regSearch = '';
 const REG_STATUS = [
     ['To-do', ['Telefonra Vár']],
     ['In progress', ['Folyamatban']],
     ['Complete', ['Befejezve (MT)','Befejezve (Ügyfél)','Befejezve (Nem MT)','Befejezve (Nem Ügyfél)','Függő (Visszatérni)']],
 ];
+const REG_STATUS_COLOR = {
+    'Telefonra Vár':'green', 'Folyamatban':'green', 'Befejezve (MT)':'blue', 'Befejezve (Ügyfél)':'green',
+    'Befejezve (Nem MT)':'red', 'Befejezve (Nem Ügyfél)':'red', 'Függő (Visszatérni)':'gray'
+};
 function regStatusSelect(i, val){
+    const cls = REG_STATUS_COLOR[val] ? ' status-'+REG_STATUS_COLOR[val] : '';
     let opts = `<option value="">—</option>`;
     REG_STATUS.forEach(([g,items])=>{ opts += `<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}"${val===s?' selected':''}>${esc(s)}</option>`).join('')+`</optgroup>`; });
-    return `<select data-ri="${i}" data-rf="status">${opts}</select>`;
+    return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status">${opts}</select>`;
 }
 function renderRegistry(){
     const tbl = document.getElementById('regTable');
@@ -1119,7 +1221,10 @@ function renderRegistry(){
         <th class="chk">TP</th><th class="chk">MT</th><th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
         <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th></th>
     </tr></thead>`;
-    const rows = registry.map((r,i)=>`<tr>
+    const q=(regSearch||'').trim().toLowerCase();
+    const rows = registry.map((r,i)=>({r,i}))
+      .filter(({r})=> !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status].some(v=>String(v||'').toLowerCase().includes(q)))
+      .map(({r,i})=>`<tr>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tp" ${r.tp?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="mt" ${r.mt?'checked':''}></td>
         <td><button class="reg-name" data-open="${i}">${esc(r.name) || '(névtelen)'}</button></td>
@@ -1132,7 +1237,7 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
         <td><button class="row-del" data-rdel="${i}" title="Törlés">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">${q?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
 }
 function openRegDetail(i){
@@ -1188,8 +1293,10 @@ function openRegDetail(i){
         const t=e.target;
         if(t.dataset.ri===undefined) return;
         if(t.type==='checkbox'){ registry[+t.dataset.ri][t.dataset.rf]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer(); }
-        else if(t.tagName==='SELECT'){ registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); }
+        else if(t.tagName==='SELECT'){ registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); }
     });
+    const searchEl = document.getElementById('regSearch');
+    if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
         if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return; }
