@@ -177,7 +177,7 @@
         .wk-canvas { position:relative; flex:1; }
         .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
         .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
-        .wk-ev { position:absolute; border-radius:6px; padding:3px 6px; font-size:11px; line-height:1.2; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:default; }
+        .wk-ev { position:absolute; border-radius:6px; padding:3px 6px; font-size:11px; line-height:1.2; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:pointer; }
         .wk-ev b { display:block; font-weight:600; font-size:10px; }
         .wk-ev.c0 { background:#e8f0fc; border-color:#1f5fd0; color:#1a3f7a; }
         .wk-ev.c1 { background:#e6f6ec; border-color:#16a34a; color:#14532d; }
@@ -1009,14 +1009,61 @@ renderMoney(); renderCareer(); renderInfo();
         });
         canvas.addEventListener("click", async e => {
             const del = e.target.closest(".wk-ev-del");
-            if (!del) return;
-            const evDiv = del.closest(".wk-ev");
-            const id = evDiv && evDiv.dataset.eventId;
-            if (!id) return;
-            if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (evDiv.dataset.title || ""))) return;
-            try { await deleteCalendarEvent(id); initCalendar(); }
-            catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
+            if (del){
+                const evDiv = del.closest(".wk-ev");
+                const id = evDiv && evDiv.dataset.eventId;
+                if (!id) return;
+                if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (evDiv.dataset.title || ""))) return;
+                try { await deleteCalendarEvent(id); initCalendar(); }
+                catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
+                return;
+            }
+            const evDiv = e.target.closest(".wk-ev");
+            if (evDiv && evDiv.dataset.eventId) openValidateModal(evDiv.dataset.eventId, evDiv.dataset.title);
         });
+    }
+
+    async function updateCalendarEvent(id, patch){
+        let token = getCalendarToken();
+        const doPatch = tok => fetch(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events/" + encodeURIComponent(id),
+            { method: "PATCH", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify(patch) }
+        );
+        let res = await doPatch(token);
+        if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doPatch(token); }
+        if (!res.ok){ const err = new Error("Frissítés hiba: " + res.status); err.status = res.status; throw err; }
+        return res.json();
+    }
+
+    function openValidateModal(id, title){
+        const clean = (title || "").replace(/^([✅❌]\s*)+/, "");   // meglévő ✅/❌ levágása
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:390px;">
+                <div class="modal-head">Megtörtént az esemény?</div>
+                <div class="modal-body">
+                    <div class="modal-client">${escM(clean || "(névtelen)")}</div>
+                </div>
+                <div class="modal-foot" style="justify-content:space-between;">
+                    <button class="btn" id="vCancel">Mégse</button>
+                    <span style="display:flex; gap:10px;">
+                        <button class="btn" id="vNo" style="border-color:#dc2626;color:#dc2626;">❌ Nem</button>
+                        <button class="btn primary" id="vYes" style="background:#16a34a;border-color:#16a34a;">✅ Megtörtént</button>
+                    </span>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+        overlay.querySelector("#vCancel").addEventListener("click", close);
+        const apply = async (emoji, btn) => {
+            btn.disabled = true;
+            try { await updateCalendarEvent(id, { summary: emoji + " " + clean }); close(); initCalendar(); }
+            catch (e){ alert("Nem sikerült frissíteni: " + (e.message || e)); btn.disabled = false; }
+        };
+        overlay.querySelector("#vYes").addEventListener("click", e => apply("✅", e.currentTarget));
+        overlay.querySelector("#vNo").addEventListener("click", e => apply("❌", e.currentTarget));
     }
 
     async function deleteCalendarEvent(id){
