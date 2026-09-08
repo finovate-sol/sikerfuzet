@@ -187,6 +187,7 @@
         .wk-ev-del { position:absolute; top:0; right:2px; font-size:15px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; padding:1px 3px; }
         .wk-ev:hover .wk-ev-del { opacity:.7; }
         .wk-ev-del:hover { opacity:1 !important; color:var(--red); }
+        .wk-ev-loc { display:block; font-size:10px; opacity:.85; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
         .drop-indicator { position:absolute; background:rgba(31,95,208,.16); border:1.5px dashed var(--blue); border-radius:6px; pointer-events:none; z-index:5; font-size:10px; color:var(--blue); font-weight:700; padding:2px 5px; box-sizing:border-box; }
@@ -828,6 +829,17 @@ renderMoney(); renderCareer(); renderInfo();
     const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
     const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 
+    // Google Calendar colorId → hex (az esemény tényleges színe)
+    const GCAL_HEX = { "1":"#7986cb","2":"#33b679","3":"#8e24aa","4":"#e67c73","5":"#f6bf26","6":"#f4511e","7":"#039be5","8":"#616161","9":"#3f51b5","10":"#0b8043","11":"#d50000" };
+    const DEFAULT_EVENT_HEX = "#1f5fd0";
+    const COLOR_MONEY  = "2";   // zöld  (PÉNZEM)
+    const COLOR_CAREER = "6";   // narancs (KARRIEREM)
+    function hexToRgba(hex, a){
+        const h = hex.replace("#","");
+        const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+        return `rgba(${r},${g},${b},${a})`;
+    }
+
     function weekBounds(){
         const now = new Date();
         const dow = (now.getDay()+6) % 7;                 // hétfő = 0
@@ -894,15 +906,16 @@ renderMoney(); renderCareer(); renderInfo();
         const canvas = document.getElementById("wkCanvas");
         const alldayCells = document.querySelectorAll("#wkAllday .cell");
         const maxH = (END_H - START_H) * ROW;
-        let ci = 0;
         events.forEach(ev => {
-            const color = "c" + (ci++ % 5);
+            const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
             if (!ev.start.dateTime){                       // egész napos
                 const d = new Date((ev.start.date || "") + "T00:00:00");
                 const idx = dayIndex(start, d);
                 if (idx>=0 && idx<7){
                     const chip = document.createElement("div");
                     chip.className = "allday-ev";
+                    chip.style.background = hexToRgba(hex, .18);
+                    chip.style.color = "#1c2b45";
                     chip.textContent = ev.summary || "(névtelen)";
                     chip.title = chip.textContent;
                     alldayCells[idx].appendChild(chip);
@@ -921,15 +934,19 @@ renderMoney(); renderCareer(); renderInfo();
             if (top + height > maxH) height = maxH - top;
             const hh = String(s.getHours()).padStart(2,"0") + ":" + String(s.getMinutes()).padStart(2,"0");
             const div = document.createElement("div");
-            div.className = "wk-ev " + color;
+            div.className = "wk-ev";
+            div.style.background = hexToRgba(hex, .15);
+            div.style.borderLeftColor = hex;
+            div.style.color = "#1c2b45";
             div.style.left = `calc(${idx*(100/7)}% + 3px)`;
             div.style.width = `calc(${100/7}% - 6px)`;
             div.style.top = top + "px";
             div.style.height = height + "px";
             div.dataset.eventId = ev.id || "";
             div.dataset.title = ev.summary || "";
-            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span><b>${hh}</b>${escM(ev.summary || "(névtelen)")}`;
-            div.title = (ev.summary || "") + " — " + hh;
+            const locHtml = ev.location ? `<span class="wk-ev-loc">📍 ${escM(ev.location)}</span>` : "";
+            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span><b>${hh}</b>${escM(ev.summary || "(névtelen)")}${locHtml}`;
+            div.title = (ev.summary || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
             canvas.appendChild(div);
         });
     }
@@ -1014,7 +1031,7 @@ renderMoney(); renderCareer(); renderInfo();
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, start, durationMin }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const end = new Date(start.getTime() + durationMin * 60000);
@@ -1025,6 +1042,7 @@ renderMoney(); renderCareer(); renderInfo();
         };
         if (description) body.description = description;
         if (location) body.location = location;
+        if (colorId) body.colorId = colorId;
 
         async function doInsert(tok){
             return fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
@@ -1091,9 +1109,10 @@ renderMoney(); renderCareer(); renderInfo();
             }
             const location = overlay.querySelector("#evLoc").value.trim();
             const description = "Ügyfél: " + name;
+            const colorId = srcList === "money" ? COLOR_MONEY : (srcList === "career" ? COLOR_CAREER : undefined);
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, start: when, durationMin });
+                await createCalendarEvent({ summary, description, location, colorId, start: when, durationMin });
                 // A forrás-sor eredménye legyen "sikeres" (✓)
                 if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
