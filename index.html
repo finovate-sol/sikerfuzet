@@ -121,6 +121,15 @@
         table.reg input[type="checkbox"] { width:18px; height:18px; cursor:pointer; accent-color:var(--blue); }
         table.reg td select { width:100%; min-width:160px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
         table.reg td select:focus { border-color:var(--blue); }
+        .reg-name { background:none; border:none; padding:6px 8px; font-family:inherit; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; text-align:left; width:100%; min-width:130px; border-radius:6px; }
+        .reg-name:hover { background:var(--blue-light); color:var(--blue); }
+        .modal.modal-lg { max-width:540px; }
+        .modal-lg .modal-body { max-height:70vh; overflow-y:auto; }
+        .rd-field { margin-bottom:12px; }
+        .rd-field label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+        .rd-field input, .rd-field textarea { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; resize:vertical; box-sizing:border-box; }
+        .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); }
+        .rd-sec { font-size:13px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:16px 0 10px; }
 
         /* ===== HAVI TERV ===== */
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
@@ -1111,11 +1120,13 @@ function renderRegistry(){
     const tbl = document.getElementById('regTable');
     if(!tbl) return;
     const head = `<thead><tr>
-        <th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
+        <th class="chk">TP</th><th class="chk">MT</th><th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
         <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th></th>
     </tr></thead>`;
     const rows = registry.map((r,i)=>`<tr>
-        <td><input data-ri="${i}" data-rf="name" value="${esc(r.name)}" placeholder="Név"></td>
+        <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tp" ${r.tp?'checked':''}></td>
+        <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="mt" ${r.mt?'checked':''}></td>
+        <td><button class="reg-name" data-open="${i}">${esc(r.name) || '(névtelen)'}</button></td>
         <td><input data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></td>
         <td><input data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}"></td>
         <td><input data-ri="${i}" data-rf="phone" value="${esc(r.phone)}"></td>
@@ -1125,8 +1136,49 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
         <td><button class="row-del" data-rdel="${i}" title="Törlés">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="10" style="color:var(--muted);padding:24px;text-align:center;">Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
+}
+function openRegDetail(i){
+    const r = registry[i];
+    if(!r) return;
+    r.details = r.details || {};
+    r.celok = r.celok || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
+    overlay.innerHTML = `
+        <div class="modal modal-lg">
+            <div class="modal-head">Ügyfél adatlap</div>
+            <div class="modal-body">
+                <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
+                <div class="rd-sec">Adatok</div>
+                ${f('eletkor','Életkor')}
+                ${f('telepules','Település')}
+                ${f('miert','Miért gondolt rá')}
+                ${f('lakas','Lakáshelyzet / Családi állapot')}
+                ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
+                ${f('gyerekek','Gyerekek száma / Életkora')}
+                <div class="rd-field"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="3">${esc(r.details.megjegyzes||'')}</textarea></div>
+                <div class="rd-sec">Elemzés / Célok</div>
+                <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="3">${esc(r.celok.rovid||'')}</textarea></div>
+                <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="3">${esc(r.celok.kozep||'')}</textarea></div>
+                <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="3">${esc(r.celok.hosszu||'')}</textarea></div>
+            </div>
+            <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('input', e=>{
+        const t=e.target;
+        if(t.dataset.name!==undefined) r.name=t.value;
+        else if(t.dataset.d!==undefined) r.details[t.dataset.d]=t.value;
+        else if(t.dataset.c!==undefined) r.celok[t.dataset.c]=t.value;
+        else return;
+        store.save('sf_registry', registry);
+    });
+    const close=()=>{ overlay.remove(); renderRegistry(); };
+    overlay.querySelector('#rdClose').addEventListener('click', close);
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
 }
 (function(){
     const tbl = document.getElementById('regTable');
@@ -1144,10 +1196,12 @@ function renderRegistry(){
     });
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
-        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); }
+        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); return; }
+        const o=e.target.closest('[data-open]');
+        if(o){ openRegDetail(+o.dataset.open); }
     });
     document.getElementById('regAdd').addEventListener('click', ()=>{
-        registry.push({ name:'', munkatars:'', ajanlo:'', phone:'', lakhely:'', status:'', elemzes:false, portal:false, tanacsadas:false });
+        registry.push({ name:'', munkatars:'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{} });
         store.save('sf_registry', registry); renderRegistry();
     });
     renderRegistry();
