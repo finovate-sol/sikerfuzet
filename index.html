@@ -123,6 +123,15 @@
         table.reg td select:focus { border-color:var(--blue); }
         .reg-search { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:7px 12px; color:var(--muted); max-width:280px; }
         .reg-search input { border:none; background:transparent; outline:none; font-size:14px; font-family:inherit; color:var(--text); width:100%; }
+        .reg-filterbar { padding:10px 20px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+        .filter-build { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .filter-build select, .filter-build input { padding:7px 9px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
+        .filter-build select:focus, .filter-build input:focus { border-color:var(--blue); }
+        .filter-chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .filter-chip { display:inline-flex; align-items:center; gap:6px; background:var(--blue-light); color:var(--navy); border-radius:16px; padding:4px 6px 4px 12px; font-size:13px; }
+        .filter-chip b { color:var(--blue); }
+        .filter-chip button { border:none; background:none; cursor:pointer; color:var(--muted); font-size:15px; font-weight:800; line-height:1; padding:0 4px; }
+        .filter-chip button:hover { color:var(--red); }
         .status-sel.status-green { background:#e6f6ec; color:#15803d; border-color:#bfe6cd; }
         .status-sel.status-blue { background:#e8f0fc; color:#1a56b8; border-color:#c5d9f7; }
         .status-sel.status-red { background:#fdeaea; color:#b42318; border-color:#f6c9c5; }
@@ -130,13 +139,18 @@
         .status-sel { font-weight:600; }
         .reg-name { background:none; border:none; padding:6px 8px; font-family:inherit; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; text-align:left; width:100%; min-width:130px; border-radius:6px; }
         .reg-name:hover { background:var(--blue-light); color:var(--blue); }
-        .modal.modal-lg { max-width:540px; }
-        .modal-lg .modal-body { max-height:70vh; overflow-y:auto; }
-        .rd-field { margin-bottom:12px; }
-        .rd-field label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }
-        .rd-field input, .rd-field textarea { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; resize:vertical; box-sizing:border-box; }
+        .modal.modal-lg { max-width:580px; }
+        .modal-lg .modal-body { max-height:74vh; overflow-y:auto; }
+        .rd-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+        .rd-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+        @media (max-width:560px){ .rd-grid, .rd-grid-3 { grid-template-columns:1fr; } }
+        .rd-field { margin-bottom:8px; }
+        .rd-grid .rd-field { margin-bottom:0; }
+        .rd-full { margin-top:8px; }
+        .rd-field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
+        .rd-field input, .rd-field textarea { width:100%; padding:6px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); outline:none; resize:vertical; box-sizing:border-box; }
         .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); }
-        .rd-sec { font-size:13px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:16px 0 10px; }
+        .rd-sec { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; }
 
         /* ===== HAVI TERV ===== */
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
@@ -499,7 +513,7 @@
                             <button data-view="clients">Ügyfelek</button>
                         </div>
                         <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" style="margin-left:12px;">Megnyitás a Google Naptárban ↗</a>
-                        <button class="collapse-btn" data-collapse="cal" title="Össze-/kinyitás" style="margin-left:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+                        <span class="collapse-btn" data-collapse="cal" title="Össze-/kinyitás" style="margin-left:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
                     <div class="cal-grid" id="calGrid"></div>
                 </section>
@@ -510,7 +524,7 @@
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
                         <h2>Heti tervezés <span style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
                         <span class="week-range" id="planWeekRange" style="margin-left:auto;"></span>
-                        <button class="collapse-btn" data-collapse="plan" title="Össze-/kinyitás" style="margin-left:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+                        <span class="collapse-btn" data-collapse="plan" title="Össze-/kinyitás" style="margin-left:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
                     <div class="card-body">
                         <div class="plan-grid" id="planGrid"></div>
@@ -670,6 +684,7 @@
                 <div class="reg-search" style="margin-left:auto;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés mindenre..."></div>
                 <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
               </div>
+              <div class="reg-filterbar" id="regFilterBar"></div>
               <div class="card-body" style="overflow-x:auto;">
                 <table class="reg" id="regTable"></table>
               </div>
@@ -1174,13 +1189,19 @@ function updateHaviEgysegCard(){
 }
 updateHaviEgysegCard();
 renderPlan();
-// Kártyák össze-/kinyitása
+// Kártyák össze-/kinyitása – az egész fejléc-sor kattintható
 (function(){
-    document.querySelectorAll('[data-collapse]').forEach(btn=>{
-        const card=btn.closest('.card'); if(!card) return;
-        const key='sf_collapse_'+btn.dataset.collapse;
+    document.querySelectorAll('[data-collapse]').forEach(el=>{
+        const card=el.closest('.card'); if(!card) return;
+        const header=el.closest('.card-head, .cal-toolbar') || el.parentElement;
+        const key='sf_collapse_'+el.dataset.collapse;
         if(store.load(key,false)) card.classList.add('collapsed');
-        btn.addEventListener('click', ()=>{ card.classList.toggle('collapsed'); store.save(key, card.classList.contains('collapsed')); });
+        header.style.cursor='pointer';
+        header.addEventListener('click', e=>{
+            if(e.target.closest('button, a, select, input, .seg')) return;   // interaktív elemek kihagyása
+            card.classList.toggle('collapsed');
+            store.save(key, card.classList.contains('collapsed'));
+        });
     });
 })();
 (function(){
@@ -1190,6 +1211,20 @@ renderPlan();
 
 // ===== ÜGYFÉL NYILVÁNTARTÓ =====
 let regSearch = '';
+let regFilters = [];
+const REG_FIELDS = [
+    {key:'name', label:'Név', type:'text'},
+    {key:'munkatars', label:'Munkatárs', type:'text'},
+    {key:'ajanlo', label:'Ajánló személy', type:'text'},
+    {key:'phone', label:'Telefonszám', type:'text'},
+    {key:'lakhely', label:'Lakhely', type:'text'},
+    {key:'status', label:'Státusz', type:'status'},
+    {key:'tp', label:'TP', type:'bool'},
+    {key:'mt', label:'MT', type:'bool'},
+    {key:'elemzes', label:'Elemzés', type:'bool'},
+    {key:'portal', label:'Portálon fent', type:'bool'},
+    {key:'tanacsadas', label:'Tanácsadás', type:'bool'},
+];
 const REG_STATUS = [
     ['To-do', ['Telefonra Vár']],
     ['In progress', ['Folyamatban']],
@@ -1205,6 +1240,45 @@ function regStatusSelect(i, val){
     REG_STATUS.forEach(([g,items])=>{ opts += `<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}"${val===s?' selected':''}>${esc(s)}</option>`).join('')+`</optgroup>`; });
     return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status">${opts}</select>`;
 }
+function regValueControl(fieldKey){
+    const fld = REG_FIELDS.find(x=>x.key===fieldKey) || REG_FIELDS[0];
+    if(fld.type==='bool') return `<select id="regFVal"><option value="true">Igen</option><option value="false">Nem</option></select>`;
+    if(fld.type==='status'){ let o=`<option value="">—</option>`; REG_STATUS.forEach(([g,items])=>{ o+=`<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')+`</optgroup>`; }); return `<select id="regFVal">${o}</select>`; }
+    return `<input id="regFVal" type="text" placeholder="érték">`;
+}
+function renderRegFilters(){
+    const bar=document.getElementById('regFilterBar'); if(!bar) return;
+    const fieldOpts=REG_FIELDS.map(f=>`<option value="${f.key}">${f.label}</option>`).join('');
+    const chips=regFilters.map((f,i)=>{
+        const fld=REG_FIELDS.find(x=>x.key===f.field);
+        const val=fld&&fld.type==='bool' ? ((f.value===true||f.value==='true')?'Igen':'Nem') : f.value;
+        return `<span class="filter-chip">${fld?fld.label:f.field}: <b>${esc(val)}</b><button data-fdel="${i}" title="Törlés">×</button></span>`;
+    }).join('');
+    bar.innerHTML = `<div class="filter-build">
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Szűrő:</span>
+        <select id="regFField">${fieldOpts}</select>
+        <span id="regFValWrap">${regValueControl(REG_FIELDS[0].key)}</span>
+        <button class="btn" id="regFAdd">+ Hozzáad</button>
+        ${regFilters.length?`<button class="btn" id="regFClear">Összes törlése</button>`:''}
+    </div>${chips?`<div class="filter-chips">${chips}</div>`:''}`;
+    const fieldSel=document.getElementById('regFField');
+    fieldSel.addEventListener('change', ()=>{ document.getElementById('regFValWrap').innerHTML=regValueControl(fieldSel.value); });
+    document.getElementById('regFAdd').addEventListener('click', ()=>{
+        const field=fieldSel.value, valEl=document.getElementById('regFVal'), value=valEl.value;
+        if(value==='') return;
+        regFilters.push({field, value}); renderRegFilters(); renderRegistry();
+    });
+    const clr=document.getElementById('regFClear'); if(clr) clr.addEventListener('click', ()=>{ regFilters=[]; renderRegFilters(); renderRegistry(); });
+    bar.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', ()=>{ regFilters.splice(+b.dataset.fdel,1); renderRegFilters(); renderRegistry(); }));
+}
+function rowMatchesFilters(r){
+    return regFilters.every(f=>{
+        const fld=REG_FIELDS.find(x=>x.key===f.field); if(!fld) return true;
+        if(fld.type==='bool') return (!!r[f.field]) === (f.value===true||f.value==='true');
+        if(fld.type==='status') return (r.status||'')===f.value;
+        return String(r[f.field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
+    });
+}
 function renderRegistry(){
     const tbl = document.getElementById('regTable');
     if(!tbl) return;
@@ -1213,8 +1287,9 @@ function renderRegistry(){
         <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th></th>
     </tr></thead>`;
     const q=(regSearch||'').trim().toLowerCase();
+    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status].some(v=>String(v||'').toLowerCase().includes(q));
     const rows = registry.map((r,i)=>({r,i}))
-      .filter(({r})=> !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status].some(v=>String(v||'').toLowerCase().includes(q)))
+      .filter(({r})=> textMatch(r) && rowMatchesFilters(r))
       .map(({r,i})=>`<tr>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tp" ${r.tp?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="mt" ${r.mt?'checked':''}></td>
@@ -1228,7 +1303,7 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
         <td><button class="row-del" data-rdel="${i}" title="Törlés">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">${q?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
 }
 function openRegDetail(i){
@@ -1243,19 +1318,23 @@ function openRegDetail(i){
         <div class="modal modal-lg">
             <div class="modal-head">Ügyfél adatlap</div>
             <div class="modal-body">
-                <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
-                <div class="rd-sec">Adatok</div>
-                ${f('eletkor','Életkor')}
-                ${f('telepules','Település')}
-                ${f('miert','Miért gondolt rá')}
-                ${f('lakas','Lakáshelyzet / Családi állapot')}
-                ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
-                ${f('gyerekek','Gyerekek száma / Életkora')}
-                <div class="rd-field"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="3">${esc(r.details.megjegyzes||'')}</textarea></div>
+                <div class="rd-sec" style="margin-top:0;">Adatok</div>
+                <div class="rd-grid">
+                    <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
+                    ${f('eletkor','Életkor')}
+                    ${f('telepules','Település')}
+                    ${f('miert','Miért gondolt rá')}
+                    ${f('lakas','Lakáshelyzet / Családi állapot')}
+                    ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
+                    ${f('gyerekek','Gyerekek száma / Életkora')}
+                </div>
+                <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>
                 <div class="rd-sec">Elemzés / Célok</div>
-                <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="3">${esc(r.celok.rovid||'')}</textarea></div>
-                <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="3">${esc(r.celok.kozep||'')}</textarea></div>
-                <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="3">${esc(r.celok.hosszu||'')}</textarea></div>
+                <div class="rd-grid rd-grid-3">
+                    <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="2">${esc(r.celok.rovid||'')}</textarea></div>
+                    <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
+                    <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
+                </div>
             </div>
             <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
         </div>`;
@@ -1288,6 +1367,7 @@ function openRegDetail(i){
     });
     const searchEl = document.getElementById('regSearch');
     if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
+    renderRegFilters();
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
         if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return; }
