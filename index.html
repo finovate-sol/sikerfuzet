@@ -136,9 +136,34 @@
         .status-sel.status-blue { background:#e8f0fc; color:#1a56b8; border-color:#c5d9f7; }
         .status-sel.status-red { background:#fdeaea; color:#b42318; border-color:#f6c9c5; }
         .status-sel.status-gray { background:#eef1f5; color:#5b6472; border-color:#dde2e9; }
+        .status-sel.status-amber { background:#fef3e2; color:#b45309; border-color:#f6dcae; }
+        .status-sel.status-purple { background:#efeafe; color:#6d28d9; border-color:#dcd0fb; }
         .status-sel { font-weight:600; }
-        .reg-name { background:none; border:none; padding:6px 8px; font-family:inherit; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; text-align:left; width:100%; min-width:130px; border-radius:6px; }
+        .reg-name { background:none; border:none; padding:6px 8px; font-family:inherit; font-size:13px; font-weight:700; color:var(--navy); cursor:pointer; text-align:left; width:100%; min-width:130px; border-radius:6px; }
         .reg-name:hover { background:var(--blue-light); color:var(--blue); }
+        /* Nyilvántartó – új fejléc, eszköztár, lábléc */
+        .reg-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:16px; }
+        .reg-hero-txt h2 { font-size:24px; font-weight:800; color:var(--navy); margin:0 0 4px; }
+        .reg-hero-txt p { font-size:13px; color:var(--muted); margin:0; }
+        .reg-toolbar-card { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; margin-bottom:14px; }
+        .reg-toolbar-card .reg-search { max-width:300px; flex:1; min-width:200px; }
+        .reg-build-wrap { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .reg-tools { display:flex; gap:8px; margin-left:auto; }
+        .reg-tools .btn { display:inline-flex; align-items:center; gap:6px; }
+        .reg-fcount { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--blue); color:#fff; font-size:11px; font-weight:700; }
+        .reg-chips-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .reg-actions { display:flex; gap:6px; justify-content:flex-end; }
+        .reg-ico { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--muted); cursor:pointer; }
+        .reg-ico svg { width:15px; height:15px; }
+        .reg-ico:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
+        .reg-ico-del:hover { border-color:#f6c9c5; color:var(--red); background:#fdeaea; }
+        .reg-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-top:1px solid var(--border); }
+        .reg-foot-count { font-size:13px; color:var(--muted); font-weight:600; }
+        .reg-pager { display:flex; gap:6px; }
+        .reg-page-btn { min-width:34px; height:34px; padding:0 9px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-weight:600; font-size:13px; cursor:pointer; }
+        .reg-page-btn:hover:not(:disabled):not(.active) { background:var(--bg); }
+        .reg-page-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); cursor:default; }
+        .reg-page-btn:disabled { opacity:.4; cursor:not-allowed; }
         .modal.modal-lg { max-width:580px; }
         .modal-lg .modal-body { max-height:74vh; overflow-y:auto; }
         .rd-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
@@ -826,16 +851,24 @@
         <!-- ÜGYFÉL NYILVÁNTARTÓ -->
         <div id="page-ugyfelek" class="page" hidden>
           <div class="page-wrap">
-            <section class="card">
-              <div class="cal-toolbar">
-                <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span>Ügyfél nyilvántartó</h2>
-                <div class="reg-search" style="margin-left:auto;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés mindenre..."></div>
-                <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
+            <div class="reg-hero">
+              <div class="reg-hero-txt"><h2>Ügyfél nyilvántartó</h2><p>Ügyfelek, kapcsolatok és lehetőségek egy helyen</p></div>
+              <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
+            </div>
+            <div class="card reg-toolbar-card">
+              <div class="reg-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés mindenre..."></div>
+              <div class="reg-build-wrap" id="regFilterBar"></div>
+              <div class="reg-tools">
+                <button class="btn" id="regFToggle"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg>Szűrők<span class="reg-fcount" id="regFCount" hidden></span></button>
+                <button class="btn" id="regReset"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
               </div>
-              <div class="reg-filterbar" id="regFilterBar"></div>
-              <div class="card-body" style="overflow-x:auto;">
+            </div>
+            <div class="reg-chips-row" id="regChips" hidden></div>
+            <section class="card">
+              <div class="card-body" style="overflow-x:auto;padding-top:8px;">
                 <table class="reg" id="regTable"></table>
               </div>
+              <div class="reg-foot" id="regFoot"></div>
             </section>
           </div>
         </div>
@@ -1505,13 +1538,12 @@ const REG_FIELDS = [
     {key:'tanacsadas', label:'Tanácsadás', type:'bool'},
 ];
 const REG_STATUS = [
-    ['To-do', ['Telefonra Vár']],
-    ['In progress', ['Folyamatban']],
-    ['Complete', ['Befejezve (MT)','Befejezve (Ügyfél)','Befejezve (Nem MT)','Befejezve (Nem Ügyfél)','Függő (Visszatérni)']],
+    ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés folyamatban','Tanácsadás']],
+    ['Lezárt', ['Lezárt','Inaktív']],
 ];
 const REG_STATUS_COLOR = {
-    'Telefonra Vár':'green', 'Folyamatban':'green', 'Befejezve (MT)':'blue', 'Befejezve (Ügyfél)':'green',
-    'Befejezve (Nem MT)':'red', 'Befejezve (Nem Ügyfél)':'red', 'Függő (Visszatérni)':'gray'
+    'Új':'gray', 'Telefonra Vár':'green', 'Időpont egyeztetve':'blue',
+    'Elemzés folyamatban':'amber', 'Tanácsadás':'purple', 'Lezárt':'red', 'Inaktív':'gray'
 };
 function regStatusSelect(i, val){
     const cls = REG_STATUS_COLOR[val] ? ' status-'+REG_STATUS_COLOR[val] : '';
@@ -1525,30 +1557,35 @@ function regValueControl(fieldKey){
     if(fld.type==='status'){ let o=`<option value="">—</option>`; REG_STATUS.forEach(([g,items])=>{ o+=`<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')+`</optgroup>`; }); return `<select id="regFVal">${o}</select>`; }
     return `<input id="regFVal" type="text" placeholder="érték">`;
 }
+let regChipsOpen = false;
 function renderRegFilters(){
     const bar=document.getElementById('regFilterBar'); if(!bar) return;
     const fieldOpts=REG_FIELDS.map(f=>`<option value="${f.key}">${f.label}</option>`).join('');
-    const chips=regFilters.map((f,i)=>{
-        const fld=REG_FIELDS.find(x=>x.key===f.field);
-        const val=fld&&fld.type==='bool' ? ((f.value===true||f.value==='true')?'Igen':'Nem') : f.value;
-        return `<span class="filter-chip">${fld?fld.label:f.field}: <b>${esc(val)}</b><button data-fdel="${i}" title="Törlés">×</button></span>`;
-    }).join('');
-    bar.innerHTML = `<div class="filter-build">
-        <span style="font-size:12px;color:var(--muted);font-weight:600;">Szűrő:</span>
+    bar.innerHTML = `<span style="font-size:12px;color:var(--muted);font-weight:600;">Szűrő:</span>
         <select id="regFField">${fieldOpts}</select>
         <span id="regFValWrap">${regValueControl(REG_FIELDS[0].key)}</span>
-        <button class="btn" id="regFAdd">+ Hozzáad</button>
-        ${regFilters.length?`<button class="btn" id="regFClear">Összes törlése</button>`:''}
-    </div>${chips?`<div class="filter-chips">${chips}</div>`:''}`;
+        <button class="btn" id="regFAdd">+ Hozzáad</button>`;
     const fieldSel=document.getElementById('regFField');
     fieldSel.addEventListener('change', ()=>{ document.getElementById('regFValWrap').innerHTML=regValueControl(fieldSel.value); });
     document.getElementById('regFAdd').addEventListener('click', ()=>{
         const field=fieldSel.value, valEl=document.getElementById('regFVal'), value=valEl.value;
         if(value==='') return;
-        regFilters.push({field, value}); renderRegFilters(); renderRegistry();
+        regFilters.push({field, value}); regChipsOpen=true; renderRegFilters(); renderRegistry();
     });
-    const clr=document.getElementById('regFClear'); if(clr) clr.addEventListener('click', ()=>{ regFilters=[]; renderRegFilters(); renderRegistry(); });
-    bar.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', ()=>{ regFilters.splice(+b.dataset.fdel,1); renderRegFilters(); renderRegistry(); }));
+    // Aktív szűrő-chipek + számláló
+    const cntEl=document.getElementById('regFCount');
+    if(cntEl){ if(regFilters.length){ cntEl.textContent=regFilters.length; cntEl.hidden=false; } else cntEl.hidden=true; }
+    const chipsRow=document.getElementById('regChips');
+    if(chipsRow){
+        const chips=regFilters.map((f,i)=>{
+            const fld=REG_FIELDS.find(x=>x.key===f.field);
+            const val=fld&&fld.type==='bool' ? ((f.value===true||f.value==='true')?'Igen':'Nem') : f.value;
+            return `<span class="filter-chip">${fld?fld.label:f.field}: <b>${esc(val)}</b><button data-fdel="${i}" title="Törlés">×</button></span>`;
+        }).join('');
+        chipsRow.innerHTML = chips || `<span style="font-size:13px;color:var(--muted);">Nincs aktív szűrő.</span>`;
+        chipsRow.hidden = !regChipsOpen;
+        chipsRow.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', ()=>{ regFilters.splice(+b.dataset.fdel,1); renderRegFilters(); renderRegistry(); }));
+    }
 }
 function rowMatchesFilters(r){
     return regFilters.every(f=>{
@@ -1563,13 +1600,14 @@ function renderRegistry(){
     if(!tbl) return;
     const head = `<thead><tr>
         <th class="chk">TP</th><th class="chk">MT</th><th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
-        <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th></th>
+        <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th style="text-align:right;">Műveletek</th>
     </tr></thead>`;
     const q=(regSearch||'').trim().toLowerCase();
     const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status].some(v=>String(v||'').toLowerCase().includes(q));
-    const rows = registry.map((r,i)=>({r,i}))
-      .filter(({r})=> textMatch(r) && rowMatchesFilters(r))
-      .map(({r,i})=>`<tr>
+    const matched = registry.map((r,i)=>({r,i})).filter(({r})=> textMatch(r) && rowMatchesFilters(r));
+    const editIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+    const delIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+    const rows = matched.map(({r,i})=>`<tr>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tp" ${r.tp?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="mt" ${r.mt?'checked':''}></td>
         <td><button class="reg-name" data-open="${i}">${esc(r.name) || '(névtelen)'}</button></td>
@@ -1581,9 +1619,15 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="elemzes" ${r.elemzes?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
-        <td><button class="row-del" data-rdel="${i}" title="Törlés">🗑</button></td>
+        <td><div class="reg-actions"><button class="reg-ico" data-open="${i}" title="Szerkesztés">${editIco}</button><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${delIco}</button></div></td>
     </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
+    const foot=document.getElementById('regFoot');
+    if(foot){
+        const n=matched.length;
+        foot.innerHTML = `<span class="reg-foot-count">${n?`1–${n} / ${n} találat`:'0 találat'}</span>
+            <div class="reg-pager"><button class="reg-page-btn" disabled>‹</button><button class="reg-page-btn active">1</button><button class="reg-page-btn" disabled>›</button></div>`;
+    }
 }
 function openRegDetail(i){
     const r = registry[i];
@@ -1646,6 +1690,10 @@ function openRegDetail(i){
     });
     const searchEl = document.getElementById('regSearch');
     if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
+    const resetBtn=document.getElementById('regReset');
+    if(resetBtn) resetBtn.addEventListener('click', ()=>{ regSearch=''; regFilters=[]; regChipsOpen=false; if(searchEl) searchEl.value=''; renderRegFilters(); renderRegistry(); });
+    const fToggle=document.getElementById('regFToggle');
+    if(fToggle) fToggle.addEventListener('click', ()=>{ regChipsOpen=!regChipsOpen; renderRegFilters(); });
     renderRegFilters();
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
