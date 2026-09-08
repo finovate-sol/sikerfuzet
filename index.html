@@ -109,6 +109,17 @@
         .page[hidden] { display:none; }
         .page-wrap { padding:26px 28px; }
 
+        /* ===== ÜGYFÉL NYILVÁNTARTÓ ===== */
+        table.reg { width:100%; border-collapse:collapse; min-width:900px; }
+        table.reg th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+        table.reg th.chk, table.reg td.chk { text-align:center; }
+        table.reg td { padding:5px 8px; border-bottom:1px solid #f1f4f8; }
+        table.reg tbody tr:hover { background:#fafbfd; }
+        table.reg td input:not([type="checkbox"]) { width:100%; min-width:110px; padding:6px 8px; border:1px solid transparent; border-radius:6px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
+        table.reg td input:not([type="checkbox"]):hover { border-color:var(--border); }
+        table.reg td input:not([type="checkbox"]):focus { border-color:var(--blue); background:#fff; }
+        table.reg input[type="checkbox"] { width:18px; height:18px; cursor:pointer; accent-color:var(--blue); }
+
         /* ===== HAVI TERV ===== */
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
         @media (max-width:800px){ .havi-grid-fields { grid-template-columns:repeat(2,1fr); } }
@@ -404,6 +415,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
                 Ki lesz a következő
             </a>
+            <a href="#" data-page="ugyfelek">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="2.5" cy="6" r=".6"/><circle cx="2.5" cy="12" r=".6"/><circle cx="2.5" cy="18" r=".6"/></svg>
+                Ügyfelek
+            </a>
             <div class="divider"></div>
             <a href="#" data-page="soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
@@ -604,6 +619,21 @@
                 <span class="cal-date" id="haviMonthLabel"></span>
               </div>
               <div class="card-body" id="haviBody"></div>
+            </section>
+          </div>
+        </div>
+
+        <!-- ÜGYFÉL NYILVÁNTARTÓ -->
+        <div id="page-ugyfelek" class="page" hidden>
+          <div class="page-wrap">
+            <section class="card">
+              <div class="cal-toolbar">
+                <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span>Ügyfél nyilvántartó</h2>
+                <button class="btn primary" id="regAdd" style="margin-left:auto;background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
+              </div>
+              <div class="card-body" style="overflow-x:auto;">
+                <table class="reg" id="regTable"></table>
+              </div>
             </section>
           </div>
         </div>
@@ -1052,8 +1082,9 @@ function updateHaviEgysegCard(){
     if(!t) return;
     const d=loadHavi(new Date());
     const wc=haviWeekRanges(new Date()).length;
-    let cel=0, van=0;
-    for(let w=0;w<wc;w++){ cel+=haviNum(d.weeks[w].cel[6]); van+=haviNum(d.weeks[w].van[6]); }
+    const cel=haviNum(d.celES);          // cél: Célom ES-ben (EH) a havi tervből
+    let van=0;
+    for(let w=0;w<wc;w++){ van+=haviNum(d.weeks[w].van[6]); }   // van: Egység VAN összege
     const pct=cel?Math.min(100,Math.round(van/cel*100)):0;
     t.textContent=`${van} / ${cel} EH`;
     p.textContent=pct+'%';
@@ -1061,6 +1092,52 @@ function updateHaviEgysegCard(){
 }
 updateHaviEgysegCard();
 (function(){ const gh=document.getElementById('goHavi'); if(gh) gh.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="havi"]'); if(l) l.click(); }); })();
+
+// ===== ÜGYFÉL NYILVÁNTARTÓ =====
+let registry = store.load('sf_registry', []);
+function renderRegistry(){
+    const tbl = document.getElementById('regTable');
+    if(!tbl) return;
+    const head = `<thead><tr>
+        <th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
+        <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th></th>
+    </tr></thead>`;
+    const rows = registry.map((r,i)=>`<tr>
+        <td><input data-ri="${i}" data-rf="name" value="${esc(r.name)}" placeholder="Név"></td>
+        <td><input data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></td>
+        <td><input data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}"></td>
+        <td><input data-ri="${i}" data-rf="phone" value="${esc(r.phone)}"></td>
+        <td><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}"></td>
+        <td><input data-ri="${i}" data-rf="status" value="${esc(r.status)}"></td>
+        <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="elemzes" ${r.elemzes?'checked':''}></td>
+        <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
+        <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
+        <td><button class="row-del" data-rdel="${i}" title="Törlés">🗑</button></td>
+    </tr>`).join('') || `<tr><td colspan="10" style="color:var(--muted);padding:24px;text-align:center;">Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.</td></tr>`;
+    tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
+}
+(function(){
+    const tbl = document.getElementById('regTable');
+    if(!tbl) return;
+    tbl.addEventListener('input', e=>{
+        const t=e.target;
+        if(t.dataset.ri===undefined || t.type==='checkbox') return;
+        registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry);
+    });
+    tbl.addEventListener('change', e=>{
+        const t=e.target;
+        if(t.type==='checkbox' && t.dataset.ri!==undefined){ registry[+t.dataset.ri][t.dataset.rf]=t.checked; store.save('sf_registry', registry); }
+    });
+    tbl.addEventListener('click', e=>{
+        const d=e.target.closest('[data-rdel]');
+        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); }
+    });
+    document.getElementById('regAdd').addEventListener('click', ()=>{
+        registry.push({ name:'', munkatars:'', ajanlo:'', phone:'', lakhely:'', status:'', elemzes:false, portal:false, tanacsadas:false });
+        store.save('sf_registry', registry); renderRegistry();
+    });
+    renderRegistry();
+})();
 
 // A modul-script hívja meg, amikor a megosztott config (név, rangok) megérkezett
 window.sfOnConfig = function(){
