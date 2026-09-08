@@ -13,8 +13,8 @@ import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
 export { isConfigured };
 
-// A naptárhoz szükséges (csak olvasás) jogosultság.
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+// A naptárhoz szükséges jogosultság: események olvasása ÉS létrehozása.
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 // Ebbe a kollekcióba kerülnek a belépni jogosult emailek (doc-id = email).
 const ALLOWLIST = "allowed_users";
 
