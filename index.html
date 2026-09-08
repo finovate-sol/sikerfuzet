@@ -132,6 +132,21 @@
         table.havi input:focus { border-color:var(--blue); }
         .havi-diff.neg { color:var(--red); font-weight:700; }
         .havi-diff.pos { color:var(--green); font-weight:700; }
+        .havi-top { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:22px; }
+        .havi-block { border:1px solid var(--border); border-radius:12px; padding:16px; background:#fbfcfe; }
+        .havi-block-title { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+        .havi-block .havi-grid-fields { grid-template-columns:repeat(2,1fr); margin-bottom:0; }
+        .havi-block--team .havi-grid-fields { grid-template-columns:1fr; }
+        .havi-main2 { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+        @media (max-width:1000px){ .havi-top { grid-template-columns:1fr; } .havi-main2 { grid-template-columns:1fr; } }
+        .havi-clients { border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+        .havi-clients-head { padding:12px 14px; border-bottom:1px solid var(--border); font-weight:700; color:var(--navy); display:flex; align-items:center; justify-content:space-between; }
+        .havi-cl-row { display:flex; gap:8px; align-items:center; padding:8px 12px; border-bottom:1px solid #f1f4f8; }
+        .havi-cl-row input { padding:7px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; outline:none; }
+        .havi-cl-row input:focus { border-color:var(--blue); }
+        .havi-cl-row input.cln { flex:1; min-width:0; }
+        .havi-cl-row input.clu { width:66px; text-align:center; }
+        .havi-cl-total { padding:12px 14px; font-weight:700; color:var(--navy); display:flex; justify-content:space-between; background:#fbfcfe; }
 
         /* ===== CARD ===== */
         .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -317,6 +332,8 @@
         .ni-hero.past .ni-big-text { color:var(--red); }
         .ni-hero.today .ni-big-text { color:#b45309; }
         .ni-big-date { font-size:12px; color:var(--muted); margin-top:3px; font-weight:500; }
+        .ni-phase { margin-top:12px; font-size:13px; color:var(--navy); font-weight:600; }
+        .ni-phase-badge { display:inline-block; background:var(--blue-light); color:var(--blue); font-weight:800; font-size:12px; padding:3px 9px; border-radius:20px; margin-right:8px; }
         .next-info-card label { display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
         .next-info-card input[type="datetime-local"] {
             width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
@@ -404,6 +421,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
             </button>
         </div>
+        <div id="adminPanel" hidden style="padding:12px 16px; border-top:1px solid rgba(255,255,255,.09);">
+            <button class="su-logout" id="adminInfoBtn" style="width:100%; justify-content:center; gap:8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                INFO időpontok
+            </button>
+        </div>
     </aside>
 
     <!-- ===== MAIN ===== -->
@@ -428,6 +451,7 @@
                             <button data-view="week" class="active">Hét</button>
                             <button data-view="month">Hónap</button>
                             <button data-view="agenda">Napló</button>
+                            <button data-view="clients">Ügyfelek</button>
                         </div>
                         <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" style="margin-left:12px;">Megnyitás a Google Naptárban ↗</a>
                     </div>
@@ -513,10 +537,7 @@
                                 <div class="ni-big-date" id="niBigDate"></div>
                             </div>
                         </div>
-                        <div class="ni-body">
-                            <label for="nextInfo">Következő INFO időpontja</label>
-                            <input type="datetime-local" id="nextInfo">
-                        </div>
+                        <div class="ni-phase" id="niPhase"></div>
                     </div>
                 </section>
 
@@ -852,29 +873,7 @@ window.sfMarkResult = function(list, index){
     if(list === 'money') renderMoney(); else renderCareer();
 };
 
-// ===== NEXT INFO DATE =====
-const nextInfoEl = document.getElementById('nextInfo');
-nextInfoEl.value = store.load('sf_nextInfo', '2025-09-15T18:00');
-function updateNextInfoCountdown(){
-    const num = document.getElementById('niBigNum');
-    const txt = document.getElementById('niBigText');
-    const hero = document.getElementById('niHero');
-    const dateEl = document.getElementById('niBigDate');
-    if(!num || !txt || !hero) return;
-    const val = nextInfoEl.value;
-    if(!val){ num.textContent='–'; txt.textContent='nincs időpont'; hero.className='ni-hero'; if(dateEl) dateEl.textContent=''; return; }
-    const target = new Date(val);
-    const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-    const diff = Math.round((startOfDay(target) - startOfDay(new Date())) / 86400000);
-    if(diff > 0){ num.textContent = diff; txt.textContent = (diff === 1 ? 'nap az INFO-ig (holnap)' : 'nap az INFO-ig'); hero.className = 'ni-hero'; }
-    else if(diff === 0){ num.textContent = 'Ma'; txt.textContent = 'van az INFO!'; hero.className = 'ni-hero today'; }
-    else { num.textContent = Math.abs(diff); txt.textContent = (diff === -1 ? 'napja volt (tegnap)' : 'napja volt'); hero.className = 'ni-hero past'; }
-    const HM = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
-    const p = n => String(n).padStart(2,'0');
-    if(dateEl) dateEl.textContent = `${target.getFullYear()}. ${HM[target.getMonth()]} ${target.getDate()}. ${p(target.getHours())}:${p(target.getMinutes())}`;
-}
-nextInfoEl.addEventListener('change', ()=>{ store.save('sf_nextInfo', nextInfoEl.value); updateNextInfoCountdown(); });
-updateNextInfoCountdown();
+// (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
@@ -902,7 +901,8 @@ function haviKey(d){ return `sf_havi_${d.getFullYear()}_${d.getMonth()}`; }
 function blankHavi(){
     return { nev:"", rang:"", celPenz:"", celES:"", csapatFt:"", csapatEH:"",
         formula: Array(8).fill(""),
-        weeks: Array.from({length:6}, () => ({ cel:Array(8).fill(""), van:Array(8).fill("") })) };
+        weeks: Array.from({length:6}, () => ({ cel:Array(8).fill(""), van:Array(8).fill("") })),
+        clients: [] };
 }
 function loadHavi(d){
     const raw = store.load(haviKey(d), null);
@@ -915,6 +915,7 @@ function loadHavi(d){
         const rw=raw.weeks[w]||{};
         for(let i=0;i<8;i++){ b.weeks[w].cel[i]=(rw.cel&&rw.cel[i])??""; b.weeks[w].van[i]=(rw.van&&rw.van[i])??""; }
     }
+    if(Array.isArray(raw.clients)) b.clients = raw.clients.map(c=>({ name:(c&&c.name)||"", units:(c&&c.units)||"" }));
     return b;
 }
 function saveHavi(){ store.save(haviKey(haviAnchor), haviData); }
@@ -945,32 +946,61 @@ function renderHavi(){
     haviWeekCount = ranges.length;
     const th=['<th></th>'].concat(HAVI_METRICS.map(m=>`<th>${m}</th>`)).join('');
     const field=(id,label,val)=>`<div class="havi-field"><label>${label}</label><input data-hf="${id}" value="${esc(val)}"></div>`;
-    let html='';
-    html+=`<div class="havi-grid-fields">
-        ${field('nev','Név',haviData.nev)}
-        ${field('rang','Rang',haviData.rang)}
-        ${field('celPenz','Célom pénzben (Ft)',haviData.celPenz)}
-        ${field('celES','Célom ES-ben (EH)',haviData.celES)}
-        ${field('csapatFt','Csapat (Ft)',haviData.csapatFt)}
-        ${field('csapatEH','Csapat (EH)',haviData.csapatEH)}
+    const topHtml = `<div class="havi-top">
+        <div class="havi-block">
+            <div class="havi-block-title">Saját</div>
+            <div class="havi-grid-fields">
+                ${field('nev','Név',haviData.nev)}
+                ${field('rang','Rang',haviData.rang)}
+                ${field('celPenz','Célom pénzben (Ft)',haviData.celPenz)}
+                ${field('celES','Célom ES-ben (EH)',haviData.celES)}
+            </div>
+        </div>
+        <div class="havi-block havi-block--team">
+            <div class="havi-block-title">Csapat</div>
+            <div class="havi-grid-fields">
+                ${field('csapatFt','Csapat cél (Ft)',haviData.csapatFt)}
+                ${field('csapatEH','Csapat egység (EH)',haviData.csapatEH)}
+            </div>
+        </div>
     </div>`;
-    html+=`<div class="havi-section-title">Történelmi teljesítményképlet</div>`;
-    html+=`<div class="havi-formula">`+HAVI_METRICS.map((m,i)=>`<div class="fbox"><label>${m}</label><input type="number" data-hformula="${i}" value="${esc(haviData.formula[i])}"></div>`).join('')+`</div>`;
-    html+=`<div class="havi-section-title">Heti bontás</div>`;
-    html+=`<div class="havi-table-wrap"><table class="havi"><thead><tr>${th}</tr></thead><tbody>`;
+
+    let left=`<div class="havi-section-title">Történelmi teljesítményképlet</div>`;
+    left+=`<div class="havi-formula">`+HAVI_METRICS.map((m,i)=>`<div class="fbox"><label>${m}</label><input type="number" data-hformula="${i}" value="${esc(haviData.formula[i])}"></div>`).join('')+`</div>`;
+    left+=`<div class="havi-section-title">Heti bontás</div>`;
+    left+=`<div class="havi-table-wrap"><table class="havi"><thead><tr>${th}</tr></thead><tbody>`;
     for(let w=0;w<haviWeekCount;w++){
-        html+=`<tr class="wk-sep"><td colspan="9">${w+1}. hét — ${ranges[w]}</td></tr>`;
-        html+=`<tr><td>CÉL</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(haviData.weeks[w].cel[i])}"></td>`).join('')+`</tr>`;
-        html+=`<tr><td>VAN</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"></td>`).join('')+`</tr>`;
-        html+=`<tr><td>Diff</td>`+HAVI_METRICS.map((m,i)=>`<td><span class="havi-diff" id="hdiff-${w}-${i}"></span></td>`).join('')+`</tr>`;
+        left+=`<tr class="wk-sep"><td colspan="9">${w+1}. hét — ${ranges[w]}</td></tr>`;
+        left+=`<tr><td>CÉL</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(haviData.weeks[w].cel[i])}"></td>`).join('')+`</tr>`;
+        left+=`<tr><td>VAN</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"></td>`).join('')+`</tr>`;
+        left+=`<tr><td>Diff</td>`+HAVI_METRICS.map((m,i)=>`<td><span class="havi-diff" id="hdiff-${w}-${i}"></span></td>`).join('')+`</tr>`;
     }
-    html+=`<tr class="wk-sep"><td colspan="9">ÖSSZESEN</td></tr>`;
-    html+=`<tr><td>CÉL</td>`+HAVI_METRICS.map((m,i)=>`<td><span id="htotcel-${i}"></span></td>`).join('')+`</tr>`;
-    html+=`<tr><td>VAN</td>`+HAVI_METRICS.map((m,i)=>`<td><span id="htotvan-${i}"></span></td>`).join('')+`</tr>`;
-    html+=`<tr><td>Diff</td>`+HAVI_METRICS.map((m,i)=>`<td><span class="havi-diff" id="htotdiff-${i}"></span></td>`).join('')+`</tr>`;
-    html+=`</tbody></table></div>`;
-    body.innerHTML=html;
+    left+=`<tr class="wk-sep"><td colspan="9">ÖSSZESEN</td></tr>`;
+    left+=`<tr><td>CÉL</td>`+HAVI_METRICS.map((m,i)=>`<td><span id="htotcel-${i}"></span></td>`).join('')+`</tr>`;
+    left+=`<tr><td>VAN</td>`+HAVI_METRICS.map((m,i)=>`<td><span id="htotvan-${i}"></span></td>`).join('')+`</tr>`;
+    left+=`<tr><td>Diff</td>`+HAVI_METRICS.map((m,i)=>`<td><span class="havi-diff" id="htotdiff-${i}"></span></td>`).join('')+`</tr>`;
+    left+=`</tbody></table></div>`;
+
+    const rows=(haviData.clients||[]).map((c,i)=>`<div class="havi-cl-row">
+        <input class="cln" data-cl="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Ügyfél neve">
+        <input class="clu" type="number" data-cl="${i}" data-clf="units" value="${esc(c.units)}" placeholder="EH">
+        <button class="row-del" data-cldel="${i}" title="Törlés">🗑</button>
+    </div>`).join('');
+    const right=`<div class="havi-clients">
+        <div class="havi-clients-head"><span>Tervezett ügyfelek</span><span style="font-size:12px;color:var(--muted);font-weight:600;">EH</span></div>
+        <div id="haviClientRows">${rows || '<div style="padding:14px;color:var(--muted);font-size:13px;">Nincs ügyfél.</div>'}</div>
+        <div style="padding:10px 12px;"><button class="add-row" id="haviClientAdd">+ Ügyfél hozzáadása</button></div>
+        <div class="havi-cl-total"><span>Összes tervezett</span><span id="haviClientTotal">0 EH</span></div>
+    </div>`;
+
+    body.innerHTML = topHtml + `<div class="havi-main2"><div class="havi-left">${left}</div><div class="havi-right">${right}</div></div>`;
     recomputeHavi();
+    recomputeHaviClients();
+}
+function recomputeHaviClients(){
+    const el=document.getElementById('haviClientTotal'); if(!el) return;
+    let sum=0; (haviData.clients||[]).forEach(c=>sum+=haviNum(c.units));
+    el.textContent=sum+' EH';
 }
 function recomputeHavi(){
     for(let i=0;i<8;i++){
@@ -991,6 +1021,13 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(t.dataset.hf!==undefined){ haviData[t.dataset.hf]=t.value; saveHavi(); return; }
     if(t.dataset.hformula!==undefined){ haviData.formula[+t.dataset.hformula]=t.value; saveHavi(); return; }
     if(t.dataset.hw!==undefined){ haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm]=t.value; saveHavi(); recomputeHavi(); updateHaviEgysegCard(); return; }
+    if(t.dataset.cl!==undefined){ haviData.clients[+t.dataset.cl][t.dataset.clf]=t.value; saveHavi(); recomputeHaviClients(); return; }
+});
+document.getElementById('haviBody').addEventListener('click', e=>{
+    const del=e.target.closest('[data-cldel]');
+    const add=e.target.closest('#haviClientAdd');
+    if(del){ haviData.clients.splice(+del.dataset.cldel,1); saveHavi(); renderHavi(); return; }
+    if(add){ if(!Array.isArray(haviData.clients)) haviData.clients=[]; haviData.clients.push({name:'',units:''}); saveHavi(); renderHavi(); return; }
 });
 document.getElementById('haviPrev').addEventListener('click', ()=>{ haviAnchor=new Date(haviAnchor.getFullYear(), haviAnchor.getMonth()-1, 1); renderHavi(); });
 document.getElementById('haviNext').addEventListener('click', ()=>{ haviAnchor=new Date(haviAnchor.getFullYear(), haviAnchor.getMonth()+1, 1); renderHavi(); });
@@ -1015,7 +1052,7 @@ updateHaviEgysegCard();
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, getAppConfig, saveInfoDates, isAdmin } from "./auth.js";
 
     function initials(name, email){
         const src = (name || email || "?").trim();
@@ -1033,7 +1070,85 @@ updateHaviEgysegCard();
         if (avatarEl) avatarEl.textContent = initials(user.displayName, user.email);
         if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
         initCalendar();
+        getAppConfig().then(cfg => {
+            const dates = (cfg && cfg.infoDates) || [];
+            updateInfoCard(dates);
+            if (isAdmin(user)) setupAdminPanel(dates);
+        });
     });
+
+    // ===== KÖVETKEZŐ INFO KÁRTYA + ADMIN =====
+    const PHASE_LABELS = ["Potenciál Gyűjtés", "Potenciál Gyűjtés / Felvételi Egyeztetés", "Felvételi Egyeztetés / Felvételi", "Felvételi / Info"];
+    function mondayOf(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
+    let currentInfoDates = [];
+
+    function updateInfoCard(infoDates){
+        currentInfoDates = infoDates || [];
+        const num=document.getElementById("niBigNum"), txt=document.getElementById("niBigText"),
+              dateEl=document.getElementById("niBigDate"), hero=document.getElementById("niHero"),
+              phaseEl=document.getElementById("niPhase");
+        if(!num || !hero) return;
+        const dates = currentInfoDates.map(s => new Date(String(s).length<=10 ? s+"T18:00:00" : s)).filter(d => !isNaN(d)).sort((a,b)=>a-b);
+        if(!dates.length){ num.textContent="–"; txt.textContent="Nincs INFO időpont beállítva"; hero.className="ni-hero"; if(dateEl) dateEl.textContent=""; if(phaseEl) phaseEl.textContent=""; return; }
+        const now = new Date();
+        const next = dates.find(d => d >= now) || dates[dates.length-1];
+        const sod = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
+        const diff = Math.round((sod(next)-sod(now))/86400000);
+        if(diff > 0){ num.textContent=diff; txt.textContent=(diff===1?"nap az INFO-ig (holnap)":"nap az INFO-ig"); hero.className="ni-hero"; }
+        else if(diff === 0){ num.textContent="Ma"; txt.textContent="van az INFO!"; hero.className="ni-hero today"; }
+        else { num.textContent=Math.abs(diff); txt.textContent="napja volt"; hero.className="ni-hero past"; }
+        const HM=["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
+        if(dateEl) dateEl.textContent = `${next.getFullYear()}. ${HM[next.getMonth()]} ${next.getDate()}.`;
+        // Heti szakasz: a legközelebbi info hetéhez viszonyítva (info = 4. hét)
+        const ref = dates.reduce((best,d)=> Math.abs(d-now) < Math.abs(best-now) ? d : best, dates[0]);
+        const dw = Math.round((mondayOf(ref)-mondayOf(now))/(7*86400000));
+        const m = ((dw%4)+4)%4;
+        const phase = m===0 ? 4 : (4-m);
+        if(phaseEl) phaseEl.innerHTML = `<span class="ni-phase-badge">${phase}. hét</span>${PHASE_LABELS[phase-1]}`;
+    }
+
+    function setupAdminPanel(dates){
+        const panel = document.getElementById("adminPanel");
+        const btn = document.getElementById("adminInfoBtn");
+        if(!panel || !btn) return;
+        panel.hidden = false;
+        btn.onclick = () => openInfoDatesModal(currentInfoDates.slice());
+    }
+
+    function openInfoDatesModal(dates){
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        const rowsHtml = () => dates.map((d,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <input type="date" data-idx="${i}" value="${escM(String(d).slice(0,10))}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
+            <button class="row-del" data-del="${i}" title="Törlés">🗑</button></div>`).join("") || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont felvéve.</div>`;
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:420px;">
+                <div class="modal-head">INFO időpontok (admin)</div>
+                <div class="modal-body">
+                    <div id="idList">${rowsHtml()}</div>
+                    <button class="add-row" id="idAdd">+ Új időpont</button>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn" id="idCancel">Mégse</button>
+                    <button class="btn primary" id="idSave">Mentés</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const list = overlay.querySelector("#idList");
+        const rerender = () => { list.innerHTML = rowsHtml(); };
+        const close = () => overlay.remove();
+        overlay.addEventListener("click", e => { if(e.target === overlay) close(); });
+        overlay.querySelector("#idCancel").addEventListener("click", close);
+        list.addEventListener("input", e => { if(e.target.dataset.idx !== undefined) dates[+e.target.dataset.idx] = e.target.value; });
+        list.addEventListener("click", e => { const d=e.target.closest("[data-del]"); if(d){ dates.splice(+d.dataset.del,1); rerender(); } });
+        overlay.querySelector("#idAdd").addEventListener("click", () => { dates.push(""); rerender(); });
+        overlay.querySelector("#idSave").addEventListener("click", async e => {
+            const clean = dates.map(x=>String(x||"").slice(0,10)).filter(Boolean).sort();
+            e.currentTarget.disabled = true;
+            try { await saveInfoDates(clean); updateInfoCard(clean); close(); }
+            catch(err){ alert("Nem sikerült menteni: " + (err.message||err)); e.currentTarget.disabled = false; }
+        });
+    }
 
     // ===================== GOOGLE NAPTÁR =====================
     const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
@@ -1304,12 +1419,12 @@ updateHaviEgysegCard();
     }
 
     // ===== NAPLÓ (agenda) nézet =====
-    function renderAgenda(grid, now, events){
+    function renderAgenda(grid, now, events, emptyMsg){
         const items = events.map(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
             return { ev, ds, allDay: !ev.start.dateTime };
         }).sort((a,b)=>a.ds-b.ds);
-        if (!items.length){ grid.innerHTML = `<div class="ag-empty">Nincs esemény ezen a héten.</div>`; return; }
+        if (!items.length){ grid.innerHTML = `<div class="ag-empty">${emptyMsg || "Nincs esemény ezen a héten."}</div>`; return; }
         let html = '<div class="ag-list">', curKey = "";
         items.forEach(({ev,ds,allDay}) => {
             const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
@@ -1492,7 +1607,7 @@ updateHaviEgysegCard();
             const f = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
             rangeStart = startOfWeek(f); rangeEnd = addDays(rangeStart, 42);
             if (dateLabel) dateLabel.textContent = fmtMonth(viewAnchor);
-        } else if (viewMode === "agenda"){
+        } else if (viewMode === "agenda" || viewMode === "clients"){
             rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         } else {   // week
@@ -1511,6 +1626,10 @@ updateHaviEgysegCard();
             const events = await fetchEvents(token, rangeStart, rangeEnd);
             if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events);
             else if (viewMode === "month") renderMonth(grid, now, events);
+            else if (viewMode === "clients"){
+                const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
+                renderAgenda(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")), "Nincs ügyfél-időpont ezen a héten.");
+            }
             else renderAgenda(grid, now, events);
         } catch (e){
             if (e.status === 401 || e.status === 403){
