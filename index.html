@@ -601,7 +601,7 @@ function renderMoney(){
             <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
         </tr>`).join('') + `<tr><td colspan="3"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
     } else {
-        tb.innerHTML = money.length ? money.map(c=>`<tr draggable="true" data-name="${esc(c.name)}" title="Húzd a naptárba">
+        tb.innerHTML = money.length ? money.map((c,i)=>`<tr draggable="true" data-name="${esc(c.name)}" data-list="money" data-index="${i}" title="Húzd a naptárba">
             <td><strong>${esc(c.name)}</strong></td><td class="phone">${esc(c.phone)}</td>
             <td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
             : `<tr><td colspan="3" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
@@ -618,7 +618,7 @@ function renderCareer(){
             <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
         </tr>`).join('') + `<tr><td colspan="4"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
     } else {
-        tb.innerHTML = career.length ? career.map(c=>`<tr draggable="true" data-name="${esc(c.name)}" title="Húzd a naptárba">
+        tb.innerHTML = career.length ? career.map((c,i)=>`<tr draggable="true" data-name="${esc(c.name)}" data-list="career" data-index="${i}" title="Húzd a naptárba">
             <td><strong>${esc(c.name)}</strong></td><td><span class="mt-badge">${esc(c.mt)}</span></td>
             <td class="phone">${esc(c.phone)}</td><td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
             : `<tr><td colspan="4" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
@@ -700,12 +700,22 @@ function enableRowDrag(tbodyId){
     el.addEventListener('dragstart', e=>{
         const tr = e.target.closest('tr[data-name]');
         if(!tr){ return; }
-        e.dataTransfer.setData('text/plain', tr.dataset.name);
+        const payload = { name: tr.dataset.name, list: tr.dataset.list, index: +tr.dataset.index };
+        e.dataTransfer.setData('text/plain', JSON.stringify(payload));
         e.dataTransfer.effectAllowed = 'copy';
     });
 }
 enableRowDrag('moneyTable');
 enableRowDrag('careerTable');
+
+// A naptárba mentés után az adott sor eredményét "sikeres"-re állítjuk.
+window.sfMarkResult = function(list, index){
+    const arr = list === 'money' ? money : (list === 'career' ? career : null);
+    if(!arr || !arr[index]) return;
+    arr[index].res = 'ok';
+    store.save(list === 'money' ? 'sf_money' : 'sf_career', arr);
+    if(list === 'money') renderMoney(); else renderCareer();
+};
 
 // ===== NEXT INFO DATE =====
 const nextInfoEl = document.getElementById('nextInfo');
@@ -870,17 +880,19 @@ renderMoney(); renderCareer(); renderInfo();
         canvas.addEventListener("drop", e => {
             e.preventDefault();
             canvas.classList.remove("drop-hover");
-            const name = (e.dataTransfer.getData("text/plain") || "").trim();
+            const raw = e.dataTransfer.getData("text/plain") || "";
+            let payload; try { payload = JSON.parse(raw); } catch(_) { payload = { name: raw }; }
+            const name = (payload.name || "").trim();
             if (!name || !currentWeekStart) return;
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left, y = e.clientY - rect.top;
             const idx = Math.min(6, Math.max(0, Math.floor(x / (rect.width / 7))));
             let minutes = START_H * 60 + (y / ROW) * 60;
-            minutes = Math.round(minutes / 30) * 30;               // 30 perces rácsra igazítás
+            minutes = Math.round(minutes / 15) * 15;               // 15 perces rácsra igazítás
             const start = addDays(currentWeekStart, idx);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
-            openEventModal(name, start);
+            openEventModal(name, start, payload.list, payload.index);
         });
     }
 
@@ -912,7 +924,7 @@ renderMoney(); renderCareer(); renderInfo();
         return res.json();
     }
 
-    function openEventModal(name, start){
+    function openEventModal(name, start, srcList, srcIndex){
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         const optionsHtml = EVENT_TYPES.map((t,i) => `<option value="${i}">${t.label}</option>`).join("");
@@ -922,7 +934,7 @@ renderMoney(); renderCareer(); renderInfo();
                 <div class="modal-body">
                     <div><label>Ügyfél</label><div class="modal-client">${escM(name)}</div></div>
                     <div><label for="evType">Esemény típusa</label><select id="evType">${optionsHtml}</select></div>
-                    <div id="evUnitWrap" hidden><label for="evUnit">Hány egységre számítasz?</label><input id="evUnit" type="number" min="0" step="0.5" value="1"></div>
+                    <div id="evUnitWrap" hidden><label for="evUnit">Hány egységre számítasz? (EH)</label><input id="evUnit" type="number" min="0" step="1" value="100"></div>
                     <div><label for="evStart">Időpont</label><input id="evStart" type="datetime-local"></div>
                     <div><label for="evDur">Időtartam (perc)</label><input id="evDur" type="number" min="15" step="15" value="60"></div>
                 </div>
@@ -952,15 +964,17 @@ renderMoney(); renderCareer(); renderInfo();
             const type = EVENT_TYPES[+typeSel.value];
             const when = startInput.value ? new Date(startInput.value) : start;
             const durationMin = Math.max(15, parseInt(durInput.value, 10) || 60);
-            const summary = `${name} (${type.suffix})`;
-            let description = "";
+            let summary = `${name} (${type.suffix})`;
+            const description = "";
             if (type.unit){
                 const u = overlay.querySelector("#evUnit").value;
-                description = "Várható egység: " + (u === "" ? "0" : u);
+                summary += ` - ${(u === "" ? "0" : u)} EH`;
             }
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
                 await createCalendarEvent({ summary, description, start: when, durationMin });
+                // A forrás-sor eredménye legyen "sikeres" (✓)
+                if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
                 initCalendar();                                 // frissítés, hogy megjelenjen az új esemény
             } catch (e){
