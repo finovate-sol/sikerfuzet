@@ -202,6 +202,21 @@
         table.eves input:hover { border-color:var(--border); }
         table.eves input:focus { border-color:var(--blue); background:#fff; }
 
+        /* ===== KI LESZ A KÖVETKEZŐ ===== */
+        .kov-idopont { margin-bottom:16px; max-width:340px; }
+        .kov-idopont label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+        .kov-idopont input { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; outline:none; }
+        .kov-idopont input:focus { border-color:var(--blue); }
+        .kov-table-wrap { overflow-x:auto; }
+        table.kov { border-collapse:collapse; width:100%; }
+        table.kov th, table.kov td { border:1px solid var(--border); padding:4px 6px; text-align:center; font-size:12px; }
+        table.kov thead th { background:#f5f7fa; color:var(--navy); font-weight:700; }
+        table.kov th.chk, table.kov td.chk { min-width:34px; }
+        table.kov td input:not([type=checkbox]) { width:100%; min-width:120px; padding:5px 7px; border:1px solid transparent; border-radius:5px; font-size:12px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
+        table.kov td input:not([type=checkbox]):hover { border-color:var(--border); }
+        table.kov td input:not([type=checkbox]):focus { border-color:var(--blue); background:#fff; }
+        table.kov input[type=checkbox] { width:16px; height:16px; accent-color:var(--blue); cursor:pointer; }
+
         /* ===== CARD ===== */
         .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
         .card-head { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--border); }
@@ -455,7 +470,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
                 Havi Terv
             </a>
-            <a href="#" data-page="soon">
+            <a href="#" data-page="kovetkezo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
                 Ki lesz a következő
             </a>
@@ -655,6 +670,22 @@
                 <span class="cal-date" id="haviMonthLabel"></span>
               </div>
               <div class="card-body" id="haviBody"></div>
+            </section>
+          </div>
+        </div>
+
+        <!-- KI LESZ A KÖVETKEZŐ -->
+        <div id="page-kovetkezo" class="page" hidden>
+          <div class="page-wrap">
+            <section class="card">
+              <div class="cal-toolbar">
+                <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Ki lesz a következő</h2>
+                <button class="btn" id="kovToday">Aktuális negyedév</button>
+                <button class="btn icon-btn" id="kovPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+                <button class="btn icon-btn" id="kovNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+                <span class="cal-date" id="kovQLabel"></span>
+              </div>
+              <div class="card-body" id="kovBody"></div>
             </section>
           </div>
         </div>
@@ -951,6 +982,7 @@ renderMoney(); renderCareer(); renderInfo();
         a.classList.add('active');
         if(p === 'havi') renderHavi();
         if(p === 'eves') renderEves();
+        if(p === 'kovetkezo') renderKov();
     }));
 })();
 
@@ -1172,6 +1204,80 @@ document.getElementById('evesBody').addEventListener('input', e=>{
 document.getElementById('evesPrev').addEventListener('click', ()=>{ evesAnchor--; renderEves(); });
 document.getElementById('evesNext').addEventListener('click', ()=>{ evesAnchor++; renderEves(); });
 document.getElementById('evesToday').addEventListener('click', ()=>{ evesAnchor=new Date().getFullYear(); renderEves(); });
+
+// ===== KI LESZ A KÖVETKEZŐ =====
+const ELO_COLS = [50,100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
+const ESELY_GROUPS = [
+    {key:'sajat', label:'Saját történelmi ES', cols:[500,750,1000]},
+    {key:'m1', label:'Munkatárs 1', cols:[100,200,300]},
+    {key:'m2', label:'Munkatárs 2', cols:[100,200,300]},
+    {key:'m3', label:'Munkatárs 3', cols:[100,200,300]},
+    {key:'m4', label:'Munkatárs 4', cols:[100,200,300]},
+    {key:'m5', label:'Munkatárs 5', cols:[100,200,300]},
+];
+const ROMAN = ['I','II','III','IV'];
+let kovAnchor = { year:new Date().getFullYear(), q: Math.floor(new Date().getMonth()/3)+1 };
+let kovData = null;
+function kovKey(){ return `sf_kov_${kovAnchor.year}_Q${kovAnchor.q}`; }
+function blankKov(){ return { idopont:'', elo:[], esely:[] }; }
+function loadKov(){
+    const raw=store.load(kovKey(), null); const b=blankKov();
+    if(raw){ b.idopont=raw.idopont||'';
+        if(Array.isArray(raw.elo)) b.elo=raw.elo.map(r=>({resztvevo:r.resztvevo||'',vezeto:r.vezeto||'',m:Object.assign({},r.m)}));
+        if(Array.isArray(raw.esely)) b.esely=raw.esely.map(r=>({resztvevo:r.resztvevo||'',m:Object.assign({},r.m)}));
+    }
+    return b;
+}
+function saveKov(){ store.save(kovKey(), kovData); }
+function kovShift(d){ let q=kovAnchor.q+d, y=kovAnchor.year; while(q<1){q+=4;y--;} while(q>4){q-=4;y++;} kovAnchor={year:y,q}; }
+function renderKov(){
+    const body=document.getElementById('kovBody'); if(!body) return;
+    kovData=loadKov();
+    document.getElementById('kovQLabel').textContent=`${kovAnchor.year}. ${ROMAN[kovAnchor.q-1]}. negyedév`;
+    let html=`<div class="kov-idopont"><label>Időpont</label><input id="kovIdopont" value="${esc(kovData.idopont)}" placeholder="pl. 2022.04.23 – 24"></div>`;
+    html+=`<div class="havi-section-title">Előkészítőszeminárium</div>`;
+    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th>Résztvevő</th><th>Vezető</th>`+ELO_COLS.map(c=>`<th class="chk">${c}</th>`).join('')+`<th></th></tr></thead><tbody>`;
+    html+= kovData.elo.length ? kovData.elo.map((r,i)=>`<tr>
+        <td><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}"></td>
+        <td><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}"></td>`
+        +ELO_COLS.map(c=>`<td class="chk"><input type="checkbox" data-ke="elo" data-ki="${i}" data-kc="${c}" ${r.m&&r.m[c]?'checked':''}></td>`).join('')
+        +`<td><button class="row-del" data-kdel="elo:${i}" title="Törlés">🗑</button></td></tr>`).join('')
+        : `<tr><td colspan="${ELO_COLS.length+3}" style="color:var(--muted);padding:12px;">Nincs résztvevő.</td></tr>`;
+    html+=`</tbody></table></div><button class="add-row" id="kovAddElo" style="margin-top:8px;max-width:220px;">+ Résztvevő</button>`;
+    html+=`<div class="havi-section-title">Esélyszeminárium</div>`;
+    const h1=`<tr><th rowspan="2">Résztvevő</th>`+ESELY_GROUPS.map(g=>`<th colspan="${g.cols.length}" class="kov-grp">${g.label}</th>`).join('')+`<th rowspan="2"></th></tr>`;
+    const h2=`<tr>`+ESELY_GROUPS.map(g=>g.cols.map(c=>`<th class="chk">${c}</th>`).join('')).join('')+`</tr>`;
+    const esCols=ESELY_GROUPS.reduce((s,g)=>s+g.cols.length,0);
+    html+=`<div class="kov-table-wrap"><table class="kov"><thead>${h1}${h2}</thead><tbody>`;
+    html+= kovData.esely.length ? kovData.esely.map((r,i)=>`<tr>
+        <td><input data-ke="esely" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}"></td>`
+        +ESELY_GROUPS.map(g=>g.cols.map(c=>{const k=g.key+'_'+c; return `<td class="chk"><input type="checkbox" data-ke="esely" data-ki="${i}" data-kc="${k}" ${r.m&&r.m[k]?'checked':''}></td>`;}).join('')).join('')
+        +`<td><button class="row-del" data-kdel="esely:${i}" title="Törlés">🗑</button></td></tr>`).join('')
+        : `<tr><td colspan="${esCols+2}" style="color:var(--muted);padding:12px;">Nincs résztvevő.</td></tr>`;
+    html+=`</tbody></table></div><button class="add-row" id="kovAddEsely" style="margin-top:8px;max-width:220px;">+ Résztvevő</button>`;
+    body.innerHTML=html;
+}
+(function(){
+    const body=document.getElementById('kovBody'); if(!body) return;
+    body.addEventListener('input', e=>{
+        const t=e.target;
+        if(t.id==='kovIdopont'){ kovData.idopont=t.value; saveKov(); return; }
+        if(t.dataset.ke && t.dataset.kf){ kovData[t.dataset.ke][+t.dataset.ki][t.dataset.kf]=t.value; saveKov(); return; }
+    });
+    body.addEventListener('change', e=>{
+        const t=e.target;
+        if(t.type==='checkbox' && t.dataset.ke && t.dataset.kc){ const row=kovData[t.dataset.ke][+t.dataset.ki]; row.m=row.m||{}; row.m[t.dataset.kc]=t.checked; saveKov(); }
+    });
+    body.addEventListener('click', e=>{
+        const d=e.target.closest('[data-kdel]');
+        if(d){ const p=d.dataset.kdel.split(':'); kovData[p[0]].splice(+p[1],1); saveKov(); renderKov(); return; }
+        if(e.target.closest('#kovAddElo')){ kovData.elo.push({resztvevo:'',vezeto:'',m:{}}); saveKov(); renderKov(); return; }
+        if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',m:{}}); saveKov(); renderKov(); return; }
+    });
+    document.getElementById('kovPrev').addEventListener('click', ()=>{ kovShift(-1); renderKov(); });
+    document.getElementById('kovNext').addEventListener('click', ()=>{ kovShift(1); renderKov(); });
+    document.getElementById('kovToday').addEventListener('click', ()=>{ kovAnchor={year:new Date().getFullYear(), q:Math.floor(new Date().getMonth()/3)+1}; renderKov(); });
+})();
 
 // Dashboard "Havi egység" kártya – az aktuális havi terv Egység sorából
 function updateHaviEgysegCard(){
