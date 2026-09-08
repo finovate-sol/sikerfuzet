@@ -15,6 +15,8 @@ export { isConfigured };
 
 // A naptárhoz szükséges jogosultság: események olvasása ÉS létrehozása.
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+// A PG modulhoz: Google Tasks (feladatlisták olvasása/írása).
+const TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 // Ebbe a kollekcióba kerülnek a belépni jogosult emailek (doc-id = email).
 const ALLOWLIST = "allowed_users";
 // Admin (info-időpontok beállítása)
@@ -62,6 +64,7 @@ export async function loginWithGoogle() {
 
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
+    provider.addScope(TASKS_SCOPE);
     provider.setCustomParameters({ prompt: "select_account" });
 
     const result = await signInWithPopup(auth, provider);
@@ -103,6 +106,7 @@ export async function reconnectCalendar() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
+    provider.addScope(TASKS_SCOPE);
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
