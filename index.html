@@ -186,7 +186,13 @@
         .wk-ev.c4 { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
-        .wk-canvas.drop-hover { background:rgba(31,95,208,.06); box-shadow:inset 0 0 0 2px var(--blue); }
+        .drop-indicator { position:absolute; background:rgba(31,95,208,.16); border:1.5px dashed var(--blue); border-radius:6px; pointer-events:none; z-index:5; font-size:10px; color:var(--blue); font-weight:700; padding:2px 5px; box-sizing:border-box; }
+        .plan-edit { display:flex; align-items:center; justify-content:center; gap:5px; }
+        .plan-edit input { width:46px; padding:5px 4px; border:1px solid var(--border); border-radius:6px; text-align:center; font-size:15px; font-family:inherit; font-weight:800; color:var(--navy); outline:none; }
+        .plan-edit input:first-of-type { color:var(--navy); }
+        .plan-edit input:last-of-type { color:var(--muted); font-weight:700; }
+        .plan-edit input:focus { border-color:var(--blue); }
+        .plan-edit .sep { color:var(--muted); font-size:14px; }
         tr[draggable="true"] { cursor:grab; }
         tr[draggable="true"]:active { cursor:grabbing; }
 
@@ -249,6 +255,9 @@
             font-size:14px; font-family:inherit; color:var(--text); font-weight:600; outline:none; background:#fff;
         }
         .next-info-card input:focus { border-color:var(--blue); }
+        .ni-countdown { margin-top:8px; display:inline-block; font-size:12px; font-weight:700; color:var(--blue); background:var(--blue-light); padding:4px 10px; border-radius:20px; }
+        .ni-countdown:empty { display:none; }
+        .ni-countdown.past { color:var(--red); background:#fdeaea; }
 
         /* ===== SIDE WIDGETS ===== */
         .info-list { display:flex; flex-direction:column; }
@@ -336,10 +345,6 @@
                 <input type="text" placeholder="Keresés a Sikerfüzetben...">
             </div>
             <div class="topbar-right">
-                <div class="bell">
-                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-                    <span class="dot">3</span>
-                </div>
                 <div class="user">
                     <div class="avatar" id="userAvatar">SM</div>
                     <span class="user-name" id="userName">Szécsi Márk
@@ -387,6 +392,10 @@
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
                         <h2>Heti tervezés</h2>
                         <span class="week-range" style="margin-left:auto;">A hét: <b>2025. 09. 08.</b> – <b>2025. 09. 14.</b></span>
+                        <button class="btn-edit" id="planEditBtn" style="margin-left:12px;" onclick="togglePlanEdit()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                            Szerkesztés
+                        </button>
                     </div>
                     <div class="card-body">
                         <div class="plan-grid" id="planGrid"></div>
@@ -458,6 +467,7 @@
                         <div class="ni-body">
                             <label for="nextInfo">Következő INFO időpontja</label>
                             <input type="datetime-local" id="nextInfo">
+                            <div class="ni-countdown" id="nextInfoCountdown"></div>
                         </div>
                     </div>
                 </section>
@@ -524,7 +534,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace
 
 // ===== STATIC SAMPLE DATA (heti terv, gyorsműveletek) =====
 // A naptár már valós Google Calendar adatból dolgozik (lásd lentebb a modul-scriptet).
-const weekPlan = [
+const defaultWeekPlan = [
     { label:"Kontaktus",  cel:15, van:5 }, { label:"EL időpont", cel:10, van:3 },
     { label:"Elemzés",    cel:9,  van:1 }, { label:"TA időpont", cel:6,  van:1 },
     { label:"Tanácsadás", cel:5,  van:1 }, { label:"Lezárt ÜF",  cel:5,  van:0 },
@@ -558,17 +568,49 @@ const defaultInfo = [
 let money  = store.load('sf_money',  defaultMoney);
 let career = store.load('sf_career', defaultCareer);
 let info   = store.load('sf_info',   defaultInfo);
+let weekPlan = store.load('sf_weekplan', defaultWeekPlan);
+let planEdit = false;
 const editMode = { money:false, career:false, info:false };
 
-// ===== RENDER: WEEK PLAN =====
-document.getElementById('planGrid').innerHTML = weekPlan.map(p => {
-    const pct = p.cel ? Math.min(100, Math.round(p.van/p.cel*100)) : 0;
-    return `<div class="plan-box">
-        <div class="label">${p.label}</div>
-        <div class="plan-nums"><span class="van">${p.van}</span><span class="sep">/</span><span class="cel">${p.cel}</span></div>
-        <div class="plan-bar"><span style="width:${pct}%"></span></div>
-    </div>`;
-}).join('');
+// ===== RENDER: WEEK PLAN (szerkeszthető) =====
+function renderPlan(){
+    const grid = document.getElementById('planGrid');
+    if(planEdit){
+        grid.innerHTML = weekPlan.map((p,i)=>`<div class="plan-box">
+            <div class="label">${p.label}</div>
+            <div class="plan-edit">
+                <input type="number" min="0" data-pi="${i}" data-pf="van" value="${p.van}" title="Van">
+                <span class="sep">/</span>
+                <input type="number" min="0" data-pi="${i}" data-pf="cel" value="${p.cel}" title="Cél">
+            </div>
+        </div>`).join('');
+    } else {
+        grid.innerHTML = weekPlan.map(p => {
+            const pct = p.cel ? Math.min(100, Math.round(p.van/p.cel*100)) : 0;
+            return `<div class="plan-box">
+                <div class="label">${p.label}</div>
+                <div class="plan-nums"><span class="van">${p.van}</span><span class="sep">/</span><span class="cel">${p.cel}</span></div>
+                <div class="plan-bar"><span style="width:${pct}%"></span></div>
+            </div>`;
+        }).join('');
+    }
+}
+function togglePlanEdit(){
+    planEdit = !planEdit;
+    const btn = document.getElementById('planEditBtn');
+    btn.innerHTML = planEdit
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Kész'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Szerkesztés';
+    if(!planEdit) store.save('sf_weekplan', weekPlan);
+    renderPlan();
+}
+document.getElementById('planGrid').addEventListener('input', e => {
+    const t = e.target;
+    if(t.dataset.pi === undefined || !t.dataset.pf) return;
+    const v = parseInt(t.value, 10);
+    weekPlan[+t.dataset.pi][t.dataset.pf] = isNaN(v) ? 0 : v;
+});
+renderPlan();
 
 // ===== RENDER: QUICK ACTIONS =====
 document.getElementById('quickActions').innerHTML = quickActions.map(q =>
@@ -720,7 +762,24 @@ window.sfMarkResult = function(list, index){
 // ===== NEXT INFO DATE =====
 const nextInfoEl = document.getElementById('nextInfo');
 nextInfoEl.value = store.load('sf_nextInfo', '2025-09-15T18:00');
-nextInfoEl.addEventListener('change', ()=> store.save('sf_nextInfo', nextInfoEl.value));
+function updateNextInfoCountdown(){
+    const el = document.getElementById('nextInfoCountdown');
+    if(!el) return;
+    const val = nextInfoEl.value;
+    if(!val){ el.textContent=''; el.className='ni-countdown'; return; }
+    const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const diff = Math.round((startOfDay(new Date(val)) - startOfDay(new Date())) / 86400000);
+    let text;
+    if(diff > 1) text = diff + ' nap múlva';
+    else if(diff === 1) text = 'Holnap';
+    else if(diff === 0) text = 'Ma';
+    else if(diff === -1) text = 'Tegnap volt';
+    else text = Math.abs(diff) + ' napja volt';
+    el.textContent = text;
+    el.className = 'ni-countdown' + (diff < 0 ? ' past' : '');
+}
+nextInfoEl.addEventListener('change', ()=>{ store.save('sf_nextInfo', nextInfoEl.value); updateNextInfoCountdown(); });
+updateNextInfoCountdown();
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
@@ -872,23 +931,45 @@ renderMoney(); renderCareer(); renderInfo();
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
 
+    function slotFromEvent(canvas, e){
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        const idx = Math.min(6, Math.max(0, Math.floor(x / (rect.width / 7))));
+        let minutes = START_H * 60 + (y / ROW) * 60;
+        minutes = Math.round(minutes / 15) * 15;               // 15 perces rács
+        return { idx, minutes };
+    }
+
     function wireDrop(){
         const canvas = document.getElementById("wkCanvas");
         if (!canvas) return;
-        canvas.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; canvas.classList.add("drop-hover"); });
-        canvas.addEventListener("dragleave", () => canvas.classList.remove("drop-hover"));
+        let indicator = null;
+        const clearIndicator = () => { if (indicator && indicator.parentNode) indicator.remove(); };
+
+        canvas.addEventListener("dragover", e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            const { idx, minutes } = slotFromEvent(canvas, e);
+            if (!indicator){ indicator = document.createElement("div"); indicator.className = "drop-indicator"; }
+            if (indicator.parentNode !== canvas) canvas.appendChild(indicator);
+            const top = (minutes - START_H * 60) / 60 * ROW;
+            indicator.style.left = `calc(${idx*(100/7)}% + 2px)`;
+            indicator.style.width = `calc(${100/7}% - 4px)`;
+            indicator.style.top = top + "px";
+            indicator.style.height = ROW + "px";               // 60 perces blokk
+            indicator.textContent = pad2(Math.floor(minutes/60)) + ":" + pad2(minutes % 60);
+        });
+        canvas.addEventListener("dragleave", e => {
+            if (!e.relatedTarget || !canvas.contains(e.relatedTarget)) clearIndicator();
+        });
         canvas.addEventListener("drop", e => {
             e.preventDefault();
-            canvas.classList.remove("drop-hover");
+            clearIndicator();
             const raw = e.dataTransfer.getData("text/plain") || "";
             let payload; try { payload = JSON.parse(raw); } catch(_) { payload = { name: raw }; }
             const name = (payload.name || "").trim();
             if (!name || !currentWeekStart) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left, y = e.clientY - rect.top;
-            const idx = Math.min(6, Math.max(0, Math.floor(x / (rect.width / 7))));
-            let minutes = START_H * 60 + (y / ROW) * 60;
-            minutes = Math.round(minutes / 15) * 15;               // 15 perces rácsra igazítás
+            const { idx, minutes } = slotFromEvent(canvas, e);
             const start = addDays(currentWeekStart, idx);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
