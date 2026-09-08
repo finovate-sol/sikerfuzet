@@ -186,6 +186,23 @@
         .wk-ev.c4 { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
+        .wk-canvas.drop-hover { background:rgba(31,95,208,.06); box-shadow:inset 0 0 0 2px var(--blue); }
+        tr[draggable="true"] { cursor:grab; }
+        tr[draggable="true"]:active { cursor:grabbing; }
+
+        /* ===== MODAL (esemény a naptárba) ===== */
+        .modal-overlay { position:fixed; inset:0; background:rgba(10,37,71,.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+        .modal { background:#fff; border-radius:14px; width:100%; max-width:430px; box-shadow:0 20px 50px rgba(10,37,71,.35); overflow:hidden; }
+        .modal-head { padding:18px 22px; border-bottom:1px solid var(--border); font-size:17px; font-weight:700; color:var(--navy); }
+        .modal-body { padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
+        .modal-body label { font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:5px; }
+        .modal-body input, .modal-body select { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
+        .modal-body input:focus, .modal-body select:focus { border-color:var(--blue); }
+        .modal-client { font-size:16px; font-weight:700; color:var(--navy); background:var(--blue-light); padding:10px 12px; border-radius:8px; }
+        .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+        .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+        .modal .btn.primary:hover { background:#1a52b8; }
+        .modal .btn.primary:disabled { opacity:.6; cursor:not-allowed; }
 
         /* ===== HETI TERVEZÉS ===== */
         .week-range { font-size:13px; color:var(--muted); }
@@ -364,8 +381,8 @@
                     <div class="cal-grid" id="calGrid"></div>
                 </section>
 
-                <!-- HETI TERVEZÉS -->
-                <section class="card">
+                <!-- HETI TERVEZÉS (a naptár fölött) -->
+                <section class="card" style="order:-1;">
                     <div class="card-head">
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
                         <h2>Heti tervezés</h2>
@@ -584,7 +601,7 @@ function renderMoney(){
             <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
         </tr>`).join('') + `<tr><td colspan="3"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
     } else {
-        tb.innerHTML = money.length ? money.map(c=>`<tr>
+        tb.innerHTML = money.length ? money.map(c=>`<tr draggable="true" data-name="${esc(c.name)}" title="Húzd a naptárba">
             <td><strong>${esc(c.name)}</strong></td><td class="phone">${esc(c.phone)}</td>
             <td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
             : `<tr><td colspan="3" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
@@ -601,7 +618,7 @@ function renderCareer(){
             <td style="text-align:center; white-space:nowrap;">${resSelect(i,c.res)}<button class="row-del" data-del="${i}" title="Törlés">🗑</button></td>
         </tr>`).join('') + `<tr><td colspan="4"><button class="add-row" data-add="1">+ Új sor</button></td></tr>`;
     } else {
-        tb.innerHTML = career.length ? career.map(c=>`<tr>
+        tb.innerHTML = career.length ? career.map(c=>`<tr draggable="true" data-name="${esc(c.name)}" title="Húzd a naptárba">
             <td><strong>${esc(c.name)}</strong></td><td><span class="mt-badge">${esc(c.mt)}</span></td>
             <td class="phone">${esc(c.phone)}</td><td style="text-align:center;">${resBadge(c.res)}</td></tr>`).join('')
             : `<tr><td colspan="4" style="color:var(--muted);">Nincs bejegyzés.</td></tr>`;
@@ -676,6 +693,19 @@ function wire(containerId, which){
 wire('moneyTable','money');
 wire('careerTable','career');
 wire('infoList','info');
+
+// ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
+function enableRowDrag(tbodyId){
+    const el = document.getElementById(tbodyId);
+    el.addEventListener('dragstart', e=>{
+        const tr = e.target.closest('tr[data-name]');
+        if(!tr){ return; }
+        e.dataTransfer.setData('text/plain', tr.dataset.name);
+        e.dataTransfer.effectAllowed = 'copy';
+    });
+}
+enableRowDrag('moneyTable');
+enableRowDrag('careerTable');
 
 // ===== NEXT INFO DATE =====
 const nextInfoEl = document.getElementById('nextInfo');
@@ -820,6 +850,126 @@ renderMoney(); renderCareer(); renderInfo();
         });
     }
 
+    // ===== Naptárba húzás → esemény típus + mentés =====
+    let currentWeekStart = null;
+    const EVENT_TYPES = [
+        { label: "Elemzés",     suffix: "E",  unit: false },
+        { label: "Tanácsadás",  suffix: "TA", unit: true  },
+        { label: "Szerviz",     suffix: "SZ", unit: true  },
+        { label: "Felvételi 1", suffix: "F1", unit: false },
+        { label: "Felvételi 2", suffix: "F2", unit: false },
+    ];
+    const pad2 = n => String(n).padStart(2, "0");
+    const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
+
+    function wireDrop(){
+        const canvas = document.getElementById("wkCanvas");
+        if (!canvas) return;
+        canvas.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; canvas.classList.add("drop-hover"); });
+        canvas.addEventListener("dragleave", () => canvas.classList.remove("drop-hover"));
+        canvas.addEventListener("drop", e => {
+            e.preventDefault();
+            canvas.classList.remove("drop-hover");
+            const name = (e.dataTransfer.getData("text/plain") || "").trim();
+            if (!name || !currentWeekStart) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left, y = e.clientY - rect.top;
+            const idx = Math.min(6, Math.max(0, Math.floor(x / (rect.width / 7))));
+            let minutes = START_H * 60 + (y / ROW) * 60;
+            minutes = Math.round(minutes / 30) * 30;               // 30 perces rácsra igazítás
+            const start = addDays(currentWeekStart, idx);
+            start.setHours(0, 0, 0, 0);
+            start.setMinutes(minutes);
+            openEventModal(name, start);
+        });
+    }
+
+    async function createCalendarEvent({ summary, description, start, durationMin }){
+        let token = getCalendarToken();
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
+        const end = new Date(start.getTime() + durationMin * 60000);
+        const body = {
+            summary,
+            start: { dateTime: localIso(start), timeZone: tz },
+            end:   { dateTime: localIso(end),   timeZone: tz }
+        };
+        if (description) body.description = description;
+
+        async function doInsert(tok){
+            return fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+                method: "POST",
+                headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+        }
+        let res = await doInsert(token);
+        if (res.status === 401 || res.status === 403){
+            // Lejárt vagy hiányzó írási jog → újra-engedélyezés, majd újrapróba
+            token = await reconnectCalendar();
+            res = await doInsert(token);
+        }
+        if (!res.ok){ const err = new Error("Mentés hiba: " + res.status); err.status = res.status; throw err; }
+        return res.json();
+    }
+
+    function openEventModal(name, start){
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        const optionsHtml = EVENT_TYPES.map((t,i) => `<option value="${i}">${t.label}</option>`).join("");
+        overlay.innerHTML = `
+            <div class="modal" role="dialog" aria-modal="true">
+                <div class="modal-head">Esemény a naptárba</div>
+                <div class="modal-body">
+                    <div><label>Ügyfél</label><div class="modal-client">${escM(name)}</div></div>
+                    <div><label for="evType">Esemény típusa</label><select id="evType">${optionsHtml}</select></div>
+                    <div id="evUnitWrap" hidden><label for="evUnit">Hány egységre számítasz?</label><input id="evUnit" type="number" min="0" step="0.5" value="1"></div>
+                    <div><label for="evStart">Időpont</label><input id="evStart" type="datetime-local"></div>
+                    <div><label for="evDur">Időtartam (perc)</label><input id="evDur" type="number" min="15" step="15" value="60"></div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn" id="evCancel">Mégse</button>
+                    <button class="btn primary" id="evSave">Mentés a naptárba</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const typeSel = overlay.querySelector("#evType");
+        const unitWrap = overlay.querySelector("#evUnitWrap");
+        const startInput = overlay.querySelector("#evStart");
+        const durInput = overlay.querySelector("#evDur");
+        const saveBtn = overlay.querySelector("#evSave");
+
+        startInput.value = localIso(start).slice(0, 16);      // datetime-local formátum
+        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
+        typeSel.addEventListener("change", syncUnit);
+        syncUnit();
+
+        const close = () => overlay.remove();
+        overlay.querySelector("#evCancel").addEventListener("click", close);
+        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+        saveBtn.addEventListener("click", async () => {
+            const type = EVENT_TYPES[+typeSel.value];
+            const when = startInput.value ? new Date(startInput.value) : start;
+            const durationMin = Math.max(15, parseInt(durInput.value, 10) || 60);
+            const summary = `${name} (${type.suffix})`;
+            let description = "";
+            if (type.unit){
+                const u = overlay.querySelector("#evUnit").value;
+                description = "Várható egység: " + (u === "" ? "0" : u);
+            }
+            saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
+            try {
+                await createCalendarEvent({ summary, description, start: when, durationMin });
+                close();
+                initCalendar();                                 // frissítés, hogy megjelenjen az új esemény
+            } catch (e){
+                alert("Nem sikerült menteni a naptárba: " + (e.message || e));
+                saveBtn.disabled = false; saveBtn.textContent = "Mentés a naptárba";
+            }
+        });
+    }
+
     async function initCalendar(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
@@ -827,6 +977,8 @@ renderMoney(); renderCareer(); renderInfo();
         const dateLabel = document.querySelector(".cal-date");
         if (dateLabel) dateLabel.textContent = fmtRange(start);
         renderShell(grid, start, now);
+        currentWeekStart = start;
+        wireDrop();
 
         const token = getCalendarToken();
         if (!token){
