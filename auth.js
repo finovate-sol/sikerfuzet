@@ -28,8 +28,11 @@ export async function getAppConfig(){
     catch(e){ console.warn("config olvasás sikertelen:", e); return {}; }
 }
 export async function saveInfoDates(dates){
+    return saveAppConfig({ infoDates: dates });
+}
+export async function saveAppConfig(obj){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "config", "app"), { infoDates: dates }, { merge: true });
+    await setDoc(doc(db, "config", "app"), obj, { merge: true });
 }
 
 let app, auth, db;
