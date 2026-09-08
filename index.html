@@ -149,6 +149,30 @@
         .btn:hover { background: var(--bg); }
         .btn.icon-btn { padding:7px 9px; }
         .cal-date { font-weight:700; font-size:15px; color:var(--navy); }
+        .cal-h2 { font-size:16px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:9px; margin-right:6px; }
+        .cal-h2 .icon { color:var(--blue); display:flex; }
+        /* Hónap nézet */
+        .mn-head { display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--border); }
+        .mn-head div { text-align:center; font-size:12px; font-weight:600; color:var(--muted); padding:8px 0; }
+        .mn-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+        .mn-cell { min-height:96px; border-right:1px solid #f0f2f6; border-bottom:1px solid #f0f2f6; padding:5px 6px; overflow:hidden; }
+        .mn-cell .mn-date { font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; }
+        .mn-cell.other .mn-date { color:#c2cbd8; }
+        .mn-cell.today .mn-date { background:var(--blue); color:#fff; width:22px; height:22px; line-height:22px; border-radius:50%; text-align:center; }
+        .mev { display:block; font-size:10px; padding:2px 5px; border-radius:5px; margin-bottom:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-left:3px solid; }
+        .mn-more { font-size:10px; color:var(--muted); font-weight:600; }
+        /* Napló (agenda) nézet */
+        .ag-list { padding:6px 0; }
+        .ag-day { padding:10px 20px 4px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+        .ag-item { display:flex; align-items:flex-start; gap:12px; padding:9px 20px; border-top:1px solid #f1f4f8; cursor:pointer; }
+        .ag-item:hover { background:#fafbfd; }
+        .ag-time { font-size:12px; font-weight:700; color:var(--navy); min-width:74px; }
+        .ag-dot { width:10px; height:10px; border-radius:3px; margin-top:3px; flex-shrink:0; }
+        .ag-title { font-size:13px; font-weight:600; }
+        .ag-loc { font-size:11px; color:var(--muted); }
+        .ag-empty { padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
+        .ag-del { margin-left:auto; color:var(--red); cursor:pointer; opacity:.5; padding:0 6px; font-weight:800; }
+        .ag-del:hover { opacity:1; }
         .seg { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-left:auto; }
         .seg button { padding:7px 14px; border:none; background:#fff; font-weight:600; font-size:13px; color:var(--muted); cursor:pointer; }
         .seg button.active { background:var(--blue); color:#fff; }
@@ -366,22 +390,19 @@
 
                 <!-- NAPTÁR -->
                 <section class="card">
-                    <div class="card-head">
-                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>
-                        <h2>Naptár</h2>
-                        <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">Megnyitás a Google Naptárban ↗</a>
-                    </div>
                     <div class="cal-toolbar">
-                        <button class="btn">Ma</button>
-                        <button class="btn icon-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
-                        <button class="btn icon-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
-                        <span class="cal-date">2025. szeptember 8. – 14.</span>
-                        <div class="seg">
-                            <button>Nap</button>
-                            <button class="active">Hét</button>
-                            <button>Hónap</button>
-                            <button>Napló</button>
+                        <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Naptár</h2>
+                        <button class="btn" id="calToday">Ma</button>
+                        <button class="btn icon-btn" id="calPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+                        <button class="btn icon-btn" id="calNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+                        <span class="cal-date"></span>
+                        <div class="seg" id="calSeg">
+                            <button data-view="day">Nap</button>
+                            <button data-view="week" class="active">Hét</button>
+                            <button data-view="month">Hónap</button>
+                            <button data-view="agenda">Napló</button>
                         </div>
+                        <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" style="margin-left:12px;">Megnyitás a Google Naptárban ↗</a>
                     </div>
                     <div class="cal-grid" id="calGrid"></div>
                 </section>
@@ -851,35 +872,42 @@ renderMoney(); renderCareer(); renderInfo();
         return `${start.getFullYear()}. ${HU_MONTHS[start.getMonth()]} ${start.getDate()}. – ${HU_MONTHS[e.getMonth()]} ${e.getDate()}.`;
     }
 
-    function renderShell(grid, start, now){
+    // ===== Nézet-állapot =====
+    let viewMode = "week";              // day | week | month | agenda
+    let viewAnchor = new Date();        // a nézet referencia-dátuma
+    let currentColumns = [];            // az idő-rács oszlopai (Date, éjfél)
+    let calWired = false;
+
+    function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
+    function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+    function huDow(d){ return HU_DAYS[(d.getDay()+6)%7]; }
+    function fmtDay(d){ return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}. (${huDow(d)})`; }
+    function fmtMonth(d){ return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]}`; }
+    function colIndexOf(cols, d){ for(let i=0;i<cols.length;i++) if(sameDay(cols[i], d)) return i; return -1; }
+
+    function renderTimeShell(grid, cols, now){
+        const n = cols.length;
+        const tmpl = `52px repeat(${n},1fr)`;
         const head = ['<div class="h"></div>'];
-        for (let i=0;i<7;i++){
-            const d = addDays(start,i);
-            head.push(`<div class="h${sameDay(d,now)?' today':''}">${HU_DAYS[i]}<span class="num">${d.getDate()}</span></div>`);
-        }
+        cols.forEach(d => head.push(`<div class="h${sameDay(d,now)?' today':''}">${huDow(d)}<span class="num">${d.getDate()}</span></div>`));
         const hoursCount = END_H - START_H;
         let times = "";
         for (let h=START_H; h<END_H; h++) times += `<div class="t">${String(h).padStart(2,"0")}:00</div>`;
         let lines = "";
         for (let i=0;i<=hoursCount;i++) lines += `<div class="wk-line" style="top:${i*ROW}px"></div>`;
-        let cols = "";
-        for (let i=0;i<7;i++) cols += `<div class="wk-col" style="left:${i*(100/7)}%; width:${100/7}%"></div>`;
+        let colsHtml = "";
+        for (let i=0;i<n;i++) colsHtml += `<div class="wk-col" style="left:${i*(100/n)}%; width:${100/n}%"></div>`;
         grid.innerHTML =
-            `<div class="wk-head">${head.join("")}</div>` +
-            `<div class="wk-allday" id="wkAllday"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(7)}</div>` +
+            `<div class="wk-head" style="grid-template-columns:${tmpl}">${head.join("")}</div>` +
+            `<div class="wk-allday" id="wkAllday" style="grid-template-columns:${tmpl}"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(n)}</div>` +
             `<div class="wk-grid">` +
                 `<div class="wk-times">${times}</div>` +
-                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${lines}${cols}</div>` +
+                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${lines}${colsHtml}</div>` +
             `</div>`;
     }
 
-    function showMsg(html){
-        const canvas = document.getElementById("wkCanvas");
-        if (!canvas) return;
-        const el = document.createElement("div");
-        el.className = "wk-msg";
-        el.innerHTML = html;
-        canvas.appendChild(el);
+    function showConnect(grid, msg){
+        grid.innerHTML = `<div class="ag-empty">${msg || "A naptár megjelenítéséhez kösd össze a Google Naptárad."}<br><button class="btn" id="calConnectBtn" style="margin-top:12px;">Naptár összekötése</button></div>`;
         const btn = document.getElementById("calConnectBtn");
         if (btn) btn.addEventListener("click", async () => {
             try { const t = await reconnectCalendar(); if (t) initCalendar(); }
@@ -898,7 +926,8 @@ renderMoney(); renderCareer(); renderInfo();
         return data.items || [];
     }
 
-    function renderEvents(start, events){
+    function renderTimeEvents(cols, events){
+        const n = cols.length;
         const canvas = document.getElementById("wkCanvas");
         const alldayCells = document.querySelectorAll("#wkAllday .cell");
         const maxH = (END_H - START_H) * ROW;
@@ -906,12 +935,15 @@ renderMoney(); renderCareer(); renderInfo();
             const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
             if (!ev.start.dateTime){                       // egész napos
                 const d = new Date((ev.start.date || "") + "T00:00:00");
-                const idx = dayIndex(start, d);
-                if (idx>=0 && idx<7){
+                const idx = colIndexOf(cols, d);
+                if (idx>=0){
                     const chip = document.createElement("div");
                     chip.className = "allday-ev";
                     chip.style.background = hexToRgba(hex, .18);
                     chip.style.color = "#1c2b45";
+                    chip.style.cursor = "pointer";
+                    chip.dataset.eventId = ev.id || "";
+                    chip.dataset.title = ev.summary || "";
                     chip.textContent = ev.summary || "(névtelen)";
                     chip.title = chip.textContent;
                     alldayCells[idx].appendChild(chip);
@@ -919,8 +951,8 @@ renderMoney(); renderCareer(); renderInfo();
                 return;
             }
             const s = new Date(ev.start.dateTime), e = new Date(ev.end.dateTime);
-            const idx = dayIndex(start, s);
-            if (idx<0 || idx>=7) return;
+            const idx = colIndexOf(cols, s);
+            if (idx < 0) return;
             const startDec = s.getHours() + s.getMinutes()/60;
             const endDec = e.getHours() + e.getMinutes()/60;
             let top = (startDec - START_H) * ROW;
@@ -928,14 +960,14 @@ renderMoney(); renderCareer(); renderInfo();
             if (top < 0){ height += top; top = 0; }
             if (top >= maxH) return;
             if (top + height > maxH) height = maxH - top;
-            const hh = String(s.getHours()).padStart(2,"0") + ":" + String(s.getMinutes()).padStart(2,"0");
+            const hh = pad2(s.getHours()) + ":" + pad2(s.getMinutes());
             const div = document.createElement("div");
             div.className = "wk-ev";
             div.style.background = hexToRgba(hex, .15);
             div.style.borderLeftColor = hex;
             div.style.color = "#1c2b45";
-            div.style.left = `calc(${idx*(100/7)}% + 3px)`;
-            div.style.width = `calc(${100/7}% - 6px)`;
+            div.style.left = `calc(${idx*(100/n)}% + 3px)`;
+            div.style.width = `calc(${100/n}% - 6px)`;
             div.style.top = top + "px";
             div.style.height = height + "px";
             div.dataset.eventId = ev.id || "";
@@ -948,7 +980,6 @@ renderMoney(); renderCareer(); renderInfo();
     }
 
     // ===== Naptárba húzás → esemény típus + mentés =====
-    let currentWeekStart = null;
     const EVENT_TYPES = [
         { label: "Elemzés",     suffix: "E",  unit: false },
         { label: "Tanácsadás",  suffix: "TA", unit: true  },
@@ -960,9 +991,10 @@ renderMoney(); renderCareer(); renderInfo();
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
 
     function slotFromEvent(canvas, e){
+        const n = currentColumns.length || 1;
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left, y = e.clientY - rect.top;
-        const idx = Math.min(6, Math.max(0, Math.floor(x / (rect.width / 7))));
+        const idx = Math.min(n-1, Math.max(0, Math.floor(x / (rect.width / n))));
         let minutes = START_H * 60 + (y / ROW) * 60;
         minutes = Math.round(minutes / 15) * 15;               // 15 perces rács
         return { idx, minutes };
@@ -971,6 +1003,7 @@ renderMoney(); renderCareer(); renderInfo();
     function wireDrop(){
         const canvas = document.getElementById("wkCanvas");
         if (!canvas) return;
+        const n = currentColumns.length || 1;
         let indicator = null;
         const clearIndicator = () => { if (indicator && indicator.parentNode) indicator.remove(); };
 
@@ -981,8 +1014,8 @@ renderMoney(); renderCareer(); renderInfo();
             if (!indicator){ indicator = document.createElement("div"); indicator.className = "drop-indicator"; }
             if (indicator.parentNode !== canvas) canvas.appendChild(indicator);
             const top = (minutes - START_H * 60) / 60 * ROW;
-            indicator.style.left = `calc(${idx*(100/7)}% + 2px)`;
-            indicator.style.width = `calc(${100/7}% - 4px)`;
+            indicator.style.left = `calc(${idx*(100/n)}% + 2px)`;
+            indicator.style.width = `calc(${100/n}% - 4px)`;
             indicator.style.top = top + "px";
             indicator.style.height = ROW + "px";               // 60 perces blokk
             indicator.textContent = pad2(Math.floor(minutes/60)) + ":" + pad2(minutes % 60);
@@ -996,27 +1029,105 @@ renderMoney(); renderCareer(); renderInfo();
             const raw = e.dataTransfer.getData("text/plain") || "";
             let payload; try { payload = JSON.parse(raw); } catch(_) { payload = { name: raw }; }
             const name = (payload.name || "").trim();
-            if (!name || !currentWeekStart) return;
+            if (!name || !currentColumns.length) return;
             const { idx, minutes } = slotFromEvent(canvas, e);
-            const start = addDays(currentWeekStart, idx);
+            const start = new Date(currentColumns[idx]);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
             openEventModal(name, start, payload.list, payload.index);
         });
-        canvas.addEventListener("click", async e => {
-            const del = e.target.closest(".wk-ev-del");
-            if (del){
-                const evDiv = del.closest(".wk-ev");
-                const id = evDiv && evDiv.dataset.eventId;
-                if (!id) return;
-                if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (evDiv.dataset.title || ""))) return;
+    }
+
+    // Kattintás-kezelő az egész naptár-területre (validálás / törlés) – egyszer bekötve
+    function wireGridClicks(){
+        const grid = document.getElementById("calGrid");
+        grid.addEventListener("click", async e => {
+            const host = e.target.closest("[data-event-id]");
+            if (!host || !host.dataset.eventId) return;
+            const id = host.dataset.eventId;
+            if (e.target.closest(".wk-ev-del, .ag-del")){
+                if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (host.dataset.title || ""))) return;
                 try { await deleteCalendarEvent(id); initCalendar(); }
                 catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
                 return;
             }
-            const evDiv = e.target.closest(".wk-ev");
-            if (evDiv && evDiv.dataset.eventId) openValidateModal(evDiv.dataset.eventId, evDiv.dataset.title);
+            openValidateModal(id, host.dataset.title);
         });
+    }
+
+    // Toolbar gombok bekötése (Ma / ‹ › / nézetváltó) – egyszer
+    function wireToolbar(){
+        const today = document.getElementById("calToday");
+        const prev  = document.getElementById("calPrev");
+        const next  = document.getElementById("calNext");
+        const seg   = document.getElementById("calSeg");
+        if (today) today.addEventListener("click", () => { viewAnchor = new Date(); initCalendar(); });
+        if (prev)  prev.addEventListener("click",  () => { shiftAnchor(-1); initCalendar(); });
+        if (next)  next.addEventListener("click",  () => { shiftAnchor(1);  initCalendar(); });
+        if (seg) seg.addEventListener("click", e => {
+            const b = e.target.closest("button[data-view]"); if (!b) return;
+            viewMode = b.dataset.view;
+            seg.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+            initCalendar();
+        });
+    }
+    function shiftAnchor(dir){
+        if (viewMode === "day") viewAnchor = addDays(viewAnchor, dir);
+        else if (viewMode === "month"){ const d = new Date(viewAnchor); d.setDate(1); d.setMonth(d.getMonth() + dir); viewAnchor = d; }
+        else viewAnchor = addDays(viewAnchor, dir * 7);   // week & agenda
+    }
+
+    // ===== HÓNAP nézet =====
+    function renderMonth(grid, now, events){
+        const anchorMonth = viewAnchor.getMonth();
+        const first = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
+        const gridStart = startOfWeek(first);
+        const byDay = {};
+        events.forEach(ev => {
+            const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
+            const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
+            (byDay[key] = byDay[key] || []).push({ ev, ds });
+        });
+        let cellsHtml = "";
+        for (let i=0;i<42;i++){
+            const d = addDays(gridStart, i);
+            const key = d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
+            const list = (byDay[key] || []).sort((a,b)=>a.ds-b.ds);
+            const other = d.getMonth() !== anchorMonth ? " other" : "";
+            const today = sameDay(d, now) ? " today" : "";
+            let evs = list.slice(0,3).map(({ev,ds}) => {
+                const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+                const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
+                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hexToRgba(hex,.15)};border-left-color:${hex};color:#1c2b45;">${t}${escM(ev.summary||"(névtelen)")}</span>`;
+            }).join("");
+            if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
+            cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
+        }
+        grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${cellsHtml}</div>`;
+    }
+
+    // ===== NAPLÓ (agenda) nézet =====
+    function renderAgenda(grid, now, events){
+        const items = events.map(ev => {
+            const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
+            return { ev, ds, allDay: !ev.start.dateTime };
+        }).sort((a,b)=>a.ds-b.ds);
+        if (!items.length){ grid.innerHTML = `<div class="ag-empty">Nincs esemény ezen a héten.</div>`; return; }
+        let html = '<div class="ag-list">', curKey = "";
+        items.forEach(({ev,ds,allDay}) => {
+            const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
+            if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
+            const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+            const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
+            html += `<div class="ag-item" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}">
+                <span class="ag-time">${time}</span>
+                <span class="ag-dot" style="background:${hex}"></span>
+                <span><span class="ag-title">${escM(ev.summary||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}</span>
+                <span class="ag-del" title="Törlés">×</span>
+            </div>`;
+        });
+        html += '</div>';
+        grid.innerHTML = html;
     }
 
     async function updateCalendarEvent(id, patch){
@@ -1170,27 +1281,46 @@ renderMoney(); renderCareer(); renderInfo();
     async function initCalendar(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
-        const { start, now } = weekBounds();
+        if (!calWired){ wireToolbar(); wireGridClicks(); calWired = true; }
+        const now = new Date();
         const dateLabel = document.querySelector(".cal-date");
-        if (dateLabel) dateLabel.textContent = fmtRange(start);
-        renderShell(grid, start, now);
-        currentWeekStart = start;
-        wireDrop();
+
+        // Tartomány + felirat + (idő-nézeteknél) oszlopok
+        let rangeStart, rangeEnd, cols = null;
+        if (viewMode === "day"){
+            rangeStart = startOfDay(viewAnchor); rangeEnd = addDays(rangeStart, 1);
+            cols = [rangeStart];
+            if (dateLabel) dateLabel.textContent = fmtDay(rangeStart);
+        } else if (viewMode === "month"){
+            const f = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
+            rangeStart = startOfWeek(f); rangeEnd = addDays(rangeStart, 42);
+            if (dateLabel) dateLabel.textContent = fmtMonth(viewAnchor);
+        } else if (viewMode === "agenda"){
+            rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
+            if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
+        } else {   // week
+            rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
+            cols = []; for (let i=0;i<7;i++) cols.push(addDays(rangeStart, i));
+            if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
+        }
 
         const token = getCalendarToken();
-        if (!token){
-            showMsg('A naptár megjelenítéséhez kösd össze a Google Naptárad.<br><button class="btn" id="calConnectBtn">Naptár összekötése</button>');
-            return;
-        }
+        if (!token){ currentColumns = cols || []; showConnect(grid); return; }
+
+        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); }
+        else currentColumns = [];
+
         try {
-            const events = await fetchEvents(token, start, addDays(start,7));
-            renderEvents(start, events);
+            const events = await fetchEvents(token, rangeStart, rangeEnd);
+            if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events);
+            else if (viewMode === "month") renderMonth(grid, now, events);
+            else renderAgenda(grid, now, events);
         } catch (e){
             if (e.status === 401 || e.status === 403){
                 try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
-                showMsg('A naptár hozzáférés lejárt vagy hiányzik.<br><button class="btn" id="calConnectBtn">Naptár újra-összekötése</button>');
+                showConnect(grid, "A naptár hozzáférés lejárt vagy hiányzik.");
             } else {
-                showMsg("A naptár betöltése nem sikerült: " + escM(e.message || e));
+                showConnect(grid, "A naptár betöltése nem sikerült: " + escM(e.message || e));
             }
         }
     }
