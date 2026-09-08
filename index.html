@@ -278,8 +278,8 @@
         .plan-box .label { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; min-height:28px; display:flex; align-items:center; justify-content:center; }
         .plan-nums { display:flex; align-items:baseline; justify-content:center; gap:3px; }
         .plan-nums .van { font-size:22px; font-weight:800; color:var(--navy); }
-        .plan-nums .sep { color:var(--muted); font-size:14px; }
-        .plan-nums .cel { font-size:14px; color:var(--muted); font-weight:600; }
+        .plan-nums .sep { color:var(--muted); font-size:20px; }
+        .plan-nums .cel { font-size:22px; color:var(--muted); font-weight:800; }
         .plan-bar { height:5px; border-radius:3px; background:var(--border); margin-top:8px; overflow:hidden; }
         .plan-bar span { display:block; height:100%; background:var(--blue); border-radius:3px; }
         .plan-legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:2px; }
@@ -438,7 +438,7 @@
                 <section class="card" style="order:-1;">
                     <div class="card-head">
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
-                        <h2>Heti tervezés</h2>
+                        <h2>Heti tervezés <span style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
                         <span class="week-range" id="planWeekRange" style="margin-left:auto;"></span>
                         <button class="btn-edit" id="planEditBtn" style="margin-left:12px;" onclick="togglePlanEdit()">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -447,9 +447,6 @@
                     </div>
                     <div class="card-body">
                         <div class="plan-grid" id="planGrid"></div>
-                        <div class="plan-legend" style="margin-top:14px;">
-                            <span>cél / <b>Van</b> — heti teljesítés</span>
-                        </div>
                     </div>
                 </section>
 
@@ -497,12 +494,12 @@
                 <section class="card">
                     <div class="card-head">
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span>
-                        <h2>Éves céljaid</h2>
-                        <a class="link" href="#">Részletek</a>
+                        <h2>Havi egység</h2>
+                        <a class="link" href="#" id="goHavi">Havi terv →</a>
                     </div>
                     <div class="card-body">
-                        <div class="goals-row"><span>3 / 8 teljesítve</span><span class="pct">38%</span></div>
-                        <div class="goals-bar"><span style="width:38%"></span></div>
+                        <div class="goals-row"><span id="haviEgysegText">0 / 0 EH</span><span class="pct" id="haviEgysegPct">0%</span></div>
+                        <div class="goals-bar"><span id="haviEgysegBar" style="width:0%"></span></div>
                     </div>
                 </section>
 
@@ -834,6 +831,13 @@ function enableRowDrag(tbodyId){
         const payload = { name: tr.dataset.name, list: tr.dataset.list, index: +tr.dataset.index };
         e.dataTransfer.setData('text/plain', JSON.stringify(payload));
         e.dataTransfer.effectAllowed = 'copy';
+        // Húzás közben csak a név látszódjon (nem a teljes sor)
+        const ghost = document.createElement('div');
+        ghost.textContent = tr.dataset.name;
+        ghost.style.cssText = 'position:absolute;top:-1000px;left:-1000px;padding:6px 12px;background:#1f5fd0;color:#fff;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(15,47,95,.3);';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 12, 12);
+        setTimeout(() => ghost.remove(), 0);
     });
 }
 enableRowDrag('moneyTable');
@@ -898,7 +902,7 @@ function haviKey(d){ return `sf_havi_${d.getFullYear()}_${d.getMonth()}`; }
 function blankHavi(){
     return { nev:"", rang:"", celPenz:"", celES:"", csapatFt:"", csapatEH:"",
         formula: Array(8).fill(""),
-        weeks: Array.from({length:5}, () => ({ cel:Array(8).fill(""), van:Array(8).fill("") })) };
+        weeks: Array.from({length:6}, () => ({ cel:Array(8).fill(""), van:Array(8).fill("") })) };
 }
 function loadHavi(d){
     const raw = store.load(haviKey(d), null);
@@ -907,7 +911,7 @@ function loadHavi(d){
     b.nev=raw.nev||""; b.rang=raw.rang||""; b.celPenz=raw.celPenz||""; b.celES=raw.celES||"";
     b.csapatFt=raw.csapatFt||""; b.csapatEH=raw.csapatEH||"";
     if(Array.isArray(raw.formula)) for(let i=0;i<8;i++) b.formula[i]=raw.formula[i]??"";
-    if(Array.isArray(raw.weeks)) for(let w=0;w<5 && w<raw.weeks.length;w++){
+    if(Array.isArray(raw.weeks)) for(let w=0;w<6 && w<raw.weeks.length;w++){
         const rw=raw.weeks[w]||{};
         for(let i=0;i<8;i++){ b.weeks[w].cel[i]=(rw.cel&&rw.cel[i])??""; b.weeks[w].van[i]=(rw.van&&rw.van[i])??""; }
     }
@@ -915,12 +919,21 @@ function loadHavi(d){
 }
 function saveHavi(){ store.save(haviKey(haviAnchor), haviData); }
 function haviNum(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+let haviWeekCount = 5;
+// Az adott hónap első keddje (OVB heti rendszer)
+function firstTuesday(y, m){ const d=new Date(y, m, 1); d.setDate(1 + ((2 - d.getDay() + 7) % 7)); return d; }
+// A havi terv időszaka: első kedd → következő hónap első keddje (4-6 hét)
+function haviPeriod(d){
+    const start = firstTuesday(d.getFullYear(), d.getMonth());
+    const nextStart = firstTuesday(d.getFullYear(), d.getMonth() + 1);
+    const weeks = Math.round((nextStart - start) / (7 * 86400000));
+    return { start, weeks: Math.max(4, Math.min(6, weeks)) };
+}
 function haviWeekRanges(d){
-    const first=new Date(d.getFullYear(), d.getMonth(), 1);
-    const mon=new Date(first); mon.setDate(first.getDate()-((first.getDay()+6)%7));
-    const f=x=>`${String(x.getMonth()+1).padStart(2,'0')}.${String(x.getDate()).padStart(2,'0')}.`;
-    const out=[];
-    for(let i=0;i<5;i++){ const s=new Date(mon); s.setDate(mon.getDate()+i*7); const e=new Date(s); e.setDate(s.getDate()+6); out.push(`${f(s)} – ${f(e)}`); }
+    const { start, weeks } = haviPeriod(d);
+    const f = x => `${String(x.getMonth()+1).padStart(2,'0')}.${String(x.getDate()).padStart(2,'0')}.`;
+    const out = [];
+    for(let i=0;i<weeks;i++){ const s=new Date(start); s.setDate(start.getDate()+i*7); const e=new Date(s); e.setDate(s.getDate()+6); out.push(`${f(s)} – ${f(e)}`); }
     return out;
 }
 
@@ -929,6 +942,7 @@ function renderHavi(){
     haviData=loadHavi(haviAnchor);
     document.getElementById('haviMonthLabel').textContent=`${haviAnchor.getFullYear()}. ${HU_MONTHS_FULL[haviAnchor.getMonth()]}`;
     const ranges=haviWeekRanges(haviAnchor);
+    haviWeekCount = ranges.length;
     const th=['<th></th>'].concat(HAVI_METRICS.map(m=>`<th>${m}</th>`)).join('');
     const field=(id,label,val)=>`<div class="havi-field"><label>${label}</label><input data-hf="${id}" value="${esc(val)}"></div>`;
     let html='';
@@ -944,7 +958,7 @@ function renderHavi(){
     html+=`<div class="havi-formula">`+HAVI_METRICS.map((m,i)=>`<div class="fbox"><label>${m}</label><input type="number" data-hformula="${i}" value="${esc(haviData.formula[i])}"></div>`).join('')+`</div>`;
     html+=`<div class="havi-section-title">Heti bontás</div>`;
     html+=`<div class="havi-table-wrap"><table class="havi"><thead><tr>${th}</tr></thead><tbody>`;
-    for(let w=0;w<5;w++){
+    for(let w=0;w<haviWeekCount;w++){
         html+=`<tr class="wk-sep"><td colspan="9">${w+1}. hét — ${ranges[w]}</td></tr>`;
         html+=`<tr><td>CÉL</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(haviData.weeks[w].cel[i])}"></td>`).join('')+`</tr>`;
         html+=`<tr><td>VAN</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="number" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"></td>`).join('')+`</tr>`;
@@ -961,7 +975,7 @@ function renderHavi(){
 function recomputeHavi(){
     for(let i=0;i<8;i++){
         let tc=0, tv=0;
-        for(let w=0;w<5;w++){
+        for(let w=0;w<haviWeekCount;w++){
             const c=haviNum(haviData.weeks[w].cel[i]), v=haviNum(haviData.weeks[w].van[i]);
             tc+=c; tv+=v;
             const d=v-c, el=document.getElementById(`hdiff-${w}-${i}`);
@@ -976,11 +990,27 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     const t=e.target;
     if(t.dataset.hf!==undefined){ haviData[t.dataset.hf]=t.value; saveHavi(); return; }
     if(t.dataset.hformula!==undefined){ haviData.formula[+t.dataset.hformula]=t.value; saveHavi(); return; }
-    if(t.dataset.hw!==undefined){ haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm]=t.value; saveHavi(); recomputeHavi(); return; }
+    if(t.dataset.hw!==undefined){ haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm]=t.value; saveHavi(); recomputeHavi(); updateHaviEgysegCard(); return; }
 });
 document.getElementById('haviPrev').addEventListener('click', ()=>{ haviAnchor=new Date(haviAnchor.getFullYear(), haviAnchor.getMonth()-1, 1); renderHavi(); });
 document.getElementById('haviNext').addEventListener('click', ()=>{ haviAnchor=new Date(haviAnchor.getFullYear(), haviAnchor.getMonth()+1, 1); renderHavi(); });
 document.getElementById('haviToday').addEventListener('click', ()=>{ haviAnchor=new Date(); renderHavi(); });
+
+// Dashboard "Havi egység" kártya – az aktuális havi terv Egység sorából
+function updateHaviEgysegCard(){
+    const t=document.getElementById('haviEgysegText'), p=document.getElementById('haviEgysegPct'), b=document.getElementById('haviEgysegBar');
+    if(!t) return;
+    const d=loadHavi(new Date());
+    const wc=haviWeekRanges(new Date()).length;
+    let cel=0, van=0;
+    for(let w=0;w<wc;w++){ cel+=haviNum(d.weeks[w].cel[6]); van+=haviNum(d.weeks[w].van[6]); }
+    const pct=cel?Math.min(100,Math.round(van/cel*100)):0;
+    t.textContent=`${van} / ${cel} EH`;
+    p.textContent=pct+'%';
+    b.style.width=pct+'%';
+}
+updateHaviEgysegCard();
+(function(){ const gh=document.getElementById('goHavi'); if(gh) gh.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="havi"]'); if(l) l.click(); }); })();
 </script>
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
