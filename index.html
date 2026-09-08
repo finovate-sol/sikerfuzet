@@ -184,6 +184,9 @@
         .wk-ev.c2 { background:#efeafe; border-color:#7c3aed; color:#4c1d95; }
         .wk-ev.c3 { background:#fef3e2; border-color:#d97706; color:#7c3a06; }
         .wk-ev.c4 { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
+        .wk-ev-del { position:absolute; top:0; right:2px; font-size:15px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; padding:1px 3px; }
+        .wk-ev:hover .wk-ev-del { opacity:.7; }
+        .wk-ev-del:hover { opacity:1 !important; color:var(--red); }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:26px 20px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
         .drop-indicator { position:absolute; background:rgba(31,95,208,.16); border:1.5px dashed var(--blue); border-radius:6px; pointer-events:none; z-index:5; font-size:10px; color:var(--blue); font-weight:700; padding:2px 5px; box-sizing:border-box; }
@@ -923,7 +926,9 @@ renderMoney(); renderCareer(); renderInfo();
             div.style.width = `calc(${100/7}% - 6px)`;
             div.style.top = top + "px";
             div.style.height = height + "px";
-            div.innerHTML = `<b>${hh}</b>${escM(ev.summary || "(névtelen)")}`;
+            div.dataset.eventId = ev.id || "";
+            div.dataset.title = ev.summary || "";
+            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span><b>${hh}</b>${escM(ev.summary || "(névtelen)")}`;
             div.title = (ev.summary || "") + " — " + hh;
             canvas.appendChild(div);
         });
@@ -985,9 +990,31 @@ renderMoney(); renderCareer(); renderInfo();
             start.setMinutes(minutes);
             openEventModal(name, start, payload.list, payload.index);
         });
+        canvas.addEventListener("click", async e => {
+            const del = e.target.closest(".wk-ev-del");
+            if (!del) return;
+            const evDiv = del.closest(".wk-ev");
+            const id = evDiv && evDiv.dataset.eventId;
+            if (!id) return;
+            if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (evDiv.dataset.title || ""))) return;
+            try { await deleteCalendarEvent(id); initCalendar(); }
+            catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
+        });
     }
 
-    async function createCalendarEvent({ summary, description, start, durationMin }){
+    async function deleteCalendarEvent(id){
+        let token = getCalendarToken();
+        const doDel = tok => fetch(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events/" + encodeURIComponent(id),
+            { method: "DELETE", headers: { Authorization: "Bearer " + tok } }
+        );
+        let res = await doDel(token);
+        if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doDel(token); }
+        if (!res.ok && res.status !== 410){ const err = new Error("Törlés hiba: " + res.status); err.status = res.status; throw err; }
+        return true;
+    }
+
+    async function createCalendarEvent({ summary, description, location, start, durationMin }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const end = new Date(start.getTime() + durationMin * 60000);
@@ -997,6 +1024,7 @@ renderMoney(); renderCareer(); renderInfo();
             end:   { dateTime: localIso(end),   timeZone: tz }
         };
         if (description) body.description = description;
+        if (location) body.location = location;
 
         async function doInsert(tok){
             return fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
@@ -1028,6 +1056,7 @@ renderMoney(); renderCareer(); renderInfo();
                     <div id="evUnitWrap" hidden><label for="evUnit">Hány egységre számítasz? (EH)</label><input id="evUnit" type="number" min="0" step="1" value="100"></div>
                     <div><label for="evStart">Időpont</label><input id="evStart" type="datetime-local"></div>
                     <div><label for="evDur">Időtartam (perc)</label><input id="evDur" type="number" min="15" step="15" value="60"></div>
+                    <div><label for="evLoc">Hol lesz?</label><input id="evLoc" type="text" placeholder="Helyszín"></div>
                 </div>
                 <div class="modal-foot">
                     <button class="btn" id="evCancel">Mégse</button>
@@ -1056,14 +1085,15 @@ renderMoney(); renderCareer(); renderInfo();
             const when = startInput.value ? new Date(startInput.value) : start;
             const durationMin = Math.max(15, parseInt(durInput.value, 10) || 60);
             let summary = `${name} (${type.suffix})`;
-            const description = "";
             if (type.unit){
                 const u = overlay.querySelector("#evUnit").value;
                 summary += ` - ${(u === "" ? "0" : u)} EH`;
             }
+            const location = overlay.querySelector("#evLoc").value.trim();
+            const description = "Ügyfél: " + name;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, start: when, durationMin });
+                await createCalendarEvent({ summary, description, location, start: when, durationMin });
                 // A forrás-sor eredménye legyen "sikeres" (✓)
                 if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
