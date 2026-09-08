@@ -1,17 +1,16 @@
 // ============================================================================
 //  FIREBASE KONFIGURÁCIÓ
-//  Cseréld ki az alábbi placeholder értékeket a saját Firebase projekted
-//  configjára: Firebase Console → Project settings (⚙️) → General →
-//  "Your apps" → Web app → firebaseConfig.
-//  Ezek az értékek PUBLIKUSAK, nyugodtan bekerülhetnek a repóba.
+//  A finovate-sol-sikerfuzet Firebase projekt web-configja.
+//  Ezek az értékek PUBLIKUSAK (kliensoldali azonosítók) – nyugodtan a repóban.
 // ============================================================================
 export const firebaseConfig = {
-    apiKey: "PLACEHOLDER_API_KEY",
-    authDomain: "PLACEHOLDER.firebaseapp.com",
-    projectId: "PLACEHOLDER_PROJECT_ID",
-    storageBucket: "PLACEHOLDER.appspot.com",
-    messagingSenderId: "PLACEHOLDER_SENDER_ID",
-    appId: "PLACEHOLDER_APP_ID"
+    apiKey: "AIzaSyDeZxEJpjZlzUBOboPpUzHZxPmMgk7L6vU",
+    authDomain: "finovate-sol-sikerfuzet.firebaseapp.com",
+    projectId: "finovate-sol-sikerfuzet",
+    storageBucket: "finovate-sol-sikerfuzet.firebasestorage.app",
+    messagingSenderId: "494203637099",
+    appId: "1:494203637099:web:760b7b8a859a3948d0902e",
+    measurementId: "G-K9JQXBSPE4"
 };
 
 // Igaz, ha már valós config van beállítva (nem placeholder).
