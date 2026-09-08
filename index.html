@@ -1,9 +1,527 @@
 <!DOCTYPE html>
-<html>
+<html lang="hu">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sikerfüzet</title>
+    <style>
+        :root {
+            --navy: #0f2f5f;
+            --navy-dark: #0a2547;
+            --blue: #1f5fd0;
+            --blue-light: #e8f0fc;
+            --bg: #f0f3f7;
+            --card: #ffffff;
+            --text: #1c2b45;
+            --muted: #6b7a90;
+            --border: #e2e8f0;
+            --green: #16a34a;
+            --red: #dc2626;
+            --amber: #d97706;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(15,47,95,.06), 0 1px 2px rgba(15,47,95,.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        a { color: inherit; text-decoration: none; }
+        .layout { display: flex; min-height: 100vh; }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 240px;
+            background: var(--navy);
+            color: #cdd8ea;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+        .brand {
+            padding: 22px 24px 18px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: .3px;
+        }
+        .brand small { display:block; font-size:11px; font-weight:400; color:#7f93b5; margin-top:2px; }
+        .nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+        .nav a {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 16px; border-radius: 8px;
+            color: #cdd8ea; font-weight: 500;
+            transition: background .15s, color .15s;
+        }
+        .nav a svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .9; }
+        .nav a:hover { background: rgba(255,255,255,.06); color:#fff; }
+        .nav a.active { background: var(--blue); color: #fff; }
+        .nav .divider { height:1px; background: rgba(255,255,255,.09); margin: 10px 16px; }
+        .sidebar-foot { margin-top:auto; padding: 14px 24px; font-size: 11px; color:#6f83a6; }
+
+        /* ===== MAIN ===== */
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .topbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 28px;
+            display: flex; align-items: center; gap: 18px;
+            position: sticky; top: 0; z-index: 20;
+        }
+        .search {
+            flex: 1; max-width: 520px;
+            display: flex; align-items: center; gap: 10px;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 9px 14px; color: var(--muted);
+        }
+        .search input { border:none; background:transparent; outline:none; flex:1; font-size:14px; color:var(--text); }
+        .topbar-right { margin-left:auto; display:flex; align-items:center; gap:18px; }
+        .bell { position: relative; color: var(--muted); cursor:pointer; }
+        .bell .dot {
+            position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff;
+            font-size:10px; font-weight:700; width:17px; height:17px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .user { display:flex; align-items:center; gap:10px; cursor:pointer; }
+        .avatar {
+            width:34px; height:34px; border-radius:50%; background:var(--navy);
+            color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;
+        }
+        .user-name { font-weight:600; }
+        .user-name svg { width:14px; height:14px; color:var(--muted); vertical-align:middle; margin-left:2px; }
+
+        .content { padding: 26px 28px; display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items:start; }
+        .page-title { grid-column: 1 / -1; margin-bottom: 2px; }
+        .page-title h1 { font-size: 28px; font-weight: 800; color: var(--navy); }
+        .page-title p { color: var(--muted); margin-top: 2px; }
+
+        .col-main { display:flex; flex-direction:column; gap:22px; min-width:0; }
+        .col-side { display:flex; flex-direction:column; gap:22px; }
+
+        /* ===== CARD ===== */
+        .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+        .card-head { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--border); }
+        .card-head h2 { font-size:16px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:9px; }
+        .card-head .link { margin-left:auto; color:var(--blue); font-weight:600; font-size:13px; }
+        .card-head .icon { color:var(--blue); display:flex; }
+        .card-body { padding: 18px 20px; }
+
+        /* ===== CALENDAR ===== */
+        .cal-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 20px; border-bottom:1px solid var(--border); }
+        .btn {
+            display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border:1px solid var(--border);
+            border-radius:8px; background:#fff; font-weight:600; font-size:13px; color:var(--text); cursor:pointer;
+        }
+        .btn:hover { background: var(--bg); }
+        .btn.icon-btn { padding:7px 9px; }
+        .cal-date { font-weight:700; font-size:15px; color:var(--navy); }
+        .seg { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-left:auto; }
+        .seg button { padding:7px 14px; border:none; background:#fff; font-weight:600; font-size:13px; color:var(--muted); cursor:pointer; }
+        .seg button.active { background:var(--blue); color:#fff; }
+        .seg button + button { border-left:1px solid var(--border); }
+
+        .cal-grid { display:grid; grid-template-columns: 52px repeat(7, 1fr); }
+        .cal-grid .head { border-bottom:1px solid var(--border); padding:10px 4px; text-align:center; font-size:12px; color:var(--muted); font-weight:600; }
+        .cal-grid .head .num { display:block; font-size:16px; color:var(--text); font-weight:700; margin-top:2px; }
+        .cal-grid .head.today .num { background:var(--blue); color:#fff; width:26px; height:26px; line-height:26px; border-radius:50%; margin:2px auto 0; }
+        .cal-grid .time { font-size:11px; color:var(--muted); text-align:right; padding:6px 8px 0 0; border-right:1px solid var(--border); height:44px; }
+        .cal-grid .slot { border-right:1px solid var(--border); border-bottom:1px solid #f0f2f6; height:44px; position:relative; padding:2px; }
+        .cal-grid .slot:nth-child(8n+1) { border-right:1px solid var(--border); }
+        .ev { position:absolute; left:2px; right:2px; top:2px; border-radius:6px; padding:4px 6px; font-size:11px; line-height:1.25; overflow:hidden; border-left:3px solid; }
+        .ev b { display:block; font-weight:600; }
+        .ev.blue { background:#e8f0fc; border-color:#1f5fd0; color:#1a3f7a; }
+        .ev.green { background:#e6f6ec; border-color:#16a34a; color:#14532d; }
+        .ev.purple { background:#efeafe; border-color:#7c3aed; color:#4c1d95; }
+        .ev.red { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
+        .ev.amber { background:#fef3e2; border-color:#d97706; color:#7c3a06; }
+
+        /* ===== HETI TERVEZÉS ===== */
+        .week-range { font-size:13px; color:var(--muted); }
+        .week-range b { color:var(--text); }
+        .plan-grid { display:grid; grid-template-columns: repeat(8, 1fr); gap:12px; }
+        .plan-box { border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; background:#fbfcfe; }
+        .plan-box .label { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; min-height:28px; display:flex; align-items:center; justify-content:center; }
+        .plan-nums { display:flex; align-items:baseline; justify-content:center; gap:3px; }
+        .plan-nums .van { font-size:22px; font-weight:800; color:var(--navy); }
+        .plan-nums .sep { color:var(--muted); font-size:14px; }
+        .plan-nums .cel { font-size:14px; color:var(--muted); font-weight:600; }
+        .plan-bar { height:5px; border-radius:3px; background:var(--border); margin-top:8px; overflow:hidden; }
+        .plan-bar span { display:block; height:100%; background:var(--blue); border-radius:3px; }
+        .plan-legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:2px; }
+        .plan-legend b { color:var(--text); }
+
+        /* ===== CALL TABLES (2 részre bontva) ===== */
+        .calls-2 { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+        @media (max-width:1100px){ .calls-2 { grid-template-columns:1fr; } }
+        .calls-head { display:flex; align-items:center; gap:9px; padding:14px 18px; border-bottom:1px solid var(--border); }
+        .calls-head .tag { font-size:11px; font-weight:800; letter-spacing:.5px; padding:3px 9px; border-radius:6px; }
+        .tag.money { background:#e6f6ec; color:#15803d; }
+        .tag.career { background:#fef3e2; color:#b45309; }
+        .calls-head h2 { font-size:15px; font-weight:700; color:var(--navy); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:10px 14px; border-bottom:1px solid var(--border); }
+        tbody td { padding:11px 14px; border-bottom:1px solid #f1f4f8; font-size:13px; }
+        tbody tr:last-child td { border-bottom:none; }
+        tbody tr:hover { background:#fafbfd; }
+        .phone { font-variant-numeric: tabular-nums; color:var(--muted); }
+        .res { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-weight:800; font-size:13px; }
+        .res.ok { background:#e6f6ec; color:var(--green); }
+        .res.no { background:#fdeaea; color:var(--red); }
+        .res.pending { background:#eef1f5; color:var(--muted); }
+        .mt-badge { font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-light); padding:2px 7px; border-radius:5px; }
+
+        /* ===== SIDE WIDGETS ===== */
+        .info-list { display:flex; flex-direction:column; }
+        .info-list a { display:flex; align-items:center; gap:12px; padding:11px 20px; border-bottom:1px solid #f1f4f8; }
+        .info-list a:last-child { border-bottom:none; }
+        .info-list a:hover { background:#fafbfd; }
+        .info-num { width:22px; color:var(--muted); font-weight:700; font-size:13px; }
+        .info-name { font-weight:500; flex:1; }
+        .info-list a svg { width:16px; height:16px; color:var(--muted); }
+
+        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .stat .stat-label { font-size:13px; color:var(--muted); }
+        .stat .stat-num { font-size:30px; font-weight:800; color:var(--navy); line-height:1.1; margin:4px 0; }
+        .stat .trend { font-size:12px; font-weight:700; color:var(--green); display:inline-flex; align-items:center; gap:3px; }
+        .stat .stat-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+        .quick { display:flex; flex-direction:column; }
+        .quick a { display:flex; align-items:center; gap:13px; padding:13px 20px; border-bottom:1px solid #f1f4f8; font-weight:600; }
+        .quick a:last-child { border-bottom:none; }
+        .quick a:hover { background:#fafbfd; }
+        .quick a .qic { width:30px; height:30px; border-radius:8px; background:var(--blue-light); color:var(--blue); display:flex; align-items:center; justify-content:center; }
+        .quick a .qic svg { width:16px; height:16px; }
+        .quick a .chev { margin-left:auto; color:var(--muted); }
+
+        .goals-bar { height:9px; border-radius:5px; background:var(--border); overflow:hidden; margin:10px 0 6px; }
+        .goals-bar span { display:block; height:100%; background:var(--blue); border-radius:5px; }
+        .goals-row { display:flex; justify-content:space-between; font-size:13px; }
+        .goals-row .pct { font-weight:700; color:var(--navy); }
+
+        @media (max-width: 1000px){
+            .content { grid-template-columns:1fr; }
+            .sidebar { display:none; }
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello World!</h1>
+<div class="layout">
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="brand">Sikerfüzet<small>Tervezd. Kövesd. Valósítsd meg.</small></div>
+        <nav class="nav">
+            <a href="#" class="active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                Kezdőoldal
+            </a>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+                Éves Terv
+            </a>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
+                Havi Terv
+            </a>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M7 14h2M11 14h2M15 14h2"/></svg>
+                Heti Terv
+            </a>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+                Ki lesz a következő
+            </a>
+            <div class="divider"></div>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+                Személyes PG
+            </a>
+            <a href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3M8 21h8"/><path d="M3 3l18 18" stroke-width="1.6"/></svg>
+                Csendes PG
+            </a>
+        </nav>
+        <div class="sidebar-foot">© 2025 Sikerfüzet</div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="search">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input type="text" placeholder="Keresés a Sikerfüzetben...">
+            </div>
+            <div class="topbar-right">
+                <div class="bell">
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                    <span class="dot">3</span>
+                </div>
+                <div class="user">
+                    <div class="avatar">SM</div>
+                    <span class="user-name">Szécsi Márk
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTENT -->
+        <div class="content">
+            <div class="page-title">
+                <h1>Sikerfüzet</h1>
+                <p>Tervezd. Kövesd. Valósítsd meg.</p>
+            </div>
+
+            <!-- ===== LEFT COLUMN ===== -->
+            <div class="col-main">
+
+                <!-- NAPTÁR -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>
+                        <h2>Naptár</h2>
+                        <a class="link" href="#">Megnyitás a Google Naptárban ↗</a>
+                    </div>
+                    <div class="cal-toolbar">
+                        <button class="btn">Ma</button>
+                        <button class="btn icon-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+                        <button class="btn icon-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+                        <span class="cal-date">2025. szeptember 8. – 14.</span>
+                        <div class="seg">
+                            <button>Nap</button>
+                            <button class="active">Hét</button>
+                            <button>Hónap</button>
+                            <button>Napló</button>
+                        </div>
+                    </div>
+                    <div class="cal-grid" id="calGrid"></div>
+                </section>
+
+                <!-- HETI TERVEZÉS -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
+                        <h2>Heti tervezés</h2>
+                        <span class="week-range" style="margin-left:auto;">A hét: <b>2025. 09. 08.</b> – <b>2025. 09. 14.</b></span>
+                    </div>
+                    <div class="card-body">
+                        <div class="plan-grid" id="planGrid"></div>
+                        <div class="plan-legend" style="margin-top:14px;">
+                            <span><b>Van</b> / cél — heti teljesítés</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- KIT KELL FELHÍVNI (2 részre bontva) -->
+                <div class="calls-2">
+                    <!-- PÉNZEM -->
+                    <section class="card">
+                        <div class="calls-head">
+                            <span class="tag money">3 - 2 - 1</span>
+                            <h2>Saját PÉNZEM</h2>
+                            <a class="link" href="#" style="margin-left:auto;">Összes</a>
+                        </div>
+                        <table>
+                            <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
+                            <tbody id="moneyTable"></tbody>
+                        </table>
+                    </section>
+
+                    <!-- KARRIEREM -->
+                    <section class="card">
+                        <div class="calls-head">
+                            <span class="tag career">3 - 2 - 1</span>
+                            <h2>Saját KARRIEREM</h2>
+                            <a class="link" href="#" style="margin-left:auto;">Összes</a>
+                        </div>
+                        <table>
+                            <thead><tr><th>Név</th><th>MT</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
+                            <tbody id="careerTable"></tbody>
+                        </table>
+                    </section>
+                </div>
+
+            </div><!-- /col-main -->
+
+            <!-- ===== RIGHT COLUMN ===== -->
+            <div class="col-side">
+
+                <!-- ÉVES CÉLJAID -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span>
+                        <h2>Éves céljaid</h2>
+                        <a class="link" href="#">Részletek</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="goals-row"><span>3 / 8 teljesítve</span><span class="pct">38%</span></div>
+                        <div class="goals-bar"><span style="width:38%"></span></div>
+                    </div>
+                </section>
+
+                <!-- INFO RÉSZTVEVŐK -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z"/></svg></span>
+                        <h2>INFO résztvevők</h2>
+                        <a class="link" href="#">Összes</a>
+                    </div>
+                    <div class="info-list" id="infoList"></div>
+                </section>
+
+                <!-- STATISZTIKÁK -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
+                        <h2>Statisztikák</h2>
+                        <a class="link" href="#">Részletek</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat">
+                                <div class="stat-label">Találkozók</div>
+                                <div class="stat-num">12</div>
+                                <span class="trend">▲ +20%</span>
+                                <div class="stat-sub">az előző hónaphoz képest</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Új résztvevők</div>
+                                <div class="stat-num">5</div>
+                                <span class="trend">▲ +67%</span>
+                                <div class="stat-sub">az előző hónaphoz képest</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GYORS MŰVELETEK -->
+                <section class="card">
+                    <div class="card-head">
+                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></span>
+                        <h2>Gyors műveletek</h2>
+                    </div>
+                    <div class="quick" id="quickActions"></div>
+                </section>
+
+            </div><!-- /col-side -->
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== SAMPLE DATA =====
+const events = [
+    { day:0, start:9,  len:1, title:"Csapat meeting",         cls:"blue" },
+    { day:0, start:13, len:1, title:"Termék tréning",         cls:"red" },
+    { day:1, start:10, len:1, title:"Ügyfél - Kovács Péter",  cls:"green" },
+    { day:1, start:15, len:1, title:"Ügyfél - Szabó Anna",    cls:"blue" },
+    { day:2, start:9,  len:1, title:"Új munkatárs interjú",   cls:"blue" },
+    { day:2, start:11, len:1, title:"Vezetői egyeztetés",     cls:"purple" },
+    { day:3, start:10, len:1, title:"Ajánlat készítés",       cls:"green" },
+    { day:3, start:14, len:1, title:"Follow up hívások",      cls:"red" },
+    { day:4, start:9,  len:1, title:"Régiós megbeszélés",     cls:"blue" },
+    { day:4, start:16, len:1, title:"Heti értékelés",         cls:"purple" },
+];
+const days = [
+    {n:"H", d:8}, {n:"K", d:9}, {n:"Sze", d:10, today:true},
+    {n:"Cs", d:11}, {n:"P", d:12}, {n:"Szo", d:13}, {n:"V", d:14}
+];
+const hours = [8,9,10,11,12,13,14,15,16,17];
+
+const weekPlan = [
+    { label:"Kontaktus",   cel:15, van:5 },
+    { label:"EL időpont",  cel:10, van:3 },
+    { label:"Elemzés",     cel:9,  van:1 },
+    { label:"TA időpont",  cel:6,  van:1 },
+    { label:"Tanácsadás",  cel:5,  van:1 },
+    { label:"Lezárt ÜF",   cel:5,  van:0 },
+    { label:"Egység",      cel:35, van:0 },
+    { label:"Ajánlások",   cel:45, van:5 },
+];
+
+const moneyCalls = [
+    { name:"Kucsera János",    phone:"06 20 517 1108",  res:"ok" },
+    { name:"Pakocs Erzsébet",  phone:"06 30 586 3969",  res:"ok" },
+    { name:"Nagy Gábor",       phone:"06 70 214 8890",  res:"pending" },
+    { name:"Tóth Eszter",      phone:"06 20 445 1276",  res:"pending" },
+];
+const careerCalls = [
+    { name:"Budavári Martin",  mt:"K.M", phone:"06 20 326 0865", res:"ok" },
+    { name:"Veres Márk",       mt:"—",   phone:"06 30 667 3460", res:"no" },
+    { name:"Siliga Dávid",     mt:"S.A", phone:"06 30 116 1082", res:"ok" },
+    { name:"Varga Péter",      mt:"—",   phone:"06 20 902 3311", res:"pending" },
+];
+
+const infoParticipants = [
+    "Kiss Zsuzsanna","Szécsi Attiláné","Künsztler László","Ferkel Ádám",
+    "Szeles Henriett Csil","Aczél Péter","Szécsi Viktória Bian","Szécsi Márk"
+];
+
+const quickActions = [
+    { label:"Új jegyzet",          icon:'<path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/>' },
+    { label:"Új résztvevő",        icon:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M18 8v6M15 11h6"/>' },
+    { label:"Cél hozzáadása",      icon:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>' },
+    { label:"Éves terv megnyitása",icon:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>' },
+];
+
+// ===== RENDER CALENDAR =====
+const calGrid = document.getElementById('calGrid');
+let html = '<div class="head"></div>';
+days.forEach(d => {
+    html += `<div class="head${d.today?' today':''}">${d.n}<span class="num">${d.d}</span></div>`;
+});
+hours.forEach(h => {
+    html += `<div class="time">${String(h).padStart(2,'0')}:00</div>`;
+    for (let day=0; day<7; day++){
+        const ev = events.find(e => e.day===day && e.start===h);
+        let inner = '';
+        if (ev) inner = `<div class="ev ${ev.cls}"><b>${String(ev.start).padStart(2,'0')}:00</b>${ev.title}</div>`;
+        html += `<div class="slot">${inner}</div>`;
+    }
+});
+calGrid.innerHTML = html;
+
+// ===== RENDER WEEK PLAN =====
+document.getElementById('planGrid').innerHTML = weekPlan.map(p => {
+    const pct = p.cel ? Math.min(100, Math.round(p.van/p.cel*100)) : 0;
+    return `<div class="plan-box">
+        <div class="label">${p.label}</div>
+        <div class="plan-nums"><span class="van">${p.van}</span><span class="sep">/</span><span class="cel">${p.cel}</span></div>
+        <div class="plan-bar"><span style="width:${pct}%"></span></div>
+    </div>`;
+}).join('');
+
+// ===== RENDER CALL TABLES =====
+function resBadge(r){
+    if(r==="ok") return '<span class="res ok">✓</span>';
+    if(r==="no") return '<span class="res no">✕</span>';
+    return '<span class="res pending">–</span>';
+}
+document.getElementById('moneyTable').innerHTML = moneyCalls.map(c =>
+    `<tr><td><strong>${c.name}</strong></td><td class="phone">${c.phone}</td><td style="text-align:center;">${resBadge(c.res)}</td></tr>`
+).join('');
+document.getElementById('careerTable').innerHTML = careerCalls.map(c =>
+    `<tr><td><strong>${c.name}</strong></td><td><span class="mt-badge">${c.mt}</span></td><td class="phone">${c.phone}</td><td style="text-align:center;">${resBadge(c.res)}</td></tr>`
+).join('');
+
+// ===== RENDER INFO LIST =====
+document.getElementById('infoList').innerHTML = infoParticipants.map((n,i) =>
+    `<a href="#"><span class="info-num">${i+1}</span><span class="info-name">${n}</span>
+     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>`
+).join('');
+
+// ===== RENDER QUICK ACTIONS =====
+document.getElementById('quickActions').innerHTML = quickActions.map(q =>
+    `<a href="#"><span class="qic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${q.icon}</svg></span>
+     <span>${q.label}</span>
+     <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>`
+).join('');
+</script>
 </body>
 </html>
