@@ -1596,19 +1596,43 @@ let kovAnchor = { year:new Date().getFullYear(), q: Math.floor(new Date().getMon
 let kovData = null;
 function kovKey(){ return `sf_kov_${kovAnchor.year}_Q${kovAnchor.q}`; }
 function blankKov(){ return { idopont:'', elo:[], esely:[] }; }
-function loadKov(){
-    const raw=store.load(kovKey(), null); const b=blankKov();
+function kovFromRaw(raw){
+    const b=blankKov();
     if(raw){ b.idopont=raw.idopont||'';
         if(Array.isArray(raw.elo)) b.elo=raw.elo.map(r=>({resztvevo:r.resztvevo||'',mnb:r.mnb||'',vezeto:r.vezeto||'',eh:Number(r.eh)||0}));
         if(Array.isArray(raw.esely)) b.esely=raw.esely.map(r=>({resztvevo:r.resztvevo||'',m:Object.assign({},r.m)}));
     }
     return b;
 }
-function saveKov(){ store.save(kovKey(), kovData); }
+// Megosztott, Firestore-alapú negyedéves adat – localStorage csak gyors induláshoz/
+// tartalék offline cache-ként (ha nincs Firebase konfigurálva, csak azt használjuk).
+async function loadKov(){
+    const key=kovKey();
+    if(window.sfIsConfigured && typeof window.sfGetKovQuarter==='function'){
+        try {
+            const remote=await window.sfGetKovQuarter(key);
+            if(remote){ store.save(key, remote); return kovFromRaw(remote); }
+        } catch(e){ console.warn('Ki lesz következő betöltése a felhőből sikertelen:', e); }
+    }
+    return kovFromRaw(store.load(key, null));
+}
+let kovSaveTimer=null;
+function saveKov(){
+    const key=kovKey();
+    store.save(key, kovData);
+    if(window.sfIsConfigured && typeof window.sfSaveKovQuarter==='function'){
+        clearTimeout(kovSaveTimer);
+        const snapshot=JSON.parse(JSON.stringify(kovData));
+        kovSaveTimer=setTimeout(()=>{
+            window.sfSaveKovQuarter(key, snapshot).catch(e=>console.warn('Ki lesz következő mentése a felhőbe sikertelen:', e));
+        }, 800);
+    }
+}
 function kovShift(d){ let q=kovAnchor.q+d, y=kovAnchor.year; while(q<1){q+=4;y--;} while(q>4){q-=4;y++;} kovAnchor={year:y,q}; }
-function renderKov(){
+// Tiszta render a memóriában lévő kovData-ból – szerkesztés után azonnal (optimistán)
+// frissíthető, hálózati várakozás nélkül.
+function renderKovBody(){
     const body=document.getElementById('kovBody'); if(!body) return;
-    kovData=loadKov();
     document.getElementById('kovQLabel').textContent=`${kovAnchor.year}. ${ROMAN[kovAnchor.q-1]}. negyedév`;
     const kIc=(p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
@@ -1671,6 +1695,14 @@ function renderKov(){
 
     body.innerHTML=html;
 }
+// Async belépési pont: betölti a negyedév adatait (Firestore, tartalék localStorage),
+// aztán renderel. Ezt hívja a lapváltó menü és a negyedév-lapozó gombok.
+async function renderKov(){
+    const body=document.getElementById('kovBody'); if(!body) return;
+    body.innerHTML='<div class="card pg-loading">Betöltés…</div>';
+    kovData=await loadKov();
+    renderKovBody();
+}
 (function(){
     const body=document.getElementById('kovBody'); if(!body) return;
     body.addEventListener('input', e=>{
@@ -1685,21 +1717,22 @@ function renderKov(){
     body.addEventListener('change', e=>{
         const t=e.target;
         // Pontos EH beírása – csak elengedéskor/Enterre frissítjük a mérföldkő-cellákat,
-        // hogy gépelés közben ne veszítse el a fókuszt a mező.
-        if(t.dataset.ke==='elo' && t.dataset.kf==='eh'){ renderKov(); return; }
+        // hogy gépelés közben ne veszítse el a fókuszt a mező. Az adat már mentve van
+        // (az 'input' minden billentyűleütésre ment), csak a nézetet frissítjük.
+        if(t.dataset.ke==='elo' && t.dataset.kf==='eh'){ renderKovBody(); return; }
     });
     body.addEventListener('click', e=>{
         const d=e.target.closest('[data-kdel]');
-        if(d){ const p=d.dataset.kdel.split(':'); kovData[p[0]].splice(+p[1],1); saveKov(); renderKov(); return; }
-        if(e.target.closest('#kovAddElo')){ kovData.elo.push({resztvevo:'',mnb:'',vezeto:'',eh:0}); saveKov(); renderKov(); return; }
-        if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',m:{}}); saveKov(); renderKov(); return; }
+        if(d){ const p=d.dataset.kdel.split(':'); kovData[p[0]].splice(+p[1],1); renderKovBody(); saveKov(); return; }
+        if(e.target.closest('#kovAddElo')){ kovData.elo.push({resztvevo:'',mnb:'',vezeto:'',eh:0}); renderKovBody(); saveKov(); return; }
+        if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',m:{}}); renderKovBody(); saveKov(); return; }
         // EH mérföldkő-cella kattintás (Előkészítő) – gyors, kerek érték beállítása
         const cell=e.target.closest('[data-ke2]');
         if(cell && cell.dataset.ke2==='elo'){
             const idx=+cell.dataset.ki2, colVal=+cell.dataset.kc2;
             const row=kovData.elo[idx];
             row.eh = (row.eh===colVal) ? 0 : colVal;
-            saveKov(); renderKov(); return;
+            renderKovBody(); saveKov(); return;
         }
         // Esély-cella kattintás – független zöld/fehér váltás
         const cell3=e.target.closest('[data-ke3]');
@@ -1707,7 +1740,7 @@ function renderKov(){
             const idx=+cell3.dataset.ki3, key=cell3.dataset.kc3;
             const row=kovData.esely[idx];
             row.m=row.m||{}; row.m[key]=!row.m[key];
-            saveKov(); renderKov(); return;
+            renderKovBody(); saveKov(); return;
         }
     });
     document.getElementById('kovPrev').addEventListener('click', ()=>{ kovShift(-1); renderKov(); });
@@ -1949,9 +1982,15 @@ window.sfOnConfig = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter } from "./auth.js";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
+
+    // Híd a klasszikus <script>-hez (a "Ki lesz a következő" oldal ott van definiálva,
+    // de a Firestore-t csak ez a modul-script éri el importtal).
+    window.sfIsConfigured = isConfigured;
+    window.sfGetKovQuarter = getKovQuarter;
+    window.sfSaveKovQuarter = saveKovQuarter;
 
     function initials(name, email){
         const src = (name || email || "?").trim();
@@ -2982,15 +3021,29 @@ window.sfOnConfig = function(){
     }
 
     // ===================== STRUKTÚRA OLDAL =====================
+    // Megosztott csapat-struktúra: config/structure (Firestore), localStorage csak
+    // offline/nincs-Firebase esetén tartalék, illetve gyors induláshoz cache-ként.
     let strTree = null, strBusy = false;
     const STR_KEY = "sf_struktura";
 
     function strId(){ return Math.random().toString(36).slice(2,9); }
 
-    function loadStrTree(){
+    async function loadStrTree(){
+        if(isConfigured){
+            try {
+                const remote = await getStructure();
+                if(remote){ store.save(STR_KEY, remote); return remote; }
+            } catch(e){ console.warn("Struktúra betöltése a felhőből sikertelen, helyi mentés használata:", e); }
+        }
         return store.load(STR_KEY, null) || { id:'root', name:'', role:'leader', children:[] };
     }
-    function saveStrTree(t){ store.save(STR_KEY, t); }
+    async function saveStrTree(t){
+        store.save(STR_KEY, t);
+        if(isConfigured){
+            try { await saveStructure(t); }
+            catch(e){ console.warn("Struktúra mentése a felhőbe sikertelen:", e); }
+        }
+    }
 
     function strNodeHtml(node, isRoot){
         const roleLabels = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
@@ -3009,9 +3062,10 @@ window.sfOnConfig = function(){
         return `<li>${inner}<ul${node.children.length===1?' class="only-child"':''}>${node.children.map(c=>strNodeHtml(c,false)).join('')}</ul></li>`;
     }
 
-    function renderStruktura(){
+    // Tiszta render a memóriában lévő strTree-ből – nem tölt be semmit a hálózatról,
+    // így egy szerkesztés után azonnal (optimistán) frissülhet a nézet.
+    function renderStrukturaBody(){
         const body = document.getElementById("strukturaBody"); if(!body) return;
-        strTree = loadStrTree();
         const treeHtml = `<ul class="only-child">${strNodeHtml(strTree, true)}</ul>`;
         body.innerHTML = `<div class="str-hero"><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
         <div class="card"><div class="card-body" style="padding:0;"><div class="org-wrap"><div class="org-tree">${treeHtml}</div></div></div></div>`;
@@ -3019,6 +3073,13 @@ window.sfOnConfig = function(){
         const wrap = body.querySelector('.org-wrap');
         if(wrap) wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;
         wireStruktura();
+    }
+
+    async function loadAndRenderStruktura(){
+        const body = document.getElementById("strukturaBody"); if(!body) return;
+        body.innerHTML = '<div class="card pg-loading">Struktúra betöltése…</div>';
+        strTree = await loadStrTree();
+        renderStrukturaBody();
     }
 
     let strWired = false;
@@ -3046,7 +3107,8 @@ window.sfOnConfig = function(){
     function strDeleteNode(id){
         function del(node){ node.children=(node.children||[]).filter(c=>c.id!==id).map(c=>{del(c);return c;}); }
         del(strTree);
-        saveStrTree(strTree); renderStruktura();
+        renderStrukturaBody();
+        saveStrTree(strTree);
     }
 
     function strOpenModal(editId, parentId){
@@ -3082,12 +3144,13 @@ window.sfOnConfig = function(){
                 const parent = strFindNode(strTree, parentId);
                 if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,children:[]}); }
             }
-            saveStrTree(strTree); close(); renderStruktura();
+            close(); renderStrukturaBody();
+            saveStrTree(strTree);
         });
         ov.querySelector('#strNameInp').addEventListener('keydown', e=>{ if(e.key==='Enter') ov.querySelector('#strSave').click(); });
     }
 
-    window.sfShowStruktura = function(){ renderStruktura(); };
+    window.sfShowStruktura = function(){ loadAndRenderStruktura(); };
 
 
 </script>
