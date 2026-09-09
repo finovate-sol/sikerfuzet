@@ -53,6 +53,28 @@ export async function removeAllowedUser(email){
     await deleteDoc(doc(db, ALLOWLIST, email.toLowerCase().trim()));
 }
 
+// Megosztott csapat-struktúra (org chart) – config/structure dokumentum
+export async function getStructure(){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "config", "structure")); return snap.exists() ? (snap.data().tree || null) : null; }
+    catch(e){ console.warn("Struktúra olvasás sikertelen:", e); return null; }
+}
+export async function saveStructure(tree){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "config", "structure"), { tree });
+}
+
+// Megosztott "Ki lesz a következő" adatok, negyedévenként – kov_quarters/{year}_Q{q}
+export async function getKovQuarter(key){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "kov_quarters", key)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Ki lesz következő olvasás sikertelen:", e); return null; }
+}
+export async function saveKovQuarter(key, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "kov_quarters", key), data);
+}
+
 let app, auth, db;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);
