@@ -493,8 +493,14 @@
         .str-switch { display:flex; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:3px; gap:2px; }
         .str-switch-btn { border:none; background:transparent; padding:7px 14px; border-radius:8px; font-size:12.5px; font-weight:700; color:var(--muted); cursor:pointer; transition:background .15s,color .15s; font-family:inherit; }
         .str-switch-btn.active { background:var(--navy); color:#fff; }
-        .str-canvas { position:relative; display:inline-block; min-width:100%; }
-        .str-tree { display:flex; flex-direction:column; align-items:center; width:max-content; margin:0 auto; }
+        .str-zoom { display:flex; align-items:center; gap:4px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:3px 6px; }
+        .str-zoom-btn { border:none; background:transparent; width:26px; height:26px; border-radius:7px; font-size:15px; font-weight:700; color:var(--navy); cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+        .str-zoom-btn:hover { background:var(--blue-light); }
+        .str-zoom-btn.str-zoom-reset { width:auto; font-size:11px; padding:0 8px; }
+        .str-zoom-label { font-size:12px; font-weight:700; color:var(--muted); min-width:38px; text-align:center; }
+        .str-zoom-sizer { position:relative; margin:0 auto; }
+        .str-canvas { position:absolute; top:0; left:0; transform-origin:top left; }
+        .str-tree { display:flex; flex-direction:column; align-items:center; width:max-content; }
         .node-block { display:flex; flex-direction:column; align-items:center; }
         .children { display:flex; gap:26px; margin-top:52px; }
         .str-connectors { position:absolute; inset:0; pointer-events:none; z-index:0; }
@@ -3655,21 +3661,42 @@ window.sfOnConfig = function(){
         return `<div class="node-block">${inner}<div class="children">${node.children.map(c=>strNodeHtml(c,false,depth+1)).join('')}</div></div>`;
     }
 
+    // A gyökér-csomópont körüli natúr (nagyítás előtti) méret alapján állítjuk be a
+    // görgethető "sizer" elem méretét, hogy a nagyított fa is teljesen görgethető legyen.
+    let strZoom = store.load('sf_str_zoom', 1);
+    function strApplyZoom(){
+        const canvas = document.getElementById('strCanvas');
+        const sizer = document.getElementById('strZoomSizer');
+        const label = document.getElementById('strZoomLabel');
+        if(!canvas || !sizer) return;
+        canvas.style.transform = `scale(${strZoom})`;
+        const w = canvas.offsetWidth, h = canvas.offsetHeight;
+        sizer.style.width = (w*strZoom) + 'px';
+        sizer.style.height = (h*strZoom) + 'px';
+        if(label) label.textContent = Math.round(strZoom*100) + '%';
+        strDrawConnectors();
+    }
+
     function strDrawConnectors(){
         const canvas = document.getElementById('strCanvas');
         const svg = document.getElementById('strSvg');
         if(!canvas || !svg) return;
+        const z = strZoom || 1;
         const cRect = canvas.getBoundingClientRect();
-        svg.setAttribute('width', canvas.scrollWidth);
-        svg.setAttribute('height', canvas.scrollHeight);
+        const w = canvas.offsetWidth, h = canvas.offsetHeight;
+        svg.setAttribute('width', w);
+        svg.setAttribute('height', h);
         const curved = strVariant === 'b';
-        svg.innerHTML = curved ? '<defs><linearGradient id="strGradB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--navy)"/><stop offset="1" stop-color="var(--blue)"/></linearGradient></defs>' : '';
+        svg.innerHTML = curved ? `<defs><linearGradient id="strGradB" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${h}"><stop offset="0" stop-color="var(--navy)"/><stop offset="1" stop-color="var(--blue)"/></linearGradient></defs>` : '';
         strEdges.forEach(([pid,cid])=>{
             const p = canvas.querySelector(`.str-node[data-nid="${pid}"]`), c = canvas.querySelector(`.str-node[data-nid="${cid}"]`);
             if(!p || !c) return;
             const pr=p.getBoundingClientRect(), cr=c.getBoundingClientRect();
-            const px=pr.left+pr.width/2-cRect.left, py=pr.bottom-cRect.top;
-            const cx=cr.left+cr.width/2-cRect.left, cy=cr.top-cRect.top;
+            // A getBoundingClientRect már a zoom-transzformált (megjelenített) pixelben ad
+            // eredményt, ezért osztunk vissza z-vel, hogy az SVG saját (nem-skálázott)
+            // koordinátarendszerében legyenek a pontok – a transform majd újra felskálázza.
+            const px=(pr.left+pr.width/2-cRect.left)/z, py=(pr.bottom-cRect.top)/z;
+            const cx=(cr.left+cr.width/2-cRect.left)/z, cy=(cr.top-cRect.top)/z;
             const midY=py+(cy-py)/2;
             const d = curved
                 ? `M ${px} ${py} C ${px} ${midY} ${cx} ${midY} ${cx} ${cy}`
@@ -3734,11 +3761,17 @@ window.sfOnConfig = function(){
                 <button class="str-switch-btn${strVariant==='a'?' active':''}" data-str-variant="a">Csendes</button>
                 <button class="str-switch-btn${strVariant==='b'?' active':''}" data-str-variant="b">Réteges</button>
             </div>
+            <div class="str-zoom" id="strZoomCtrl">
+                <button class="str-zoom-btn" data-str-zoom="out" title="Kicsinyítés">−</button>
+                <span class="str-zoom-label" id="strZoomLabel">${Math.round(strZoom*100)}%</span>
+                <button class="str-zoom-btn" data-str-zoom="in" title="Nagyítás">+</button>
+                <button class="str-zoom-btn str-zoom-reset" data-str-zoom="reset" title="Alaphelyzet (100%)">↺</button>
+            </div>
             <button class="btn primary" id="strAddBtn" style="background:var(--blue);color:#fff;border-color:var(--blue);white-space:nowrap;">+ Új munkatárs</button>
         </div>
-        <div class="card"><div class="card-body" style="padding:0;"><div class="org-wrap"><div class="str-canvas" id="strCanvas"><svg class="str-connectors" id="strSvg"></svg><div class="str-tree">${treeHtml}</div></div></div></div></div>`;
+        <div class="card"><div class="card-body" style="padding:0;"><div class="org-wrap"><div class="str-zoom-sizer" id="strZoomSizer"><div class="str-canvas" id="strCanvas"><svg class="str-connectors" id="strSvg"></svg><div class="str-tree">${treeHtml}</div></div></div></div></div></div>`;
         requestAnimationFrame(() => {
-            strDrawConnectors();
+            strApplyZoom();
             // A fa szélesebb lehet a képernyőnél – a gyökér csomópontra görgetünk
             const wrap = body.querySelector('.org-wrap');
             if(wrap) wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;
@@ -3763,6 +3796,16 @@ window.sfOnConfig = function(){
                 strVariant = swBtn.dataset.strVariant;
                 store.save('sf_str_variant', strVariant);
                 renderStrukturaBody();
+                return;
+            }
+            const zoomBtn = e.target.closest('[data-str-zoom]');
+            if(zoomBtn){
+                const act = zoomBtn.dataset.strZoom;
+                strZoom = act === 'in' ? Math.min(1.6, +(strZoom+0.1).toFixed(2))
+                    : act === 'out' ? Math.max(0.5, +(strZoom-0.1).toFixed(2))
+                    : 1;
+                store.save('sf_str_zoom', strZoom);
+                strApplyZoom();
                 return;
             }
             const addBtn = e.target.closest('#strAddBtn');
