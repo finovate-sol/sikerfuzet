@@ -341,17 +341,30 @@
         .pg-type p { margin:0; font-size:12px; color:var(--muted); line-height:1.5; }
         .pg-loading { padding:40px; text-align:center; color:var(--muted); font-size:14px; }
         .pg-card .card-head .pg-count { margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); }
-        .pg-add { display:flex; gap:10px; margin-bottom:16px; }
-        .pg-add input { flex:1; min-width:0; padding:10px 13px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; }
-        .pg-add input:focus { border-color:var(--blue); }
+        .pg-add { display:grid; grid-template-columns:1fr auto auto auto; gap:8px; margin-bottom:16px; align-items:center; }
+        .pg-add input[type=text] { min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; }
+        .pg-add input[type=text]:focus { border-color:var(--blue); }
+        .pg-add select { padding:9px 10px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:var(--card); cursor:pointer; }
+        .pg-add input[type=date] { padding:9px 10px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:var(--card); }
         .pg-add .btn { white-space:nowrap; }
-        .pg-list { display:flex; flex-direction:column; }
-        .pg-task { display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid #f1f4f8; }
-        .pg-task:last-child { border-bottom:none; }
+        @media (max-width:640px){ .pg-add { grid-template-columns:1fr 1fr; } .pg-add .btn { grid-column:1/-1; } }
+        .pg-tbl { width:100%; border-collapse:collapse; }
+        .pg-tbl-head th { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; padding:6px 10px 8px; text-align:left; border-bottom:2px solid var(--border); }
+        .pg-group-row td { font-size:11px; font-weight:700; color:var(--muted); padding:14px 10px 4px; text-transform:uppercase; letter-spacing:.07em; background:transparent; }
+        .pg-row td { padding:9px 10px; border-bottom:1px solid #f1f4f8; vertical-align:middle; }
+        .pg-row:last-child td { border-bottom:none; }
+        .pg-row.expired td { background:rgba(239,68,68,.06); }
+        .pg-row-title { font-size:14px; color:var(--text); }
+        .pg-row.done-row .pg-row-title { text-decoration:line-through; color:var(--muted); }
+        .pg-prio-sel { border:none; font-size:12px; font-weight:700; cursor:pointer; padding:3px 8px; border-radius:20px; outline:none; -webkit-appearance:none; }
+        .pg-prio-sel.low { background:#dbeafe; color:#1d4ed8; }
+        .pg-prio-sel.mid { background:#fef3c7; color:#b45309; }
+        .pg-prio-sel.high { background:#fee2e2; color:#b91c1c; }
+        .pg-due-inp { border:1px solid transparent; background:transparent; font-size:13px; color:var(--text); border-radius:7px; padding:3px 6px; cursor:pointer; outline:none; font-family:inherit; }
+        .pg-due-inp:hover, .pg-due-inp:focus { border-color:var(--border); background:var(--card); }
+        .pg-due-inp.overdue { color:#dc2626; font-weight:600; }
         .pg-check { position:relative; display:inline-flex; flex-shrink:0; cursor:pointer; }
-        .pg-check input { width:19px; height:19px; accent-color:var(--green); cursor:pointer; margin:0; }
-        .pg-task-t { flex:1; min-width:0; font-size:14px; color:var(--text); word-break:break-word; }
-        .pg-task.done .pg-task-t { text-decoration:line-through; color:var(--muted); }
+        .pg-check input { width:18px; height:18px; accent-color:var(--green); cursor:pointer; margin:0; }
         .pg-task-del { border:none; background:transparent; color:var(--red); cursor:pointer; font-size:15px; padding:4px 7px; border-radius:6px; line-height:1; opacity:.55; }
         .pg-task-del:hover { background:#fdeaea; opacity:1; }
         .pg-empty { padding:26px 12px; text-align:center; color:var(--muted); font-size:13px; }
@@ -2480,6 +2493,11 @@ window.sfOnConfig = function(){
         return pgTasks;
     }
 
+    const PG_PRIO_CLASS = { 'Alacsony': 'low', 'Közepes': 'mid', 'Magas': 'high' };
+    const PG_MONTHS_HU = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+
+    function pgMeta(t){ try { return JSON.parse(t.notes || '{}'); } catch(e){ return {}; } }
+
     function pgShell(){
         return `
         <div class="pg-hero">
@@ -2492,26 +2510,73 @@ window.sfOnConfig = function(){
         </div>
         <div id="pgMount"><div class="card pg-loading">Feladatok betöltése…</div></div>`;
     }
-    function pgTaskRow(t){
-        const done = t.status === "completed";
-        return `<div class="pg-task${done ? ' done' : ''}">
-            <label class="pg-check"><input type="checkbox" data-pgtoggle="${t.id}"${done ? ' checked' : ''}><span></span></label>
-            <span class="pg-task-t">${escM(t.title || "(névtelen feladat)")}</span>
-            <button class="pg-task-del" data-pgdel="${t.id}" title="Törlés">🗑</button>
-        </div>`;
+
+    function pgMonthLabel(ym){
+        if(!ym || ym === 'unknown') return 'Ismeretlen dátum';
+        const [y, m] = ym.split('-');
+        return (PG_MONTHS_HU[parseInt(m,10)-1] || m) + ' ' + y;
     }
+
+    function pgTaskRow(t){
+        const meta = pgMeta(t);
+        const teamDone = !!meta.done;
+        const prio = meta.p || 'Alacsony';
+        const pc = PG_PRIO_CLASS[prio] || 'low';
+        const dueRaw = t.due ? t.due.substring(0,10) : '';
+        const today = new Date().toISOString().substring(0,10);
+        const expired = dueRaw && dueRaw < today;
+        return `<tr class="pg-row${expired ? ' expired' : ''}${teamDone ? ' done-row' : ''}">
+            <td class="pg-row-title">${escM(t.title || '(névtelen feladat)')}</td>
+            <td><select class="pg-prio-sel ${pc}" data-pgprio="${t.id}">
+                <option value="Alacsony"${prio==='Alacsony'?' selected':''}>Alacsony</option>
+                <option value="Közepes"${prio==='Közepes'?' selected':''}>Közepes</option>
+                <option value="Magas"${prio==='Magas'?' selected':''}>Magas</option>
+            </select></td>
+            <td style="text-align:center"><label class="pg-check"><input type="checkbox" data-pgtoggle="${t.id}"${teamDone?' checked':''}></label></td>
+            <td><input type="date" class="pg-due-inp${expired?' overdue':''}" data-pgdue="${t.id}" value="${dueRaw}"></td>
+            <td><button class="pg-task-del" data-pgdel="${t.id}" title="Törlés">🗑</button></td>
+        </tr>`;
+    }
+
     function renderPGList(){
         const m = document.getElementById("pgMount"); if(!m) return;
-        const done = pgTasks.filter(t => t.status === "completed").length;
-        const open = pgTasks.length - done;
+        const doneCount = pgTasks.filter(t => { const meta = pgMeta(t); return !!meta.done; }).length;
+        const open = pgTasks.length - doneCount;
+
+        // Group by creation month (stored in meta.created, fallback to updated)
+        const groups = {}, order = [];
+        for(const t of pgTasks){
+            const meta = pgMeta(t);
+            const ds = meta.created || (t.updated ? t.updated.substring(0,10) : '');
+            const ym = ds ? ds.substring(0,7) : 'unknown';
+            if(!groups[ym]){ groups[ym] = []; order.push(ym); }
+            groups[ym].push(t);
+        }
+        order.sort((a,b) => b.localeCompare(a));
+
+        let rows = '';
+        for(const ym of order){
+            rows += `<tr class="pg-group-row"><td colspan="5">${pgMonthLabel(ym)}</td></tr>`;
+            rows += groups[ym].map(pgTaskRow).join('');
+        }
+
         m.innerHTML = `<section class="card pg-card">
-            <div class="card-head"><h2><span class="icon">${pgIc('<path d="M11 12H3M16 6H3M21 18H3"/><path d="m15 15 2 2 4-4" stroke="#16a34a"/>')}</span>PG feladatok</h2><span class="pg-count">${open} aktív · ${done} kész</span></div>
+            <div class="card-head"><h2><span class="icon">${pgIc('<path d="M11 12H3M16 6H3M21 18H3"/><path d="m15 15 2 2 4-4" stroke="#16a34a"/>')}</span>PG feladatok</h2><span class="pg-count">${open} aktív · ${doneCount} kész</span></div>
             <div class="card-body">
-                <div class="pg-add"><input id="pgInput" placeholder="Új PG feladat…" maxlength="500"><button class="btn primary" id="pgAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Hozzáadás</button></div>
-                <div class="pg-list">${ pgTasks.length ? pgTasks.map(pgTaskRow).join("") : '<div class="pg-empty">Még nincs PG feladat. Írd be az elsőt fent, és nyomd meg a Hozzáadás gombot.</div>' }</div>
+                <div class="pg-add">
+                    <input type="text" id="pgInput" placeholder="Új PG feladat neve…" maxlength="500">
+                    <select id="pgPrioSel"><option value="Alacsony">🔵 Alacsony</option><option value="Közepes">🟠 Közepes</option><option value="Magas">🔴 Magas</option></select>
+                    <input type="date" id="pgDueInp">
+                    <button class="btn primary" id="pgAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Hozzáadás</button>
+                </div>
+                ${pgTasks.length ? `<table class="pg-tbl">
+                    <thead class="pg-tbl-head"><tr><th>Feladat</th><th>Prioritás</th><th style="text-align:center">Kész</th><th>Határidő</th><th></th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>` : '<div class="pg-empty">Még nincs PG feladat. Írd be az elsőt fent, és nyomd meg a Hozzáadás gombot.</div>'}
             </div></section>`;
         wirePG();
     }
+
     function renderPGConnect(msg){
         const m = document.getElementById("pgMount"); if(!m) return;
         m.innerHTML = `<div class="card pg-connect">
@@ -2526,29 +2591,74 @@ window.sfOnConfig = function(){
             catch(err){ alert("Nem sikerült csatlakozni: " + (err.message || err)); b.disabled = false; }
         });
     }
+
     function wirePG(){
         const inp = document.getElementById("pgInput"), add = document.getElementById("pgAdd");
         if(add) add.addEventListener("click", pgAddTask);
         if(inp) inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); pgAddTask(); } });
         document.querySelectorAll("#pgMount [data-pgtoggle]").forEach(cb => cb.addEventListener("change", () => pgToggle(cb.dataset.pgtoggle, cb.checked)));
         document.querySelectorAll("#pgMount [data-pgdel]").forEach(bt => bt.addEventListener("click", () => pgDelete(bt.dataset.pgdel)));
+        document.querySelectorAll("#pgMount [data-pgprio]").forEach(sel => sel.addEventListener("change", () => pgChangePrio(sel.dataset.pgprio, sel.value)));
+        document.querySelectorAll("#pgMount [data-pgdue]").forEach(di => di.addEventListener("change", () => pgChangeDue(di.dataset.pgdue, di.value)));
     }
+
     async function pgAddTask(){
-        const inp = document.getElementById("pgInput"); if(!inp || pgBusy) return;
+        const inp = document.getElementById("pgInput");
+        const prioSel = document.getElementById("pgPrioSel");
+        const dueInp = document.getElementById("pgDueInp");
+        if(!inp || pgBusy) return;
         const title = inp.value.trim(); if(!title) return;
+        const prio = prioSel ? prioSel.value : 'Alacsony';
+        const due = dueInp ? dueInp.value : '';
+        const meta = { p: prio, done: false, created: new Date().toISOString().substring(0,10) };
+        const body = { title, notes: JSON.stringify(meta) };
+        if(due) body.due = due + 'T00:00:00.000Z';
         pgBusy = true; inp.disabled = true;
-        try { await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify({ title }) }, true); await loadPGTasks(true); renderPGList(); const ni = document.getElementById("pgInput"); if(ni) ni.focus(); }
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
+            await loadPGTasks(true); renderPGList();
+            const ni = document.getElementById("pgInput"); if(ni){ ni.value = ''; ni.focus(); }
+        }
         catch(e){ alert("Nem sikerült hozzáadni: " + (e.message || e)); inp.disabled = false; }
         finally { pgBusy = false; }
     }
-    async function pgToggle(id, done){
-        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify(done ? { status:"completed" } : { status:"needsAction", completed:null }) }, true); await loadPGTasks(true); renderPGList(); }
-        catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); window.sfShowPG(); }
+
+    async function pgToggle(id, checked){
+        const t = pgTasks.find(x => x.id === id); if(!t) return;
+        const meta = pgMeta(t); meta.done = checked;
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
+            t.notes = JSON.stringify(meta); renderPGList();
+        }
+        catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
+
+    async function pgChangePrio(id, prio){
+        const t = pgTasks.find(x => x.id === id); if(!t) return;
+        const meta = pgMeta(t); meta.p = prio;
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
+            t.notes = JSON.stringify(meta); renderPGList();
+        }
+        catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
+    async function pgChangeDue(id, dateStr){
+        const body = dateStr ? { due: dateStr + 'T00:00:00.000Z' } : { due: null };
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify(body) }, true);
+            const t = pgTasks.find(x => x.id === id);
+            if(t) t.due = dateStr ? dateStr + 'T00:00:00.000Z' : null;
+            renderPGList();
+        }
+        catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
     async function pgDelete(id){
         try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }, true); await loadPGTasks(true); renderPGList(); }
         catch(e){ alert("Nem sikerült törölni: " + (e.message || e)); }
     }
+
     window.sfShowPG = async function(){
         const body = document.getElementById("pgBody"); if(!body) return;
         body.innerHTML = pgShell();
