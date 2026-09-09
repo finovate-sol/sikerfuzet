@@ -411,7 +411,7 @@
         .adm-add-row input:focus { border-color:var(--blue); }
 
         /* ===== STRUKTÚRA ===== */
-        .str-hero { margin-bottom:20px; }
+        .str-hero { margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
         .str-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .str-hero p { font-size:13px; color:var(--muted); margin:0; }
         .org-wrap { overflow-x:auto; padding:30px 20px 40px; }
@@ -442,8 +442,6 @@
         .org-node-btn:hover { background:var(--blue); color:#fff; border-color:var(--blue); }
         .org-node-btn.del { color:var(--red); }
         .org-node-btn.del:hover { background:var(--red); color:#fff; border-color:var(--red); }
-        .org-add-child { border:2px dashed #cbd5e1; background:transparent; border-radius:10px; color:var(--muted); font-size:12px; font-weight:600; padding:8px 14px; cursor:pointer; min-width:110px; margin-top:8px; }
-        .org-add-child:hover { border-color:var(--blue); color:var(--blue); }
         .org-modal-ov { position:fixed; inset:0; background:rgba(10,37,71,.4); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
         .org-modal { background:var(--card); border-radius:14px; width:100%; max-width:360px; box-shadow:0 20px 50px rgba(10,37,71,.3); overflow:hidden; }
         .org-modal-head { padding:16px 20px; border-bottom:1px solid var(--border); font-size:16px; font-weight:700; color:var(--navy); }
@@ -3082,16 +3080,16 @@ window.sfOnConfig = function(){
         }
     }
 
+    const STR_ROLE_LABELS = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
+
     function strNodeHtml(node, isRoot){
-        const roleLabels = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
         const roleClass = node.role || 'member';
         const inner = `<div class="org-node-wrap">
-            <div class="org-node ${roleClass}" data-nid="${node.id}">${escM(node.name || roleLabels[node.role] || 'Névtelen')}</div>
+            <div class="org-node ${roleClass}" data-nid="${node.id}">${escM(node.name || STR_ROLE_LABELS[node.role] || 'Névtelen')}</div>
             <div class="org-node-btns">
                 <button class="org-node-btn" data-str-edit="${node.id}" title="Szerkesztés">✏️</button>
                 ${isRoot ? '' : `<button class="org-node-btn del" data-str-del="${node.id}" title="Törlés">🗑</button>`}
             </div>
-            <button class="org-add-child" data-str-add="${node.id}">+ Hozzáadás</button>
         </div>`;
         if(!node.children || node.children.length === 0){
             return `<li>${inner}</li>`;
@@ -3099,12 +3097,34 @@ window.sfOnConfig = function(){
         return `<li>${inner}<ul${node.children.length===1?' class="only-child"':''}>${node.children.map(c=>strNodeHtml(c,false)).join('')}</ul></li>`;
     }
 
+    // Fa → lapos lista a "Vezető" választóhoz. excludeId esetén az adott
+    // csomópont és a leszármazottai kimaradnak (szerkesztésnél: ne lehessen
+    // önmaga vagy saját beosztottja alá helyezni valakit).
+    function strFlatten(node, excludeId, depth, out){
+        out = out || [];
+        if(excludeId && node.id === excludeId) return out;
+        out.push({ id: node.id, name: node.name || STR_ROLE_LABELS[node.role] || 'Névtelen', depth: depth||0 });
+        (node.children||[]).forEach(c => strFlatten(c, excludeId, (depth||0)+1, out));
+        return out;
+    }
+
+    function strFindParent(tree, id){
+        for(const c of (tree.children||[])){
+            if(c.id === id) return tree;
+            const f = strFindParent(c, id); if(f) return f;
+        }
+        return null;
+    }
+
     // Tiszta render a memóriában lévő strTree-ből – nem tölt be semmit a hálózatról,
     // így egy szerkesztés után azonnal (optimistán) frissülhet a nézet.
     function renderStrukturaBody(){
         const body = document.getElementById("strukturaBody"); if(!body) return;
         const treeHtml = `<ul class="only-child">${strNodeHtml(strTree, true)}</ul>`;
-        body.innerHTML = `<div class="str-hero"><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
+        body.innerHTML = `<div class="str-hero">
+            <div><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
+            <button class="btn primary" id="strAddBtn" style="background:var(--blue);color:#fff;border-color:var(--blue);white-space:nowrap;">+ Új munkatárs</button>
+        </div>
         <div class="card"><div class="card-body" style="padding:0;"><div class="org-wrap"><div class="org-tree">${treeHtml}</div></div></div></div>`;
         // A fa szélesebb lehet a képernyőnél – a gyökér csomópontra görgetünk
         const wrap = body.querySelector('.org-wrap');
@@ -3124,8 +3144,8 @@ window.sfOnConfig = function(){
         const body = document.getElementById("strukturaBody"); if(!body || strWired) return;
         strWired = true;
         body.addEventListener('click', e=>{
-            const addBtn = e.target.closest('[data-str-add]');
-            if(addBtn){ strOpenModal(null, addBtn.dataset.strAdd); return; }
+            const addBtn = e.target.closest('#strAddBtn');
+            if(addBtn){ strOpenModal(null, null); return; }
             const editBtn = e.target.closest('[data-str-edit]');
             if(editBtn){ strOpenModal(editBtn.dataset.strEdit, null); return; }
             const delBtn = e.target.closest('[data-str-del]');
@@ -3150,10 +3170,16 @@ window.sfOnConfig = function(){
 
     function strOpenModal(editId, parentId){
         const existing = editId ? strFindNode(strTree, editId) : null;
+        const isRootEdit = existing && existing.id === strTree.id;
+        const currentParent = existing ? strFindParent(strTree, existing.id) : null;
+        const defaultParentId = currentParent ? currentParent.id : (parentId || strTree.id);
+        const parentOptions = isRootEdit ? '' : strFlatten(strTree, existing ? existing.id : null)
+            .map(n => `<option value="${n.id}"${n.id===defaultParentId?' selected':''}>${'&nbsp;&nbsp;'.repeat(n.depth)}${escM(n.name)}</option>`)
+            .join('');
         const ov = document.createElement('div');
         ov.className = 'org-modal-ov';
         ov.innerHTML = `<div class="org-modal">
-            <div class="org-modal-head">${existing ? 'Szerkesztés' : 'Új csapattag'}</div>
+            <div class="org-modal-head">${existing ? 'Szerkesztés' : 'Új csapattag felvétele'}</div>
             <div class="org-modal-body">
                 <div><label>Név</label><input id="strNameInp" value="${existing ? escM(existing.name) : ''}" placeholder="Teljes név" autofocus></div>
                 <div><label>Szerepkör</label><select id="strRoleInp">
@@ -3161,6 +3187,7 @@ window.sfOnConfig = function(){
                     <option value="member"${(existing&&existing.role==='member')?' selected':''}>Munkatárs</option>
                     <option value="new"${(existing&&existing.role==='new')?' selected':''}>Új MT</option>
                 </select></div>
+                ${isRootEdit ? '' : `<div><label>Vezető</label><select id="strParentInp">${parentOptions}</select></div>`}
             </div>
             <div class="org-modal-foot">
                 <button class="btn" id="strCancel">Mégse</button>
@@ -3175,10 +3202,17 @@ window.sfOnConfig = function(){
         ov.querySelector('#strSave').addEventListener('click', ()=>{
             const name = ov.querySelector('#strNameInp').value.trim();
             const role = ov.querySelector('#strRoleInp').value;
+            const parentInp = ov.querySelector('#strParentInp');
+            const newParentId = parentInp ? parentInp.value : null;
             if(existing){
                 existing.name = name; existing.role = role;
+                if(newParentId && (!currentParent || currentParent.id !== newParentId)){
+                    if(currentParent) currentParent.children = currentParent.children.filter(c=>c.id!==existing.id);
+                    const newParent = strFindNode(strTree, newParentId);
+                    if(newParent){ if(!newParent.children) newParent.children=[]; newParent.children.push(existing); }
+                }
             } else {
-                const parent = strFindNode(strTree, parentId);
+                const parent = strFindNode(strTree, newParentId || strTree.id);
                 if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,children:[]}); }
             }
             close(); renderStrukturaBody();
