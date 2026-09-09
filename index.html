@@ -196,6 +196,11 @@
         .kt-feedback { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
         .kt-feedback label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
         .kt-feedback p { margin:0; font-size:13px; color:var(--text); white-space:pre-wrap; }
+        .kh-list { display:flex; flex-direction:column; gap:6px; }
+        .kh-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; font-size:12px; }
+        .kh-date { color:var(--muted); font-weight:600; flex-shrink:0; }
+        .kh-change { color:var(--text); font-weight:600; }
+        .kh-by { color:var(--muted); margin-left:auto; }
         .kt-list { display:flex; flex-direction:column; gap:14px; }
         .kt-row { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
         .kt-row-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
@@ -2031,6 +2036,22 @@ function kiertekeloSummaryHtml(k){
             ${k.feedback ? `<div class="kt-feedback"><label>Vezetői visszajelzés</label><p>${esc(k.feedback)}</p></div>` : ''}
         </div>`;
 }
+// Egyszerű napló: ki mikor kitől kapta az ügyfelet (a Kezelő oszlop
+// átállításakor kerül bele egy bejegyzés – lásd a regTable 'change' kezelőjét).
+function fmtKezeloDate(iso){
+    const d = new Date(iso); if(isNaN(d)) return '';
+    const p2 = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}. ${p2(d.getMonth()+1)}. ${p2(d.getDate())}. ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function kezeloHistoryHtml(hist){
+    if(!hist || !hist.length) return '';
+    const rows = hist.slice().reverse().map(h => `<div class="kh-row">
+        <span class="kh-date">${esc(fmtKezeloDate(h.at))}</span>
+        <span class="kh-change">${esc(h.from)} → ${esc(h.to)}</span>
+        ${h.by ? `<span class="kh-by">átállította: ${esc(h.by)}</span>` : ''}
+    </div>`).join('');
+    return `<div class="rd-sec">Kezelő előzmények</div><div class="kh-list">${rows}</div>`;
+}
 function openRegDetail(i){
     const r = registry[i];
     if(!r) return;
@@ -2061,6 +2082,7 @@ function openRegDetail(i){
                     <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
                 </div>
                 ${kiertekeloSummaryHtml(r.kiertekelo)}
+                ${kezeloHistoryHtml(r.kezeloHistory)}
             </div>
             <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
         </div>`;
@@ -2157,8 +2179,15 @@ function openKiertekeloModal(idx, checkboxEl){
             const uid = t.value;
             const emp = (window.sfEmployeesList || []).find(e => e.uid === uid);
             const r = registry[idx];
+            const fromName = r.ownerName || '(nincs kezelő)';
+            const toName = emp ? (emp.name || emp.email) : '(nincs kezelő)';
             r.ownerUid = uid;
             if(emp){ r.ownerEmail = emp.email || ''; r.ownerName = emp.name || emp.email || ''; }
+            else { r.ownerEmail = ''; r.ownerName = ''; }
+            if(fromName !== toName){
+                const by = (window.sfCurrentUser && window.sfCurrentUser.name) || '';
+                r.kezeloHistory = (r.kezeloHistory || []).concat([{ from: fromName, to: toName, by, at: new Date().toISOString() }]);
+            }
             store.save('sf_registry', registry); renderRegistry(); persistReg(idx);
         }
         else if(t.tagName==='SELECT'){ registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); persistReg(idx); }
