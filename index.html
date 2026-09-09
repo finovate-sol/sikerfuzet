@@ -115,6 +115,20 @@
         .rail-btn:last-child { border-bottom:none; }
         .rail-btn.active { background:var(--navy); color:#fff; }
         .rail-btn span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:12.5px; font-weight:700; letter-spacing:.5px; }
+        /* Teljes képernyő-magasság, a jobb/felső/alsó szélhez kötve; bal oldali rés marad. */
+        @media (min-width:1001px){
+            .col-side {
+                position: sticky;
+                top: 0;
+                align-self: start;
+                height: 100vh;
+                margin: -26px -28px -26px 0;
+                padding: 0 0 0 24px;
+                border-radius: var(--radius);
+                overflow-y: auto;
+                z-index: 10;
+            }
+        }
         .page[hidden] { display:none; }
         .page-wrap { padding:26px 28px; }
 
@@ -960,7 +974,6 @@
                         <div class="calls-head">
                             <span class="tag money">3 - 2 - 1</span>
                             <h2>Saját PÉNZEM</h2>
-                            <a class="link" href="#" id="goUgyfelekTP" style="margin-left:auto;">Nyilvántartó →</a>
                         </div>
                         <table>
                             <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
@@ -973,7 +986,6 @@
                         <div class="calls-head">
                             <span class="tag career">3 - 2 - 1</span>
                             <h2>Saját KARRIEREM</h2>
-                            <a class="link" href="#" id="goUgyfelekMT" style="margin-left:auto;">Nyilvántartó →</a>
                         </div>
                         <table>
                             <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
@@ -1198,14 +1210,17 @@ function refreshMoneyCareer(){ renderMoney(); renderCareer(); }
 // megérkezett/frissült – a felhasználó szerepkörének megfelelően már
 // leszűrve (munkatárs: csak a saját ügyfelei; vezető/admin: mind).
 window.sfSetRegistry = function(list){
-    registry = list || [];
+    // Megőrizzük a helyben létrehozott, Firestore-ba még nem mentett rekordokat
+    // (amelyeknek van _localKey-jük, de még nincs id-jük).
+    const pending = registry.filter(r => r._localKey && !r.id);
+    registry = (list || []).concat(pending);
     store.save('sf_registry', registry);
     renderRegistry();
     refreshMoneyCareer();
 };
-// Egy ügyfél-rekord Firestore-ba mentendő mezői (a lokális 'id' nélkül).
+// Egy ügyfél-rekord Firestore-ba mentendő mezői (a lokális 'id' és '_localKey' nélkül).
 function regClientPayload(r){
-    const { id, ...rest } = r;
+    const { id, _localKey, ...rest } = r;
     return rest;
 }
 function persistReg(i){
@@ -1910,8 +1925,8 @@ renderPlan();
     });
 })();
 (function(){
-    const goPage = id => { const b=document.getElementById(id); if(b) b.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="'+(id==='goHavi'?'havi':'ugyfelek')+'"]'); if(l) l.click(); }); };
-    goPage('goHavi'); goPage('goUgyfelekTP'); goPage('goUgyfelekMT');
+    const goPage = id => { const b=document.getElementById(id); if(b) b.addEventListener('click', e=>{ e.preventDefault(); const l=document.querySelector('.nav a[data-page="havi"]'); if(l) l.click(); }); };
+    goPage('goHavi');
 })();
 
 // ===== ÜGYFÉL NYILVÁNTARTÓ =====
@@ -2233,11 +2248,17 @@ function openKiertekeloModal(idx, checkboxEl){
     });
     document.getElementById('regAdd').addEventListener('click', ()=>{
         const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
-        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'' };
+        const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'', _localKey:localKey };
         registry.push(r);
         store.save('sf_registry', registry); renderRegistry();
         if(typeof window.sfAddClient === 'function'){
-            window.sfAddClient(regClientPayload(r)).then(id => { r.id = id; persistReg(registry.indexOf(r)); });
+            window.sfAddClient(regClientPayload(r)).then(id => {
+                if (!id) return;
+                // Keressük a rekordot _localKey alapján – navigáció esetén is megtaláljuk.
+                const rec = registry.find(x => x._localKey === localKey);
+                if (rec) { rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); }
+            });
         }
     });
     renderRegistry();
