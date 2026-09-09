@@ -1719,7 +1719,7 @@ window.sfOnConfig = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, getAppConfig, saveInfoDates, saveAppConfig, isAdmin } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin } from "./auth.js";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -2440,33 +2440,38 @@ window.sfOnConfig = function(){
     let pgListId = null, pgTasks = [], pgBusy = false;
     const pgIc = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
-    async function tasksFetch(path, opts){
+    // interactive=false → nem nyit Google-ablakot, csak hibát dob (kezdeti betöltés);
+    // interactive=true  → hiányzó/lejárt jog esetén felkéri a Tasks jogot (gombnyomásra).
+    async function tasksFetch(path, opts, interactive){
         let token = getCalendarToken();
-        if(!token) token = await reconnectCalendar();
+        if(!token){
+            if(!interactive){ const e = new Error("Nincs Google hozzáférés."); e.status = 401; throw e; }
+            token = await connectTasks();
+        }
         if(!token){ const e = new Error("Nincs Google hozzáférés."); e.status = 401; throw e; }
         const doIt = tok => fetch(TASKS_API + path, Object.assign({}, opts, {
             headers: Object.assign({ Authorization: "Bearer " + tok, "Content-Type": "application/json" }, (opts && opts.headers) || {})
         }));
         let res = await doIt(token);
-        if(res.status === 401 || res.status === 403){
-            const t = await reconnectCalendar();
+        if((res.status === 401 || res.status === 403) && interactive){
+            const t = await connectTasks();
             if(t) res = await doIt(t);
         }
         if(!res.ok){ const e = new Error("Google Tasks hiba (" + res.status + ")"); e.status = res.status; throw e; }
         if(res.status === 204) return null;
         return res.json();
     }
-    async function ensurePGList(){
+    async function ensurePGList(interactive){
         if(pgListId) return pgListId;
-        const data = await tasksFetch("/users/@me/lists?maxResults=100", { method:"GET" });
+        const data = await tasksFetch("/users/@me/lists?maxResults=100", { method:"GET" }, interactive);
         const found = (data.items || []).find(l => l.title === PG_LIST_TITLE);
         pgListId = found ? found.id
-            : (await tasksFetch("/users/@me/lists", { method:"POST", body: JSON.stringify({ title: PG_LIST_TITLE }) })).id;
+            : (await tasksFetch("/users/@me/lists", { method:"POST", body: JSON.stringify({ title: PG_LIST_TITLE }) }, interactive)).id;
         return pgListId;
     }
-    async function loadPGTasks(){
-        await ensurePGList();
-        const data = await tasksFetch(`/lists/${pgListId}/tasks?showCompleted=true&showHidden=true&maxResults=100`, { method:"GET" });
+    async function loadPGTasks(interactive){
+        await ensurePGList(interactive);
+        const data = await tasksFetch(`/lists/${pgListId}/tasks?showCompleted=true&showHidden=true&maxResults=100`, { method:"GET" }, interactive);
         pgTasks = (data.items || []).filter(t => !t.deleted).sort((a,b) => {
             const ca = a.status === "completed", cb = b.status === "completed";
             if(ca !== cb) return ca ? 1 : -1;
@@ -2517,7 +2522,7 @@ window.sfOnConfig = function(){
         const b = document.getElementById("pgConnect");
         if(b) b.addEventListener("click", async () => {
             b.disabled = true;
-            try { await reconnectCalendar(); window.sfShowPG(); }
+            try { await connectTasks(); window.sfShowPG(); }
             catch(err){ alert("Nem sikerült csatlakozni: " + (err.message || err)); b.disabled = false; }
         });
     }
@@ -2532,23 +2537,23 @@ window.sfOnConfig = function(){
         const inp = document.getElementById("pgInput"); if(!inp || pgBusy) return;
         const title = inp.value.trim(); if(!title) return;
         pgBusy = true; inp.disabled = true;
-        try { await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify({ title }) }); await loadPGTasks(); renderPGList(); const ni = document.getElementById("pgInput"); if(ni) ni.focus(); }
+        try { await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify({ title }) }, true); await loadPGTasks(true); renderPGList(); const ni = document.getElementById("pgInput"); if(ni) ni.focus(); }
         catch(e){ alert("Nem sikerült hozzáadni: " + (e.message || e)); inp.disabled = false; }
         finally { pgBusy = false; }
     }
     async function pgToggle(id, done){
-        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify(done ? { status:"completed" } : { status:"needsAction", completed:null }) }); await loadPGTasks(); renderPGList(); }
+        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify(done ? { status:"completed" } : { status:"needsAction", completed:null }) }, true); await loadPGTasks(true); renderPGList(); }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); window.sfShowPG(); }
     }
     async function pgDelete(id){
-        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }); await loadPGTasks(); renderPGList(); }
+        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }, true); await loadPGTasks(true); renderPGList(); }
         catch(e){ alert("Nem sikerült törölni: " + (e.message || e)); }
     }
     window.sfShowPG = async function(){
         const body = document.getElementById("pgBody"); if(!body) return;
         body.innerHTML = pgShell();
         if(!isConfigured){ renderPGConnect("A Google bejelentkezés még nincs beállítva."); return; }
-        try { await loadPGTasks(); renderPGList(); }
+        try { await loadPGTasks(false); renderPGList(); }
         catch(e){
             renderPGConnect((e.status === 401 || e.status === 403)
                 ? "A PG feladatok eléréséhez engedélyezned kell a Google Tasks hozzáférést."

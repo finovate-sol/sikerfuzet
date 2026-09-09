@@ -62,9 +62,11 @@ async function isEmailAllowed(email) {
 export async function loginWithGoogle() {
     if (!isConfigured) throw new Error("A Firebase még nincs beállítva (firebase-config.js).");
 
+    // A bejelentkezés CSAK a naptár-jogot kéri – így akkor is működik,
+    // ha a Google-projektben a Tasks API/scope még nincs engedélyezve.
+    // A Tasks jogot a PG modul kéri külön (reconnectCalendar → incremental).
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
-    provider.addScope(TASKS_SCOPE);
     provider.setCustomParameters({ prompt: "select_account" });
 
     const result = await signInWithPopup(auth, provider);
@@ -106,7 +108,22 @@ export async function reconnectCalendar() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential && credential.accessToken;
+    if (token) { try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {} }
+    return token;
+}
+
+// --- PG modul: Google Tasks jog kérése (naptár + tasks, inkrementális) ---
+// Külön a naptártól, hogy a naptár működjön akkor is, ha a Tasks API nincs
+// engedélyezve. A visszakapott token a naptárra ÉS a Tasks-ra is érvényes.
+export async function connectTasks() {
+    if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    const provider = new GoogleAuthProvider();
+    provider.addScope(CALENDAR_SCOPE);
     provider.addScope(TASKS_SCOPE);
+    provider.setCustomParameters({ include_granted_scopes: "true" });
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
