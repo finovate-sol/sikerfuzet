@@ -148,6 +148,13 @@
         .reg-toolbar-card { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; margin-bottom:14px; }
         .reg-toolbar-card .reg-search { max-width:300px; flex:1; min-width:200px; }
         .reg-build-wrap { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .reg-build-wrap select, .reg-build-wrap input {
+            padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+            font-size:13px; font-family:inherit; color:var(--text); background:var(--card);
+            outline:none; min-width:0;
+        }
+        .reg-build-wrap select { cursor:pointer; }
+        .reg-build-wrap select:focus, .reg-build-wrap input:focus { border-color:var(--blue); }
         .reg-tools { display:flex; gap:8px; margin-left:auto; }
         .reg-tools .btn { display:inline-flex; align-items:center; gap:6px; }
         .reg-fcount { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--blue); color:#fff; font-size:11px; font-weight:700; }
@@ -387,7 +394,7 @@
         .adm-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .adm-hero p { font-size:13px; color:var(--muted); margin:0; }
         .adm-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; }
-        .adm-tab { padding:9px 18px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:none; background:transparent; border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; }
+        .adm-tab { padding:9px 18px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:none; background:transparent; border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; white-space:nowrap; flex-shrink:0; }
         .adm-tab.active { color:var(--blue); border-bottom-color:var(--blue); }
         .adm-tab:hover:not(.active) { color:var(--navy); }
         .adm-panel { display:none; }
@@ -428,6 +435,8 @@
         .org-node.new { background:#fbbf24; color:#78350f; }
         .org-node-btns { display:flex; gap:5px; margin-top:6px; opacity:0; transition:opacity .15s; }
         .org-node-wrap:hover .org-node-btns { opacity:1; }
+        /* Érintőképernyőn nincs hover – a gombok mindig látszanak */
+        @media (hover: none) { .org-node-btns { opacity:1; } }
         .org-node-btn { border:none; background:var(--card); border:1px solid var(--border); border-radius:6px; font-size:11px; padding:3px 8px; cursor:pointer; color:var(--navy); font-weight:600; }
         .org-node-btn:hover { background:var(--blue); color:#fff; border-color:var(--blue); }
         .org-node-btn.del { color:var(--red); }
@@ -591,6 +600,7 @@
         .week-range { font-size:13px; color:var(--muted); }
         .week-range b { color:var(--text); }
         .plan-grid { display:grid; grid-template-columns: repeat(8, 1fr); gap:12px; }
+        @media (max-width:1000px){ .plan-grid { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); } }
         .plan-box { border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; background:#fbfcfe; }
         .plan-box .label { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; min-height:28px; display:flex; align-items:center; justify-content:center; }
         .plan-nums { display:flex; align-items:baseline; justify-content:center; gap:3px; }
@@ -683,17 +693,73 @@
         .goals-row { display:flex; justify-content:space-between; font-size:13px; }
         .goals-row .pct { font-weight:700; color:var(--navy); }
 
+        /* ===== MOBIL FEJLÉC + KICSÚSZÓ MENÜ ===== */
+        .mobile-bar { display:none; }
+        .sidebar-backdrop { display:none; }
+
         @media (max-width: 1000px){
-            .content { grid-template-columns:1fr; }
-            .sidebar { display:none; }
+            .content { grid-template-columns:1fr; padding:18px 14px; gap:16px; }
+            .page-wrap { padding:18px 14px; }
             .topbar-title { display:none; }
+
+            .mobile-bar {
+                display:flex; align-items:center; gap:12px;
+                background:var(--navy); color:#fff;
+                padding:11px 14px;
+                position:sticky; top:0; z-index:40;
+            }
+            .mb-burger {
+                background:transparent; border:1px solid rgba(255,255,255,.25); color:#fff;
+                border-radius:8px; padding:7px; cursor:pointer;
+                display:flex; align-items:center; justify-content:center; flex-shrink:0;
+            }
+            .mb-burger:hover { background:rgba(255,255,255,.09); }
+            .mb-burger svg { width:20px; height:20px; }
+            .mb-title { font-size:16px; font-weight:700; letter-spacing:.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+            .sidebar {
+                position:fixed; top:0; left:0; height:100vh; width:270px; z-index:60;
+                transform:translateX(-100%);
+                transition:transform .22s ease;
+                box-shadow:0 0 40px rgba(0,0,0,.35);
+                overflow-y:auto;
+            }
+            .sidebar.open { transform:translateX(0); }
+            .sidebar-backdrop {
+                display:block; position:fixed; inset:0;
+                background:rgba(10,37,71,.5); z-index:50;
+                opacity:0; pointer-events:none; transition:opacity .22s ease;
+            }
+            .sidebar-backdrop.show { opacity:1; pointer-events:auto; }
+
+            /* Túllógó vezérlősorok görgethetővé tétele */
+            .seg { margin-left:0; overflow-x:auto; max-width:100%; }
+            .seg button { white-space:nowrap; flex-shrink:0; }
+            .adm-tabs { overflow-x:auto; }
+            .reg-tools { margin-left:0; }
+        }
+
+        @media (max-width: 700px){
+            /* Szűk kijelzőn a magyarázó szövegek elhagyhatók, a fejléc tördelhető */
+            .card-head { flex-wrap:wrap; }
+            .hint-sm { display:none; }
+            .week-range { margin-left:0 !important; font-size:12px; }
+        }
+
+        @media (max-width: 560px){
+            .content, .page-wrap { padding:14px 11px; }
+            .card-head { padding:13px 14px; }
+            .card-body { padding:14px; }
         }
     </style>
 </head>
 <body>
 <div class="layout">
+    <!-- ===== MOBIL MENÜ HÁTTÉR ===== -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- ===== SIDEBAR ===== -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="brand">Sikerfüzet<small>A sikerhez vezető út</small></div>
         <nav class="nav">
             <a href="#" class="active" data-page="home">
@@ -743,6 +809,14 @@
 
     <!-- ===== MAIN ===== -->
     <div class="main">
+        <!-- MOBIL FEJLÉC (csak ≤1000px) -->
+        <div class="mobile-bar">
+            <button class="mb-burger" id="mobileMenuBtn" aria-label="Menü megnyitása" aria-expanded="false" aria-controls="sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+            <span class="mb-title" id="mbTitle">Sikerfüzet</span>
+        </div>
+
         <!-- KEZDŐOLDAL -->
         <div id="page-home" class="page">
         <div class="content">
@@ -775,7 +849,7 @@
                 <section class="card" style="order:-1;">
                     <div class="card-head">
                         <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
-                        <h2>Heti tervezés <span style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
+                        <h2>Heti tervezés <span class="hint-sm" style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
                         <span class="week-range" id="planWeekRange" style="margin-left:auto;"></span>
                         <span class="collapse-btn" data-collapse="plan" title="Össze-/kinyitás" style="margin-left:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
@@ -1227,7 +1301,28 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'pg' && typeof window.sfShowPG === 'function') window.sfShowPG();
         if(p === 'struktura' && typeof window.sfShowStruktura === 'function') window.sfShowStruktura();
         if(p === 'admin' && typeof window.sfShowAdmin === 'function') window.sfShowAdmin();
+        const mbt = document.getElementById('mbTitle');
+        if(mbt) mbt.textContent = a.textContent.trim() || 'Sikerfüzet';
     }));
+})();
+
+// ===== MOBIL MENÜ (hamburger + kicsúszó sidebar) =====
+(function(){
+    const btn = document.getElementById('mobileMenuBtn');
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('sidebarBackdrop');
+    if(!btn || !sb || !bd) return;
+    const setOpen = open => {
+        sb.classList.toggle('open', open);
+        bd.classList.toggle('show', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        document.body.style.overflow = open ? 'hidden' : '';
+    };
+    btn.addEventListener('click', () => setOpen(!sb.classList.contains('open')));
+    bd.addEventListener('click', () => setOpen(false));
+    document.querySelectorAll('[data-page]').forEach(a => a.addEventListener('click', () => setOpen(false)));
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') setOpen(false); });
+    window.addEventListener('resize', () => { if(window.innerWidth > 1000) setOpen(false); });
 })();
 
 // ===== HAVI TERV =====
@@ -2906,13 +3001,18 @@ window.sfOnConfig = function(){
         const body = document.getElementById("strukturaBody"); if(!body) return;
         strTree = loadStrTree();
         const treeHtml = `<ul class="only-child">${strNodeHtml(strTree, true)}</ul>`;
-        body.innerHTML = `<div class="str-hero"><h2>Csapat struktúra</h2><p>Adda hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
+        body.innerHTML = `<div class="str-hero"><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
         <div class="card"><div class="card-body" style="padding:0;"><div class="org-wrap"><div class="org-tree">${treeHtml}</div></div></div></div>`;
+        // A fa szélesebb lehet a képernyőnél – a gyökér csomópontra görgetünk
+        const wrap = body.querySelector('.org-wrap');
+        if(wrap) wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;
         wireStruktura();
     }
 
+    let strWired = false;
     function wireStruktura(){
-        const body = document.getElementById("strukturaBody"); if(!body) return;
+        const body = document.getElementById("strukturaBody"); if(!body || strWired) return;
+        strWired = true;
         body.addEventListener('click', e=>{
             const addBtn = e.target.closest('[data-str-add]');
             if(addBtn){ strOpenModal(null, addBtn.dataset.strAdd); return; }
@@ -2920,7 +3020,7 @@ window.sfOnConfig = function(){
             if(editBtn){ strOpenModal(editBtn.dataset.strEdit, null); return; }
             const delBtn = e.target.closest('[data-str-del]');
             if(delBtn){ strDeleteNode(delBtn.dataset.strDel); return; }
-        }, { once: true });
+        });
     }
 
     function strFindNode(tree, id){
