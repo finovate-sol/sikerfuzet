@@ -117,6 +117,17 @@ export function isLeaderUser(user, structureTree){
     return walk(structureTree);
 }
 
+// Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
+// frissíti minden belépéskor. Az Admin "Csapat szerepkörök" fülének ez a
+// forrása (valódi, bejelentkezett fiókok, névvel).
+export async function getEmployees(){
+    if(!isConfigured || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, "employees"));
+        return snap.docs.map(d => Object.assign({ uid: d.id }, d.data()));
+    } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
+}
+
 let app, auth, db;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);

@@ -434,6 +434,14 @@
         .adm-add-row { display:flex; gap:10px; margin-top:14px; }
         .adm-add-row input { flex:1; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; }
         .adm-add-row input:focus { border-color:var(--blue); }
+        .adm-role-head { display:grid; grid-template-columns:1fr 150px 200px; gap:10px; padding:0 0 8px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+        .adm-role-list { display:flex; flex-direction:column; }
+        .adm-role-row { display:grid; grid-template-columns:1fr 150px 200px; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid #f1f4f8; }
+        .adm-role-row:last-child { border-bottom:none; }
+        @media (max-width:640px){ .adm-role-head { display:none; } .adm-role-row { grid-template-columns:1fr; gap:6px; padding:14px 0; } }
+        .adm-role-name div:first-child { font-size:14px; font-weight:600; color:var(--text); }
+        .adm-role-email { font-size:12px; color:var(--muted); }
+        .adm-role-sel { padding:7px 9px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); background:var(--card); }
 
         /* ===== STRUKTÚRA ===== */
         .str-hero { margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -2164,7 +2172,7 @@ window.sfOnConfig = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, isLeaderUser } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, isLeaderUser, getEmployees } from "./auth.js";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -3231,7 +3239,7 @@ window.sfOnConfig = function(){
     };
 
     // ===================== ADMIN OLDAL =====================
-    const ADM_TABS = ['Felhasználók','INFO időpontok','Rangok','Fontos infók'];
+    const ADM_TABS = ['Felhasználók','Csapat szerepkörök','INFO időpontok','Rangok','Fontos infók'];
     let admCurTab = 0;
 
     window.sfShowAdmin = async function(){
@@ -3246,9 +3254,10 @@ window.sfOnConfig = function(){
     async function renderAdmPanel(tab){
         const cont = document.getElementById("admPanels"); if(!cont) return;
         if(tab===0) await renderAdmUsers(cont);
-        else if(tab===1) renderAdmDates(cont);
-        else if(tab===2) renderAdmRanks(cont);
-        else if(tab===3) renderAdmInfos(cont);
+        else if(tab===1) await renderAdmRoles(cont);
+        else if(tab===2) renderAdmDates(cont);
+        else if(tab===3) renderAdmRanks(cont);
+        else if(tab===4) renderAdmInfos(cont);
     }
 
     async function renderAdmUsers(cont){
@@ -3273,6 +3282,72 @@ window.sfOnConfig = function(){
         };
         addBtn.addEventListener('click', doAdd);
         inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } });
+    }
+
+    // Csapat szerepkörök: ki vezető / munkatárs, és ki kinek a beosztottja.
+    // Ugyanazt a megosztott Struktúra-fát (config/structure) írja, amit az
+    // org chart is használ – csak valódi (már bejelentkezett) fiókokon,
+    // egyszerű listás felületen, a vizuális fa szerkesztése nélkül.
+    async function renderAdmRoles(cont){
+        cont.innerHTML = '<div class="card pg-loading">Betöltés…</div>';
+        let employees, tree;
+        try { [employees, tree] = await Promise.all([getEmployees(), loadStrTree()]); }
+        catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
+        strTree = tree;
+        employees = (employees||[]).filter(e => e.email).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'hu'));
+        const rowsHtml = employees.map(emp=>{
+            const email = String(emp.email).toLowerCase();
+            const node = strFindNodeByEmail(strTree, email);
+            const role = node ? (node.role||'member') : 'member';
+            const parent = node ? strFindParent(strTree, node.id) : null;
+            const parentId = parent ? parent.id : strTree.id;
+            const leaderOpts = strLeaderOptions(strTree, node ? node.id : null)
+                .map(n => `<option value="${n.id}"${n.id===parentId?' selected':''}>${n.depth===0 ? '— nincs / legfelső szint —' : ('&nbsp;&nbsp;'.repeat(n.depth-1)+escM(n.name))}</option>`)
+                .join('');
+            return `<div class="adm-role-row" data-email="${escM(email)}" data-name="${escM(emp.name||email)}">
+                <div class="adm-role-name">
+                    <div>${escM(emp.name||'(névtelen)')}</div>
+                    <div class="adm-role-email">${escM(emp.email)}</div>
+                </div>
+                <select class="adm-role-sel" data-af="role">
+                    <option value="member"${role!=='leader'?' selected':''}>Munkatárs</option>
+                    <option value="leader"${role==='leader'?' selected':''}>Vezető</option>
+                </select>
+                <select class="adm-role-sel" data-af="parent">${leaderOpts}</select>
+            </div>`;
+        }).join('') || `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Még nincs bejelentkezett munkatárs.</div>`;
+        cont.innerHTML = `<div class="card"><div class="card-body">
+            <div class="adm-section-title">Csapat szerepkörök</div>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Állítsd be, ki vezető, és ki kinek a beosztottja. A vezetők látják a "Kiértékelő telefon" oldalt, és a saját csapatuk összes ügyfelét.</p>
+            <div class="adm-role-head"><span>Név</span><span>Szerepkör</span><span>Vezető</span></div>
+            <div class="adm-role-list">${rowsHtml}</div>
+        </div></div>`;
+        cont.querySelectorAll('.adm-role-row').forEach(rowEl=>{
+            const save = async () => {
+                const email = rowEl.dataset.email; if(!email) return;
+                const role = rowEl.querySelector('[data-af="role"]').value;
+                const parentId = rowEl.querySelector('[data-af="parent"]').value;
+                let node = strFindNodeByEmail(strTree, email);
+                if(!node){
+                    node = { id: strId(), name: rowEl.dataset.name, role, email, children: [] };
+                    const parent = strFindNode(strTree, parentId) || strTree;
+                    if(!parent.children) parent.children = [];
+                    parent.children.push(node);
+                } else {
+                    node.role = role;
+                    const currentParent = strFindParent(strTree, node.id);
+                    if(!currentParent || currentParent.id !== parentId){
+                        if(currentParent) currentParent.children = currentParent.children.filter(c=>c.id!==node.id);
+                        const newParent = strFindNode(strTree, parentId) || strTree;
+                        if(!newParent.children) newParent.children = [];
+                        newParent.children.push(node);
+                    }
+                }
+                try { await saveStrTree(strTree); await renderAdmRoles(cont); }
+                catch(e){ alert('Hiba: '+(e.message||e)); }
+            };
+            rowEl.querySelectorAll('select').forEach(sel => sel.addEventListener('change', save));
+        });
     }
 
     function renderAdmDates(cont){
@@ -3383,6 +3458,27 @@ window.sfOnConfig = function(){
             const f = strFindParent(c, id); if(f) return f;
         }
         return null;
+    }
+
+    // Az Admin "Csapat szerepkörök" fülének segédfüggvényei: egy csomópont
+    // megkeresése email alapján, illetve a lehetséges "Vezető" választás
+    // (a gyökér + minden 'leader' szerepkörű csomópont).
+    function strFindNodeByEmail(node, email){
+        if(!node || !email) return null;
+        if(node.email && String(node.email).toLowerCase() === email) return node;
+        for(const c of (node.children||[])){
+            const f = strFindNodeByEmail(c, email); if(f) return f;
+        }
+        return null;
+    }
+    function strLeaderOptions(node, excludeId, depth, out){
+        out = out || [];
+        if(excludeId && node.id === excludeId) return out;
+        if((depth||0) === 0 || node.role === 'leader'){
+            out.push({ id: node.id, name: node.name || STR_ROLE_LABELS[node.role] || 'Névtelen', depth: depth||0 });
+        }
+        (node.children||[]).forEach(c => strLeaderOptions(c, excludeId, (depth||0)+1, out));
+        return out;
     }
 
     // Tiszta render a memóriában lévő strTree-ből – nem tölt be semmit a hálózatról,
