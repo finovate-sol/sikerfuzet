@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    getFirestore, doc, getDoc, setDoc, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, collection, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
@@ -35,6 +35,22 @@ export async function saveInfoDates(dates){
 export async function saveAppConfig(obj){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "config", "app"), obj, { merge: true });
+}
+
+export async function getAllowedUsers(){
+    if(!isConfigured || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, ALLOWLIST));
+        return snap.docs.map(d => d.id);
+    } catch(e){ console.error("Felhasználók olvasása sikertelen:", e); return []; }
+}
+export async function addAllowedUser(email){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, ALLOWLIST, email.toLowerCase().trim()), { added: serverTimestamp() });
+}
+export async function removeAllowedUser(email){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, ALLOWLIST, email.toLowerCase().trim()));
 }
 
 let app, auth, db;
