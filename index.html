@@ -587,8 +587,9 @@
         .modal-head { padding:18px 22px; border-bottom:1px solid var(--border); font-size:17px; font-weight:700; color:var(--navy); }
         .modal-body { padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
         .modal-body label { font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:5px; }
-        .modal-body input, .modal-body select { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
-        .modal-body input:focus, .modal-body select:focus { border-color:var(--blue); }
+        .modal-body input, .modal-body select, .modal-body textarea { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; background:#fff; resize:vertical; box-sizing:border-box; }
+        .modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus { border-color:var(--blue); }
+        .modal-body label .req { color:var(--red); }
         .modal-client { font-size:16px; font-weight:700; color:var(--navy); background:var(--blue-light); padding:10px 12px; border-radius:8px; }
         .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
         .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
@@ -1972,6 +1973,59 @@ function openRegDetail(i){
     overlay.querySelector('#rdClose').addEventListener('click', close);
     overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
 }
+// Kiértékelő telefon adatlap – akkor jelenik meg, ha egy ügyfélnél
+// bejelölik a "Portálon fent" mezőt. A dátum és az "Egyéb" mező kivételével
+// minden mező kötelező; ha a felhasználó mégsem menti el, a checkbox visszaáll.
+function openKiertekeloModal(idx, checkboxEl){
+    const r = registry[idx];
+    if(!r) return;
+    const k = r.kiertekelo || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-head">Kiértékelő telefon szükséges?</div>
+            <div class="modal-body">
+                <div><label for="ktName">Ügyfél név <span class="req">*</span></label><input id="ktName" type="text" value="${esc(k.name||r.name||'')}"></div>
+                <div><label for="ktContact">Elérhetőség <span class="req">*</span></label><input id="ktContact" type="text" value="${esc(k.contact||r.phone||'')}"></div>
+                <div><label for="ktAdvisor">Tanácsadó <span class="req">*</span></label><input id="ktAdvisor" type="text" value="${esc(k.advisor||r.munkatars||'')}"></div>
+                <div><label for="ktDate">Tanácsadás időpontja</label><input id="ktDate" type="datetime-local" value="${esc(k.date||'')}"></div>
+                <div><label for="ktTopic">Téma <span class="req">*</span></label><input id="ktTopic" type="text" value="${esc(k.topic||'')}"></div>
+                <div><label for="ktAmount">Összeg <span class="req">*</span></label><input id="ktAmount" type="text" value="${esc(k.amount||'')}"></div>
+                <div><label for="ktOther">Egyéb</label><textarea id="ktOther" rows="2">${esc(k.other||'')}</textarea></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" id="ktCancel">Mégse</button>
+                <button class="btn primary" id="ktSave">Mentés</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const revertCheckbox = () => {
+        r.portal = false;
+        if(checkboxEl) checkboxEl.checked = false;
+        store.save('sf_registry', registry);
+    };
+    const close = () => overlay.remove();
+    overlay.querySelector('#ktCancel').addEventListener('click', () => { revertCheckbox(); close(); });
+    overlay.addEventListener('click', e => { if(e.target===overlay){ revertCheckbox(); close(); } });
+    overlay.querySelector('#ktSave').addEventListener('click', () => {
+        const name = overlay.querySelector('#ktName').value.trim();
+        const contact = overlay.querySelector('#ktContact').value.trim();
+        const advisor = overlay.querySelector('#ktAdvisor').value.trim();
+        const date = overlay.querySelector('#ktDate').value;
+        const topic = overlay.querySelector('#ktTopic').value.trim();
+        const amount = overlay.querySelector('#ktAmount').value.trim();
+        const other = overlay.querySelector('#ktOther').value.trim();
+        if(!name || !contact || !advisor || !topic || !amount){
+            alert('Kérlek töltsd ki a kötelező mezőket (Ügyfél név, Elérhetőség, Tanácsadó, Téma, Összeg).');
+            return;
+        }
+        r.kiertekelo = { name, contact, advisor, date, topic, amount, other };
+        store.save('sf_registry', registry);
+        close();
+    });
+}
+
 (function(){
     const tbl = document.getElementById('regTable');
     if(!tbl) return;
@@ -1983,7 +2037,11 @@ function openRegDetail(i){
     tbl.addEventListener('change', e=>{
         const t=e.target;
         if(t.dataset.ri===undefined) return;
-        if(t.type==='checkbox'){ registry[+t.dataset.ri][t.dataset.rf]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer(); }
+        if(t.type==='checkbox'){
+            const idx=+t.dataset.ri, field=t.dataset.rf;
+            registry[idx][field]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer();
+            if(field==='portal' && t.checked) openKiertekeloModal(idx, t);
+        }
         else if(t.tagName==='SELECT'){ registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); }
     });
     const searchEl = document.getElementById('regSearch');
