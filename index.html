@@ -314,7 +314,13 @@
         .hweek-title { font-size:14px; font-weight:700; color:var(--navy); margin:0; padding:11px 14px; background:#f5f7fa; display:flex; align-items:center; gap:10px; }
         .hweek-title.current { background:var(--blue-light); }
         .hweek-title span { font-size:12px; font-weight:600; color:var(--muted); }
-        .hweek-badge { margin-left:auto; font-size:11px; font-weight:700; color:#fff; background:var(--green); padding:4px 9px; border-radius:20px; }
+        .hweek-title[data-wk-toggle] { cursor:pointer; user-select:none; }
+        .hweek-title-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+        .hweek-badge { font-size:11px; font-weight:700; color:#fff; background:var(--green); padding:4px 9px; border-radius:20px; }
+        .hweek-chevron { color:var(--muted); display:flex; transition:transform .2s; }
+        .hweek-chevron svg { width:16px; height:16px; }
+        .hweek-block.collapsed .hweek-chevron { transform:rotate(-90deg); }
+        .hweek-block.collapsed .havi-table-wrap { display:none; }
         table.havi .hlblcol { width:70px; }
         table.havi tr.hdiffrow td { background:#fafbfd; }
         table.havi.hsum { background:#f5f7fa; }
@@ -1598,7 +1604,9 @@ function renderHavi(){
     for(let w=0;w<haviWeekCount;w++){
         const isCur = w === cwIdx;
         wk+=`<div class="hweek-block${isCur?' current':''}">`;
-        wk+=`<div class="hweek-title${isCur?' current':''}">${w+1}. hét <span>${ranges[w]}</span>${isCur?'<span class="hweek-badge">Aktuális</span>':''}</div>`;
+        wk+=`<div class="hweek-title${isCur?' current':''}" data-wk-toggle="${w}">${w+1}. hét <span>${ranges[w]}</span>
+            <div class="hweek-title-right">${isCur?'<span class="hweek-badge">Aktuális</span>':''}<span class="hweek-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span></div>
+        </div>`;
         wk+=`<div class="havi-table-wrap"><table class="havi"><thead>${thRow}</thead><tbody>`
             +`<tr><td class="hlblcol">Cél</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(haviData.weeks[w].cel[i])}"></td>`).join('')+`</tr>`
             +`<tr><td class="hlblcol">Van</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"></td>`).join('')+`</tr>`
@@ -1685,6 +1693,8 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(t.dataset.cl!==undefined){ haviData.clients[+t.dataset.cl][t.dataset.clf]=t.value; saveHavi(); recomputeHaviClients(); return; }
 });
 document.getElementById('haviBody').addEventListener('click', e=>{
+    const wkToggle=e.target.closest('[data-wk-toggle]');
+    if(wkToggle){ wkToggle.closest('.hweek-block').classList.toggle('collapsed'); return; }
     const del=e.target.closest('[data-cldel]');
     const add=e.target.closest('#haviClientAdd');
     if(del){ haviData.clients.splice(+del.dataset.cldel,1); saveHavi(); renderHavi(); return; }
