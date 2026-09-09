@@ -302,7 +302,6 @@
         table.kov { border-collapse:collapse; width:100%; }
         table.kov th, table.kov td { border:1px solid var(--border); padding:4px 6px; text-align:center; font-size:12px; }
         table.kov thead th { background:#f5f7fa; color:var(--navy); font-weight:700; }
-        table.kov th.chk, table.kov td.chk { min-width:34px; }
         table.kov td input:not([type=checkbox]) { width:100%; min-width:120px; padding:5px 7px; border:1px solid transparent; border-radius:5px; font-size:12px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
         table.kov td input:not([type=checkbox]):hover { border-color:var(--border); }
         table.kov td input:not([type=checkbox]):focus { border-color:var(--blue); background:#fff; }
@@ -311,6 +310,8 @@
         table.kov td.kov-empty { color:var(--muted); padding:18px 12px; text-align:center; font-size:13px; }
         table.kov th.kov-num, table.kov td.kov-num { min-width:28px; width:28px; color:var(--muted); }
         table.kov th.kov-mnb, table.kov td.kov-mnb { min-width:70px; width:70px; }
+        table.kov th.kov-eh-num, table.kov td.kov-eh-num { min-width:76px; width:76px; }
+        table.kov td.kov-eh-num input { min-width:0 !important; width:100%; text-align:center; font-weight:700; padding:5px 4px; font-size:12px; }
         table.kov th.kov-eh-th { min-width:42px; width:42px; font-size:11px; padding:5px 2px; }
         table.kov td.kov-eh-cell { min-width:42px; width:42px; cursor:pointer; padding:0; position:relative; height:32px; transition:background .12s; }
         table.kov td.kov-eh-cell:hover:not(.green) { background:#dcfce7; }
@@ -1632,7 +1633,7 @@ function renderKov(){
     // --- Előkészítőszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')}</span>Előkészítő szeminárium</h2><button class="btn-edit" id="kovAddElo">+ Résztvevő</button></div><div class="card-body" style="padding:0;">`;
     const eloThSep=ELO_COLS.map(c=>`<th class="kov-eh-th${c===ELO_SEP?' kov-sep':''}">${c}</th>`).join('');
-    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th>Résztvevő</th><th class="kov-mnb">MNB</th><th>Vezető</th>${eloThSep}<th></th></tr></thead><tbody>`;
+    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th>Résztvevő</th><th class="kov-mnb">MNB</th><th>Vezető</th><th class="kov-eh-num">EH</th>${eloThSep}<th></th></tr></thead><tbody>`;
     html+= kovData.elo.length ? kovData.elo.map((r,i)=>{
         const eh=Number(r.eh)||0;
         const lastGreen=ELO_COLS.filter(c=>c<=eh).pop()||0;
@@ -1645,27 +1646,28 @@ function renderKov(){
             <td><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Név"></td>
             <td class="kov-mnb"><input data-ke="elo" data-ki="${i}" data-kf="mnb" value="${esc(r.mnb)}" placeholder="Ok / dátum" style="width:72px;text-align:center;"></td>
             <td><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></td>
+            <td class="kov-eh-num"><input type="number" min="0" data-ke="elo" data-ki="${i}" data-kf="eh" value="${eh||''}" placeholder="EH"></td>
             ${cells}
             <td><button class="row-del" data-kdel="elo:${i}" title="Törlés">🗑</button></td></tr>`;
     }).join('')
-        : `<tr><td colspan="${ELO_COLS.length+5}" class="kov-empty">Még nincs résztvevő.</td></tr>`;
+        : `<tr><td colspan="${ELO_COLS.length+6}" class="kov-empty">Még nincs résztvevő.</td></tr>`;
     html+=`</tbody></table></div></div></section>`;
 
     // --- Esélyszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5"/>')}</span>Esélyszeminárium</h2><button class="btn-edit" id="kovAddEsely">+ Résztvevő hozzáadása</button></div><div class="card-body" style="padding:0;">`;
     const h1=`<tr><th rowspan="2">Résztvevő</th>`+ESELY_GROUPS.map(g=>`<th colspan="${g.cols.length}" class="kov-grp">${g.label}</th>`).join('')+`<th rowspan="2"></th></tr>`;
-    const h2=`<tr>`+ESELY_GROUPS.map(g=>g.cols.map(c=>`<th class="chk">${c}</th>`).join('')).join('')+`</tr>`;
+    const h2=`<tr>`+ESELY_GROUPS.map(g=>g.cols.map(c=>`<th class="kov-eh-th">${c}</th>`).join('')).join('')+`</tr>`;
     const esCols=ESELY_GROUPS.reduce((s,g)=>s+g.cols.length,0);
     html+=`<div class="kov-table-wrap"><table class="kov"><thead>${h1}${h2}</thead><tbody>`;
     html+= kovData.esely.length ? kovData.esely.map((r,i)=>`<tr>
         <td><input data-ke="esely" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}"></td>`
-        +ESELY_GROUPS.map(g=>g.cols.map(c=>{const k=g.key+'_'+c; return `<td class="chk"><input type="checkbox" data-ke="esely" data-ki="${i}" data-kc="${k}" ${r.m&&r.m[k]?'checked':''}></td>`;}).join('')).join('')
+        +ESELY_GROUPS.map(g=>g.cols.map(c=>{const k=g.key+'_'+c, on=!!(r.m&&r.m[k]); return `<td class="kov-eh-cell${on?' green':''}" data-ke3="esely" data-ki3="${i}" data-kc3="${k}"></td>`;}).join('')).join('')
         +`<td><button class="row-del" data-kdel="esely:${i}" title="Törlés">🗑</button></td></tr>`).join('')
         : `<tr><td colspan="${esCols+2}" class="kov-empty">Még nincs résztvevő – add hozzá az elsőt a fenti gombbal.</td></tr>`;
     html+=`</tbody></table></div></div></section>`;
 
     // --- Fontos tudnivalók ---
-    html+=`<div class="kov-note-box"><span class="kov-note-ic">${kIc('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}</span><div><strong>Fontos tudnivalók</strong><ul><li>A cél negyedévente <b>${ELO_TARGET} előkészítő résztvevő</b> meghívása.</li><li>Az oszlopok (50, 100, …) az elért <b>egységszinteket</b> jelölik – pipáld ki, amit a résztvevő teljesített.</li><li>A résztvevők és a pipák negyedévenként külön mentődnek – felül lapozhatsz a negyedévek között.</li></ul></div></div>`;
+    html+=`<div class="kov-note-box"><span class="kov-note-ic">${kIc('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}</span><div><strong>Fontos tudnivalók</strong><ul><li>A cél negyedévente <b>${ELO_TARGET} előkészítő résztvevő</b> meghívása.</li><li>Az Előkészítő táblázatban írd be a pontos EH-t az „EH" mezőbe – a mérföldkő-cellák automatikusan zöldre váltanak; egy oszlopra kattintva is gyorsan beállíthatod a kerek értéket.</li><li>Az Esélyszemináriumnál egy-egy cellára kattintva jelölheted, hogy az adott szintet a résztvevő teljesítette.</li><li>Az adatok negyedévenként külön mentődnek – felül lapozhatsz a negyedévek között.</li></ul></div></div>`;
 
     body.innerHTML=html;
 }
@@ -1682,19 +1684,29 @@ function renderKov(){
     });
     body.addEventListener('change', e=>{
         const t=e.target;
-        if(t.type==='checkbox' && t.dataset.ke && t.dataset.kc){ const row=kovData[t.dataset.ke][+t.dataset.ki]; row.m=row.m||{}; row.m[t.dataset.kc]=t.checked; saveKov(); }
+        // Pontos EH beírása – csak elengedéskor/Enterre frissítjük a mérföldkő-cellákat,
+        // hogy gépelés közben ne veszítse el a fókuszt a mező.
+        if(t.dataset.ke==='elo' && t.dataset.kf==='eh'){ renderKov(); return; }
     });
     body.addEventListener('click', e=>{
         const d=e.target.closest('[data-kdel]');
         if(d){ const p=d.dataset.kdel.split(':'); kovData[p[0]].splice(+p[1],1); saveKov(); renderKov(); return; }
         if(e.target.closest('#kovAddElo')){ kovData.elo.push({resztvevo:'',mnb:'',vezeto:'',eh:0}); saveKov(); renderKov(); return; }
         if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',m:{}}); saveKov(); renderKov(); return; }
-        // EH milestone cell click
+        // EH mérföldkő-cella kattintás (Előkészítő) – gyors, kerek érték beállítása
         const cell=e.target.closest('[data-ke2]');
         if(cell && cell.dataset.ke2==='elo'){
             const idx=+cell.dataset.ki2, colVal=+cell.dataset.kc2;
             const row=kovData.elo[idx];
             row.eh = (row.eh===colVal) ? 0 : colVal;
+            saveKov(); renderKov(); return;
+        }
+        // Esély-cella kattintás – független zöld/fehér váltás
+        const cell3=e.target.closest('[data-ke3]');
+        if(cell3 && cell3.dataset.ke3==='esely'){
+            const idx=+cell3.dataset.ki3, key=cell3.dataset.kc3;
+            const row=kovData.esely[idx];
+            row.m=row.m||{}; row.m[key]=!row.m[key];
             saveKov(); renderKov(); return;
         }
     });
