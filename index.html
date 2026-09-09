@@ -143,6 +143,7 @@
         .reg-name:hover { background:var(--blue-light); color:var(--blue); }
         .reg-name-cell { display:flex; align-items:center; gap:6px; }
         .reg-kt-badge { flex-shrink:0; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; background:#d1fae5; color:#065f46; white-space:nowrap; }
+        .reg-kezelo-ro { display:inline-block; padding:6px 8px; font-size:13px; color:var(--text); }
         /* Nyilvántartó – új fejléc, eszköztár, lábléc */
         .reg-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:16px; }
         .reg-hero-txt h2 { font-size:24px; font-weight:800; color:var(--navy); margin:0 0 4px; }
@@ -1891,6 +1892,7 @@ let regSearch = '';
 let regFilters = [];
 const REG_FIELDS = [
     {key:'name', label:'Név', type:'text'},
+    {key:'ownerName', label:'Kezelő', type:'text'},
     {key:'munkatars', label:'Munkatárs', type:'text'},
     {key:'ajanlo', label:'Ajánló személy', type:'text'},
     {key:'phone', label:'Telefonszám', type:'text'},
@@ -1960,15 +1962,33 @@ function rowMatchesFilters(r){
         return String(r[f.field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
     });
 }
+// A "Kezelő" oszlop dönti el, kinek az ügyfele – ez alapján szűrődik a lista
+// (nem vezetőnek csak a saját kezelt ügyfelei jelennek meg). Nem vezető
+// csak megnézheti, ki a kezelő; vezető át is helyezheti egy másik
+// munkatársra (window.sfEmployeesList a modul-scriptből érkezik).
+function regKezeloControl(i, r){
+    if(!window.sfIsLeader){
+        return `<span class="reg-kezelo-ro">${esc(r.ownerName || '—')}</span>`;
+    }
+    const employees = window.sfEmployeesList || [];
+    const curUid = r.ownerUid || '';
+    let opts = employees.map(e => `<option value="${esc(e.uid)}"${e.uid===curUid?' selected':''}>${esc(e.name||e.email)}</option>`).join('');
+    if(curUid && !employees.some(e=>e.uid===curUid)){
+        opts = `<option value="${esc(curUid)}" selected>${esc(r.ownerName || r.ownerEmail || 'Ismeretlen')}</option>` + opts;
+    } else if(!curUid){
+        opts = `<option value="">—</option>` + opts;
+    }
+    return `<select class="reg-kezelo-sel" data-ri="${i}" data-rf="kezelo">${opts}</select>`;
+}
 function renderRegistry(){
     const tbl = document.getElementById('regTable');
     if(!tbl) return;
     const head = `<thead><tr>
-        <th class="chk">TP</th><th class="chk">MT</th><th>Név</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
+        <th class="chk">TP</th><th class="chk">MT</th><th>Név</th><th>Kezelő</th><th>Munkatárs</th><th>Ajánló személy</th><th>Telefonszám</th><th>Lakhely</th><th>Státusz</th>
         <th class="chk">Elemzés</th><th class="chk">Portálon fent</th><th class="chk">Tanácsadás</th><th style="text-align:right;">Műveletek</th>
     </tr></thead>`;
     const q=(regSearch||'').trim().toLowerCase();
-    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status].some(v=>String(v||'').toLowerCase().includes(q));
+    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
     const matched = registry.map((r,i)=>({r,i})).filter(({r})=> textMatch(r) && rowMatchesFilters(r));
     const editIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
     const delIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
@@ -1976,6 +1996,7 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tp" ${r.tp?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="mt" ${r.mt?'checked':''}></td>
         <td><div class="reg-name-cell">${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name" data-open="${i}">${esc(r.name) || '(névtelen)'}</button></div></td>
+        <td>${regKezeloControl(i, r)}</td>
         <td><input data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></td>
         <td><input data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}"></td>
         <td><input data-ri="${i}" data-rf="phone" value="${esc(r.phone)}"></td>
@@ -1985,7 +2006,7 @@ function renderRegistry(){
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="portal" ${r.portal?'checked':''}></td>
         <td class="chk"><input type="checkbox" data-ri="${i}" data-rf="tanacsadas" ${r.tanacsadas?'checked':''}></td>
         <td><div class="reg-actions"><button class="reg-ico" data-open="${i}" title="Szerkesztés">${editIco}</button><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${delIco}</button></div></td>
-    </tr>`).join('') || `<tr><td colspan="12" style="color:var(--muted);padding:24px;text-align:center;">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="13" style="color:var(--muted);padding:24px;text-align:center;">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
     const foot=document.getElementById('regFoot');
     if(foot){
@@ -2132,6 +2153,14 @@ function openKiertekeloModal(idx, checkboxEl){
             persistReg(idx);
             if(field==='portal' && t.checked) openKiertekeloModal(idx, t);
         }
+        else if(t.dataset.rf === 'kezelo'){
+            const uid = t.value;
+            const emp = (window.sfEmployeesList || []).find(e => e.uid === uid);
+            const r = registry[idx];
+            r.ownerUid = uid;
+            if(emp){ r.ownerEmail = emp.email || ''; r.ownerName = emp.name || emp.email || ''; }
+            store.save('sf_registry', registry); renderRegistry(); persistReg(idx);
+        }
         else if(t.tagName==='SELECT'){ registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); persistReg(idx); }
     });
     const searchEl = document.getElementById('regSearch');
@@ -2251,6 +2280,15 @@ window.sfOnConfig = function(){
             list = store.load("sf_registry", []);
         }
         window.sfAllClients = list;
+        // A "Kezelő" oszlop áthelyezés-választójához: csak vezetőnek kell,
+        // a teljes (valaha bejelentkezett) munkatárslista.
+        if (isConfigured && window.sfIsLeader){
+            try {
+                window.sfEmployeesList = (await getEmployees())
+                    .filter(e => e.email)
+                    .sort((a,b) => String(a.name||a.email).localeCompare(String(b.name||b.email), "hu"));
+            } catch(e){ window.sfEmployeesList = []; }
+        }
         const visible = window.sfIsLeader ? list.slice() : list.filter(c => c.ownerUid === cu.uid);
         if (typeof window.sfSetRegistry === "function") window.sfSetRegistry(visible);
     }
