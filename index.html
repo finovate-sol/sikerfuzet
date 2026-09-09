@@ -183,6 +183,31 @@
         .rd-field input, .rd-field textarea { width:100%; padding:6px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); outline:none; resize:vertical; box-sizing:border-box; }
         .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); }
         .rd-sec { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; }
+        .kt-summary { border:1px solid var(--border); border-radius:10px; padding:12px; }
+        .kt-status-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; margin-bottom:8px; }
+        .kt-status-badge.done { background:#d1fae5; color:#065f46; }
+        .kt-summary-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px 14px; }
+        @media (max-width:560px){ .kt-summary-grid { grid-template-columns:1fr; } }
+        .kt-summary-grid label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:2px; }
+        .kt-summary-grid span { font-size:13px; color:var(--text); }
+        .kt-feedback { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+        .kt-feedback label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
+        .kt-feedback p { margin:0; font-size:13px; color:var(--text); white-space:pre-wrap; }
+        .kt-list { display:flex; flex-direction:column; gap:14px; }
+        .kt-row { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+        .kt-row-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+        .kt-row-name { font-size:15px; font-weight:700; color:var(--navy); }
+        .kt-row-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+        .kt-status-sel { padding:6px 10px; border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:600; font-family:inherit; background:var(--card); color:var(--text); }
+        .kt-row-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px 14px; padding:10px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+        @media (max-width:700px){ .kt-row-grid { grid-template-columns:1fr 1fr; } }
+        .kt-row-full { grid-column:1 / -1; }
+        .kt-row-grid label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:2px; }
+        .kt-row-grid span { font-size:13px; color:var(--text); }
+        .kt-feedback-edit { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+        .kt-feedback-edit label { font-size:11px; font-weight:600; color:var(--muted); }
+        .kt-feedback-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); resize:vertical; box-sizing:border-box; }
+        .kt-save-btn { align-self:flex-end; }
 
         /* ===== HAVI TERV ===== */
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
@@ -794,6 +819,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><path d="M4 18V12M12 18v-4M20 18V12"/></svg>
                 Struktúra
             </a>
+            <a href="#" data-page="kiertekelo" id="navKiertekelo" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                Kiértékelő telefon
+            </a>
             <div class="divider"></div>
             <a href="#" data-page="pg">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -1063,6 +1092,11 @@
           <div class="page-wrap"><div id="strukturaBody"></div></div>
         </div>
 
+        <!-- KIÉRTÉKELŐ TELEFON -->
+        <div id="page-kiertekelo" class="page" hidden>
+          <div class="page-wrap"><div id="kiertekeloBody"></div></div>
+        </div>
+
         <!-- ADMIN -->
         <div id="page-admin" class="page" hidden>
           <div class="page-wrap"><div id="adminBody"></div></div>
@@ -1117,6 +1151,26 @@ let planEdit = false;
 let registry = store.load('sf_registry', []);
 const editMode = { info:false };
 function refreshMoneyCareer(){ renderMoney(); renderCareer(); }
+
+// A modul-script hívja meg, amikor a megosztott (Firestore) ügyféllista
+// megérkezett/frissült – a felhasználó szerepkörének megfelelően már
+// leszűrve (munkatárs: csak a saját ügyfelei; vezető/admin: mind).
+window.sfSetRegistry = function(list){
+    registry = list || [];
+    store.save('sf_registry', registry);
+    renderRegistry();
+    refreshMoneyCareer();
+};
+// Egy ügyfél-rekord Firestore-ba mentendő mezői (a lokális 'id' nélkül).
+function regClientPayload(r){
+    const { id, ...rest } = r;
+    return rest;
+}
+function persistReg(i){
+    const r = registry[i];
+    if(!r || !r.id || typeof window.sfSaveClient !== 'function') return;
+    window.sfSaveClient(r.id, regClientPayload(r));
+}
 
 // ===== RENDER: HETI TERVEZÉS (a Havi tervből, az aktuális hétre) =====
 // Melyik OVB-hónaphoz és heti indexhez tartozik a mai nap
@@ -1337,6 +1391,8 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'kovetkezo') renderKov();
         if(p === 'pg' && typeof window.sfShowPG === 'function') window.sfShowPG();
         if(p === 'struktura' && typeof window.sfShowStruktura === 'function') window.sfShowStruktura();
+        if(p === 'ugyfelek' && typeof window.sfShowUgyfelek === 'function') window.sfShowUgyfelek();
+        if(p === 'kiertekelo' && typeof window.sfShowKiertekelo === 'function') window.sfShowKiertekelo();
         if(p === 'admin' && typeof window.sfShowAdmin === 'function') window.sfShowAdmin();
         const mbt = document.getElementById('mbTitle');
         if(mbt) mbt.textContent = a.textContent.trim() || 'Sikerfüzet';
@@ -1928,6 +1984,22 @@ function renderRegistry(){
             <div class="reg-pager"><button class="reg-page-btn" disabled>‹</button><button class="reg-page-btn active">1</button><button class="reg-page-btn" disabled>›</button></div>`;
     }
 }
+// A vezető által a Kiértékelő telefon oldalon adott állapot/visszajelzés
+// megjelenítése az ügyfél adatlapján (a munkatársnál).
+function kiertekeloSummaryHtml(k){
+    if(!k) return '';
+    const isDone = k.status === 'elvegezve';
+    return `<div class="rd-sec">Kiértékelő telefon</div>
+        <div class="kt-summary">
+            <span class="kt-status-badge${isDone?' done':''}">${isDone?'Elvégezve':'Függő'}</span>
+            <div class="kt-summary-grid">
+                <div><label>Tanácsadó</label><span>${esc(k.advisor||'—')}</span></div>
+                <div><label>Téma</label><span>${esc(k.topic||'—')}</span></div>
+                <div><label>Összeg</label><span>${esc(k.amount||'—')}</span></div>
+            </div>
+            ${k.feedback ? `<div class="kt-feedback"><label>Vezetői visszajelzés</label><p>${esc(k.feedback)}</p></div>` : ''}
+        </div>`;
+}
 function openRegDetail(i){
     const r = registry[i];
     if(!r) return;
@@ -1957,6 +2029,7 @@ function openRegDetail(i){
                     <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
                     <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
                 </div>
+                ${kiertekeloSummaryHtml(r.kiertekelo)}
             </div>
             <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
         </div>`;
@@ -1968,6 +2041,7 @@ function openRegDetail(i){
         else if(t.dataset.c!==undefined) r.celok[t.dataset.c]=t.value;
         else return;
         store.save('sf_registry', registry);
+        persistReg(i);
     });
     const close=()=>{ overlay.remove(); renderRegistry(); refreshMoneyCareer(); };
     overlay.querySelector('#rdClose').addEventListener('click', close);
@@ -2004,6 +2078,7 @@ function openKiertekeloModal(idx, checkboxEl){
         r.portal = false;
         if(checkboxEl) checkboxEl.checked = false;
         store.save('sf_registry', registry);
+        persistReg(idx);
     };
     const close = () => overlay.remove();
     overlay.querySelector('#ktCancel').addEventListener('click', () => { revertCheckbox(); close(); });
@@ -2020,8 +2095,9 @@ function openKiertekeloModal(idx, checkboxEl){
             alert('Kérlek töltsd ki a kötelező mezőket (Ügyfél név, Elérhetőség, Tanácsadó, Téma, Összeg).');
             return;
         }
-        r.kiertekelo = { name, contact, advisor, date, topic, amount, other };
+        r.kiertekelo = { name, contact, advisor, date, topic, amount, other, status: 'fuggo', feedback: '' };
         store.save('sf_registry', registry);
+        persistReg(idx);
         close();
     });
 }
@@ -2032,17 +2108,21 @@ function openKiertekeloModal(idx, checkboxEl){
     tbl.addEventListener('input', e=>{
         const t=e.target;
         if(t.dataset.ri===undefined || t.type==='checkbox') return;
-        registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); refreshMoneyCareer();
+        const idx=+t.dataset.ri;
+        registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); refreshMoneyCareer();
+        persistReg(idx);
     });
     tbl.addEventListener('change', e=>{
         const t=e.target;
         if(t.dataset.ri===undefined) return;
+        const idx=+t.dataset.ri;
         if(t.type==='checkbox'){
-            const idx=+t.dataset.ri, field=t.dataset.rf;
+            const field=t.dataset.rf;
             registry[idx][field]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer();
+            persistReg(idx);
             if(field==='portal' && t.checked) openKiertekeloModal(idx, t);
         }
-        else if(t.tagName==='SELECT'){ registry[+t.dataset.ri][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); }
+        else if(t.tagName==='SELECT'){ registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); persistReg(idx); }
     });
     const searchEl = document.getElementById('regSearch');
     if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
@@ -2053,13 +2133,22 @@ function openKiertekeloModal(idx, checkboxEl){
     renderRegFilters();
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
-        if(d){ registry.splice(+d.dataset.rdel,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return; }
+        if(d){
+            const idx=+d.dataset.rdel, r=registry[idx];
+            if(r && r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
+            registry.splice(idx,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return;
+        }
         const o=e.target.closest('[data-open]');
         if(o){ openRegDetail(+o.dataset.open); }
     });
     document.getElementById('regAdd').addEventListener('click', ()=>{
-        registry.push({ name:'', munkatars:'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{} });
+        const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
+        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'' };
+        registry.push(r);
         store.save('sf_registry', registry); renderRegistry();
+        if(typeof window.sfAddClient === 'function'){
+            window.sfAddClient(regClientPayload(r)).then(id => { r.id = id; persistReg(registry.indexOf(r)); });
+        }
     });
     renderRegistry();
 })();
@@ -2075,7 +2164,7 @@ window.sfOnConfig = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, isLeaderUser } from "./auth.js";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -2102,6 +2191,7 @@ window.sfOnConfig = function(){
         if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
         initCalendar();
         window.sfUserName = user.displayName || user.email || "";
+        window.sfCurrentUser = { uid: user.uid, email: user.email || "", name: user.displayName || user.email || "" };
         getAppConfig().then(cfg => {
             currentConfig = cfg || {};
             window._admCfg = currentConfig;
@@ -2111,8 +2201,129 @@ window.sfOnConfig = function(){
             if (isAdmin(user)) setupAdminPanel();
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
         });
+        // Vezető-jogosultság megállapítása a megosztott Struktúrából (email egyezés
+        // egy 'leader' szerepkörű csomóponttal), majd a közös ügyféllista betöltése.
+        getStructure().then(tree => {
+            const leader = isLeaderUser(user, tree);
+            window.sfIsLeader = leader;
+            const nav = document.getElementById("navKiertekelo");
+            if (nav) nav.hidden = !leader;
+            loadAndDistributeClients();
+        });
     });
     let currentConfig = {};
+
+    // ===== MEGOSZTOTT ÜGYFÉLLISTA (Firestore) =====
+    // A munkatárs csak a saját (ownerUid) ügyfeleit látja; a vezető/admin mindet.
+    // window.sfAllClients mindig a leader/admin-nézetnek megfelelő, szűretlen listát
+    // tartja (a Kiértékelő telefon oldal ebből dolgozik).
+    async function loadAndDistributeClients(){
+        const cu = window.sfCurrentUser;
+        if (!cu) return;
+        let list = [];
+        if (isConfigured){
+            list = await getClients();
+            // Egyszeri migráció: a korábban csak ebben a böngészőben létező
+            // ügyféllista átvitele a közös Firestore-ba, ennek a felhasználónak
+            // a nevén – hogy a korábbi (helyi) munka ne vesszen el.
+            if (!store.load("sf_registry_migrated", false)){
+                const legacy = store.load("sf_registry", []);
+                for (const r of (legacy || [])){
+                    if (r.id) continue;
+                    const payload = Object.assign({}, r, { ownerUid: cu.uid, ownerEmail: cu.email, ownerName: cu.name });
+                    delete payload.id;
+                    try { const id = await addClient(payload); list.push(Object.assign({ id }, payload)); }
+                    catch(e){ console.warn("Ügyfél migrálása sikertelen:", e); }
+                }
+                store.save("sf_registry_migrated", true);
+            }
+        } else {
+            list = store.load("sf_registry", []);
+        }
+        window.sfAllClients = list;
+        const visible = window.sfIsLeader ? list.slice() : list.filter(c => c.ownerUid === cu.uid);
+        if (typeof window.sfSetRegistry === "function") window.sfSetRegistry(visible);
+    }
+    window.sfShowUgyfelek = function(){ loadAndDistributeClients(); };
+    window.sfAddClient = function(data){
+        if (!isConfigured) return Promise.resolve(null);
+        return addClient(data).catch(e => { console.warn("Ügyfél mentése sikertelen:", e); return null; });
+    };
+    window.sfSaveClient = function(id, data){
+        if (!isConfigured) return;
+        saveClient(id, data).catch(e => console.warn("Ügyfél mentése sikertelen:", e));
+    };
+    window.sfDeleteClient = function(id){
+        if (!isConfigured) return;
+        deleteClient(id).catch(e => console.warn("Ügyfél törlése sikertelen:", e));
+    };
+
+    // ===== KIÉRTÉKELŐ TELEFON (csak vezetőknek/adminnak) =====
+    async function renderKiertekeloPage(){
+        const body = document.getElementById("kiertekeloBody");
+        if (!body) return;
+        if (!window.sfIsLeader){
+            body.innerHTML = `<div class="card"><div class="card-body" style="padding:40px 20px;text-align:center;color:var(--muted);">Ehhez az oldalhoz nincs jogosultságod.</div></div>`;
+            return;
+        }
+        body.innerHTML = '<div class="card pg-loading">Kiértékelő telefonok betöltése…</div>';
+        const list = isConfigured ? await getClients() : store.load("sf_registry", []);
+        window.sfAllClients = list;
+        const requests = list.filter(c => c.kiertekelo);
+        requests.sort((a,b) => (a.kiertekelo.status==="elvegezve"?1:0) - (b.kiertekelo.status==="elvegezve"?1:0));
+        const rowsHtml = requests.map(c => {
+            const k = c.kiertekelo;
+            const isDone = k.status === "elvegezve";
+            return `<div class="kt-row" data-cid="${c.id}">
+                <div class="kt-row-head">
+                    <div>
+                        <div class="kt-row-name">${escM(k.name || c.name || "")}</div>
+                        <div class="kt-row-meta">Munkatárs: ${escM(c.ownerName || c.munkatars || "—")} · Tanácsadó: ${escM(k.advisor || "—")}</div>
+                    </div>
+                    <select class="kt-status-sel" data-kf="status">
+                        <option value="fuggo"${!isDone?" selected":""}>Függő</option>
+                        <option value="elvegezve"${isDone?" selected":""}>Elvégezve</option>
+                    </select>
+                </div>
+                <div class="kt-row-grid">
+                    <div><label>Elérhetőség</label><span>${escM(k.contact || "—")}</span></div>
+                    <div><label>Időpont</label><span>${escM(k.date ? k.date.replace("T"," ") : "—")}</span></div>
+                    <div><label>Téma</label><span>${escM(k.topic || "—")}</span></div>
+                    <div><label>Összeg</label><span>${escM(k.amount || "—")}</span></div>
+                    ${k.other ? `<div class="kt-row-full"><label>Egyéb</label><span>${escM(k.other)}</span></div>` : ""}
+                </div>
+                <div class="kt-feedback-edit">
+                    <label>Visszajelzés a munkatársnak</label>
+                    <textarea class="kt-feedback-inp" data-kf="feedback" rows="2" placeholder="Írj visszajelzést…">${escM(k.feedback || "")}</textarea>
+                    <button class="btn primary kt-save-btn">Mentés</button>
+                </div>
+            </div>`;
+        }).join("") || `<div class="card"><div class="card-body" style="padding:40px 20px;text-align:center;color:var(--muted);">Nincs kiértékelő telefon kérés.</div></div>`;
+        body.innerHTML = `<div class="str-hero"><div><h2>Kiértékelő telefon</h2><p>A "Portálon fent" jelölésnél rögzített kérések – itt adható rájuk visszajelzés.</p></div></div>
+            <div class="kt-list">${rowsHtml}</div>`;
+        body.querySelectorAll(".kt-row").forEach(rowEl => {
+            const cid = rowEl.dataset.cid;
+            const saveBtn = rowEl.querySelector(".kt-save-btn");
+            if (!saveBtn) return;
+            saveBtn.addEventListener("click", async () => {
+                const client = requests.find(c => c.id === cid);
+                if (!client) return;
+                const status = rowEl.querySelector('[data-kf="status"]').value;
+                const feedback = rowEl.querySelector('[data-kf="feedback"]').value.trim();
+                client.kiertekelo = Object.assign({}, client.kiertekelo, { status, feedback });
+                saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
+                try {
+                    if (isConfigured) await saveClient(cid, { kiertekelo: client.kiertekelo });
+                    saveBtn.textContent = "Mentve ✓";
+                    setTimeout(() => { saveBtn.disabled = false; saveBtn.textContent = "Mentés"; }, 1200);
+                } catch(e){
+                    alert("Mentés sikertelen: " + (e.message || e));
+                    saveBtn.disabled = false; saveBtn.textContent = "Mentés";
+                }
+            });
+        });
+    }
+    window.sfShowKiertekelo = function(){ renderKiertekeloPage(); };
 
     // ===== KÖVETKEZŐ INFO KÁRTYA + ADMIN =====
     const PHASE_LABELS = ["Potenciál Gyűjtés", "Potenciál Gyűjtés / Felvételi Egyeztetés", "Felvételi Egyeztetés / Felvételi", "Felvételi / Info"];
@@ -3245,6 +3456,7 @@ window.sfOnConfig = function(){
                     <option value="member"${(existing&&existing.role==='member')?' selected':''}>Munkatárs</option>
                     <option value="new"${(existing&&existing.role==='new')?' selected':''}>Új MT</option>
                 </select></div>
+                <div><label>Email (Google-fiók, a bejelentkezéshez)</label><input id="strEmailInp" type="email" value="${existing ? escM(existing.email||'') : ''}" placeholder="nev@example.com"></div>
                 ${isRootEdit ? '' : `<div><label>Vezető</label><select id="strParentInp">${parentOptions}</select></div>`}
             </div>
             <div class="org-modal-foot">
@@ -3260,10 +3472,11 @@ window.sfOnConfig = function(){
         ov.querySelector('#strSave').addEventListener('click', ()=>{
             const name = ov.querySelector('#strNameInp').value.trim();
             const role = ov.querySelector('#strRoleInp').value;
+            const email = ov.querySelector('#strEmailInp').value.trim().toLowerCase();
             const parentInp = ov.querySelector('#strParentInp');
             const newParentId = parentInp ? parentInp.value : null;
             if(existing){
-                existing.name = name; existing.role = role;
+                existing.name = name; existing.role = role; existing.email = email;
                 if(newParentId && (!currentParent || currentParent.id !== newParentId)){
                     if(currentParent) currentParent.children = currentParent.children.filter(c=>c.id!==existing.id);
                     const newParent = strFindNode(strTree, newParentId);
@@ -3271,7 +3484,7 @@ window.sfOnConfig = function(){
                 }
             } else {
                 const parent = strFindNode(strTree, newParentId || strTree.id);
-                if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,children:[]}); }
+                if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,email,children:[]}); }
             }
             close(); renderStrukturaBody();
             saveStrTree(strTree);

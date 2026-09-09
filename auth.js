@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, collection, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
@@ -73,6 +73,48 @@ export async function getKovQuarter(key){
 export async function saveKovQuarter(key, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "kov_quarters", key), data);
+}
+
+// Megosztott csapat-ügyféllista – collection "clients". Minden dokumentum egy
+// ügyfél; a munkatárs csak a saját (ownerUid) ügyfeleit látja, a vezető/admin
+// mindet – ezt a szűrést az index.html végzi a lekért teljes listán.
+export async function getClients(){
+    if(!isConfigured || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, "clients"));
+        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch(e){ console.warn("Ügyféllista olvasása sikertelen:", e); return []; }
+}
+export async function addClient(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "clients"), data);
+    return ref.id;
+}
+export async function saveClient(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "clients", id), data, { merge: true });
+}
+export async function deleteClient(id){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, "clients", id));
+}
+
+// Egy felhasználó akkor "vezető", ha a megosztott csapat-struktúrában van
+// olyan 'leader' szerepkörű csomópont, amelyhez az ő email címe van kötve
+// (Struktúra oldal, csomópont szerkesztése → Email mező). Az admin mindig
+// vezetőnek számít, hozzáférés-vezérlés szempontjából.
+export function isLeaderUser(user, structureTree){
+    if(!user) return false;
+    if(isAdmin(user)) return true;
+    if(!structureTree) return false;
+    const email = String(user.email||"").toLowerCase();
+    if(!email) return false;
+    const walk = node => {
+        if(!node) return false;
+        if(node.role === 'leader' && node.email && String(node.email).toLowerCase() === email) return true;
+        return (node.children||[]).some(walk);
+    };
+    return walk(structureTree);
 }
 
 let app, auth, db;
