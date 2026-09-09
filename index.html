@@ -103,9 +103,18 @@
         .user-name { font-weight:600; }
         .user-name svg { width:14px; height:14px; color:var(--muted); vertical-align:middle; margin-left:2px; }
 
-        .content { padding: 26px 28px; display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items:start; }
+        .content { padding: 26px 28px; display: grid; grid-template-columns: 1fr 354px; gap: 22px; align-items:start; }
         .col-main { display:flex; flex-direction:column; gap:22px; min-width:0; }
-        .col-side { display:flex; flex-direction:column; gap:22px; }
+        .col-side { display:flex; flex-direction:row; align-items:stretch; gap:0; }
+
+        /* ===== JOBB OLDALI SÁV (rail + csúszó panel) ===== */
+        .side-panel { flex:1; min-width:0; display:flex; flex-direction:column; gap:22px; overflow:hidden; padding-right:0; }
+        .side-view { display:flex; flex-direction:column; gap:22px; }
+        .rail { width:46px; flex-shrink:0; background:var(--card); border-left:1px solid var(--border); border-radius:0 var(--radius) var(--radius) 0; display:flex; flex-direction:column; }
+        .rail-btn { flex:1; border:none; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); border-bottom:1px solid var(--border); transition:background .15s,color .15s; padding:0; }
+        .rail-btn:last-child { border-bottom:none; }
+        .rail-btn.active { background:var(--navy); color:#fff; }
+        .rail-btn span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:12.5px; font-weight:700; letter-spacing:.5px; }
         .page[hidden] { display:none; }
         .page-wrap { padding:26px 28px; }
 
@@ -674,13 +683,14 @@
         .info-edit-row { display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid #f1f4f8; }
         .info-edit-wrap { padding:8px 16px 14px; }
 
-        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-        .stat .stat-label { font-size:13px; color:var(--muted); }
-        .stat .stat-num { font-size:30px; font-weight:800; color:var(--navy); line-height:1.1; margin:4px 0; }
-        .stat .trend { font-size:12px; font-weight:700; color:var(--green); display:inline-flex; align-items:center; gap:3px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .stat { background:var(--bg); border-radius:8px; padding:8px 4px; text-align:center; }
+        .stat .stat-label { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.3px; }
+        .stat .stat-num { font-size:22px; font-weight:800; color:var(--navy); line-height:1.1; margin:4px 0; }
+        .stat .trend { font-size:11px; font-weight:700; color:var(--green); display:inline-flex; align-items:center; gap:2px; }
         .stat .trend.down { color:var(--red); }
         .stat .trend.flat { color:var(--muted); }
-        .stat .stat-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+        .stat .stat-sub { display:none; }
 
         .quick { display:flex; flex-direction:column; }
         .quick a { display:flex; align-items:center; gap:13px; padding:13px 20px; border-bottom:1px solid #f1f4f8; font-weight:600; }
@@ -872,11 +882,8 @@
             <!-- ===== RIGHT COLUMN ===== -->
             <div class="col-side">
 
-                <!-- NÉZETVÁLTÓ: Sikerfüzet (Havi egység/PÉNZEM/KARRIEREM/Statisztikák) vagy Info (Kovi info/INFO résztvevők/Fontos infók) -->
-                <div class="adm-tabs side-tabs" id="sideTabs">
-                    <button class="adm-tab active" data-sideview="sikerfuzet">Sikerfüzet</button>
-                    <button class="adm-tab" data-sideview="info">Info</button>
-                </div>
+                <!-- CSÚSZÓ PANEL -->
+                <div class="side-panel" id="sidePanel">
 
                 <!-- SIKERFÜZET NÉZET -->
                 <div class="side-view" id="sideViewSikerfuzet">
@@ -927,10 +934,10 @@
                         </div>
                         <div class="card-body">
                             <div class="stats-grid" id="statsGrid">
-                                <div class="stat"><div class="stat-label">Elemzési időpont</div><div class="stat-num">–</div></div>
-                                <div class="stat"><div class="stat-label">Tanácsadás</div><div class="stat-num">–</div></div>
-                                <div class="stat"><div class="stat-label">Szerviz</div><div class="stat-num">–</div></div>
-                                <div class="stat"><div class="stat-label">Felvételi időpont</div><div class="stat-num">–</div></div>
+                                <div class="stat"><div class="stat-label">E</div><div class="stat-num">–</div></div>
+                                <div class="stat"><div class="stat-label">TA</div><div class="stat-num">–</div></div>
+                                <div class="stat"><div class="stat-label">SZ</div><div class="stat-num">–</div></div>
+                                <div class="stat"><div class="stat-label">F</div><div class="stat-num">–</div></div>
                             </div>
                         </div>
                     </section>
@@ -973,6 +980,14 @@
                         </div>
                         <div class="info-list" id="importantInfos"></div>
                     </section>
+                </div>
+
+                </div><!-- /side-panel -->
+
+                <!-- RAIL -->
+                <div class="rail">
+                    <button class="rail-btn active" id="railBtnSikerfuzet" onclick="sfSelectView('sikerfuzet')"><span>Sikerfüzet</span></button>
+                    <button class="rail-btn" id="railBtnInfo" onclick="sfSelectView('info')"><span>Info</span></button>
                 </div>
 
             </div><!-- /col-side -->
@@ -1301,25 +1316,21 @@ window.sfMarkResult = function(list, regIdx){
 
 // (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
 
-// ===== JOBB OLDALI FÜLEK (Sikerfüzet / Info) =====
-(function(){
-    const tabs = document.getElementById('sideTabs');
+// ===== JOBB OLDALI RAIL NÉZETVÁLTÁS (Sikerfüzet / Info) =====
+window.sfSelectView = function(v){
     const viewSikerfuzet = document.getElementById('sideViewSikerfuzet');
     const viewInfo = document.getElementById('sideViewInfo');
-    if(!tabs || !viewSikerfuzet || !viewInfo) return;
-    const setView = (v) => {
-        const isSikerfuzet = v !== 'info';
-        viewSikerfuzet.hidden = !isSikerfuzet;
-        viewInfo.hidden = isSikerfuzet;
-        tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.sideview === (isSikerfuzet ? 'sikerfuzet' : 'info')));
-        store.save('sf_side_view', isSikerfuzet ? 'sikerfuzet' : 'info');
-    };
-    tabs.addEventListener('click', e => {
-        const b = e.target.closest('[data-sideview]');
-        if(b) setView(b.dataset.sideview);
-    });
-    setView(store.load('sf_side_view', 'sikerfuzet'));
-})();
+    const btnSf = document.getElementById('railBtnSikerfuzet');
+    const btnInfo = document.getElementById('railBtnInfo');
+    if(!viewSikerfuzet || !viewInfo) return;
+    const isSf = v !== 'info';
+    viewSikerfuzet.hidden = !isSf;
+    viewInfo.hidden = isSf;
+    if(btnSf) btnSf.classList.toggle('active', isSf);
+    if(btnInfo) btnInfo.classList.toggle('active', !isSf);
+    store.save('sf_side_view', isSf ? 'sikerfuzet' : 'info');
+};
+sfSelectView(store.load('sf_side_view', 'sikerfuzet'));
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
@@ -2291,10 +2302,10 @@ window.sfOnConfig = function(){
 
     // ===== Statisztikák (aktuális hét vs. előző hét) =====
     const STAT_TYPES = [
-        { label:"Elemzési időpont",  codes:["E"] },
-        { label:"Tanácsadás",        codes:["TA"] },
-        { label:"Szerviz",           codes:["SZ"] },
-        { label:"Felvételi időpont", codes:["F1","F2"] },
+        { label:"E",  codes:["E"] },
+        { label:"TA", codes:["TA"] },
+        { label:"SZ", codes:["SZ"] },
+        { label:"F",  codes:["F1","F2"] },
     ];
     function statTypeOf(summary){
         const s = summary || "";
