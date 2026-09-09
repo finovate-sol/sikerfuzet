@@ -391,7 +391,7 @@
         .pg-type p { margin:0; font-size:12px; color:var(--muted); line-height:1.5; }
         .pg-loading { padding:40px; text-align:center; color:var(--muted); font-size:14px; }
         .pg-card .card-head .pg-count { margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); }
-        .pg-add { display:grid; grid-template-columns:1fr auto auto auto; gap:8px; margin-bottom:16px; align-items:center; }
+        .pg-add { display:grid; grid-template-columns:1fr auto auto auto auto; gap:8px; margin-bottom:12px; align-items:center; }
         .pg-add input[type=text] { min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; }
         .pg-add input[type=text]:focus { border-color:var(--blue); }
         .pg-add select { padding:9px 10px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:var(--card); cursor:pointer; }
@@ -417,6 +417,17 @@
         .pg-check input { width:18px; height:18px; accent-color:var(--green); cursor:pointer; margin:0; }
         .pg-task-del { border:none; background:transparent; color:var(--red); cursor:pointer; font-size:15px; padding:4px 7px; border-radius:6px; line-height:1; opacity:.55; }
         .pg-task-del:hover { background:#fdeaea; opacity:1; }
+        .pg-type-sel { border:none; font-size:12px; font-weight:700; cursor:pointer; padding:3px 8px; border-radius:20px; outline:none; -webkit-appearance:none; }
+        .pg-type-sel.szemelyes { background:var(--blue-light); color:var(--blue); }
+        .pg-type-sel.csendes { background:#efeafe; color:#7c3aed; }
+        .pg-note-btn { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:15px; padding:4px 7px; border-radius:6px; line-height:1; opacity:.55; }
+        .pg-note-btn:hover, .pg-note-btn.has-note { background:var(--blue-light); color:var(--blue); opacity:1; }
+        .pg-note-row td { padding:0 10px 12px; border-bottom:1px solid #f1f4f8; }
+        .pg-note-row textarea { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); resize:vertical; box-sizing:border-box; }
+        .pg-note-foot { display:flex; justify-content:flex-end; margin-top:6px; }
+        .pg-filter { display:flex; gap:6px; margin-bottom:12px; }
+        .pg-filter button { border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:12px; font-weight:600; padding:5px 11px; border-radius:20px; cursor:pointer; }
+        .pg-filter button.active { background:var(--blue); color:#fff; border-color:var(--blue); }
         .pg-empty { padding:26px 12px; text-align:center; color:var(--muted); font-size:13px; }
         .pg-connect { padding:40px 24px; text-align:center; }
         .pg-connect-ic { width:56px; height:56px; margin:0 auto 14px; border-radius:14px; background:var(--blue-light); color:var(--blue); display:flex; align-items:center; justify-content:center; }
@@ -3131,6 +3142,11 @@ window.sfOnConfig = function(){
 
     const PG_PRIO_CLASS = { 'Alacsony': 'low', 'Közepes': 'mid', 'Magas': 'high' };
     const PG_MONTHS_HU = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+    // A típus a pg-types bevezető kártyák (Személyes PG / Csendes PG) tényleges
+    // megfelelője a feladatokon – ez alapján lehet szűrni és számolni.
+    const PG_TYPES = { szemelyes: 'Személyes PG', csendes: 'Csendes PG' };
+    let pgTypeFilter = 'all';
+    const pgExpandedNotes = new Set();
 
     function pgMeta(t){ try { return JSON.parse(t.notes || '{}'); } catch(e){ return {}; } }
 
@@ -3142,7 +3158,7 @@ window.sfOnConfig = function(){
         </div>
         <div class="pg-types">
             <div class="pg-type"><span class="pg-type-ic sc-blue">${pgIc('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>')}</span><div><strong>Személyes PG</strong><p>Aktív, személyes piacgenerálás: megkeresések, ajánláskérés, kapcsolatfelvétel.</p></div></div>
-            <div class="pg-type"><span class="pg-type-ic sc-purple">${pgIc('<path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3M8 21h8"/>')}</span><div><strong>Csendes PG</strong><p>Háttérben zajló, folyamatos jelenlét és kapcsolatépítés – kevésbé direkt módon.</p></div></div>
+            <div class="pg-type"><span class="pg-type-ic sc-purple">${pgIc('<path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3M8 21h8"/>')}</span><div><strong>Csendes PG</strong><p>Háttérben zajló, folyamatos jelenlét és kapcsolatépítés – kevésbé direkt módon (pl. coaching beszélgetés, csendes órás felismerések).</p></div></div>
         </div>
         <div id="pgMount"><div class="card pg-loading">Feladatok betöltése…</div></div>`;
     }
@@ -3158,11 +3174,18 @@ window.sfOnConfig = function(){
         const teamDone = !!meta.done;
         const prio = meta.p || 'Alacsony';
         const pc = PG_PRIO_CLASS[prio] || 'low';
+        const type = meta.type === 'csendes' ? 'csendes' : 'szemelyes';
+        const note = meta.note || '';
+        const expanded = pgExpandedNotes.has(t.id);
         const dueRaw = t.due ? t.due.substring(0,10) : '';
         const today = new Date().toISOString().substring(0,10);
         const expired = dueRaw && dueRaw < today;
-        return `<tr class="pg-row${expired ? ' expired' : ''}${teamDone ? ' done-row' : ''}">
+        const mainRow = `<tr class="pg-row${expired ? ' expired' : ''}${teamDone ? ' done-row' : ''}">
             <td class="pg-row-title">${escM(t.title || '(névtelen feladat)')}</td>
+            <td><select class="pg-type-sel ${type}" data-pgtype="${t.id}">
+                <option value="szemelyes"${type==='szemelyes'?' selected':''}>Személyes PG</option>
+                <option value="csendes"${type==='csendes'?' selected':''}>Csendes PG</option>
+            </select></td>
             <td><select class="pg-prio-sel ${pc}" data-pgprio="${t.id}">
                 <option value="Alacsony"${prio==='Alacsony'?' selected':''}>Alacsony</option>
                 <option value="Közepes"${prio==='Közepes'?' selected':''}>Közepes</option>
@@ -3170,18 +3193,25 @@ window.sfOnConfig = function(){
             </select></td>
             <td style="text-align:center"><label class="pg-check"><input type="checkbox" data-pgtoggle="${t.id}"${teamDone?' checked':''}></label></td>
             <td><input type="date" class="pg-due-inp${expired?' overdue':''}" data-pgdue="${t.id}" value="${dueRaw}"></td>
+            <td><button class="pg-note-btn${note?' has-note':''}" data-pgnotetoggle="${t.id}" title="Jegyzet">📝</button></td>
             <td><button class="pg-task-del" data-pgdel="${t.id}" title="Törlés">🗑</button></td>
         </tr>`;
+        const noteRow = expanded ? `<tr class="pg-note-row"><td colspan="7">
+            <textarea data-pgnoteinp="${t.id}" rows="3" placeholder="Jegyzet (pl. coaching beszélgetés összefoglalója, csendes órás felismerés)…">${escM(note)}</textarea>
+            <div class="pg-note-foot"><button class="btn primary pg-note-save" data-pgnotesave="${t.id}" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button></div>
+        </td></tr>` : '';
+        return mainRow + noteRow;
     }
 
     function renderPGList(){
         const m = document.getElementById("pgMount"); if(!m) return;
-        const doneCount = pgTasks.filter(t => { const meta = pgMeta(t); return !!meta.done; }).length;
-        const open = pgTasks.length - doneCount;
+        const filtered = pgTypeFilter === 'all' ? pgTasks : pgTasks.filter(t => (pgMeta(t).type === 'csendes' ? 'csendes' : 'szemelyes') === pgTypeFilter);
+        const doneCount = filtered.filter(t => { const meta = pgMeta(t); return !!meta.done; }).length;
+        const open = filtered.length - doneCount;
 
         // Group by creation month (stored in meta.created, fallback to updated)
         const groups = {}, order = [];
-        for(const t of pgTasks){
+        for(const t of filtered){
             const meta = pgMeta(t);
             const ds = meta.created || (t.updated ? t.updated.substring(0,10) : '');
             const ym = ds ? ds.substring(0,7) : 'unknown';
@@ -3192,23 +3222,26 @@ window.sfOnConfig = function(){
 
         let rows = '';
         for(const ym of order){
-            rows += `<tr class="pg-group-row"><td colspan="5">${pgMonthLabel(ym)}</td></tr>`;
+            rows += `<tr class="pg-group-row"><td colspan="7">${pgMonthLabel(ym)}</td></tr>`;
             rows += groups[ym].map(pgTaskRow).join('');
         }
 
+        const filterBtn = (val, label) => `<button class="${pgTypeFilter===val?'active':''}" data-pgfilter="${val}">${label}</button>`;
         m.innerHTML = `<section class="card pg-card">
             <div class="card-head"><h2><span class="icon">${pgIc('<path d="M11 12H3M16 6H3M21 18H3"/><path d="m15 15 2 2 4-4" stroke="#16a34a"/>')}</span>PG feladatok</h2><span class="pg-count">${open} aktív · ${doneCount} kész</span></div>
             <div class="card-body">
+                <div class="pg-filter">${filterBtn('all','Mind')}${filterBtn('szemelyes','Személyes PG')}${filterBtn('csendes','Csendes PG')}</div>
                 <div class="pg-add">
                     <input type="text" id="pgInput" placeholder="Új PG feladat neve…" maxlength="500">
+                    <select id="pgTypeSel"><option value="szemelyes">🔵 Személyes PG</option><option value="csendes">🟣 Csendes PG</option></select>
                     <select id="pgPrioSel"><option value="Alacsony">🔵 Alacsony</option><option value="Közepes">🟠 Közepes</option><option value="Magas">🔴 Magas</option></select>
                     <input type="date" id="pgDueInp">
                     <button class="btn primary" id="pgAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Hozzáadás</button>
                 </div>
-                ${pgTasks.length ? `<table class="pg-tbl">
-                    <thead class="pg-tbl-head"><tr><th>Feladat</th><th>Prioritás</th><th style="text-align:center">Kész</th><th>Határidő</th><th></th></tr></thead>
+                ${filtered.length ? `<table class="pg-tbl">
+                    <thead class="pg-tbl-head"><tr><th>Feladat</th><th>Típus</th><th>Prioritás</th><th style="text-align:center">Kész</th><th>Határidő</th><th></th><th></th></tr></thead>
                     <tbody>${rows}</tbody>
-                </table>` : '<div class="pg-empty">Még nincs PG feladat. Írd be az elsőt fent, és nyomd meg a Hozzáadás gombot.</div>'}
+                </table>` : `<div class="pg-empty">${pgTasks.length ? 'Nincs ilyen típusú feladat.' : 'Még nincs PG feladat. Írd be az elsőt fent, és nyomd meg a Hozzáadás gombot.'}</div>`}
             </div></section>`;
         wirePG();
     }
@@ -3235,18 +3268,32 @@ window.sfOnConfig = function(){
         document.querySelectorAll("#pgMount [data-pgtoggle]").forEach(cb => cb.addEventListener("change", () => pgToggle(cb.dataset.pgtoggle, cb.checked)));
         document.querySelectorAll("#pgMount [data-pgdel]").forEach(bt => bt.addEventListener("click", () => pgDelete(bt.dataset.pgdel)));
         document.querySelectorAll("#pgMount [data-pgprio]").forEach(sel => sel.addEventListener("change", () => pgChangePrio(sel.dataset.pgprio, sel.value)));
+        document.querySelectorAll("#pgMount [data-pgtype]").forEach(sel => sel.addEventListener("change", () => pgChangeType(sel.dataset.pgtype, sel.value)));
         document.querySelectorAll("#pgMount [data-pgdue]").forEach(di => di.addEventListener("change", () => pgChangeDue(di.dataset.pgdue, di.value)));
+        document.querySelectorAll("#pgMount [data-pgnotetoggle]").forEach(bt => bt.addEventListener("click", () => {
+            const id = bt.dataset.pgnotetoggle;
+            if(pgExpandedNotes.has(id)) pgExpandedNotes.delete(id); else pgExpandedNotes.add(id);
+            renderPGList();
+        }));
+        document.querySelectorAll("#pgMount [data-pgnotesave]").forEach(bt => bt.addEventListener("click", () => {
+            const id = bt.dataset.pgnotesave;
+            const ta = document.querySelector(`#pgMount [data-pgnoteinp="${id}"]`);
+            if(ta) pgSaveNote(id, ta.value);
+        }));
+        document.querySelectorAll("#pgMount [data-pgfilter]").forEach(bt => bt.addEventListener("click", () => { pgTypeFilter = bt.dataset.pgfilter; renderPGList(); }));
     }
 
     async function pgAddTask(){
         const inp = document.getElementById("pgInput");
+        const typeSel = document.getElementById("pgTypeSel");
         const prioSel = document.getElementById("pgPrioSel");
         const dueInp = document.getElementById("pgDueInp");
         if(!inp || pgBusy) return;
         const title = inp.value.trim(); if(!title) return;
+        const type = typeSel ? typeSel.value : 'szemelyes';
         const prio = prioSel ? prioSel.value : 'Alacsony';
         const due = dueInp ? dueInp.value : '';
-        const meta = { p: prio, done: false, created: new Date().toISOString().substring(0,10) };
+        const meta = { p: prio, type, done: false, note: '', created: new Date().toISOString().substring(0,10) };
         const body = { title, notes: JSON.stringify(meta) };
         if(due) body.due = due + 'T00:00:00.000Z';
         pgBusy = true; inp.disabled = true;
@@ -3277,6 +3324,26 @@ window.sfOnConfig = function(){
             t.notes = JSON.stringify(meta); renderPGList();
         }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
+    async function pgChangeType(id, type){
+        const t = pgTasks.find(x => x.id === id); if(!t) return;
+        const meta = pgMeta(t); meta.type = type;
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
+            t.notes = JSON.stringify(meta); renderPGList();
+        }
+        catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
+    async function pgSaveNote(id, note){
+        const t = pgTasks.find(x => x.id === id); if(!t) return;
+        const meta = pgMeta(t); meta.note = note;
+        try {
+            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
+            t.notes = JSON.stringify(meta); renderPGList();
+        }
+        catch(e){ alert("Nem sikerült menteni a jegyzetet: " + (e.message || e)); }
     }
 
     async function pgChangeDue(id, dateStr){
