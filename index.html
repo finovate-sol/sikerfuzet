@@ -676,13 +676,15 @@
         .week-range b { color:var(--text); }
         .plan-grid { display:grid; grid-template-columns: repeat(8, 1fr); gap:12px; }
         @media (max-width:1000px){ .plan-grid { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); } }
-        .plan-box { border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; background:#fbfcfe; }
-        .plan-box .label { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; min-height:28px; display:flex; align-items:center; justify-content:center; }
-        .plan-nums { display:flex; align-items:baseline; justify-content:center; gap:3px; }
-        .plan-nums .van { font-size:22px; font-weight:800; color:var(--navy); }
-        .plan-nums .sep { color:var(--muted); font-size:20px; }
-        .plan-nums .cel { font-size:22px; color:var(--muted); font-weight:800; }
-        .plan-bar { height:5px; border-radius:3px; background:var(--border); margin-top:8px; overflow:hidden; }
+        .plan-box { border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; background:#fbfcfe; display:flex; flex-direction:column; align-items:center; gap:5px; }
+        .plan-ic { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .plan-ic svg { width:16px; height:16px; stroke-width:2; }
+        .plan-box .label { font-size:11px; color:var(--muted); font-weight:600; }
+        .plan-nums { display:flex; align-items:baseline; justify-content:center; gap:2px; }
+        .plan-nums .van { font-size:20px; font-weight:800; color:var(--navy); }
+        .plan-nums .sep { color:var(--muted); font-size:16px; }
+        .plan-nums .cel { font-size:20px; color:var(--muted); font-weight:800; }
+        .plan-bar { height:4px; border-radius:3px; background:var(--border); width:100%; overflow:hidden; }
         .plan-bar span { display:block; height:100%; background:var(--blue); border-radius:3px; }
         .plan-legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:2px; }
         .plan-legend b { color:var(--text); }
@@ -1240,6 +1242,9 @@ function currentHaviWeek(){
     if(weekIdx < 0) weekIdx = 0; if(weekIdx > 5) weekIdx = 5;
     return { monthDate:d, weekIdx, ft };
 }
+const PLAN_IC_COLOR = ['#2563eb','#16a34a','#7c3aed','#ea580c','#dc2626','#b91c1c','#0d9488','#7c3aed'];
+const PLAN_IC_BG    = ['#dbeafe','#dcfce7','#ede9fe','#ffedd5','#fee2e2','#fee2e2','#ccfbf1','#ede9fe'];
+const svgIc = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p}</svg>`;
 function renderPlan(){
     const grid = document.getElementById('planGrid');
     if(!grid) return;
@@ -1252,6 +1257,7 @@ function renderPlan(){
         const width = Math.min(100, raw);
         const color = raw>=80 ? '#16a34a' : (raw>=40 ? '#eab308' : '#dc2626');
         return `<div class="plan-box">
+            <span class="plan-ic" style="background:${PLAN_IC_BG[i]};color:${PLAN_IC_COLOR[i]}">${svgIc(HAVI_ICONS[i])}</span>
             <div class="label">${label}</div>
             <div class="plan-nums"><span class="cel">${cel}</span><span class="sep">/</span><span class="van" style="color:${color}">${van}</span></div>
             <div class="plan-bar"><span style="width:${width}%; background:${color}"></span></div>
