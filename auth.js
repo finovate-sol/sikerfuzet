@@ -72,7 +72,7 @@ export async function getKovQuarter(key){
 }
 export async function saveKovQuarter(key, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "kov_quarters", key), data);
+    await setDoc(doc(db, "kov_quarters", key), data, { merge: true });
 }
 
 // Munkatársak napi/heti tevékenység-számlálói (pl. "10 perces füzet", "2 órás füzet")
