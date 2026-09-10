@@ -501,6 +501,8 @@
         table.kov th.kov-grp { background:#eef2f7; color:var(--navy); font-weight:700; }
         table.kov td.kov-empty { color:var(--muted); padding:18px 12px; text-align:center; font-size:13px; }
         table.kov th.kov-num, table.kov td.kov-num { min-width:28px; width:28px; color:var(--muted); }
+        table.kov th.kov-resztvevo, table.kov td.kov-resztvevo { width:22%; }
+        table.kov th.kov-vezeto, table.kov td.kov-vezeto { width:16%; }
         table.kov th.kov-mnb, table.kov td.kov-mnb { min-width:70px; width:70px; }
         table.kov th.kov-eh-num, table.kov td.kov-eh-num { min-width:76px; width:76px; }
         table.kov td.kov-eh-num input { min-width:0 !important; width:100%; text-align:center; font-weight:700; padding:5px 4px; font-size:12px; }
@@ -715,6 +717,7 @@
             font-size:15px; margin-left:8px; padding:3px 6px; border-radius:6px; line-height:1;
         }
         .row-del:hover { background:#fdeaea; }
+        .del-ic { width:14px; height:14px; display:inline-block; vertical-align:-2px; }
         .add-row {
             width:100%; border:1px dashed var(--border); background:#fbfcfe; color:var(--blue);
             font-weight:600; padding:9px; border-radius:8px; cursor:pointer; font-size:13px;
@@ -1656,7 +1659,7 @@ function renderInfo(){
         el.innerHTML = info.map((n,i)=>`<div class="info-edit-row">
             <span class="info-num">${i+1}</span>
             <input data-i="${i}" data-f="name" value="${esc(n)}" placeholder="Név">
-            <button class="row-del" data-del="${i}" title="Törlés">🗑</button>
+            <button class="row-del" data-del="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button>
         </div>`).join('') + `<div style="padding-top:6px;"><button class="add-row" data-add="1">+ Új résztvevő</button></div>`;
     } else {
         el.className = 'info-list';
@@ -1953,7 +1956,7 @@ function renderHavi(){
 
     // --- Jobb oszlop ---
     const actRows=HAVI_METRICS.map((m,i)=>`<div class="hact-row"><span class="hact-lbl">${m}</span><span class="hact-frac" id="hact-frac-${i}">0 / 0</span><div class="hact-bar"><span id="hact-bar-${i}"></span></div><span class="hact-pct" id="hact-pct-${i}">0%</span></div>`).join('');
-    const clRows=(haviData.clients||[]).map((c,i)=>`<div class="havi-cl-row"><input class="cln" data-cl="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Ügyfél"><input class="clu" type="number" data-cl="${i}" data-clf="units" value="${esc(c.units)}" placeholder="EH"><button class="row-del" data-cldel="${i}" title="Törlés">🗑</button></div>`).join('');
+    const clRows=(haviData.clients||[]).map((c,i)=>`<div class="havi-cl-row"><input class="cln" data-cl="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Ügyfél"><input class="clu" type="number" data-cl="${i}" data-clf="units" value="${esc(c.units)}" placeholder="EH"><button class="row-del" data-cldel="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('');
     const right=`
         <div class="card havi-side-card"><div class="hcard-title2">Havi cél teljesítése <span class="hcel-pct" id="hcelPct">0%</span></div>
             <div class="goals-bar"><span id="hcelBar" style="width:0%"></span></div>
@@ -2177,7 +2180,7 @@ function renderKovBody(){
     // --- Előkészítőszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')}</span>Előkészítő szeminárium</h2><button class="btn-edit" id="kovAddElo">+ Résztvevő</button></div><div class="card-body" style="padding:0;">`;
     const eloThSep=ELO_COLS.map(c=>`<th class="kov-eh-th${c===ELO_SEP?' kov-sep':''}">${c}</th>`).join('');
-    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th>Résztvevő</th><th class="kov-mnb">MNB</th><th>Vezető</th><th class="kov-eh-num">EH</th>${eloThSep}<th></th></tr></thead><tbody>`;
+    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th class="kov-resztvevo">Résztvevő</th><th class="kov-mnb">MNB</th><th class="kov-vezeto">Vezető</th><th class="kov-eh-num">EH</th>${eloThSep}<th></th></tr></thead><tbody>`;
     html+= kovData.elo.length ? kovData.elo.map((r,i)=>{
         const eh=Number(r.eh)||0;
         const lastGreen=ELO_COLS.filter(c=>c<=eh).pop()||0;
@@ -2187,27 +2190,29 @@ function renderKovBody(){
         }).join('');
         return `<tr>
             <td class="kov-num" style="color:var(--muted);font-size:12px;">${i+1}.</td>
-            <td><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Név"></td>
+            <td class="kov-resztvevo"><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Név"></td>
             <td class="kov-mnb"><input data-ke="elo" data-ki="${i}" data-kf="mnb" value="${esc(r.mnb)}" placeholder="Ok / dátum" style="width:72px;text-align:center;"></td>
-            <td><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></td>
+            <td class="kov-vezeto"><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></td>
             <td class="kov-eh-num"><input type="text" inputmode="numeric" data-ke="elo" data-ki="${i}" data-kf="eh" value="${eh||''}" placeholder="EH"></td>
             ${cells}
-            <td><button class="row-del" data-kdel="elo:${i}" title="Törlés">🗑</button></td></tr>`;
+            <td><button class="row-del" data-kdel="elo:${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td></tr>`;
     }).join('')
         : `<tr><td colspan="${ELO_COLS.length+6}" class="kov-empty">Még nincs résztvevő.</td></tr>`;
     html+=`</tbody></table></div></div></section>`;
 
     // --- Esélyszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5"/>')}</span>Esélyszeminárium</h2><button class="btn-edit" id="kovAddEsely">+ Résztvevő hozzáadása</button></div><div class="card-body" style="padding:0;">`;
-    const h1=`<tr><th rowspan="2">Résztvevő</th>`+ESELY_GROUPS.map(g=>`<th colspan="${g.cols.length}" class="kov-grp">${g.label}</th>`).join('')+`<th rowspan="2"></th></tr>`;
+    const h1=`<tr><th class="kov-num" rowspan="2">#</th><th class="kov-resztvevo" rowspan="2">Résztvevő</th><th class="kov-vezeto" rowspan="2">Vezető</th>`+ESELY_GROUPS.map(g=>`<th colspan="${g.cols.length}" class="kov-grp">${g.label}</th>`).join('')+`<th rowspan="2"></th></tr>`;
     const h2=`<tr>`+ESELY_GROUPS.map(g=>g.cols.map(c=>`<th class="kov-eh-th">${c}</th>`).join('')).join('')+`</tr>`;
     const esCols=ESELY_GROUPS.reduce((s,g)=>s+g.cols.length,0);
     html+=`<div class="kov-table-wrap"><table class="kov"><thead>${h1}${h2}</thead><tbody>`;
     html+= kovData.esely.length ? kovData.esely.map((r,i)=>`<tr>
-        <td><input data-ke="esely" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}"></td>`
+        <td class="kov-num" style="color:var(--muted);font-size:12px;">${i+1}.</td>
+        <td class="kov-resztvevo"><input data-ke="esely" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Név"></td>
+        <td class="kov-vezeto"><input data-ke="esely" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></td>`
         +ESELY_GROUPS.map(g=>g.cols.map(c=>{const k=g.key+'_'+c, on=!!(r.m&&r.m[k]); return `<td class="kov-eh-cell${on?' green':''}" data-ke3="esely" data-ki3="${i}" data-kc3="${k}"></td>`;}).join('')).join('')
-        +`<td><button class="row-del" data-kdel="esely:${i}" title="Törlés">🗑</button></td></tr>`).join('')
-        : `<tr><td colspan="${esCols+2}" class="kov-empty">Még nincs résztvevő – add hozzá az elsőt a fenti gombbal.</td></tr>`;
+        +`<td><button class="row-del" data-kdel="esely:${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td></tr>`).join('')
+        : `<tr><td colspan="${esCols+4}" class="kov-empty">Még nincs résztvevő – add hozzá az elsőt a fenti gombbal.</td></tr>`;
     html+=`</tbody></table></div></div></section>`;
 
     // --- Fontos tudnivalók ---
@@ -2245,7 +2250,7 @@ async function renderKov(){
         const d=e.target.closest('[data-kdel]');
         if(d){ const p=d.dataset.kdel.split(':'); kovData[p[0]].splice(+p[1],1); renderKovBody(); saveKov(); return; }
         if(e.target.closest('#kovAddElo')){ kovData.elo.push({resztvevo:'',mnb:'',vezeto:'',eh:0}); renderKovBody(); saveKov(); return; }
-        if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',m:{}}); renderKovBody(); saveKov(); return; }
+        if(e.target.closest('#kovAddEsely')){ kovData.esely.push({resztvevo:'',vezeto:'',m:{}}); renderKovBody(); saveKov(); return; }
         // EH mérföldkő-cella kattintás (Előkészítő) – gyors, kerek érték beállítása
         const cell=e.target.closest('[data-ke2]');
         if(cell && cell.dataset.ke2==='elo'){
@@ -2699,7 +2704,7 @@ function openTobDetail(i){
         <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="nap" value="${esc(row.nap)}" placeholder="nap"></td>
         <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="ido" value="${esc(row.ido)}" placeholder="idő"></td>
         <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="feljegyzes" value="${esc(row.feljegyzes)}" placeholder="feljegyzés"></td>
-        <td><button class="row-del" data-tobdel="${kind}:${ri}" title="Törlés">🗑</button></td>
+        <td><button class="row-del" data-tobdel="${kind}:${ri}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td>
     </tr>`).join('');
     overlay.innerHTML = `
         <div class="modal modal-lg">
@@ -3067,7 +3072,7 @@ window.sfOnConfig = function(){
         overlay.className = "modal-overlay";
         const rowsHtml = () => dates.map((d,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
             <input type="date" data-idx="${i}" value="${escM(String(d).slice(0,10))}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
-            <button class="row-del" data-del="${i}" title="Törlés">🗑</button></div>`).join("") || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont felvéve.</div>`;
+            <button class="row-del" data-del="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join("") || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont felvéve.</div>`;
         const ranksHtml = RANK_ORDER.map(r=>`<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
             <span style="width:48px;font-weight:700;color:var(--navy);">${r}</span>
             <input type="number" data-rank="${r}" value="${escM(ranks[r])}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
@@ -3076,7 +3081,7 @@ window.sfOnConfig = function(){
         const infosHtml = () => infos.map((it,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                 <input data-if="label" data-ii="${i}" value="${escM(it.label)}" placeholder="Megnevezés (pl. Negyedéves Szeminárium)" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;">
-                <button class="row-del" data-idel="${i}" title="Törlés">🗑</button>
+                <button class="row-del" data-idel="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <input type="date" data-if="from" data-ii="${i}" value="${escM(it.from)}" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;">
@@ -3786,7 +3791,7 @@ window.sfOnConfig = function(){
             <td style="text-align:center"><label class="pg-check"><input type="checkbox" data-pgtoggle="${t.id}"${teamDone?' checked':''}></label></td>
             <td><input type="date" class="pg-due-inp${expired?' overdue':''}" data-pgdue="${t.id}" value="${dueRaw}"></td>
             <td><button class="pg-note-btn${note?' has-note':''}" data-pgnotetoggle="${t.id}" title="Jegyzet">📝</button></td>
-            <td><button class="pg-task-del" data-pgdel="${t.id}" title="Törlés">🗑</button></td>
+            <td><button class="pg-task-del" data-pgdel="${t.id}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td>
         </tr>`;
         const noteRow = expanded ? `<tr class="pg-note-row"><td colspan="7">
             <textarea data-pgnoteinp="${t.id}" rows="3" placeholder="Jegyzet (pl. coaching beszélgetés összefoglalója, csendes órás felismerés)…">${escM(note)}</textarea>
@@ -3995,7 +4000,7 @@ window.sfOnConfig = function(){
         const addBtn = document.getElementById("admEmailAdd");
         const reload = async () => {
             const users = await getAllowedUsers();
-            list.innerHTML = users.length ? users.map(u=>`<div class="adm-user-row"><span class="adm-user-email">${escM(u)}</span><button class="adm-user-del" data-email="${escM(u)}" title="Törlés">🗑</button></div>`).join('') : `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Nincs felvett felhasználó.</div>`;
+            list.innerHTML = users.length ? users.map(u=>`<div class="adm-user-row"><span class="adm-user-email">${escM(u)}</span><button class="adm-user-del" data-email="${escM(u)}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('') : `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Nincs felvett felhasználó.</div>`;
             list.querySelectorAll('[data-email]').forEach(b=>b.addEventListener('click', async()=>{
                 if(!confirm('Eltávolítod: '+b.dataset.email+'?')) return;
                 try { await removeAllowedUser(b.dataset.email); await reload(); } catch(e){ alert('Hiba: '+(e.message||e)); }
@@ -4081,7 +4086,7 @@ window.sfOnConfig = function(){
     function renderAdmDates(cont){
         const cfg = window._admCfg || {};
         const dates = (cfg.infoDates || []).slice();
-        const rowsHtml = () => dates.map((d,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><input type="date" data-aidx="${i}" value="${escM(String(d).slice(0,10))}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;"><button data-adel="${i}" class="row-del" title="Törlés">🗑</button></div>`).join('') || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont.</div>`;
+        const rowsHtml = () => dates.map((d,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><input type="date" data-aidx="${i}" value="${escM(String(d).slice(0,10))}" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;"><button data-adel="${i}" class="row-del" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('') || `<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs időpont.</div>`;
         cont.innerHTML = `<div class="card"><div class="card-body"><div class="adm-section-title">INFO időpontok</div><div id="adDateList">${rowsHtml()}</div><button class="add-row" id="adDateAdd">+ Új időpont</button><div style="margin-top:16px;text-align:right;"><button class="btn primary" id="adDateSave" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button></div></div></div>`;
         const list=document.getElementById("adDateList");
         list.addEventListener('input', e=>{ if(e.target.dataset.aidx!==undefined) dates[+e.target.dataset.aidx]=e.target.value; });
@@ -4113,7 +4118,7 @@ window.sfOnConfig = function(){
     function renderAdmInfos(cont){
         const cfg = window._admCfg || {};
         const infos = ((cfg.importantInfos)||[]).map(x=>({label:(x&&x.label)||'',from:(x&&x.from)||'',to:(x&&x.to)||''}));
-        const rowsHtml=()=>infos.map((it,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;"><input data-if="label" data-ii="${i}" value="${escM(it.label)}" placeholder="Megnevezés" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"><button class="row-del" data-idel="${i}" title="Törlés">🗑</button></div><div style="display:flex;gap:8px;align-items:center;"><input type="date" data-if="from" data-ii="${i}" value="${escM(it.from)}" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"><span style="color:var(--muted);">–</span><input type="date" data-if="to" data-ii="${i}" value="${escM(it.to)}" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"></div></div>`).join('')||`<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs fontos infó.</div>`;
+        const rowsHtml=()=>infos.map((it,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;"><input data-if="label" data-ii="${i}" value="${escM(it.label)}" placeholder="Megnevezés" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"><button class="row-del" data-idel="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div><div style="display:flex;gap:8px;align-items:center;"><input type="date" data-if="from" data-ii="${i}" value="${escM(it.from)}" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"><span style="color:var(--muted);">–</span><input type="date" data-if="to" data-ii="${i}" value="${escM(it.to)}" style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;"></div></div>`).join('')||`<div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Nincs fontos infó.</div>`;
         cont.innerHTML=`<div class="card"><div class="card-body"><div class="adm-section-title">Fontos infók</div><div id="adInfoList">${rowsHtml()}</div><button class="add-row" id="adInfoAdd">+ Új fontos infó</button><div style="margin-top:16px;text-align:right;"><button class="btn primary" id="adInfoSave" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button></div></div></div>`;
         const list=document.getElementById("adInfoList");
         list.addEventListener('input', e=>{ const t=e.target; if(t.dataset.ii!==undefined&&t.dataset.if) infos[+t.dataset.ii][t.dataset.if]=t.value; });
@@ -4183,7 +4188,7 @@ window.sfOnConfig = function(){
             ${nodeHtml}
             <div class="str-node-btns">
                 <button class="str-node-btn" data-str-edit="${node.id}" title="Szerkesztés">✏️</button>
-                ${isRoot ? '' : `<button class="str-node-btn del" data-str-del="${node.id}" title="Törlés">🗑</button>`}
+                ${isRoot ? '' : `<button class="str-node-btn del" data-str-del="${node.id}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button>`}
             </div>
         </div>`;
         (node.children||[]).forEach(c => strEdges.push([node.id, c.id]));
