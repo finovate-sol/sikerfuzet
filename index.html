@@ -486,10 +486,12 @@
         table.eves input:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(31,95,208,.12); }
 
         /* ===== KI LESZ A KÖVETKEZŐ ===== */
-        .kov-idopont { margin-bottom:16px; max-width:340px; }
-        .kov-idopont label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
-        .kov-idopont input { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; outline:none; }
-        .kov-idopont input:focus { border-color:var(--blue); }
+        .kov-meta { display:flex; gap:12px; flex-wrap:wrap; }
+        .kov-meta-item { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:9px 16px 9px 10px; min-width:170px; }
+        .kov-meta-ic { flex-shrink:0; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+        .kov-meta-ic svg { width:19px; height:19px; }
+        .kov-meta-l { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+        .kov-meta-v { font-size:14.5px; font-weight:700; color:var(--navy); margin-top:1px; }
         .kov-table-wrap { overflow-x:auto; }
         table.kov { border-collapse:collapse; width:100%; }
         table.kov th, table.kov td { border:1px solid var(--border); padding:4px 6px; text-align:center; font-size:12px; }
@@ -517,7 +519,6 @@
         .kov-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
         .kov-hero-txt h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .kov-hero-txt p { font-size:13px; color:var(--muted); margin:0; max-width:520px; }
-        .kov-hero .kov-idopont { margin:0; min-width:240px; }
         .kov-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
         @media (max-width:800px){ .kov-stats { grid-template-columns:1fr; } }
         .kov-stat { display:flex; align-items:flex-start; gap:14px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px 10px; }
@@ -635,6 +636,14 @@
         .str-zoom-btn { border:none; background:transparent; width:26px; height:26px; border-radius:7px; font-size:15px; font-weight:700; color:var(--navy); cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:inherit; }
         .str-zoom-btn:hover { background:var(--blue-light); }
         .str-zoom-btn.str-zoom-reset { width:auto; font-size:11px; padding:0 8px; }
+        .adm-seminar-nav { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+        .adm-seminar-nav .str-zoom-btn { background:var(--bg); border:1px solid var(--border); font-size:17px; }
+        .adm-seminar-q { font-size:13.5px; font-weight:700; color:var(--navy); }
+        .adm-seminar-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        @media (max-width:640px){ .adm-seminar-grid { grid-template-columns:1fr; } }
+        .adm-seminar-grid label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+        .adm-seminar-grid input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; }
+        .adm-seminar-grid input:focus { border-color:var(--blue); }
         .str-zoom-label { font-size:12px; font-weight:700; color:var(--muted); min-width:38px; text-align:center; }
         .str-zoom-sizer { position:relative; margin:0 auto; }
         .str-canvas { position:absolute; top:0; left:0; transform-origin:top left; }
@@ -2118,12 +2127,12 @@ const ROMAN = ['I','II','III','IV'];
 let kovAnchor = { year:new Date().getFullYear(), q: Math.floor(new Date().getMonth()/3)+1 };
 let kovData = null;
 function kovKey(){ return `sf_kov_${kovAnchor.year}_Q${kovAnchor.q}`; }
-function blankKov(){ return { idopont:'', elo:[], esely:[] }; }
+function blankKov(){ return { idopont:'', helyszin:'', elo:[], esely:[] }; }
 function kovFromRaw(raw){
     const b=blankKov();
-    if(raw){ b.idopont=raw.idopont||'';
+    if(raw){ b.idopont=raw.idopont||''; b.helyszin=raw.helyszin||'';
         if(Array.isArray(raw.elo)) b.elo=raw.elo.map(r=>({resztvevo:r.resztvevo||'',mnb:r.mnb||'',vezeto:r.vezeto||'',eh:Number(r.eh)||0}));
-        if(Array.isArray(raw.esely)) b.esely=raw.esely.map(r=>({resztvevo:r.resztvevo||'',m:Object.assign({},r.m)}));
+        if(Array.isArray(raw.esely)) b.esely=raw.esely.map(r=>({resztvevo:r.resztvevo||'',vezeto:r.vezeto||'',m:Object.assign({},r.m)}));
     }
     return b;
 }
@@ -2169,7 +2178,10 @@ function renderKovBody(){
     // --- Fejléc + statkártyák ---
     let html=`<div class="kov-hero">
         <div class="kov-hero-txt"><h2>Ki lesz a következő?</h2><p>Kövesd nyomon az előkészítő- és esélyszeminárium résztvevőit negyedévről negyedévre.</p></div>
-        <div class="kov-idopont"><label>Szeminárium időpontja</label><input id="kovIdopont" value="${esc(kovData.idopont)}" placeholder="pl. 2022.04.23 – 24"></div>
+        <div class="kov-meta">
+            <div class="kov-meta-item"><span class="kov-meta-ic sc-blue">${kIc('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>')}</span><div><div class="kov-meta-l">Időpont</div><div class="kov-meta-v">${kovData.idopont ? esc(kovData.idopont) : '—'}</div></div></div>
+            <div class="kov-meta-item"><span class="kov-meta-ic sc-purple">${kIc('<path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>')}</span><div><div class="kov-meta-l">Helyszín</div><div class="kov-meta-v">${kovData.helyszin ? esc(kovData.helyszin) : '—'}</div></div></div>
+        </div>
     </div>`;
     html+=`<div class="kov-stats">
         <div class="kov-stat"><span class="kov-stat-ic sc-blue">${kIc('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>')}</span><div><div class="kov-stat-n">${eloCount}<span class="kov-stat-sub">/ ${ELO_TARGET}</span></div><div class="kov-stat-l">Előkészítő résztvevő</div></div></div>
@@ -2180,7 +2192,7 @@ function renderKovBody(){
     // --- Előkészítőszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')}</span>Előkészítő szeminárium</h2><button class="btn-edit" id="kovAddElo">+ Résztvevő</button></div><div class="card-body" style="padding:0;">`;
     const eloThSep=ELO_COLS.map(c=>`<th class="kov-eh-th${c===ELO_SEP?' kov-sep':''}">${c}</th>`).join('');
-    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th class="kov-resztvevo">Résztvevő</th><th class="kov-mnb">MNB</th><th class="kov-vezeto">Vezető</th><th class="kov-eh-num">EH</th>${eloThSep}<th></th></tr></thead><tbody>`;
+    html+=`<div class="kov-table-wrap"><table class="kov"><thead><tr><th class="kov-num">#</th><th class="kov-resztvevo">Résztvevő</th><th class="kov-vezeto">Vezető</th><th class="kov-mnb">MNB</th><th class="kov-eh-num">EH</th>${eloThSep}<th></th></tr></thead><tbody>`;
     html+= kovData.elo.length ? kovData.elo.map((r,i)=>{
         const eh=Number(r.eh)||0;
         const lastGreen=ELO_COLS.filter(c=>c<=eh).pop()||0;
@@ -2191,8 +2203,8 @@ function renderKovBody(){
         return `<tr>
             <td class="kov-num" style="color:var(--muted);font-size:12px;">${i+1}.</td>
             <td class="kov-resztvevo"><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Név"></td>
-            <td class="kov-mnb"><input data-ke="elo" data-ki="${i}" data-kf="mnb" value="${esc(r.mnb)}" placeholder="Ok / dátum" style="width:72px;text-align:center;"></td>
             <td class="kov-vezeto"><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></td>
+            <td class="kov-mnb"><input data-ke="elo" data-ki="${i}" data-kf="mnb" value="${esc(r.mnb)}" placeholder="Ok / dátum" style="width:72px;text-align:center;"></td>
             <td class="kov-eh-num"><input type="text" inputmode="numeric" data-ke="elo" data-ki="${i}" data-kf="eh" value="${eh||''}" placeholder="EH"></td>
             ${cells}
             <td><button class="row-del" data-kdel="elo:${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td></tr>`;
@@ -2232,7 +2244,6 @@ async function renderKov(){
     const body=document.getElementById('kovBody'); if(!body) return;
     body.addEventListener('input', e=>{
         const t=e.target;
-        if(t.id==='kovIdopont'){ kovData.idopont=t.value; saveKov(); return; }
         if(t.dataset.ke && t.dataset.kf){
             const row=kovData[t.dataset.ke][+t.dataset.ki];
             row[t.dataset.kf]=t.value;
@@ -3972,7 +3983,7 @@ window.sfOnConfig = function(){
     };
 
     // ===================== ADMIN OLDAL =====================
-    const ADM_TABS = ['Felhasználók','Csapat szerepkörök','INFO időpontok','Rangok','Fontos infók'];
+    const ADM_TABS = ['Felhasználók','Csapat szerepkörök','INFO időpontok','Rangok','Fontos infók','Szeminárium'];
     let admCurTab = 0;
 
     window.sfShowAdmin = async function(){
@@ -3991,6 +4002,7 @@ window.sfOnConfig = function(){
         else if(tab===2) renderAdmDates(cont);
         else if(tab===3) renderAdmRanks(cont);
         else if(tab===4) renderAdmInfos(cont);
+        else if(tab===5) await renderAdmSeminar(cont);
     }
 
     async function renderAdmUsers(cont){
@@ -4098,6 +4110,61 @@ window.sfOnConfig = function(){
             e.currentTarget.disabled=true;
             try { await saveAppConfig({infoDates:clean}); window._admCfg=Object.assign({},window._admCfg,{infoDates:clean}); if(typeof updateInfoCard==='function') updateInfoCard(clean); alert('Mentve!'); }
             catch(err){ alert('Hiba: '+(err.message||err)); e.currentTarget.disabled=false; }
+        });
+    }
+
+    // Szeminárium időpontja/helyszíne negyedévenként – a "Ki lesz a következő"
+    // oldalon csak megjelenik, itt szerkeszthető. Saját (a főoldaltól független)
+    // negyedév-lapozóval, hogy admin közben ne zavarja a fő nézetet.
+    let admKovAnchor = { year:new Date().getFullYear(), q:Math.floor(new Date().getMonth()/3)+1 };
+    async function renderAdmSeminar(cont){
+        cont.innerHTML = '<div class="card pg-loading">Betöltés…</div>';
+        const key = `sf_kov_${admKovAnchor.year}_Q${admKovAnchor.q}`;
+        let raw = null;
+        if(window.sfIsConfigured && typeof window.sfGetKovQuarter==='function'){
+            try { raw = await window.sfGetKovQuarter(key); } catch(e){ console.warn(e); }
+        }
+        if(!raw) raw = store.load(key, null) || {};
+        const idopont = raw.idopont || '', helyszin = raw.helyszin || '';
+        cont.innerHTML = `<div class="card"><div class="card-body">
+            <div class="adm-section-title">Szeminárium időpontja és helyszíne</div>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">A "Ki lesz a következő" oldalon a munkatársak csak megtekintik – itt, negyedévenként te szerkesztheted.</p>
+            <div class="adm-seminar-nav">
+                <button class="str-zoom-btn" id="admKovPrev" title="Előző negyedév">‹</button>
+                <span class="adm-seminar-q">${admKovAnchor.year}. ${ROMAN[admKovAnchor.q-1]}. negyedév</span>
+                <button class="str-zoom-btn" id="admKovNext" title="Következő negyedév">›</button>
+            </div>
+            <div class="adm-seminar-grid">
+                <label>Szeminárium időpontja<input id="admKovIdopont" value="${escM(idopont)}" placeholder="pl. 2022.04.23 – 24"></label>
+                <label>Helyszín<input id="admKovHelyszin" value="${escM(helyszin)}" placeholder="pl. Budapest, OVB Központ"></label>
+            </div>
+            <div style="margin-top:16px;text-align:right;"><button class="btn primary" id="admKovSave" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button></div>
+        </div></div>`;
+        const shiftAndReload = d => {
+            let q=admKovAnchor.q+d, y=admKovAnchor.year;
+            while(q<1){q+=4;y--;} while(q>4){q-=4;y++;}
+            admKovAnchor={year:y,q};
+            renderAdmSeminar(cont);
+        };
+        document.getElementById('admKovPrev').addEventListener('click', ()=>shiftAndReload(-1));
+        document.getElementById('admKovNext').addEventListener('click', ()=>shiftAndReload(1));
+        document.getElementById('admKovSave').addEventListener('click', async e=>{
+            const newIdopont = document.getElementById('admKovIdopont').value.trim();
+            const newHelyszin = document.getElementById('admKovHelyszin').value.trim();
+            e.currentTarget.disabled = true;
+            try {
+                store.save(key, Object.assign({}, raw, { idopont:newIdopont, helyszin:newHelyszin }));
+                if(window.sfIsConfigured && typeof window.sfSaveKovQuarter==='function'){
+                    await window.sfSaveKovQuarter(key, { idopont:newIdopont, helyszin:newHelyszin });
+                }
+                // Ha épp ez a negyedév van nyitva a "Ki lesz a következő" oldalon, frissítjük ott is élőben.
+                if(typeof kovAnchor!=='undefined' && kovAnchor.year===admKovAnchor.year && kovAnchor.q===admKovAnchor.q && kovData){
+                    kovData.idopont = newIdopont; kovData.helyszin = newHelyszin;
+                    if(typeof renderKovBody==='function') renderKovBody();
+                }
+                alert('Mentve!');
+            } catch(err){ alert('Hiba: '+(err.message||err)); }
+            finally { e.currentTarget.disabled = false; }
         });
     }
 
