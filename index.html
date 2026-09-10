@@ -284,6 +284,36 @@
         .kt-feedback-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); resize:vertical; box-sizing:border-box; }
         .kt-save-btn { align-self:flex-end; }
 
+        /* ===== ÚJRAFELHASZNÁLHATÓ: "Kit ismerhetek?" segédlet-panel ===== */
+        .guide-panel { border:1px solid var(--border); border-radius:12px; background:var(--card); margin-bottom:16px; overflow:hidden; }
+        .guide-toggle { width:100%; display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--blue-light); border:none; cursor:pointer; font-family:inherit; font-size:14px; font-weight:700; color:var(--navy); text-align:left; }
+        .guide-toggle .icon { display:flex; color:var(--blue); flex-shrink:0; }
+        .guide-toggle .icon svg { width:18px; height:18px; }
+        .guide-toggle .chev { margin-left:auto; display:flex; color:var(--blue); transition:transform .2s; flex-shrink:0; }
+        .guide-panel.open .guide-toggle .chev { transform:rotate(180deg); }
+        .guide-body { display:none; padding:18px 22px; border-top:1px solid var(--border); }
+        .guide-panel.open .guide-body { display:block; }
+        .guide-intro { font-size:13px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
+        .guide-groups { column-count:2; column-gap:32px; }
+        @media (max-width:800px){ .guide-groups { column-count:1; } }
+        .guide-group { break-inside:avoid; margin-bottom:16px; }
+        .guide-group h4 { font-size:13px; font-weight:700; color:var(--navy); margin:0 0 6px; }
+        .guide-group ul { margin:0; padding-left:16px; }
+        .guide-group li { font-size:12.5px; color:var(--text); line-height:1.6; }
+
+        /* ===== ÚJRAFELHASZNÁLHATÓ: napi/heti tevékenység-számláló ===== */
+        .timer-card { display:flex; align-items:center; gap:16px; border:1px solid var(--border); border-radius:12px; background:var(--card); padding:14px 18px; margin-bottom:16px; }
+        .timer-ic { flex-shrink:0; width:40px; height:40px; border-radius:11px; background:var(--blue-light); color:var(--blue); display:flex; align-items:center; justify-content:center; }
+        .timer-ic svg { width:20px; height:20px; }
+        .timer-main { flex:1; min-width:0; }
+        .timer-lbl { font-size:12px; color:var(--muted); font-weight:600; display:flex; justify-content:space-between; gap:8px; }
+        .timer-val { font-family:inherit; font-weight:800; color:var(--navy); }
+        .timer-bar { height:7px; border-radius:5px; background:var(--border); overflow:hidden; margin-top:6px; }
+        .timer-bar span { display:block; height:100%; border-radius:5px; background:var(--blue); transition:width .3s; }
+        .timer-bar.done span { background:var(--green); }
+        .timer-badge { flex-shrink:0; font-size:11px; font-weight:700; border-radius:999px; padding:4px 10px; background:var(--border); color:var(--muted); }
+        .timer-badge.done { background:var(--green-light,#eaf7ef); color:var(--green); }
+
         /* ===== HAVI TERV ===== */
         .havi-grid-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
         @media (max-width:800px){ .havi-grid-fields { grid-template-columns:repeat(2,1fr); } }
@@ -1196,6 +1226,8 @@
               <div class="reg-hero-txt"><h2>10 perces füzet</h2><p>Potenciális ügyfelek felkutatása – az első elemzés után a kapcsolat az OVB portálon folytatódik</p></div>
               <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
             </div>
+            <div id="regTimerSlot"></div>
+            <div id="regGuideSlot"></div>
             <div class="card reg-toolbar-card">
               <div class="reg-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés mindenre..."></div>
               <div class="reg-build-wrap" id="regFilterBar"></div>
@@ -1250,6 +1282,116 @@ const store = {
     save(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
 };
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ===== ÚJRAFELHASZNÁLHATÓ: "Kit ismerhetek?" segédlet-tartalom =====
+// A 10 perces és a 2 órás füzet papíralapú verziójából, változatlan kategóriákkal.
+const GUIDE_GROUPS = [
+    { title:'A keresett címeket beszerezhetem', items:['saját címjegyzékemből/noteszemből','ismerőseimtől','személyzeti osztályoktól','egyesületi tagjegyzékből','telefonkönyvből','névsorokból','online közösségi oldalakról','szakmai jegyzékekből','címjegyzékek kiadóitól','bejelentő hivataltól','vallási szervezetektől','anyakönyvi hivataltól, stb.'] },
+    { title:'Az iskolából vagy szakképzésem idejéből ismerem', items:['osztálytársak, évfolyamtársak','iskolatársak szülei','tanfolyam résztvevői','iskola tanárai, alkalmazottai, szakoktatói','barátok, ismerősök rokonai'] },
+    { title:'Korábbi munkahelyemről ismerem', items:['volt kollégák, kolléganők','volt főnökök és beosztottak','volt ügyfelek és konkurensek','szakmai szövetségek tagjai','volt szomszédok','korábbi szemináriumi- és tanfolyamtársak'] },
+    { title:'Házastársam és gyermekeim révén ismerem', items:['házastársam iskolai, szakképzési, vagy munkahelyi ismerősei','olyan szervezetek, amelyeknek házastársam is a tagja','házastársam ismeretségi köre','gyermekeink játszó- vagy iskolatársainak szülei','a gyerekek tanárai, nevelői és szakoktatói','a gyerekek ismerősei és barátai'] },
+    { title:'A rokonságból ismerem', items:['rokonok anyai ágon','rokonok apai ágon','házastársam rokonai','barátok és ismerősök rokonai'] },
+    { title:'A korábbi és a mostani szomszédságból ismerem', items:['korábbi szomszédok és azok barátai','mai szomszédok és azok barátai','telekszomszédok és tulajdonosok','bérbeadók és lakásügynökök'] },
+    { title:'Sport, hobbi, autóvezetés', items:['sporttársak, egyesületi tagok, pártoló tagok','ugyanaz a hobbijuk, mint nekem (pl. számítógép, zene, színház, kempingezés, túrázás, fotózás, stb.)','autószervizben dolgozók, benzinkutasok, autószerelők','autófelszerelés értékesítők','autóklubtagok'] },
+    { title:'Üdülésem révén ismerem', items:['utazási irodák munkatársai, kísérők','vendéglősök, szállodások','kiszolgáló és egyéb személyzet','üdülési ismeretségek'] },
+    { title:'Házam, öröklakásom, telkem vagy bérlakásom révén ismerem', items:['építészek, építési vállalkozók, szállítók','előző tulajdonos, előző bérlő, lakásügynökök, gondnok/házmester, közjegyzők','postás, adótanácsadó, ügyvéd','vízvezeték-szerelő, vakoló, szobafestő, ács, villanyszerelő','egyéb iparosok'] },
+    { title:'Szervezeti, egyesületi, klubtagságom, jótékonysági vagy önkormányzati feladataim, illetve vallási tevékenységem révén ismerem', items:['hozzám hasonlóan gondolkodók, ill. ugyanolyan tevékenységet végzők','pártoló tagok, szponzorok, elnökök, tagok, stb.','pártfogoltak'] },
+    { title:'Társadalmi eseményekről ismerem', items:['születésnapokról','névnapokról','évfordulókról','partikról és más hasonló összejövetelekről','lakodalmakból','iskolai és gyermekrendezvényekről'] },
+    { title:'Azok, akik belőlem élnek', items:['élelmiszer- és háztartási boltok','műszaki üzletek','tisztító, mosoda','ruházati és cipőboltok','fodrász, pék, hentes, trafikos, újságos, cipész, kertész, stb.','vendéglátó- és szórakoztató egységek','orvos, fogorvos, gyógyászati szaküzletek','gyógyszertárak és drogériák','bank, illetve olyan üzleti partnerek, akiktől mostanában számla érkezett','autókereskedők, szervizek, autógumi-kereskedők'] },
+];
+function guidePanelHtml(id, introText){
+    const groups = GUIDE_GROUPS.map(g=>`<div class="guide-group"><h4>${esc(g.title)}</h4><ul>${g.items.map(it=>`<li>${esc(it)}</li>`).join('')}</ul></div>`).join('');
+    return `<div class="guide-panel" id="${id}">
+        <button class="guide-toggle" data-guide-toggle="${id}">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></svg></span>
+            <span>Kit ismerhetek?</span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="guide-body">
+            <p class="guide-intro">${esc(introText)}</p>
+            <div class="guide-groups">${groups}</div>
+        </div>
+    </div>`;
+}
+document.addEventListener('click', e=>{
+    const t = e.target.closest('[data-guide-toggle]');
+    if(!t) return;
+    t.closest('.guide-panel').classList.toggle('open');
+});
+
+// ===== ÚJRAFELHASZNÁLHATÓ: napi/heti tevékenység-számláló =====
+// A lap aktív nézetében töltött időt méri (csak ha a böngészőfül látható és
+// az adott oldal van megnyitva), helyben (localStorage) és – ha van bejelentkezett
+// felhasználó – a Firestore-ban is szinkronizálja, hogy a vezető is láthassa.
+function isoWeekKey(d){
+    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = (dt.getUTCDay() + 6) % 7;
+    dt.setUTCDate(dt.getUTCDate() - day + 3);
+    const firstThu = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
+    const week = 1 + Math.round(((dt - firstThu) / 86400000 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
+    return `${dt.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+}
+function timerCardHtml(id, label){
+    return `<div class="timer-card" id="${id}">
+        <span class="timer-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <div class="timer-main">
+            <div class="timer-lbl"><span>${esc(label)}</span><span class="timer-val" id="${id}-val">0:00 / 0:00</span></div>
+            <div class="timer-bar" id="${id}-bar"><span style="width:0%"></span></div>
+        </div>
+        <span class="timer-badge" id="${id}-badge">folyamatban</span>
+    </div>`;
+}
+function fmtMinSec(totalSec){
+    const m = Math.floor(totalSec/60), s = totalSec%60;
+    return `${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtHourMin(totalSec){
+    const totalMin = Math.floor(totalSec/60);
+    const h = Math.floor(totalMin/60), m = totalMin%60;
+    return `${h}:${String(m).padStart(2,'0')}`;
+}
+// aktivePageTimers: futó időzítők nyilvántartása, hogy lapváltáskor le lehessen állítani őket
+const activePageTimers = {};
+function startPageTimer(opts){
+    // opts: { domId, storeKey, targetSeconds, fmt, firestoreCol, firestoreDoc, pageCheck }
+    stopPageTimer(opts.domId);
+    let seconds = store.load(opts.storeKey, 0);
+    let lastSaveAt = Date.now();
+    const valEl = document.getElementById(opts.domId+'-val');
+    const barEl = document.getElementById(opts.domId+'-bar');
+    const barSpan = barEl ? barEl.querySelector('span') : null;
+    const badgeEl = document.getElementById(opts.domId+'-badge');
+    const render = () => {
+        if(!valEl) return;
+        const pct = Math.min(100, Math.round(seconds/opts.targetSeconds*100));
+        valEl.textContent = `${opts.fmt(seconds)} / ${opts.fmt(opts.targetSeconds)}`;
+        if(barSpan) barSpan.style.width = pct+'%';
+        const done = seconds >= opts.targetSeconds;
+        if(barEl) barEl.classList.toggle('done', done);
+        if(badgeEl){ badgeEl.textContent = done ? 'teljesítve' : 'folyamatban'; badgeEl.classList.toggle('done', done); }
+    };
+    render();
+    const persistRemote = () => {
+        if(!opts.firestoreCol || typeof window.sfSaveTimer !== 'function') return;
+        window.sfSaveTimer(opts.firestoreCol, opts.firestoreDoc, seconds);
+    };
+    const tick = () => {
+        if(document.hidden) return;
+        if(opts.pageCheck && !opts.pageCheck()) return;
+        seconds += 1;
+        store.save(opts.storeKey, seconds);
+        render();
+        if(Date.now() - lastSaveAt > 8000){ lastSaveAt = Date.now(); persistRemote(); }
+    };
+    const id = setInterval(tick, 1000);
+    activePageTimers[opts.domId] = { id, flush: persistRemote };
+}
+function stopPageTimer(domId){
+    const t = activePageTimers[domId];
+    if(t){ clearInterval(t.id); if(t.flush) t.flush(); delete activePageTimers[domId]; }
+}
+window.addEventListener('beforeunload', () => { Object.keys(activePageTimers).forEach(id => { const t=activePageTimers[id]; if(t && t.flush) t.flush(); }); });
+document.addEventListener('visibilitychange', () => { if(document.hidden) Object.keys(activePageTimers).forEach(id => { const t=activePageTimers[id]; if(t && t.flush) t.flush(); }); });
 
 // ===== STATIC SAMPLE DATA (heti terv, gyorsműveletek) =====
 // A naptár már valós Google Calendar adatból dolgozik (lásd lentebb a modul-scriptet).
@@ -1529,6 +1671,11 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'pg' && typeof window.sfShowPG === 'function') window.sfShowPG();
         if(p === 'struktura' && typeof window.sfShowStruktura === 'function') window.sfShowStruktura();
         if(p === 'ugyfelek' && typeof window.sfShowUgyfelek === 'function') window.sfShowUgyfelek();
+        stopPageTimer('regTimer');
+        stopPageTimer('ketorasTimer');
+        if(p === 'ugyfelek'){
+            startPageTimer({ domId:'regTimer', storeKey:`sf_timer_10p_${todayKey()}`, targetSeconds:600, fmt:fmtMinSec, firestoreCol:'10p', firestoreDoc:todayKey() });
+        }
         if(p === 'kiertekelo' && typeof window.sfShowKiertekelo === 'function') window.sfShowKiertekelo();
         if(p === 'admin' && typeof window.sfShowAdmin === 'function') window.sfShowAdmin();
         const mbt = document.getElementById('mbTitle');
@@ -2011,6 +2158,14 @@ function updateHaviEgysegCard(){
 }
 updateHaviEgysegCard();
 renderPlan();
+function todayKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// "10 perces füzet" – statikus segédlet + számláló-kártya feltöltése
+(function(){
+    const timerSlot = document.getElementById('regTimerSlot');
+    const guideSlot = document.getElementById('regGuideSlot');
+    if(timerSlot) timerSlot.innerHTML = timerCardHtml('regTimer', 'Mai aktivitás (10 perces füzet)');
+    if(guideSlot) guideSlot.innerHTML = guidePanelHtml('regGuide', 'Az a 10 perc, amelyet lehetséges ügyfeleim nevének megtalálására fordítok.');
+})();
 // Kártyák össze-/kinyitása – az egész fejléc-sor kattintható
 (function(){
     document.querySelectorAll('[data-collapse]').forEach(el=>{
@@ -2389,7 +2544,7 @@ window.sfOnConfig = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, isLeaderUser, getEmployees } from "./auth.js";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, isLeaderUser, getEmployees, saveActivityTimer } from "./auth.js";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -2490,6 +2645,14 @@ window.sfOnConfig = function(){
     window.sfDeleteClient = function(id){
         if (!isConfigured) return;
         deleteClient(id).catch(e => console.warn("Ügyfél törlése sikertelen:", e));
+    };
+    window.sfSaveTimer = function(col, periodKey, seconds){
+        if (!isConfigured) return;
+        const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
+        if (!owner.uid) return;
+        const key = `${owner.uid}_${col}_${periodKey}`;
+        saveActivityTimer(key, { uid: owner.uid, name: owner.name || owner.email || '', col, period: periodKey, seconds, updatedAt: Date.now() })
+            .catch(e => console.warn("Számláló mentése sikertelen:", e));
     };
 
     // ===== KIÉRTÉKELŐ TELEFON (csak vezetőknek/adminnak) =====

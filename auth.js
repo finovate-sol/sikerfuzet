@@ -75,6 +75,13 @@ export async function saveKovQuarter(key, data){
     await setDoc(doc(db, "kov_quarters", key), data);
 }
 
+// Munkatársak napi/heti tevékenység-számlálói (pl. "10 perces füzet", "2 órás füzet")
+// – így a vezető is láthatja, ki mennyi időt töltött el ténylegesen a füzettel.
+export async function saveActivityTimer(key, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "activity_timers", key), data, { merge: true });
+}
+
 // Megosztott csapat-ügyféllista – collection "clients". Minden dokumentum egy
 // ügyfél; a munkatárs csak a saját (ownerUid) ügyfeleit látja, a vezető/admin
 // mindet – ezt a szűrést az index.html végzi a lekért teljes listán.
