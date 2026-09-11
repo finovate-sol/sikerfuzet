@@ -1013,7 +1013,7 @@
         .info-edit-row { display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid #f1f4f8; }
         .info-edit-wrap { padding:8px 16px 14px; }
 
-        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(60px, 1fr)); gap:8px; }
         .stat { background:var(--bg); border-radius:8px; padding:8px 4px; text-align:center; }
         .stat .stat-label { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.3px; }
         .stat .stat-num { font-size:22px; font-weight:800; color:var(--navy); line-height:1.1; margin:4px 0; }
@@ -3637,15 +3637,16 @@ window.sfOnViewSwitch = function(){
 
     // ===== Statisztikák (aktuális hét vs. előző hét) =====
     const STAT_TYPES = [
-        { label:"E",  codes:["E"] },
-        { label:"TA", codes:["TA"] },
-        { label:"SZ", codes:["SZ"] },
-        { label:"F",  codes:["F1","F2"] },
+        { label:"E",  test: s => ["E"].some(c => s.includes("(" + c + ")")) },
+        { label:"TA", test: s => ["TA"].some(c => s.includes("(" + c + ")")) },
+        { label:"SZ", test: s => ["SZ"].some(c => s.includes("(" + c + ")")) },
+        { label:"F",  test: s => ["F1","F2"].some(c => s.includes("(" + c + ")")) },
+        { label:"TP", test: s => /telefonparty/i.test(s) },
     ];
     function statTypeOf(summary){
         const s = summary || "";
         for(let i=0;i<STAT_TYPES.length;i++)
-            if(STAT_TYPES[i].codes.some(c => s.includes("(" + c + ")"))) return i;
+            if(STAT_TYPES[i].test(s)) return i;
         return -1;
     }
     let statsBusy = false;
@@ -3660,7 +3661,7 @@ window.sfOnViewSwitch = function(){
             const lastStart = addDays(thisStart, -7);
             const thisEnd   = addDays(thisStart, 7);
             const events = await fetchEvents(token, lastStart, thisEnd);
-            const cur = [0,0,0,0], prev = [0,0,0,0];
+            const cur = STAT_TYPES.map(() => 0), prev = STAT_TYPES.map(() => 0);
             events.forEach(ev => {
                 const ti = statTypeOf(ev.summary);
                 if(ti < 0 || !ev.start) return;
