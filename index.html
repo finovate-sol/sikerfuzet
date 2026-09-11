@@ -294,7 +294,7 @@
         .rd-check input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
 
         /* Esemény szerkesztése – ikonos kártya elrendezés */
-        .ev-edit-modal { max-width:500px; }
+        .ev-edit-modal { max-width:640px; }
         .ev-edit-modal .ev-edit-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
         .ev-delete-link { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700; color:var(--red); background:none; border:none; padding:4px 0; cursor:pointer; font-family:inherit; }
         .ev-delete-link svg { width:14px; height:14px; }
@@ -315,6 +315,9 @@
         .ev-row-txt .t2 { display:block; font-size:11.5px; color:var(--muted); margin-top:1px; }
         .ev-meet-link { color:var(--blue) !important; font-weight:700 !important; text-decoration:none; }
         .ev-meet-link:hover { text-decoration:underline; }
+        .ev-maps-link { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; color:var(--blue); text-decoration:none; }
+        .ev-maps-link svg { width:12px; height:12px; }
+        .ev-maps-link:hover { text-decoration:underline; }
         .ev-divider { height:1px; background:var(--border); margin:2px 0; }
         .ev-switch { position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0; }
         .ev-switch input { position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
@@ -866,7 +869,6 @@
         .ag-time { font-size:12px; font-weight:700; color:var(--navy); min-width:74px; }
         .ag-dot { width:10px; height:10px; border-radius:3px; margin-top:3px; flex-shrink:0; }
         .ag-title { font-size:13px; font-weight:600; }
-        .ag-loc { font-size:11px; color:var(--muted); }
         .ag-empty { padding:10px 10px; text-align:center; color:var(--muted); font-size:13px; }
         .ag-del { margin-left:auto; color:var(--red); cursor:pointer; opacity:.5; padding:0 6px; font-weight:800; }
         .ag-del:hover { opacity:1; }
@@ -913,13 +915,11 @@
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
         .wk-ev-svg { width:12px; height:12px; flex-shrink:0; }
-        .wk-ev-tag { display:inline-flex; align-items:center; border-radius:4px; padding:0 4px; font-weight:800; font-size:9.5px; letter-spacing:.2px; flex-shrink:0; }
         .wk-ev b { display:block; font-weight:700; font-size:10px; }
         .wk-ev-title { display:block; font-weight:600; margin-top:1px; }
         .wk-ev-del { position:absolute; top:2px; right:2px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; border-radius:4px; }
         .wk-ev:hover .wk-ev-del { opacity:.6; }
         .wk-ev-del:hover { opacity:1 !important; color:#fff; background:var(--red); }
-        .wk-ev-loc { display:block; font-size:10px; opacity:.85; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .wk-ev-meet, .ag-meet { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:inherit; opacity:.9; margin-top:2px; text-decoration:none; }
         .wk-ev-meet:hover, .ag-meet:hover { text-decoration:underline; }
         .wk-ev-meet svg, .ag-meet svg { width:11px; height:11px; }
@@ -3644,6 +3644,10 @@ window.sfOnViewSwitch = function(){
         }
         return null;
     }
+    // Google Maps keresés/navigálás link egy szabad szöveges helyszínhez.
+    function mapsUrl(location){
+        return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location || "");
+    }
     function genConfReqId(){
         return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("meet-" + Date.now() + "-" + Math.random().toString(36).slice(2));
     }
@@ -3673,12 +3677,9 @@ window.sfOnViewSwitch = function(){
     let calWired = false;
     let eventsById = {};                 // a legutóbb betöltött események id szerint (szerkesztéshez)
 
-    // Esemény-ikon a cím kulcsszavai alapján (csak vizuális segédlet)
     const CAL_ICONS = {
-        phone:   '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
         activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
         book:    '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
-        people:  '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         person:  '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
         clock:   '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         check:   '<path d="m5 13 4 4L19 7"/>',
@@ -3689,20 +3690,18 @@ window.sfOnViewSwitch = function(){
         repeat:  '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     };
     function calSvg(key, extra){ return `<svg class="wk-ev-svg${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAL_ICONS[key]||CAL_ICONS.clock}</svg>`; }
-    function calEvIconKey(summary){
-        const s = (summary||"").toLowerCase();
-        if (/telefon|hívás/.test(s)) return "phone";
-        if (/edzés|tréning|training|sport/.test(s)) return "activity";
-        if (/oktatás|képzés|tanfolyam/.test(s)) return "book";
-        if (/csapat|vezetőségi|\bnap\b|workshop|megbeszélés|meeting|csoport|parti/.test(s)) return "people";
-        if (/\bpg\b/.test(s) || / - pg/.test(s)) return "person";
-        return "clock";
-    }
     // A cím elejéről levágott ✅/❌ jel → { clean, status: 'yes'|'no'|null }
     function parseValidation(summary){
         const m = /^([✅❌])\s*/.exec(summary || "");
         if (!m) return { clean: summary || "", status: null };
         return { clean: (summary || "").slice(m[0].length), status: m[1] === "✅" ? "yes" : "no" };
+    }
+    // A megjelenítendő cím: a "Megtörtént/Nem történt meg" jelzés az emoji
+    // (nem egy külön ikon-jelvény) a cím legelején – ugyanaz, ami a Google
+    // Calendar-ban is látszik, csak nincs külön eldugva egy jelvénybe.
+    function statusTitle(clean, status){
+        const prefix = status === "yes" ? "✅ " : status === "no" ? "❌ " : "";
+        return prefix + (clean || "(névtelen)");
     }
 
     function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
@@ -3830,7 +3829,7 @@ window.sfOnViewSwitch = function(){
         const maxH = (END_H - START_H) * ROW;
         events.forEach(ev => {
             const { clean, status } = parseValidation(ev.summary);
-            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
+            const hex = eventColorHex(ev, clean);
             if (!ev.start.dateTime){                       // egész napos
                 const d = new Date((ev.start.date || "") + "T00:00:00");
                 const idx = colIndexOf(cols, d);
@@ -3863,10 +3862,8 @@ window.sfOnViewSwitch = function(){
             const div = document.createElement("div");
             div.className = "wk-ev";
             div.draggable = true;
-            const textColor = contrastTextColor(hex);
-            const badgeBg = textColor === "#ffffff" ? "rgba(255,255,255,.24)" : "rgba(0,0,0,.12)";
             div.style.background = hex;
-            div.style.color = textColor;
+            div.style.color = contrastTextColor(hex);
             div.style.boxShadow = `0 2px 6px ${hexToRgba(hex, .35)}`;
             div.style.left = `calc(${idx*(100/n)}% + 3px)`;
             div.style.width = `calc(${100/n}% - 6px)`;
@@ -3875,15 +3872,11 @@ window.sfOnViewSwitch = function(){
             div.dataset.eventId = ev.id || "";
             div.dataset.title = ev.summary || "";
             div.dataset.durationMin = Math.round((e - s) / 60000);
-            const type = detectEventType(clean);
-            const badgeSvg = status === "yes" ? calSvg("check") : status === "no" ? calSvg("x") : (!type ? calSvg(calEvIconKey(clean)) : "");
-            const badgeTag = (!status && type) ? `<span class="wk-ev-tag" style="background:${badgeBg}">${escM(type.tag)}</span>` : "";
-            const locHtml = ev.location ? `<span class="wk-ev-loc">📍 ${escM(ev.location)}</span>` : "";
             const meetUrl = getMeetLink(ev);
             const meetHtml = meetUrl ? `<a class="wk-ev-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
-                <span class="wk-ev-head">${badgeSvg}${badgeTag}<b>${hh}</b></span>
-                <span class="wk-ev-title">${escM(clean || "(névtelen)")}</span>${locHtml}${meetHtml}`;
+                <span class="wk-ev-head"><b>${hh}</b></span>
+                <span class="wk-ev-title">${escM(statusTitle(clean, status))}</span>${meetHtml}`;
             div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
             canvas.appendChild(div);
         });
@@ -3893,18 +3886,18 @@ window.sfOnViewSwitch = function(){
     // Minden esemény-típusnak saját Google Calendar-színe van (colorId) –
     // ez adja az esemény tényleges színét a naptárban.
     const EVENT_TYPES = [
-        { label: "Munka",       suffix: null, unit: false, colorId: "8", tag: "MU"  }, // Szürke
-        { label: "Egyéb",       suffix: null, unit: false, colorId: "5", tag: "EGY" }, // Citromsárga
-        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2", tag: "E"   }, // Zöld
-        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2", tag: "TA"  }, // Zöld
-        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2", tag: "SZ"  }, // Zöld
-        { label: "Telefonparty",suffix: "Telefonparty", unit: false, colorId: "2", tag: "TP" }, // Zöld
-        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6", tag: "F1"  }, // Narancssárga
-        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6", tag: "F2"  }, // Narancssárga
-        { label: "PG",          suffix: null, unit: false, colorId: "7", tag: "PG"  }, // Kék
-        { label: "Oktatás",     suffix: null, unit: false, colorId: "7", tag: "OKT" }, // Kék
-        { label: "Training",    suffix: null, unit: false, colorId: "7", tag: "TR"  }, // Kék
-        { label: "MT",          suffix: null, unit: false, colorId: "6", tag: "MT"  }, // Narancssárga
+        { label: "Munka",       suffix: null, unit: false, colorId: "8" }, // Szürke
+        { label: "Egyéb",       suffix: null, unit: false, colorId: "5" }, // Citromsárga
+        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2" }, // Zöld
+        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2" }, // Zöld
+        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2" }, // Zöld
+        { label: "Telefonparty",suffix: "Telefonparty", unit: false, colorId: "2" }, // Zöld
+        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6" }, // Narancssárga
+        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6" }, // Narancssárga
+        { label: "PG",          suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Oktatás",     suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "MT",          suffix: null, unit: false, colorId: "6" }, // Narancssárga
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
@@ -4092,9 +4085,9 @@ window.sfOnViewSwitch = function(){
             const today = sameDay(d, now) ? " today" : "";
             let evs = list.slice(0,3).map(({ev,ds}) => {
                 const { clean, status } = parseValidation(ev.summary);
-                const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
+                const hex = eventColorHex(ev, clean);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
-                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(clean||"(névtelen)")}</span>`;
+                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(statusTitle(clean, status))}</span>`;
             }).join("");
             if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
@@ -4114,14 +4107,14 @@ window.sfOnViewSwitch = function(){
             const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
             if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
             const { clean, status } = parseValidation(ev.summary);
-            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
+            const hex = eventColorHex(ev, clean);
             const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
             const meetUrl = getMeetLink(ev);
             const meetHtml = meetUrl ? `<a class="ag-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             html += `<div class="ag-item" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}">
                 <span class="ag-time">${time}</span>
                 <span class="ag-dot" style="background:${hex}"></span>
-                <span><span class="ag-title">${escM(clean||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}${meetUrl?`<br>${meetHtml}`:""}</span>
+                <span><span class="ag-title">${escM(statusTitle(clean, status))}</span>${meetUrl?`<br>${meetHtml}`:""}</span>
                 <span class="ag-del" title="Törlés">×</span>
             </div>`;
         });
@@ -4190,7 +4183,11 @@ window.sfOnViewSwitch = function(){
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("pin")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="evLocEdit">Helyszín</label><input id="evLocEdit" class="ev-input" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín"></div>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="evLocEdit">Helyszín</label>
+                            <input id="evLocEdit" class="ev-input" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín">
+                            <a id="evLocMaps" class="ev-maps-link" href="${mapsUrl(ev && ev.location)}" target="_blank" rel="noopener"${(ev && ev.location) ? "" : " hidden"}>${calSvg("pin")} Megnyitás Google Maps-ben ↗</a>
+                        </div>
                     </div>
                     <div class="ev-divider"></div>
                     ${meetFieldHtml}
@@ -4207,6 +4204,14 @@ window.sfOnViewSwitch = function(){
         document.body.appendChild(overlay);
         const close = () => overlay.remove();
         overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+        const locInput = overlay.querySelector("#evLocEdit");
+        const locMaps = overlay.querySelector("#evLocMaps");
+        locInput.addEventListener("input", () => {
+            const v = locInput.value.trim();
+            locMaps.href = mapsUrl(v);
+            locMaps.hidden = !v;
+        });
 
         const readPatch = () => {
             const title = overlay.querySelector("#evTitle").value.trim() || "(névtelen)";
