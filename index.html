@@ -901,14 +901,19 @@
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
         .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
         .wk-grid { display:flex; height:calc(100vh - 300px); min-height:420px; overflow-y:auto; }
-        .wk-times { width:52px; flex-shrink:0; }
+        .wk-times { width:52px; flex-shrink:0; position:relative; }
         .wk-times .t { height:44px; font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
         .wk-canvas { position:relative; flex:1; }
         .ideal-zone { position:absolute; pointer-events:none; z-index:0; border-radius:5px; box-sizing:border-box; }
         .ideal-zone.ideal-client { background:rgba(22,163,74,.22); box-shadow:inset 0 0 0 1px rgba(22,163,74,.4); }
         .ideal-zone.ideal-colleague { background:rgba(244,81,30,.24); box-shadow:inset 0 0 0 1px rgba(244,81,30,.5); }
-        .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
-        .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
+        .wk-line { position:absolute; left:0; right:0; border-top:1px solid #d8dfe9; }
+        .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #e3e8ef; }
+        /* Piros "most" jelző: teljes szélességű vonal + pötty a mai oszlopon, az
+           óra-sávban pedig a pontos idő – a naptár-nézetekben megszokott módon. */
+        .wk-now { position:absolute; left:0; right:0; height:0; border-top:2px solid var(--red); z-index:3; pointer-events:none; }
+        .wk-now-dot { position:absolute; top:-5px; width:8px; height:8px; border-radius:50%; background:var(--red); }
+        .wk-now-lbl { position:absolute; right:4px; transform:translateY(-50%); background:var(--red); color:#fff; font-size:10px; font-weight:700; padding:1px 5px; border-radius:10px; font-variant-numeric:tabular-nums; z-index:3; }
         .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
         .wk-ev:hover { box-shadow:0 5px 16px rgba(15,47,95,.32) !important; z-index:2; transform:translateY(-1px); }
         .wk-ev:active { cursor:grabbing; }
@@ -3672,6 +3677,7 @@ window.sfOnViewSwitch = function(){
         if (/rendezvény/.test(low)) return EVENT_TYPES.find(t => t.label === "Rendezvény");
         if (/munkatársnyerő/.test(low)) return EVENT_TYPES.find(t => t.label === "Munkatársnyerő nap");
         if (/telefonparty/.test(low)) return EVENT_TYPES.find(t => t.label === "Telefonparty");
+        if (/futás|\brun\b|kerékpár|bicikli|úszás|edzés|konditerem|\bgym\b|\bfoci\b|\bsport\b/.test(low)) return EVENT_TYPES.find(t => t.label === "Sport");
         if (/\bmeeting\b|megbeszélés/.test(low)) return EVENT_TYPES.find(t => t.label === "Munka");
         return null;
     }
@@ -3798,15 +3804,42 @@ window.sfOnViewSwitch = function(){
                 zones += `<div class="ideal-zone ${z.cls}" style="left:calc(${i*(100/n)}% + 1px); width:calc(${100/n}% - 2px); top:${top}px; height:${h}px;"></div>`;
             });
         });
+        const nowDec = now.getHours() + now.getMinutes()/60;
+        let nowLine = "", nowLbl = "";
+        if (nowDec >= START_H && nowDec < END_H){
+            const top = (nowDec - START_H) * ROW;
+            const todayIdx = cols.findIndex(d => sameDay(d, now));
+            const dot = todayIdx >= 0 ? `<span class="wk-now-dot" style="left:calc(${todayIdx*(100/n)}% - 4px)"></span>` : "";
+            nowLine = `<div class="wk-now" style="top:${top}px">${dot}</div>`;
+            nowLbl = `<div class="wk-now-lbl" style="top:${top}px">${pad2(now.getHours())}:${pad2(now.getMinutes())}</div>`;
+        }
         grid.innerHTML =
             `<div class="wk-head" style="grid-template-columns:${tmpl}">${head.join("")}</div>` +
             `<div class="wk-allday" id="wkAllday" style="grid-template-columns:${tmpl}"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(n)}</div>` +
             `<div class="wk-grid">` +
-                `<div class="wk-times">${times}</div>` +
-                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}</div>` +
+                `<div class="wk-times">${times}${nowLbl}</div>` +
+                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}${nowLine}</div>` +
             `</div>`;
         const wkGridEl = grid.querySelector(".wk-grid");
         if (wkGridEl) wkGridEl.scrollTop = Math.max(0, (10 - START_H) * ROW);
+        startNowTick();
+    }
+
+    // A piros "most" jelző percenként lépjen tovább, hogy ne ragadjon be a
+    // rendereléskori időpontra (a naptár nem renderelődik újra magától).
+    let nowTickTimer = null;
+    function startNowTick(){
+        if (nowTickTimer) return;
+        nowTickTimer = setInterval(() => {
+            const line = document.querySelector(".wk-now"), lbl = document.querySelector(".wk-now-lbl");
+            if (!line && !lbl) return;
+            const d = new Date();
+            const dec = d.getHours() + d.getMinutes()/60;
+            const inRange = dec >= START_H && dec < END_H;
+            const top = (dec - START_H) * ROW;
+            if (line){ line.hidden = !inRange; line.style.top = top + "px"; }
+            if (lbl){ lbl.hidden = !inRange; lbl.style.top = top + "px"; lbl.textContent = pad2(d.getHours())+":"+pad2(d.getMinutes()); }
+        }, 60000);
     }
 
     function showConnect(grid, msg){
@@ -3965,6 +3998,7 @@ window.sfOnViewSwitch = function(){
         { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Vezetőségi",  suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Rendezvény",  suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Sport",       suffix: null, unit: false, colorId: "3" }, // Lila
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
