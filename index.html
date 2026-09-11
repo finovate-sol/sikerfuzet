@@ -186,6 +186,8 @@
         table.reg td { padding:5px 8px; border-bottom:1px solid #f1f4f8; }
         table.reg tbody tr:hover { background:#fafbfd; }
         table.reg tbody tr.reg-row { cursor:pointer; }
+        table.reg tbody tr.reg-row.alt { background:#f7f9fc; }
+        table.reg tbody tr.reg-row.alt:hover { background:#fafbfd; }
         table.reg tbody tr.reg-row.open { background:var(--bg); }
         .reg-chev { flex-shrink:0; display:flex; align-items:center; color:var(--muted); transition:transform .2s; }
         tr.reg-row.open .reg-chev { transform:rotate(180deg); }
@@ -391,6 +393,7 @@
         /* ===== 2 ÓRÁS FÜZET ===== */
         .ket-row { display:flex; align-items:center; gap:14px; padding:12px 6px; border-bottom:1px solid var(--border); cursor:pointer; }
         .ket-row:last-child { border-bottom:none; }
+        .ket-row.alt { background:#f7f9fc; }
         .ket-row:hover { background:var(--bg); }
         .ket-meta { flex:1; min-width:0; }
         .ket-name { font-weight:700; font-size:14px; }
@@ -2699,10 +2702,10 @@ function renderRegistry(){
     const matched = registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && textMatch(r) && rowMatchesFilters(r));
     const delIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
     const chevIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
-    const rows = matched.map(({r,i})=>{
+    const rows = matched.map(({r,i}, pos)=>{
         const hasName = !!(r.name && r.name.trim());
         const open = i === regExpandedIdx;
-        return `<tr class="reg-row${open?' open':''}" data-open="${i}">
+        return `<tr class="reg-row${open?' open':''}${pos%2?' alt':''}" data-open="${i}">
         <td><div class="reg-person">
             <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="reg-person-meta">
@@ -2962,13 +2965,13 @@ function renderKetorasList(){
         return;
     }
     const chevIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
-    el.innerHTML = list.map(({r,i})=>{
+    el.innerHTML = list.map(({r,i}, pos)=>{
         const hasName = !!(r.name && r.name.trim());
         const tob = r.toborzas || {};
         const lastCall = (tob.hivasok && tob.hivasok.length) ? tob.hivasok[tob.hivasok.length-1] : null;
         const lastTxt = lastCall ? `Utolsó hívás: ${lastCall.datum ? esc(lastCall.datum) : 'dátum nélkül'}` : 'Még nincs hívási kísérlet';
         const open = i === ketorasExpandedIdx;
-        return `<div class="ket-row${open?' open':''}" data-ketopen="${i}">
+        return `<div class="ket-row${open?' open':''}${pos%2?' alt':''}" data-ketopen="${i}">
             <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="ket-meta">
                 <div class="ket-name${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
