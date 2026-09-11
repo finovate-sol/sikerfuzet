@@ -5239,7 +5239,12 @@ window.sfOnViewSwitch = function(){
         const isRootEdit = existing && existing.id === strTree.id;
         const currentParent = existing ? strFindParent(strTree, existing.id) : null;
         const defaultParentId = currentParent ? currentParent.id : (parentId || strTree.id);
-        const parentOptions = isRootEdit ? '' : strFlatten(strTree, existing ? existing.id : null)
+        // Ha nincs valódi választás (csak egyetlen lehetséges "Vezető" van – pl. az
+        // első csapattag felvételekor, amikor még csak a gyökér létezik), nincs
+        // értelme megjeleníteni a választót; mentéskor úgyis erre az egyre esik.
+        const flatParents = isRootEdit ? [] : strFlatten(strTree, existing ? existing.id : null);
+        const showParentSelect = !isRootEdit && flatParents.length > 1;
+        const parentOptions = flatParents
             .map(n => `<option value="${n.id}"${n.id===defaultParentId?' selected':''}>${'&nbsp;&nbsp;'.repeat(n.depth)}${escM(n.name)}</option>`)
             .join('');
         const ov = document.createElement('div');
@@ -5254,7 +5259,7 @@ window.sfOnViewSwitch = function(){
                     <option value="new"${(existing&&existing.role==='new')?' selected':''}>Új MT</option>
                 </select></div>
                 <div><label>Email (Google-fiók, a bejelentkezéshez)</label><input id="strEmailInp" type="email" value="${existing ? escM(existing.email||'') : ''}" placeholder="nev@example.com"></div>
-                ${isRootEdit ? '' : `<div><label>Vezető</label><select id="strParentInp">${parentOptions}</select></div>`}
+                ${showParentSelect ? `<div><label>Vezető</label><select id="strParentInp">${parentOptions}</select></div>` : ''}
             </div>
             <div class="org-modal-foot">
                 <button class="btn" id="strCancel">Mégse</button>
