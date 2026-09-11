@@ -3747,6 +3747,18 @@ window.sfOnViewSwitch = function(){
         const prefix = status === "yes" ? "✅ " : status === "no" ? "❌ " : "";
         return prefix + (clean || "(névtelen)");
     }
+    // Egy (tisztított) esemény-címből visszafejti az alapnevet, a felismert
+    // típust és az EH mennyiséget – a szerkesztő modal típus-váltásához kell,
+    // hogy a "Név (SUFFIX) - N EH" jelölést újra tudjuk építeni más típussal.
+    function splitEventTitle(clean){
+        const s = clean || "";
+        const m = /^(.*)\s\(([^()]+)\)(?:\s-\s(\d+)\s*EH)?$/.exec(s);
+        if (m){
+            const type = EVENT_TYPES.find(t => t.suffix === m[2]);
+            if (type) return { base: m[1], type, units: m[3] || "" };
+        }
+        return { base: s, type: detectEventType(s), units: "" };
+    }
 
     function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
     function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
@@ -4186,6 +4198,8 @@ window.sfOnViewSwitch = function(){
         const start = ev ? new Date(ev.start.dateTime || (ev.start.date + "T00:00:00")) : new Date();
         const end = ev ? new Date(ev.end.dateTime || (ev.end.date + "T00:00:00")) : new Date(start.getTime()+3600000);
         const { clean, status } = parseValidation(ev ? ev.summary : fallbackTitle);
+        const { base, type: curType, units: curUnits } = splitEventTitle(clean);
+        const curTypeIdx = Math.max(0, curType ? EVENT_TYPES.indexOf(curType) : EVENT_TYPES.findIndex(t => t.label === "Egyéb"));
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
         const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
@@ -4211,7 +4225,20 @@ window.sfOnViewSwitch = function(){
                 <div class="modal-body">
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("person")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="evTitle">Cím</label><input id="evTitle" class="ev-input" value="${escM(clean || "")}" placeholder="(névtelen)"></div>
+                        <div class="ev-row-field"><label class="lbl" for="evTitle">Cím</label><input id="evTitle" class="ev-input" value="${escM(base || "")}" placeholder="(névtelen)"></div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("book")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="evType">Esemény típusa</label>
+                            <select id="evType" class="ev-input">
+                                ${EVENT_TYPES.map((t,i)=>`<option value="${i}"${i===curTypeIdx?' selected':''}>${escM(t.label)}</option>`).join("")}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="ev-row" id="evUnitWrap"${EVENT_TYPES[curTypeIdx].unit ? "" : " hidden"}>
+                        <span class="ev-row-ic">${calSvg("activity")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="evUnit">Hány egységre számítasz? (EH)</label><input id="evUnit" type="number" min="0" step="1" value="${escM(curUnits || "0")}" class="ev-input"></div>
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("clock")}</span>
@@ -4257,13 +4284,36 @@ window.sfOnViewSwitch = function(){
             locMaps.hidden = !v;
         });
 
-        const readPatch = () => {
-            const title = overlay.querySelector("#evTitle").value.trim() || "(névtelen)";
+        const typeSel = overlay.querySelector("#evType");
+        const unitWrap = overlay.querySelector("#evUnitWrap");
+        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
+        typeSel.addEventListener("change", syncUnit);
+
+        // A cím + típus + (ha releváns) EH mennyiség újra összeépítése – ugyanaz
+        // a "Név (SUFFIX) - N EH" jelölés, mint a naptárba húzáskor.
+        const buildCleanTitle = () => {
+            const baseTitle = overlay.querySelector("#evTitle").value.trim() || "(névtelen)";
+            const type = EVENT_TYPES[+typeSel.value];
+            let t = baseTitle;
+            if (type.suffix){
+                t += ` (${type.suffix})`;
+                if (type.unit){
+                    const u = overlay.querySelector("#evUnit").value;
+                    t += ` - ${(u === "" ? "0" : u)} EH`;
+                }
+            }
+            return { title: t, colorId: type.colorId };
+        };
+
+        const readPatch = statusOverride => {
+            const { title: cleanTitle, colorId } = buildCleanTitle();
+            const useStatus = statusOverride !== undefined ? statusOverride : status;
+            const title = statusTitle(cleanTitle, useStatus);
             const d = overlay.querySelector("#evDate").value || dateStr;
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
             const addMeetEl = overlay.querySelector("#evAddMeet");
             const patch = allDay
-                ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), start: { date: d }, end: { date: d } }
+                ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), colorId, start: { date: d }, end: { date: d } }
                 : (() => {
                     const st = overlay.querySelector("#evStartT").value || startStr;
                     const et = overlay.querySelector("#evEndT").value || endStr;
@@ -4271,6 +4321,7 @@ window.sfOnViewSwitch = function(){
                     return {
                         summary: title,
                         location: overlay.querySelector("#evLocEdit").value.trim(),
+                        colorId,
                         start: { dateTime: localIso(sDt), timeZone: tz },
                         end:   { dateTime: localIso(eDt > sDt ? eDt : new Date(sDt.getTime()+900000)), timeZone: tz }
                     };
@@ -4285,22 +4336,20 @@ window.sfOnViewSwitch = function(){
             try { await updateCalendarEvent(id, readPatch()); close(); initCalendar(); }
             catch (err){ alert("Nem sikerült menteni: " + (err.message || err)); unbusy(); }
         });
-        const applyStatus = async emoji => {
+        const applyStatus = async newStatus => {
             busy();
-            const patch = readPatch();
-            patch.summary = (emoji ? emoji + " " : "") + patch.summary;
             try {
-                await updateCalendarEvent(id, patch);
+                await updateCalendarEvent(id, readPatch(newStatus));
                 if (typeof window.sfApplyResultFromEvent === "function"){
-                    window.sfApplyResultFromEvent(ev, emoji === "✅" ? "ok" : emoji === "❌" ? "no" : "pending");
+                    window.sfApplyResultFromEvent(ev, newStatus === "yes" ? "ok" : newStatus === "no" ? "no" : "pending");
                 }
                 close(); initCalendar();
             }
             catch (err){ alert("Nem sikerült frissíteni: " + (err.message || err)); unbusy(); }
         };
-        overlay.querySelector("#evYes").addEventListener("click", () => applyStatus("✅"));
-        overlay.querySelector("#evNo").addEventListener("click", () => applyStatus("❌"));
-        overlay.querySelector("#evNone").addEventListener("click", () => applyStatus(""));
+        overlay.querySelector("#evYes").addEventListener("click", () => applyStatus("yes"));
+        overlay.querySelector("#evNo").addEventListener("click", () => applyStatus("no"));
+        overlay.querySelector("#evNone").addEventListener("click", () => applyStatus(null));
         overlay.querySelector("#evDelete").addEventListener("click", async () => {
             if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (clean || ""))) return;
             busy();
