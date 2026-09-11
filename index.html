@@ -930,7 +930,9 @@
         .wk-travel:hover { background:#dde3ec; }
         .wk-travel .wk-ev-svg { width:11px; height:11px; }
         .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
-        .wk-ev:hover { box-shadow:0 5px 16px rgba(15,47,95,.32) !important; z-index:2; transform:translateY(-1px); }
+        /* Hover-visszajelzés szándékosan NEM emel z-indexet: átfedésnél a felül
+           lévő (kisebb) esemény nem tűnhet el, amikor a nagyobb fölé ér az egér. */
+        .wk-ev:hover { filter:brightness(1.07); transform:translateY(-1px); }
         .wk-ev:active { cursor:grabbing; }
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
@@ -3939,11 +3941,42 @@ window.sfOnViewSwitch = function(){
         finally { statsBusy = false; }
     }
 
+    // Átfedő események elrendezése egy napon belül, a Google Naptár logikája szerint:
+    // az AZONOS kezdésűek egymás mellé kerülnek (elosztott szélesség), a KÉSŐBB
+    // kezdődő átfedő esemény pedig behúzva, a másik fölé rajzolva jelenik meg –
+    // és mindig a felül lévő (későbbi, jellemzően rövidebb) esemény kapja a
+    // kattintást, hogy a kisebb blokk is kezelhető maradjon.
+    function layoutOverlaps(list){
+        list.sort((a,b) => a.startDec - b.startDec || b.endDec - a.endDec);
+        let i = 0;
+        while (i < list.length){
+            let clusterEnd = list[i].endDec, j = i + 1;
+            while (j < list.length && list[j].startDec < clusterEnd){
+                clusterEnd = Math.max(clusterEnd, list[j].endDec);
+                j++;
+            }
+            const groups = [];
+            for (const it of list.slice(i, j)){
+                let g = groups.find(x => x.start === it.startDec);
+                if (!g){ g = { start: it.startDec, items: [] }; groups.push(g); }
+                g.items.push(it);
+            }
+            groups.sort((a,b) => a.start - b.start);
+            groups.forEach((g, depth) => g.items.forEach((it, slot) => {
+                it.depth = Math.min(depth, 4);
+                it.slot = slot;
+                it.slots = g.items.length;
+            }));
+            i = j;
+        }
+    }
+
     function renderTimeEvents(cols, events){
         const n = cols.length;
         const canvas = document.getElementById("wkCanvas");
         const alldayCells = document.querySelectorAll("#wkAllday .cell");
         const maxH = (END_H - START_H) * ROW;
+        const timed = [];
         events.forEach(ev => {
             const { clean, status } = parseValidation(ev.summary);
             const hex = eventColorHex(ev, clean);
@@ -3975,40 +4008,58 @@ window.sfOnViewSwitch = function(){
             if (top < 0){ height += top; top = 0; }
             if (top >= maxH) return;
             if (top + height > maxH) height = maxH - top;
-            const hh = pad2(s.getHours()) + ":" + pad2(s.getMinutes());
+            timed.push({ ev, clean, status, hex, s, e, idx, startDec, endDec, top, height, depth:0, slot:0, slots:1 });
+        });
+
+        for (let c = 0; c < n; c++) layoutOverlaps(timed.filter(t => t.idx === c));
+
+        const colPct = 100 / n;
+        const INDENT = 14;                       // behúzás átfedésenként (px)
+        timed.forEach(t => {
+            const indent = t.depth * INDENT;
+            const pad = 6 + indent + t.depth * 4;          // teljes vízszintes levonás
+            const slotW = `((${colPct}% - ${pad}px) / ${t.slots})`;
+            const left = `calc(${t.idx*colPct}% + ${3 + indent}px + ${slotW} * ${t.slot})`;
+            const width = `calc(${slotW}${t.slots > 1 ? " - 3px" : ""})`;
+            const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
             const div = document.createElement("div");
             div.className = "wk-ev";
             div.draggable = true;
-            div.style.background = hex;
-            div.style.color = contrastTextColor(hex);
-            div.style.boxShadow = `0 2px 6px ${hexToRgba(hex, .35)}`;
-            div.style.left = `calc(${idx*(100/n)}% + 3px)`;
-            div.style.width = `calc(${100/n}% - 6px)`;
-            div.style.top = top + "px";
-            div.style.height = height + "px";
-            div.dataset.eventId = ev.id || "";
-            div.dataset.title = ev.summary || "";
-            div.dataset.durationMin = Math.round((e - s) / 60000);
+            div.style.background = t.hex;
+            div.style.color = contrastTextColor(t.hex);
+            // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
+            div.style.boxShadow = t.depth > 0
+                ? `0 0 0 2px #fff, 0 3px 10px ${hexToRgba(t.hex, .45)}`
+                : `0 2px 6px ${hexToRgba(t.hex, .35)}`;
+            div.style.zIndex = String(1 + t.depth);
+            div.style.left = left;
+            div.style.width = width;
+            div.style.top = t.top + "px";
+            div.style.height = t.height + "px";
+            div.dataset.eventId = t.ev.id || "";
+            div.dataset.title = t.ev.summary || "";
+            div.dataset.durationMin = Math.round((t.e - t.s) / 60000);
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
                 <span class="wk-ev-head"><b>${hh}</b></span>
-                <span class="wk-ev-title">${escM(statusTitle(clean, status))}</span>`;
-            div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
+                <span class="wk-ev-title">${escM(statusTitle(t.clean, t.status))}</span>`;
+            div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
-            const travelMin = parseInt((((ev.extendedProperties || {}).private || {}).sfTravelMin), 10) || 0;
+            const travelMin = parseInt((((t.ev.extendedProperties || {}).private || {}).sfTravelMin), 10) || 0;
             if (travelMin > 0){
                 let tHeight = Math.max(16, travelMin / 60 * ROW);
-                let tTop = top - tHeight;
+                let tTop = t.top - tHeight;
                 if (tTop < 0){ tHeight += tTop; tTop = 0; }
                 if (tHeight >= 12){
                     const tr = document.createElement("div");
                     tr.className = "wk-travel";
-                    tr.style.left = div.style.left;
-                    tr.style.width = div.style.width;
+                    tr.style.left = left;
+                    tr.style.width = width;
                     tr.style.top = tTop + "px";
                     tr.style.height = tHeight + "px";
-                    tr.dataset.eventId = ev.id || "";
-                    tr.dataset.title = ev.summary || "";
+                    tr.style.zIndex = String(1 + t.depth);
+                    tr.dataset.eventId = t.ev.id || "";
+                    tr.dataset.title = t.ev.summary || "";
                     tr.innerHTML = `${calSvg("car")}<span>${travelMin} perc utazás</span>`;
                     tr.title = travelMin + " perc utazás";
                     canvas.appendChild(tr);
