@@ -162,6 +162,10 @@
         .rail-btn:last-child { border-bottom:none; }
         .rail-btn.active { background:var(--navy); color:#fff; }
         .rail-btn span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:12.5px; font-weight:700; letter-spacing:.5px; }
+        .side-panel.collapsed { display:none; }
+        @media (min-width:1001px){
+            .content.side-collapsed { grid-template-columns: 1fr 46px; }
+        }
         /* Teljes képernyő-magasság, a jobb/felső/alsó szélhez kötve; bal oldali rés marad. */
         @media (min-width:1001px){
             .col-side {
@@ -1935,13 +1939,29 @@ window.sfMarkResult = function(list, regIdx){
 // (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
 
 // ===== JOBB OLDALI RAIL NÉZETVÁLTÁS (Sikerfüzet / Info) =====
+// Egy már aktív rail-fülre (Sikerfüzet/Info) újra kattintva a jobb oldali
+// panel össze-/kinyílik, a naptár pedig kitölti a felszabaduló helyet.
 window.sfSelectView = function(v){
     const viewSikerfuzet = document.getElementById('sideViewSikerfuzet');
     const viewInfo = document.getElementById('sideViewInfo');
     const btnSf = document.getElementById('railBtnSikerfuzet');
     const btnInfo = document.getElementById('railBtnInfo');
+    const panel = document.getElementById('sidePanel');
+    const content = document.querySelector('.content');
     if(!viewSikerfuzet || !viewInfo) return;
     const isSf = v !== 'info';
+    const alreadyActive = (isSf && btnSf && btnSf.classList.contains('active')) || (!isSf && btnInfo && btnInfo.classList.contains('active'));
+    if(alreadyActive && panel && !panel.classList.contains('collapsed')){
+        panel.classList.add('collapsed');
+        if(content) content.classList.add('side-collapsed');
+        store.save('sf_side_collapsed', true);
+        return;
+    }
+    if(panel && panel.classList.contains('collapsed')){
+        panel.classList.remove('collapsed');
+        if(content) content.classList.remove('side-collapsed');
+        store.save('sf_side_collapsed', false);
+    }
     viewSikerfuzet.hidden = !isSf;
     viewInfo.hidden = isSf;
     if(btnSf) btnSf.classList.toggle('active', isSf);
@@ -1949,6 +1969,11 @@ window.sfSelectView = function(v){
     store.save('sf_side_view', isSf ? 'sikerfuzet' : 'info');
 };
 sfSelectView(store.load('sf_side_view', 'sikerfuzet'));
+if(store.load('sf_side_collapsed', false)){
+    const p = document.getElementById('sidePanel'), c = document.querySelector('.content');
+    if(p) p.classList.add('collapsed');
+    if(c) c.classList.add('side-collapsed');
+}
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
