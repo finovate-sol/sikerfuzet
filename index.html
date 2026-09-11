@@ -922,6 +922,13 @@
         .wk-now { position:absolute; left:0; right:0; height:0; border-top:2px solid var(--red); z-index:3; pointer-events:none; }
         .wk-now-dot { position:absolute; top:-5px; width:8px; height:8px; border-radius:50%; background:var(--red); }
         .wk-now-lbl { position:absolute; right:4px; transform:translateY(-50%); background:var(--red); color:#fff; font-size:10px; font-weight:700; padding:1px 5px; border-radius:10px; font-variant-numeric:tabular-nums; z-index:3; }
+        /* Utazási idő-sáv: az esemény fölé simuló szürke csík, nem külön esemény. */
+        .wk-travel { position:absolute; display:flex; align-items:center; gap:5px; box-sizing:border-box;
+            padding:0 7px; border-radius:8px 8px 4px 4px; background:#e7ebf2; color:#54637a;
+            font-size:10px; font-weight:700; overflow:hidden; white-space:nowrap; cursor:pointer;
+            border-left:3px solid #9aa8bb; }
+        .wk-travel:hover { background:#dde3ec; }
+        .wk-travel .wk-ev-svg { width:11px; height:11px; }
         .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
         .wk-ev:hover { box-shadow:0 5px 16px rgba(15,47,95,.32) !important; z-index:2; transform:translateY(-1px); }
         .wk-ev:active { cursor:grabbing; }
@@ -3986,6 +3993,27 @@ window.sfOnViewSwitch = function(){
                 <span class="wk-ev-head"><b>${hh}</b></span>
                 <span class="wk-ev-title">${escM(statusTitle(clean, status))}</span>`;
             div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
+            // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
+            // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
+            const travelMin = parseInt((((ev.extendedProperties || {}).private || {}).sfTravelMin), 10) || 0;
+            if (travelMin > 0){
+                let tHeight = Math.max(16, travelMin / 60 * ROW);
+                let tTop = top - tHeight;
+                if (tTop < 0){ tHeight += tTop; tTop = 0; }
+                if (tHeight >= 12){
+                    const tr = document.createElement("div");
+                    tr.className = "wk-travel";
+                    tr.style.left = div.style.left;
+                    tr.style.width = div.style.width;
+                    tr.style.top = tTop + "px";
+                    tr.style.height = tHeight + "px";
+                    tr.dataset.eventId = ev.id || "";
+                    tr.dataset.title = ev.summary || "";
+                    tr.innerHTML = `${calSvg("car")}<span>${travelMin} perc utazás</span>`;
+                    tr.title = travelMin + " perc utazás";
+                    canvas.appendChild(tr);
+                }
+            }
             canvas.appendChild(div);
         });
     }
@@ -4109,7 +4137,7 @@ window.sfOnViewSwitch = function(){
             openEventModal(start, { title: name, srcList: payload.list, srcIndex: payload.regidx });
         });
         canvas.addEventListener("click", e => {
-            if (draggingEvent || e.target.closest(".wk-ev")) return;
+            if (draggingEvent || e.target.closest(".wk-ev, .wk-travel")) return;
             if (!currentColumns.length) return;
             const { idx, minutes } = slotFromEvent(canvas, e);
             const start = new Date(currentColumns[idx]);
@@ -4265,6 +4293,8 @@ window.sfOnViewSwitch = function(){
         const end = ev ? new Date(ev.end.dateTime || (ev.end.date + "T00:00:00")) : new Date(start.getTime()+3600000);
         const { clean, status } = parseValidation(ev ? ev.summary : fallbackTitle);
         const { base, type: curType, units: curUnits } = splitEventTitle(clean);
+        const evPriv = (ev && ev.extendedProperties && ev.extendedProperties.private) || {};
+        const curTravel = parseInt(evPriv.sfTravelMin, 10) || 0;
         const curTypeIdx = Math.max(0, curType ? EVENT_TYPES.indexOf(curType) : EVENT_TYPES.findIndex(t => t.label === "Egyéb"));
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
@@ -4328,6 +4358,15 @@ window.sfOnViewSwitch = function(){
                     </div>
                     <div class="ev-divider"></div>
                     ${meetFieldHtml}
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("car")}</span>
+                        <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Az esemény fölött jelenik meg a naptárban</span></div>
+                        <label class="ev-switch"><input type="checkbox" id="evTravel"${curTravel > 0 ? " checked" : ""}><span></span></label>
+                    </div>
+                    <div class="ev-row" id="evTravelWrap"${curTravel > 0 ? "" : " hidden"}>
+                        <span class="ev-row-ic">${calSvg("clock")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="evTravelMin">Utazási idő (perc)</label><input id="evTravelMin" type="number" min="5" step="5" value="${curTravel || 30}" class="ev-input"></div>
+                    </div>
                 </div>
                 <div class="modal-foot ev-edit-foot">
                     <div class="ev-seg" id="evSeg">
@@ -4354,6 +4393,10 @@ window.sfOnViewSwitch = function(){
         const unitWrap = overlay.querySelector("#evUnitWrap");
         const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
         typeSel.addEventListener("change", syncUnit);
+
+        const travelChk = overlay.querySelector("#evTravel");
+        const travelWrap = overlay.querySelector("#evTravelWrap");
+        travelChk.addEventListener("change", () => { travelWrap.hidden = !travelChk.checked; });
 
         // A cím + típus + (ha releváns) EH mennyiség újra összeépítése – ugyanaz
         // a "Név (SUFFIX) - N EH" jelölés, mint a naptárba húzáskor.
@@ -4393,6 +4436,12 @@ window.sfOnViewSwitch = function(){
                     };
                 })();
             if (addMeetEl && addMeetEl.checked) patch.conferenceData = meetConferenceData();
+            // Az utazási idő az esemény saját adata (sfTravelMin). A Google Calendar
+            // a private map kulcsait külön kezeli, ezért a null érték törli a kulcsot,
+            // a többi (pl. ügyfél-hivatkozás) érintetlen marad.
+            const travelMin = travelChk.checked
+                ? Math.max(0, parseInt(overlay.querySelector("#evTravelMin").value, 10) || 0) : 0;
+            patch.extendedProperties = { private: { sfTravelMin: travelMin > 0 ? String(travelMin) : null } };
             return patch;
         };
         const busy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = true);
@@ -4577,7 +4626,7 @@ window.sfOnViewSwitch = function(){
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("car")}</span>
-                        <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Külön esemény az esemény elé</span></div>
+                        <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Az esemény fölött jelenik meg a naptárban</span></div>
                         <label class="ev-switch"><input type="checkbox" id="qcTravel"><span></span></label>
                     </div>
                     <div class="ev-row" id="qcTravelWrap" hidden>
@@ -4669,27 +4718,21 @@ window.sfOnViewSwitch = function(){
             const colorId = type.colorId;
             const recurrence = buildRecurrence(overlay);
             const srcRow = isClientSrc ? registry[srcIndex] : null;
-            const extendedProperties = isClientSrc ? { private: {
-                sfList: srcList,
-                sfRegId: (srcRow && srcRow.id != null) ? String(srcRow.id) : "",
-                sfRegIdx: String(srcIndex)
-            } } : undefined;
             const travelMin = overlay.querySelector("#qcTravel").checked
                 ? Math.max(0, parseInt(overlay.querySelector("#qcTravelMin").value, 10) || 0) : 0;
+            // Az utazási idő nem külön esemény, hanem magának az eseménynek az
+            // adata (sfTravelMin) – a naptárban egy fölé rajzolt sávként jelenik meg.
+            const priv = {};
+            if (isClientSrc){
+                priv.sfList = srcList;
+                priv.sfRegId = (srcRow && srcRow.id != null) ? String(srcRow.id) : "";
+                priv.sfRegIdx = String(srcIndex);
+            }
+            if (travelMin > 0) priv.sfTravelMin = String(travelMin);
+            const extendedProperties = Object.keys(priv).length ? { private: priv } : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
                 await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties });
-                // Az utazási idő külön, az esemény elé illesztett blokként kerül a
-                // naptárba (a Google Calendar-nak nincs saját "travel time" mezője),
-                // ugyanazzal az ismétlődéssel, mint maga az esemény.
-                if (travelMin > 0){
-                    await createCalendarEvent({
-                        summary: `🚗 ${travelMin} perc utazás`,
-                        location, colorId: "8",
-                        start: new Date(sDt.getTime() - travelMin*60000),
-                        durationMin: travelMin, recurrence
-                    });
-                }
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
