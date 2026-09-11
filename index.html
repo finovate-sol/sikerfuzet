@@ -4017,27 +4017,25 @@ window.sfOnViewSwitch = function(){
     // kattintást, hogy a kisebb blokk is kezelhető maradjon.
     function layoutOverlaps(list){
         list.sort((a,b) => a.startDec - b.startDec || b.endDec - a.endDec);
-        let i = 0;
-        while (i < list.length){
-            let clusterEnd = list[i].endDec, j = i + 1;
-            while (j < list.length && list[j].startDec < clusterEnd){
-                clusterEnd = Math.max(clusterEnd, list[j].endDec);
-                j++;
-            }
-            const groups = [];
-            for (const it of list.slice(i, j)){
-                let g = groups.find(x => x.start === it.startDec);
-                if (!g){ g = { start: it.startDec, items: [] }; groups.push(g); }
-                g.items.push(it);
-            }
-            groups.sort((a,b) => a.start - b.start);
-            groups.forEach((g, depth) => g.items.forEach((it, slot) => {
+        // Azonos kezdésűek egy csoportba: ők egymás mellé kerülnek.
+        const groups = [];
+        for (const it of list){
+            let g = groups.find(x => x.start === it.startDec);
+            if (!g){ g = { start: it.startDec, items: [] }; groups.push(g); }
+            g.items.push(it);
+        }
+        groups.forEach(g => {
+            // A behúzás szintje az, hogy az esemény kezdetekor hány korábban
+            // indult csoport tart még – nem a kezdések sorszáma. Így egy hosszú
+            // eseménybe eső, egymást NEM fedő események mind egy szintre kerülnek,
+            // a tényleges többszörös átfedés viszont továbbra is mélyebbre.
+            const depth = groups.filter(x => x.start < g.start && x.items.some(e => e.endDec > g.start)).length;
+            g.items.forEach((it, slot) => {
                 it.depth = Math.min(depth, 4);
                 it.slot = slot;
                 it.slots = g.items.length;
-            }));
-            i = j;
-        }
+            });
+        });
     }
 
     function renderTimeEvents(cols, events){
