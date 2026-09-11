@@ -186,9 +186,12 @@ if (isConfigured) {
     // Néhány hálózat/hirdetésblokkoló megszakítja a Firestore alapértelmezett
     // streamelt (WebChannel) kapcsolatát ("RPC Write stream ... transport
     // errored"), ami miatt egy-egy felhasználónál csendben elhasalnak az
-    // írások. Az automatikus long-polling detektálás ilyenkor átvált egy
-    // kompatibilisebb szállítási módra, máshol nincs hatása.
-    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    // írások. Az automatikus long-polling DETEKTÁLÁS (experimentalAutoDetectLongPolling)
+    // egy heurisztika, ami nem minden hálózat/blokkoló kombinációnál ismeri fel
+    // helyesen, hogy long-pollingra váltson – ezért itt a biztosabb, mindig
+    // long-pollingot használó módot kényszerítjük ki (kicsit nagyobb
+    // késleltetés árán, de nem hasal el csendben az írás/olvasás).
+    db = initializeFirestore(app, { experimentalForceLongPolling: true });
 }
 export { auth, db };
 
