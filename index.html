@@ -938,9 +938,9 @@
         .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
         .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-        .wk-grid { display:flex; height:calc(100vh - 300px); min-height:420px; overflow-y:auto; }
+        .wk-grid { display:flex; overflow-y:auto; }
         .wk-times { width:52px; flex-shrink:0; position:relative; }
-        .wk-times .t { height:44px; font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
+        .wk-times .t { height:var(--row,44px); font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
         .wk-canvas { position:relative; flex:1; }
         .ideal-zone { position:absolute; pointer-events:none; z-index:0; border-radius:5px; box-sizing:border-box; }
         .ideal-zone.ideal-client { background:rgba(22,163,74,.22); box-shadow:inset 0 0 0 1px rgba(22,163,74,.4); }
@@ -3678,10 +3678,12 @@ window.sfOnViewSwitch = function(){
     // ===================== GOOGLE NAPTÁR =====================
     const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
     const HU_MONTHS = ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
-    const START_H = 6, END_H = 24, ROW = 44;      // a rács teljes tartománya, 44px / óra
+    const START_H = 6, END_H = 24;                // a rács teljes tartománya
     // Alapból ennyi látszik; a maradék (2 óra felfelé 06:00-ig, 2 óra lefelé
-    // 24:00-ig) görgetéssel érhető el.
+    // 24:00-ig) görgetéssel érhető el. Az óra-magasság ehhez igazodik: a naptár
+    // a képernyő aljáig ér, és pont ez a 14 óra fér ki benne.
     const VIEW_START_H = 8, VIEW_END_H = 22;
+    let ROW = 44;                                  // óra-magasság px-ben (renderkor számolt)
     // Ideális időpont-zónák naponként (hétfő=0 … vasárnap=6)
     const IDEAL_ZONES = {
         0: [ {s:17,e:20,cls:'ideal-client'}, {s:20,e:22,cls:'ideal-colleague'} ], // Hétfő
@@ -3837,7 +3839,20 @@ window.sfOnViewSwitch = function(){
     function fmtMonth(d){ return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]}`; }
     function colIndexOf(cols, d){ for(let i=0;i<cols.length;i++) if(sameDay(cols[i], d)) return i; return -1; }
 
-    function renderTimeShell(grid, cols, now){
+    // A látható 8–22 sáv töltse ki a képernyő aljáig tartó helyet: ebből adódik
+    // az óra-magasság. Első rendereléskor a rács teteje még nem mérhető, ilyenkor
+    // a fejléc + "egész nap" sáv becsült magasságával számolunk, majd a
+    // renderTimeShell egyszer korrigál.
+    function computeRow(grid){
+        const wk = grid.querySelector(".wk-grid");
+        const top = wk ? wk.getBoundingClientRect().top
+                       : grid.getBoundingClientRect().top + 88;
+        const avail = Math.max(280, window.innerHeight - top - 16);
+        return Math.max(28, avail / (VIEW_END_H - VIEW_START_H));
+    }
+
+    function renderTimeShell(grid, cols, now, pass){
+        ROW = computeRow(grid);
         const n = cols.length;
         const tmpl = `52px repeat(${n},1fr)`;
         const head = ['<div class="h"></div>'];
@@ -3869,7 +3884,7 @@ window.sfOnViewSwitch = function(){
         grid.innerHTML =
             `<div class="wk-head" style="grid-template-columns:${tmpl}">${head.join("")}</div>` +
             `<div class="wk-allday" id="wkAllday" style="grid-template-columns:${tmpl}"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(n)}</div>` +
-            `<div class="wk-grid">` +
+            `<div class="wk-grid" style="--row:${ROW}px">` +
                 `<div class="wk-times">${times}${nowLbl}</div>` +
                 `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}${nowLine}</div>` +
             `</div>`;
@@ -3877,6 +3892,11 @@ window.sfOnViewSwitch = function(){
         if (wkGridEl){
             wkGridEl.style.height = ((VIEW_END_H - VIEW_START_H) * ROW) + "px";
             wkGridEl.scrollTop = Math.max(0, (VIEW_START_H - START_H) * ROW);
+        }
+        // Egyszeri korrekció, ha a becsült és a tényleges rács-tető eltér.
+        if (!pass && Math.abs(computeRow(grid) - ROW) > 0.5){
+            renderTimeShell(grid, cols, now, 1);
+            return;
         }
         startNowTick();
     }
@@ -4928,6 +4948,13 @@ window.sfOnViewSwitch = function(){
                 const b = e.target.closest("button[data-off]"); if(!b) return;
                 statsWeekOffset = +b.dataset.off;
                 updateStats();
+            });
+            // Ablak-átméretezésnél az óra-magasság újraszámolandó, hogy a naptár
+            // továbbra is a képernyő aljáig érjen (események nélkül, hálózat nélkül).
+            let resizeTimer = null;
+            window.addEventListener("resize", () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => { if (currentColumns.length) initCalendar(); }, 250);
             });
         }
         const now = new Date();
