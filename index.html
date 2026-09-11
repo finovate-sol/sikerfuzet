@@ -3560,6 +3560,28 @@ window.sfOnViewSwitch = function(){
         return `rgba(${r},${g},${b},${a})`;
     }
 
+    // Esemény típusának felismerése a (tisztított) címből – akár a típus-választóval
+    // létrehozott "(CODE)" jelöléssel, akár szabadon írt kulcsszavakkal (pl. "Training").
+    // Ez adja az esemény színét is, függetlenül attól, hogy a Google-oldali colorId
+    // mikor/hogyan lett beállítva (pl. régebbi, a típus-rendszer előtti eseményeknél).
+    function detectEventType(cleanTitle){
+        const s = cleanTitle || "";
+        for (const t of EVENT_TYPES){
+            if (t.suffix && new RegExp("\\(" + t.suffix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\)").test(s)) return t;
+        }
+        const low = s.toLowerCase();
+        if (/\bpg\b/.test(low) || / - pg/.test(low)) return EVENT_TYPES.find(t => t.label === "PG");
+        if (/training|tréning/.test(low)) return EVENT_TYPES.find(t => t.label === "Training");
+        if (/oktatás|képzés|tanfolyam/.test(low)) return EVENT_TYPES.find(t => t.label === "Oktatás");
+        if (/\bmt\b/.test(low)) return EVENT_TYPES.find(t => t.label === "MT");
+        return null;
+    }
+    function eventColorHex(ev, cleanTitle){
+        const type = detectEventType(cleanTitle);
+        if (type) return GCAL_HEX[type.colorId] || DEFAULT_EVENT_HEX;
+        return GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+    }
+
     // Google Meet – link kiolvasása egy eseményből, illetve új konferencia-kérés generálása
     function getMeetLink(ev){
         if (!ev) return null;
@@ -3757,7 +3779,7 @@ window.sfOnViewSwitch = function(){
         const maxH = (END_H - START_H) * ROW;
         events.forEach(ev => {
             const { clean, status } = parseValidation(ev.summary);
-            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
+            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
             if (!ev.start.dateTime){                       // egész napos
                 const d = new Date((ev.start.date || "") + "T00:00:00");
                 const idx = colIndexOf(cols, d);
@@ -4014,7 +4036,7 @@ window.sfOnViewSwitch = function(){
             const today = sameDay(d, now) ? " today" : "";
             let evs = list.slice(0,3).map(({ev,ds}) => {
                 const { clean, status } = parseValidation(ev.summary);
-                const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
+                const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
                 return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hexToRgba(hex,.15)};border-left-color:${hex};color:#1c2b45;">${t}${escM(clean||"(névtelen)")}</span>`;
             }).join("");
@@ -4036,7 +4058,7 @@ window.sfOnViewSwitch = function(){
             const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
             if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
             const { clean, status } = parseValidation(ev.summary);
-            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
+            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
             const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
             const meetUrl = getMeetLink(ev);
             const meetHtml = meetUrl ? `<a class="ag-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
