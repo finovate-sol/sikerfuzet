@@ -856,7 +856,7 @@
         .mn-cell .mn-date { font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; }
         .mn-cell.other .mn-date { color:#c2cbd8; }
         .mn-cell.today .mn-date { background:var(--blue); color:#fff; width:22px; height:22px; line-height:22px; border-radius:50%; text-align:center; }
-        .mev { display:block; font-size:10px; padding:2px 5px; border-radius:5px; margin-bottom:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-left:3px solid; }
+        .mev { display:block; font-size:10px; padding:2px 5px; border-radius:5px; margin-bottom:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; }
         .mn-more { font-size:10px; color:var(--muted); font-weight:600; }
         /* Napló (agenda) nézet */
         .ag-list { padding:6px 0; }
@@ -907,12 +907,13 @@
         .ideal-zone.ideal-colleague { background:rgba(244,81,30,.24); box-shadow:inset 0 0 0 1px rgba(244,81,30,.5); }
         .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
         .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
-        .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
-        .wk-ev:hover { box-shadow:0 3px 10px rgba(15,47,95,.18); z-index:2; }
+        .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
+        .wk-ev:hover { box-shadow:0 5px 16px rgba(15,47,95,.32) !important; z-index:2; transform:translateY(-1px); }
         .wk-ev:active { cursor:grabbing; }
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
         .wk-ev-svg { width:12px; height:12px; flex-shrink:0; }
+        .wk-ev-tag { display:inline-flex; align-items:center; border-radius:4px; padding:0 4px; font-weight:800; font-size:9.5px; letter-spacing:.2px; flex-shrink:0; }
         .wk-ev b { display:block; font-weight:700; font-size:10px; }
         .wk-ev-title { display:block; font-weight:600; margin-top:1px; }
         .wk-ev-del { position:absolute; top:2px; right:2px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; border-radius:4px; }
@@ -3600,6 +3601,15 @@ window.sfOnViewSwitch = function(){
         const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
         return `rgba(${r},${g},${b},${a})`;
     }
+    // Teli színű esemény-blokkokhoz: fehér vagy sötét szöveg jobb-e az adott
+    // háttérszínen (a citromsárga (5-ös Google-szín) az egyetlen, ami elég
+    // világos ahhoz, hogy sötét szöveg kelljen rajta).
+    function contrastTextColor(hex){
+        const h = hex.replace("#","");
+        const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+        const yiq = (r*299 + g*587 + b*114) / 1000;
+        return yiq >= 150 ? "#3a2e00" : "#ffffff";
+    }
 
     // Esemény típusának felismerése a (tisztított) címből – akár a típus-választóval
     // létrehozott "(CODE)" jelöléssel, akár szabadon írt kulcsszavakkal (pl. "Training").
@@ -3827,8 +3837,9 @@ window.sfOnViewSwitch = function(){
                 if (idx>=0){
                     const chip = document.createElement("div");
                     chip.className = "allday-ev";
-                    chip.style.background = hexToRgba(hex, .18);
-                    chip.style.color = "#1c2b45";
+                    chip.style.background = hex;
+                    chip.style.color = contrastTextColor(hex);
+                    chip.style.fontWeight = "600";
                     chip.style.cursor = "pointer";
                     chip.dataset.eventId = ev.id || "";
                     chip.dataset.title = ev.summary || "";
@@ -3852,9 +3863,11 @@ window.sfOnViewSwitch = function(){
             const div = document.createElement("div");
             div.className = "wk-ev";
             div.draggable = true;
-            div.style.background = hexToRgba(hex, .16);
-            div.style.borderLeftColor = hex;
-            div.style.color = "#1c2b45";
+            const textColor = contrastTextColor(hex);
+            const badgeBg = textColor === "#ffffff" ? "rgba(255,255,255,.24)" : "rgba(0,0,0,.12)";
+            div.style.background = hex;
+            div.style.color = textColor;
+            div.style.boxShadow = `0 2px 6px ${hexToRgba(hex, .35)}`;
             div.style.left = `calc(${idx*(100/n)}% + 3px)`;
             div.style.width = `calc(${100/n}% - 6px)`;
             div.style.top = top + "px";
@@ -3862,12 +3875,14 @@ window.sfOnViewSwitch = function(){
             div.dataset.eventId = ev.id || "";
             div.dataset.title = ev.summary || "";
             div.dataset.durationMin = Math.round((e - s) / 60000);
-            const iconSvg = status === "yes" ? calSvg("check") : status === "no" ? calSvg("x") : calSvg(calEvIconKey(clean));
+            const type = detectEventType(clean);
+            const badgeSvg = status === "yes" ? calSvg("check") : status === "no" ? calSvg("x") : (!type ? calSvg(calEvIconKey(clean)) : "");
+            const badgeTag = (!status && type) ? `<span class="wk-ev-tag" style="background:${badgeBg}">${escM(type.tag)}</span>` : "";
             const locHtml = ev.location ? `<span class="wk-ev-loc">📍 ${escM(ev.location)}</span>` : "";
             const meetUrl = getMeetLink(ev);
             const meetHtml = meetUrl ? `<a class="wk-ev-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
-                <span class="wk-ev-head" style="color:${hex}">${iconSvg}<b>${hh}</b></span>
+                <span class="wk-ev-head">${badgeSvg}${badgeTag}<b>${hh}</b></span>
                 <span class="wk-ev-title">${escM(clean || "(névtelen)")}</span>${locHtml}${meetHtml}`;
             div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
             canvas.appendChild(div);
@@ -3878,18 +3893,18 @@ window.sfOnViewSwitch = function(){
     // Minden esemény-típusnak saját Google Calendar-színe van (colorId) –
     // ez adja az esemény tényleges színét a naptárban.
     const EVENT_TYPES = [
-        { label: "Munka",       suffix: null, unit: false, colorId: "8" }, // Szürke
-        { label: "Egyéb",       suffix: null, unit: false, colorId: "5" }, // Citromsárga
-        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2" }, // Zöld
-        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2" }, // Zöld
-        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2" }, // Zöld
-        { label: "Telefonparty",suffix: "Telefonparty", unit: false, colorId: "2" }, // Zöld
-        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6" }, // Narancssárga
-        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6" }, // Narancssárga
-        { label: "PG",          suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Oktatás",     suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "MT",          suffix: null, unit: false, colorId: "6" }, // Narancssárga
+        { label: "Munka",       suffix: null, unit: false, colorId: "8", tag: "MU"  }, // Szürke
+        { label: "Egyéb",       suffix: null, unit: false, colorId: "5", tag: "EGY" }, // Citromsárga
+        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2", tag: "E"   }, // Zöld
+        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2", tag: "TA"  }, // Zöld
+        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2", tag: "SZ"  }, // Zöld
+        { label: "Telefonparty",suffix: "Telefonparty", unit: false, colorId: "2", tag: "TP" }, // Zöld
+        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6", tag: "F1"  }, // Narancssárga
+        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6", tag: "F2"  }, // Narancssárga
+        { label: "PG",          suffix: null, unit: false, colorId: "7", tag: "PG"  }, // Kék
+        { label: "Oktatás",     suffix: null, unit: false, colorId: "7", tag: "OKT" }, // Kék
+        { label: "Training",    suffix: null, unit: false, colorId: "7", tag: "TR"  }, // Kék
+        { label: "MT",          suffix: null, unit: false, colorId: "6", tag: "MT"  }, // Narancssárga
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
@@ -4079,7 +4094,7 @@ window.sfOnViewSwitch = function(){
                 const { clean, status } = parseValidation(ev.summary);
                 const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : eventColorHex(ev, clean);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
-                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hexToRgba(hex,.15)};border-left-color:${hex};color:#1c2b45;">${t}${escM(clean||"(névtelen)")}</span>`;
+                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(clean||"(névtelen)")}</span>`;
             }).join("");
             if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
