@@ -106,22 +106,64 @@ export async function deleteClient(id){
     await deleteDoc(doc(db, "clients", id));
 }
 
-// Egy felhasználó akkor "vezető", ha a megosztott csapat-struktúrában van
-// olyan 'leader' szerepkörű csomópont, amelyhez az ő email címe van kötve
-// (Struktúra oldal, csomópont szerkesztése → Email mező). Az admin mindig
-// vezetőnek számít, hozzáférés-vezérlés szempontjából.
-export function isLeaderUser(user, structureTree){
+// Megosztott hozzáférés-térkép: ki kinek a beosztottja, hozzáférés-vezérlés
+// szempontjából – az Admin "Hozzáférés" fülén állítható be, teljesen
+// függetlenül a Struktúra (org-chart) rajztól, ami mostantól csak egy
+// vizuális tervező modul. Alak: config/access dokumentum = { [uid]: "felettes uid" }
+// (hiányzó kulcs / üres string = nincs felettese).
+export async function getAccessMap(){
+    if(!isConfigured || !db) return {};
+    try { const snap = await getDoc(doc(db, "config", "access")); return snap.exists() ? (snap.data() || {}) : {}; }
+    catch(e){ console.warn("Hozzáférés-térkép olvasása sikertelen:", e); return {}; }
+}
+export async function saveAccessMap(map){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "config", "access"), map);
+}
+// Egy uid összes láncolt (közvetlen + közvetett) beosztottja a hozzáférés-térkép alapján.
+export function getSubordinateUids(uid, accessMap){
+    const result = new Set();
+    let changed = true;
+    while(changed){
+        changed = false;
+        Object.keys(accessMap || {}).forEach(u => {
+            if(result.has(u)) return;
+            const mgr = accessMap[u];
+            if(mgr && (mgr === uid || result.has(mgr))){ result.add(u); changed = true; }
+        });
+    }
+    return result;
+}
+// Egy felhasználó akkor "vezető", ha a hozzáférés-térkép szerint van legalább
+// egy (közvetlen vagy közvetett) beosztottja. Az admin mindig vezetőnek számít.
+export function isLeaderByAccess(user, accessMap){
     if(!user) return false;
     if(isAdmin(user)) return true;
-    if(!structureTree) return false;
-    const email = String(user.email||"").toLowerCase();
-    if(!email) return false;
-    const walk = node => {
-        if(!node) return false;
-        if(node.role === 'leader' && node.email && String(node.email).toLowerCase() === email) return true;
-        return (node.children||[]).some(walk);
-    };
-    return walk(structureTree);
+    if(!user.uid) return false;
+    return getSubordinateUids(user.uid, accessMap).size > 0;
+}
+
+// Munkatárs saját Havi terve, hónaponként – havi_terv/{uid}_{year}_{month}.
+// Vezető "ránézés" (view-as) esetén a megtekintett munkatárs uid-jával
+// dolgozik az index.html, így ugyanazt az adatot látja/szerkesztheti.
+export async function getHaviTerv(key){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "havi_terv", key)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Havi terv olvasása sikertelen:", e); return null; }
+}
+export async function saveHaviTerv(key, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "havi_terv", key), data, { merge: true });
+}
+// Munkatárs saját Éves terve, évenként – eves_terv/{uid}_{year}
+export async function getEvesTerv(key){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "eves_terv", key)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Éves terv olvasása sikertelen:", e); return null; }
+}
+export async function saveEvesTerv(key, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "eves_terv", key), data, { merge: true });
 }
 
 // Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
