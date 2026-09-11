@@ -311,6 +311,8 @@
         .ev-edit-modal .ev-input { width:100%; padding:9px 11px; border:none; background:var(--bg); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; }
         .ev-edit-modal .ev-input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .ev-when { display:flex; align-items:center; gap:6px; }
+        .ev-when-time { display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
+        .ev-when-time[hidden] { display:none; }
         .ev-when .ev-input { width:auto; flex:1; min-width:0; }
         .ev-edit-modal .ev-input-time { flex:0 0 84px; text-align:center; font-variant-numeric:tabular-nums; }
         .ev-when-sep { color:var(--muted); font-weight:700; flex-shrink:0; }
@@ -849,6 +851,8 @@
         }
         .btn:hover { background: var(--bg); }
         .btn.icon-btn { padding:7px 9px; }
+        .cal-add-btn { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:700; }
+        .cal-add-btn:hover { background:#1a52b8; }
         .cal-date { font-weight:700; font-size:15px; color:var(--navy); }
         .cal-h2 { font-size:16px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:9px; margin-right:6px; }
         .cal-h2 .icon { color:var(--blue); display:flex; }
@@ -1276,6 +1280,7 @@
                 <section class="card">
                     <div class="cal-toolbar">
                         <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Naptár</h2>
+                        <button class="btn primary cal-add-btn" id="calAddEvent"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Esemény</button>
                         <button class="btn" id="calToday">Ma</button>
                         <button class="btn icon-btn" id="calPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
                         <button class="btn icon-btn" id="calNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -1287,7 +1292,7 @@
                             <button data-view="agenda">Napló</button>
                             <button data-view="clients">Ügyfelek</button>
                         </div>
-                        <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" style="margin-left:12px;">Megnyitás a Google Naptárban ↗</a>
+                        <a class="btn icon-btn" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" title="Megnyitás a Google Naptárban" aria-label="Megnyitás a Google Naptárban" style="margin-left:12px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></a>
                         <button class="btn icon-btn" id="calScreenshot" title="Naptár mentése képként" style="margin-left:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></button>
                         <span class="collapse-btn" data-collapse="cal" title="Össze-/kinyitás" style="margin-left:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
@@ -4105,6 +4110,7 @@ window.sfOnViewSwitch = function(){
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
+    const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 
     function slotFromEvent(canvas, e){
         const n = currentColumns.length || 1;
@@ -4146,6 +4152,20 @@ window.sfOnViewSwitch = function(){
             });
             initCalendar();
         } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
+    }
+
+    // Az "egész nap" sáv üres helyére kattintva egész napos esemény vehető fel
+    // az adott napra (a meglévő chipekre kattintás a szerkesztőt nyitja).
+    function wireAllDayClicks(cols){
+        document.querySelectorAll("#wkAllday .cell").forEach((cell, i) => {
+            cell.style.cursor = "pointer";
+            cell.addEventListener("click", e => {
+                if (e.target.closest(".allday-ev")) return;
+                const d = new Date(cols[i]);
+                d.setHours(0, 0, 0, 0);
+                openEventModal(d, { allDay: true });
+            });
+        });
     }
 
     function wireDrop(){
@@ -4220,12 +4240,27 @@ window.sfOnViewSwitch = function(){
     }
 
     // Toolbar gombok bekötése (Ma / ‹ › / nézetváltó) – egyszer
+    // A "+ Esemény" gomb alapértelmezett időpontja: ha a mai napot nézzük, a
+    // következő félóra, egyébként a megnyitott nap 9:00-ja.
+    function defaultNewEventStart(){
+        const d = new Date(viewAnchor), now = new Date();
+        if (sameDay(d, now)){
+            d.setHours(now.getHours(), now.getMinutes() < 30 ? 30 : 0, 0, 0);
+            if (now.getMinutes() >= 30) d.setHours(d.getHours() + 1);
+        } else {
+            d.setHours(9, 0, 0, 0);
+        }
+        return d;
+    }
+
     function wireToolbar(){
         const today = document.getElementById("calToday");
         const prev  = document.getElementById("calPrev");
         const next  = document.getElementById("calNext");
         const seg   = document.getElementById("calSeg");
         if (today) today.addEventListener("click", () => { viewAnchor = new Date(); initCalendar(); });
+        const addBtn = document.getElementById("calAddEvent");
+        if (addBtn) addBtn.addEventListener("click", () => openEventModal(defaultNewEventStart()));
         if (prev)  prev.addEventListener("click",  () => { shiftAnchor(-1); initCalendar(); });
         if (next)  next.addEventListener("click",  () => { shiftAnchor(1);  initCalendar(); });
         if (seg) seg.addEventListener("click", e => {
@@ -4539,15 +4574,20 @@ window.sfOnViewSwitch = function(){
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
-        const end = new Date(start.getTime() + durationMin * 60000);
-        const body = {
-            summary,
-            start: { dateTime: localIso(start), timeZone: tz },
-            end:   { dateTime: localIso(end),   timeZone: tz }
-        };
+        const body = { summary };
+        if (allDay){
+            // Egész napos eseménynél a Google dátumot vár, és az "end" KIZÁRÓLAGOS,
+            // ezért a következő nap kerül bele.
+            body.start = { date: ymd(start) };
+            body.end   = { date: ymd(new Date(start.getTime() + 86400000)) };
+        } else {
+            const end = new Date(start.getTime() + durationMin * 60000);
+            body.start = { dateTime: localIso(start), timeZone: tz };
+            body.end   = { dateTime: localIso(end),   timeZone: tz };
+        }
         if (description) body.description = description;
         if (location) body.location = location;
         if (colorId) body.colorId = colorId;
@@ -4635,11 +4675,18 @@ window.sfOnViewSwitch = function(){
                             <label class="lbl" for="qcDate">Időpont</label>
                             <div class="ev-when">
                                 <input id="qcDate" type="date" class="ev-input" value="${dateStr}">
-                                <input id="qcStartT" type="time" class="ev-input ev-input-time" value="${startStr}">
-                                <span class="ev-when-sep">–</span>
-                                <input id="qcEndT" type="time" class="ev-input ev-input-time" value="${endStr}">
+                                <span class="ev-when-time" id="qcTimeWrap"${opts.allDay ? " hidden" : ""}>
+                                    <input id="qcStartT" type="time" class="ev-input ev-input-time" value="${startStr}">
+                                    <span class="ev-when-sep">–</span>
+                                    <input id="qcEndT" type="time" class="ev-input ev-input-time" value="${endStr}">
+                                </span>
                             </div>
                         </div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("calendar")}</span>
+                        <div class="ev-row-txt"><span class="t1">Egész napos</span><span class="t2">Időpont nélkül, a nap tetején</span></div>
+                        <label class="ev-switch"><input type="checkbox" id="qcAllDay"${opts.allDay ? " checked" : ""}><span></span></label>
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("repeat")}</span>
@@ -4729,6 +4776,19 @@ window.sfOnViewSwitch = function(){
         const travelWrap = overlay.querySelector("#qcTravelWrap");
         travelChk.addEventListener("change", () => { travelWrap.hidden = !travelChk.checked; });
 
+        // Egész napos eseménynél nincs kezdés/vég idő és utazási idő sem.
+        const allDayChk = overlay.querySelector("#qcAllDay");
+        const timeWrap = overlay.querySelector("#qcTimeWrap");
+        const travelRow = travelChk.closest(".ev-row");
+        const syncAllDay = () => {
+            const on = allDayChk.checked;
+            timeWrap.hidden = on;
+            travelRow.hidden = on;
+            if (on){ travelChk.checked = false; travelWrap.hidden = true; }
+        };
+        allDayChk.addEventListener("change", syncAllDay);
+        syncAllDay();
+
         let qcStatus = null; // null | 'yes' | 'no'
         const segNo = overlay.querySelector("#qcNo"), segNone = overlay.querySelector("#qcNone"), segYes = overlay.querySelector("#qcYes");
         const setStatus = s => {
@@ -4745,14 +4805,15 @@ window.sfOnViewSwitch = function(){
         saveBtn.addEventListener("click", async () => {
             const title = overlay.querySelector("#qcTitle").value.trim() || "(névtelen)";
             const d = overlay.querySelector("#qcDate").value || dateStr;
+            const isAllDay = allDayChk.checked;
             const st = overlay.querySelector("#qcStartT").value || startStr;
             const et = overlay.querySelector("#qcEndT").value || endStr;
-            const sDt = new Date(`${d}T${st}:00`);
+            const sDt = isAllDay ? new Date(`${d}T00:00:00`) : new Date(`${d}T${st}:00`);
             const eDtRaw = new Date(`${d}T${et}:00`);
             const eDt = eDtRaw > sDt ? eDtRaw : new Date(sDt.getTime() + 900000);
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
             const location = overlay.querySelector("#qcLoc").value.trim();
-            const addMeet = overlay.querySelector("#qcMeet").checked;
+            const addMeet = isAllDay ? false : overlay.querySelector("#qcMeet").checked;
             const type = EVENT_TYPES[+typeSel.value];
             let summary = title;
             if (type.suffix){
@@ -4772,7 +4833,7 @@ window.sfOnViewSwitch = function(){
             const colorId = type.colorId;
             const recurrence = buildRecurrence(overlay);
             const srcRow = isClientSrc ? registry[srcIndex] : null;
-            const travelMin = overlay.querySelector("#qcTravel").checked
+            const travelMin = (!isAllDay && overlay.querySelector("#qcTravel").checked)
                 ? Math.max(0, parseInt(overlay.querySelector("#qcTravelMin").value, 10) || 0) : 0;
             // Az utazási idő nem külön esemény, hanem magának az eseménynek az
             // adata (sfTravelMin) – a naptárban egy fölé rajzolt sávként jelenik meg.
@@ -4786,7 +4847,7 @@ window.sfOnViewSwitch = function(){
             const extendedProperties = Object.keys(priv).length ? { private: priv } : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties });
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
@@ -4839,7 +4900,7 @@ window.sfOnViewSwitch = function(){
 
         updateStats(token);
 
-        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); }
+        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); wireAllDayClicks(cols); }
         else currentColumns = [];
 
         try {
