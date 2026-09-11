@@ -1926,13 +1926,36 @@ function enableRowDrag(tbodyId){
 enableRowDrag('moneyTable');
 enableRowDrag('careerTable');
 
-// A naptárba mentés után az adott ügyfél eredménye "sikeres" lesz.
-window.sfMarkResult = function(list, regIdx){
+// A naptárba mentés utáni kezdeti eredmény (az esemény állapotától függően).
+window.sfMarkResult = function(list, regIdx, result){
     const r = registry[regIdx]; if(!r) return;
-    if(list === 'money') r.resPenz = 'ok';
-    else if(list === 'career') r.resKarrier = 'ok';
+    if(list === 'money') r.resPenz = result || 'ok';
+    else if(list === 'career') r.resKarrier = result || 'ok';
     else return;
     store.save('sf_registry', registry);
+    renderMoney(); renderCareer();
+};
+
+// Egy naptári esemény ✅/❌/(nincs) állapotváltása alapján frissíti a hozzá
+// kötött ügyfél-sor (PÉNZEM/KARRIEREM) eredményét, ha az eseményhez el volt
+// mentve a kapcsolat (extendedProperties.private.sfList/sfRegId).
+window.sfApplyResultFromEvent = function(ev, result){
+    const priv = ev && ev.extendedProperties && ev.extendedProperties.private;
+    if (!priv || !priv.sfList) return;
+    let idx = -1;
+    if (priv.sfRegId){
+        idx = registry.findIndex(r => r.id != null && String(r.id) === priv.sfRegId);
+    }
+    if (idx < 0 && priv.sfRegIdx !== undefined && priv.sfRegIdx !== "" && registry[+priv.sfRegIdx]){
+        idx = +priv.sfRegIdx;
+    }
+    if (idx < 0) return;
+    const r = registry[idx];
+    if (priv.sfList === 'money') r.resPenz = result;
+    else if (priv.sfList === 'career') r.resKarrier = result;
+    else return;
+    store.save('sf_registry', registry);
+    persistReg(idx);
     renderMoney(); renderCareer();
 };
 
@@ -4184,7 +4207,13 @@ window.sfOnViewSwitch = function(){
             busy();
             const patch = readPatch();
             patch.summary = (emoji ? emoji + " " : "") + patch.summary;
-            try { await updateCalendarEvent(id, patch); close(); initCalendar(); }
+            try {
+                await updateCalendarEvent(id, patch);
+                if (typeof window.sfApplyResultFromEvent === "function"){
+                    window.sfApplyResultFromEvent(ev, emoji === "✅" ? "ok" : emoji === "❌" ? "no" : "pending");
+                }
+                close(); initCalendar();
+            }
             catch (err){ alert("Nem sikerült frissíteni: " + (err.message || err)); unbusy(); }
         };
         overlay.querySelector("#evYes").addEventListener("click", () => applyStatus("✅"));
@@ -4210,7 +4239,7 @@ window.sfOnViewSwitch = function(){
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const end = new Date(start.getTime() + durationMin * 60000);
@@ -4224,6 +4253,7 @@ window.sfOnViewSwitch = function(){
         if (colorId) body.colorId = colorId;
         if (addMeet) body.conferenceData = meetConferenceData();
         if (recurrence && recurrence.length) body.recurrence = recurrence;
+        if (extendedProperties) body.extendedProperties = extendedProperties;
 
         async function doInsert(tok){
             return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1", {
@@ -4370,11 +4400,20 @@ window.sfOnViewSwitch = function(){
             const colorId = type.colorId;
             const repeatFreq = overlay.querySelector("#qcRepeat").value;
             const recurrence = repeatFreq ? [`RRULE:FREQ=${repeatFreq}`] : undefined;
+            const srcRow = srcList ? registry[srcIndex] : null;
+            const extendedProperties = srcList ? { private: {
+                sfList: srcList,
+                sfRegId: (srcRow && srcRow.id != null) ? String(srcRow.id) : "",
+                sfRegIdx: String(srcIndex)
+            } } : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence });
-                // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az legyen "sikeres" (✓)
-                if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties });
+                // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
+                // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
+                if (srcList && typeof window.sfMarkResult === "function"){
+                    window.sfMarkResult(srcList, srcIndex, qcStatus === "yes" ? "ok" : qcStatus === "no" ? "no" : "pending");
+                }
                 close();
                 initCalendar();
             } catch (e){
