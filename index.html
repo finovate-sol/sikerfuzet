@@ -3667,11 +3667,19 @@ window.sfOnViewSwitch = function(){
         if (/\bpg\b/.test(low) || / - pg/.test(low)) return EVENT_TYPES.find(t => t.label === "PG");
         if (/training|tréning/.test(low)) return EVENT_TYPES.find(t => t.label === "Training");
         if (/oktatás|képzés|tanfolyam/.test(low)) return EVENT_TYPES.find(t => t.label === "Oktatás");
-        if (/\bmt\b/.test(low)) return EVENT_TYPES.find(t => t.label === "MT");
-        if (/\bmeeting\b|vezetőségi|megbeszélés/.test(low)) return EVENT_TYPES.find(t => t.label === "Munka");
+        if (/vezetőségi/.test(low)) return EVENT_TYPES.find(t => t.label === "Vezetőségi");
+        if (/rendezvény/.test(low)) return EVENT_TYPES.find(t => t.label === "Rendezvény");
+        if (/\bmeeting\b|megbeszélés/.test(low)) return EVENT_TYPES.find(t => t.label === "Munka");
         return null;
     }
+    // Ha az esemény colorId-je egy általunk használt típus-szín, azt tekintjük
+    // forrásnak – ez tükrözi a modálban végzett explicit típusválasztást, akkor
+    // is, ha a (nem törölt) cím szövegében véletlenül egy MÁSIK típus kulcsszava
+    // is szerepel (pl. "Training" címmel mentett esemény átváltva "Munká"-ra).
+    // Csak ha a colorId hiányzik/idegen (a típus-rendszer előtti esemény), esünk
+    // vissza a szabad szöveges kulcsszó-felismerésre.
     function eventColorHex(ev, cleanTitle){
+        if (ev.colorId && EVENT_TYPES.some(t => t.colorId === ev.colorId)) return GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
         const type = detectEventType(cleanTitle);
         if (type) return GCAL_HEX[type.colorId] || DEFAULT_EVENT_HEX;
         return GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
@@ -3953,7 +3961,8 @@ window.sfOnViewSwitch = function(){
         { label: "PG",          suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Oktatás",     suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "MT",          suffix: null, unit: false, colorId: "6" }, // Narancssárga
+        { label: "Vezetőségi",  suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Rendezvény",  suffix: null, unit: false, colorId: "7" }, // Kék
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
