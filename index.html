@@ -294,7 +294,35 @@
         .rd-check input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
 
         /* Esemény szerkesztése – ikonos kártya elrendezés */
-        .ev-edit-modal { max-width:640px; }
+        .modal.ev-edit-modal { max-width:640px; }
+        /* Esemény-felvitel: OVB / Nem OVB fül + típus-csempék, széles modal */
+        .modal.ev-create-modal { max-width:1180px; }
+        .ev-tabs { display:flex; gap:4px; padding:12px 24px 0; }
+        .ev-tab { appearance:none; border:none; background:none; font:inherit; font-weight:700; font-size:13.5px;
+            color:var(--muted); padding:9px 18px; border-radius:10px 10px 0 0; cursor:pointer; border-bottom:3px solid transparent; }
+        .ev-tab:hover { color:var(--text); }
+        .ev-tab.active { color:var(--blue); border-bottom-color:var(--blue); background:var(--blue-light); }
+        .ev-tabline { height:1px; background:var(--border); }
+        .ev-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .ev-tile { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border);
+            border-radius:10px; background:var(--card); cursor:pointer; font:inherit; font-size:13px; font-weight:600;
+            color:var(--text); text-align:left; }
+        .ev-tile:hover { border-color:#c3d3ea; }
+        .ev-tile.on { border-color:var(--blue); background:var(--blue-light); box-shadow:inset 0 0 0 1px var(--blue); }
+        .ev-tile-dot { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+        .ev-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .ev-grid3 { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:14px; }
+        .ev-adv-toggle { display:inline-flex; align-items:center; gap:7px; background:none; border:none; font:inherit;
+            font-size:13px; font-weight:700; color:var(--blue); cursor:pointer; padding:4px 0; align-self:flex-start; }
+        .ev-adv-toggle:hover { text-decoration:underline; }
+        .ev-adv { display:flex; flex-direction:column; gap:16px; padding-top:2px; }
+        /* A .ev-row-field display:flex-e egyébként felülírná a hidden attribútumot. */
+        .ev-adv[hidden], .ev-row-field[hidden] { display:none; }
+        .modal.ev-create-modal .modal-body { max-height:64vh; overflow-y:auto; }
+        @media (max-width:900px){
+            .ev-tiles { grid-template-columns:repeat(2,1fr); }
+            .ev-grid2, .ev-grid3 { grid-template-columns:1fr; }
+        }
         .ev-edit-modal .ev-edit-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
         .ev-delete-link { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700; color:var(--red); background:none; border:none; padding:4px 0; cursor:pointer; font-family:inherit; }
         .ev-delete-link svg { width:14px; height:14px; }
@@ -311,8 +339,6 @@
         .ev-edit-modal .ev-input { width:100%; padding:9px 11px; border:none; background:var(--bg); border-radius:9px; font-size:14px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; }
         .ev-edit-modal .ev-input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .ev-when { display:flex; align-items:center; gap:6px; }
-        .ev-when-time { display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
-        .ev-when-time[hidden] { display:none; }
         .ev-when .ev-input { width:auto; flex:1; min-width:0; }
         .ev-edit-modal .ev-input-time { flex:0 0 84px; text-align:center; font-variant-numeric:tabular-nums; }
         .ev-when-sep { color:var(--muted); font-weight:700; flex-shrink:0; }
@@ -4080,22 +4106,24 @@ window.sfOnViewSwitch = function(){
     // ===== Naptárba húzás → esemény típus + mentés =====
     // Minden esemény-típusnak saját Google Calendar-színe van (colorId) –
     // ez adja az esemény tényleges színét a naptárban.
+    // ovb = az OVB-s tevékenységekhez tartozó típus (a felvitel-modal "OVB" füle);
+    // a többi a magánjellegű "Nem OVB" fülre kerül.
     const EVENT_TYPES = [
-        { label: "Munka",       suffix: null, unit: false, colorId: "8" }, // Szürke
-        { label: "Egyéb",       suffix: null, unit: false, colorId: "5" }, // Citromsárga
-        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2" }, // Zöld
-        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2" }, // Zöld
-        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2" }, // Zöld
-        { label: "Telefonparty",suffix: null, unit: false, colorId: "2" }, // Zöld – nincs külön "(Telefonparty)" toldalék, mert a cím rendszerint már magától tartalmazza a szót, és a statisztika is puszta kulcsszóra keres (lásd STAT_TYPES)
-        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6" }, // Narancssárga
-        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6" }, // Narancssárga
-        { label: "Munkatársnyerő nap", suffix: null, unit: false, colorId: "6" }, // Narancssárga
-        { label: "PG",          suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Oktatás",     suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Vezetőségi",  suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Rendezvény",  suffix: null, unit: false, colorId: "7" }, // Kék
-        { label: "Sport",       suffix: null, unit: false, colorId: "3" }, // Lila
+        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2", ovb: true },  // Zöld
+        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2", ovb: true },  // Zöld
+        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2", ovb: true },  // Zöld
+        { label: "Telefonparty",suffix: null, unit: false, colorId: "2", ovb: true },  // Zöld – nincs külön toldalék, a cím rendszerint tartalmazza a szót (lásd STAT_TYPES)
+        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6", ovb: true },  // Narancssárga
+        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6", ovb: true },  // Narancssárga
+        { label: "Munkatársnyerő nap", suffix: null, unit: false, colorId: "6", ovb: true }, // Narancssárga
+        { label: "PG",          suffix: null, unit: false, colorId: "7", ovb: true },  // Kék
+        { label: "Oktatás",     suffix: null, unit: false, colorId: "7", ovb: true },  // Kék
+        { label: "Training",    suffix: null, unit: false, colorId: "7", ovb: true },  // Kék
+        { label: "Vezetőségi",  suffix: null, unit: false, colorId: "7", ovb: true },  // Kék
+        { label: "Rendezvény",  suffix: null, unit: false, colorId: "7", ovb: true },  // Kék
+        { label: "Munka",       suffix: null, unit: false, colorId: "8", ovb: false }, // Szürke
+        { label: "Egyéb",       suffix: null, unit: false, colorId: "5", ovb: false }, // Citromsárga
+        { label: "Sport",       suffix: null, unit: false, colorId: "3", ovb: false }, // Lila
     ];
     // Az egyéni ismétlődés napjai (RRULE BYDAY kódok), hétfővel kezdve.
     // jsDay = a Date.getDay() szerinti sorszám, hogy az ejtés napját elő tudjuk jelölni.
@@ -4208,7 +4236,8 @@ window.sfOnViewSwitch = function(){
             }
             const name = (payload.name || "").trim();
             if (!name) return;
-            openEventModal(start, { title: name, srcList: payload.list, srcIndex: payload.regidx });
+            openEventModal(start, { title: name, srcList: payload.list, srcIndex: payload.regidx,
+                durationMin: payload.list === "task" ? 15 : 60 });
         });
         canvas.addEventListener("click", e => {
             if (draggingEvent || e.target.closest(".wk-ev, .wk-travel")) return;
@@ -4642,97 +4671,79 @@ window.sfOnViewSwitch = function(){
     function openEventModal(start, opts){
         opts = opts || {};
         const { title: prefillTitle, srcList, srcIndex } = opts;
-        const end = new Date(start.getTime() + 3600000);
+        const end = new Date(start.getTime() + (opts.durationMin || 60) * 60000);
+        // Ügyfél-sorról húzva OVB tevékenységet viszünk fel (alapból Tanácsadás),
+        // egyébként a korábbi alapértelmezés marad: Nem OVB / Egyéb.
+        const fromClient = srcList === "money" || srcList === "career";
+        let curTab = fromClient ? "ovb" : "nem";
+        let curType = EVENT_TYPES.findIndex(t => t.label === (fromClient ? "Tanácsadás" : "Egyéb"));
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
         const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
-            <div class="modal ev-edit-modal">
+            <div class="modal ev-edit-modal ev-create-modal">
                 <div class="modal-head ev-edit-head"><span>Esemény a naptárba</span></div>
+                <div class="ev-tabs" id="qcTabs">
+                    <button type="button" class="ev-tab" data-tab="ovb">OVB</button>
+                    <button type="button" class="ev-tab" data-tab="nem">Nem OVB</button>
+                </div>
+                <div class="ev-tabline"></div>
                 <div class="modal-body">
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("person")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" value="${escM(prefillTitle || "")}" placeholder="(névtelen)"></div>
+                    <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" value="${escM(prefillTitle || "")}" placeholder="Ügyfél neve vagy esemény címe"></div>
+                    <div><label class="lbl">Esemény típusa</label><div class="ev-tiles" id="qcTiles"></div></div>
+                    <div class="ev-grid3">
+                        <div class="ev-row-field"><label class="lbl" for="qcDate">Dátum</label><input id="qcDate" type="date" class="ev-input" value="${dateStr}"></div>
+                        <div class="ev-row-field" id="qcStartWrap"><label class="lbl" for="qcStartT">Kezdés</label><input id="qcStartT" type="time" class="ev-input" value="${startStr}"></div>
+                        <div class="ev-row-field" id="qcEndWrap"><label class="lbl" for="qcEndT">Vége</label><input id="qcEndT" type="time" class="ev-input" value="${endStr}"></div>
                     </div>
                     <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("book")}</span>
-                        <div class="ev-row-field">
-                            <label class="lbl" for="qcType">Esemény típusa</label>
-                            <select id="qcType" class="ev-input">
-                                ${EVENT_TYPES.map((t,i)=>`<option value="${i}"${t.label==="Egyéb"?' selected':''}>${escM(t.label)}</option>`).join("")}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="ev-row" id="qcUnitWrap" hidden>
-                        <span class="ev-row-ic">${calSvg("activity")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcUnit">Hány egységre számítasz? (EH)</label><input id="qcUnit" type="number" min="0" step="1" value="100" class="ev-input"></div>
-                    </div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("clock")}</span>
-                        <div class="ev-row-field">
-                            <label class="lbl" for="qcDate">Időpont</label>
-                            <div class="ev-when">
-                                <input id="qcDate" type="date" class="ev-input" value="${dateStr}">
-                                <span class="ev-when-time" id="qcTimeWrap"${opts.allDay ? " hidden" : ""}>
-                                    <input id="qcStartT" type="time" class="ev-input ev-input-time" value="${startStr}">
-                                    <span class="ev-when-sep">–</span>
-                                    <input id="qcEndT" type="time" class="ev-input ev-input-time" value="${endStr}">
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("calendar")}</span>
                         <div class="ev-row-txt"><span class="t1">Egész napos</span><span class="t2">Időpont nélkül, a nap tetején</span></div>
                         <label class="ev-switch"><input type="checkbox" id="qcAllDay"${opts.allDay ? " checked" : ""}><span></span></label>
                     </div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("repeat")}</span>
-                        <div class="ev-row-field">
-                            <label class="lbl" for="qcRepeat">Ismétlődés</label>
-                            <select id="qcRepeat" class="ev-input">
-                                <option value="">Nincs ismétlődés</option>
-                                <option value="DAILY">Minden nap</option>
-                                <option value="WEEKLY">Minden héten</option>
-                                <option value="MONTHLY">Minden hónapban</option>
-                                <option value="YEARLY">Minden évben</option>
-                                <option value="CUSTOM">Egyéni…</option>
-                            </select>
-                        </div>
+                    <div class="ev-row-field" id="qcUnitWrap" hidden>
+                        <label class="lbl" for="qcUnit">Hány egységre számítasz? (EH)</label>
+                        <input id="qcUnit" type="number" min="0" step="1" value="100" class="ev-input" style="max-width:180px">
                     </div>
-                    <div class="ev-row" id="qcRepeatDaysWrap" hidden>
-                        <span class="ev-row-ic">${calSvg("calendar")}</span>
-                        <div class="ev-row-field">
+                    <button type="button" class="ev-adv-toggle" id="qcAdvToggle" aria-expanded="false">
+                        <span class="ev-adv-chev">▸</span> További beállítások — ismétlődés, helyszín, Meet, utazási idő
+                    </button>
+                    <div class="ev-adv" id="qcAdv" hidden>
+                        <div class="ev-grid2">
+                            <div class="ev-row-field">
+                                <label class="lbl" for="qcRepeat">Ismétlődés</label>
+                                <select id="qcRepeat" class="ev-input">
+                                    <option value="">Nincs ismétlődés</option>
+                                    <option value="DAILY">Minden nap</option>
+                                    <option value="WEEKLY">Minden héten</option>
+                                    <option value="MONTHLY">Minden hónapban</option>
+                                    <option value="YEARLY">Minden évben</option>
+                                    <option value="CUSTOM">Egyéni…</option>
+                                </select>
+                            </div>
+                            <div class="ev-row-field" id="qcRepeatEndWrap" hidden><label class="lbl" for="qcRepeatEnd">Ismétlés vége (üresen: soha)</label><input id="qcRepeatEnd" type="date" class="ev-input"></div>
+                        </div>
+                        <div class="ev-row-field" id="qcRepeatDaysWrap" hidden>
                             <label class="lbl">Mely napokon ismétlődjön</label>
                             <div class="ev-days" id="qcRepeatDays">
                                 ${RRULE_DAYS.map(d => `<button type="button" data-day="${d.code}"${d.jsDay === start.getDay() ? ' class="active"' : ''}>${d.label}</button>`).join("")}
                             </div>
                         </div>
-                    </div>
-                    <div class="ev-row" id="qcRepeatEndWrap" hidden>
-                        <span class="ev-row-ic">${calSvg("clock")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcRepeatEnd">Ismétlés vége (üresen: soha)</label><input id="qcRepeatEnd" type="date" class="ev-input"></div>
-                    </div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("pin")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcLoc">Helyszín</label><input id="qcLoc" class="ev-input" placeholder="Helyszín"></div>
-                    </div>
-                    <div class="ev-divider"></div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("video")}</span>
-                        <div class="ev-row-txt"><span class="t1">Google Meet hívás</span><span class="t2">Link automatikusan generálódik mentéskor</span></div>
-                        <label class="ev-switch"><input type="checkbox" id="qcMeet"><span></span></label>
-                    </div>
-                    <div class="ev-row">
-                        <span class="ev-row-ic">${calSvg("car")}</span>
-                        <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Az esemény fölött jelenik meg a naptárban</span></div>
-                        <label class="ev-switch"><input type="checkbox" id="qcTravel"><span></span></label>
-                    </div>
-                    <div class="ev-row" id="qcTravelWrap" hidden>
-                        <span class="ev-row-ic">${calSvg("clock")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcTravelMin">Utazási idő (perc)</label><input id="qcTravelMin" type="number" min="5" step="5" value="30" class="ev-input"></div>
+                        <div class="ev-grid2">
+                            <div class="ev-row-field"><label class="lbl" for="qcLoc">Helyszín</label><input id="qcLoc" class="ev-input" placeholder="Helyszín"></div>
+                            <div class="ev-row-field" id="qcTravelWrap" hidden><label class="lbl" for="qcTravelMin">Utazási idő (perc)</label><input id="qcTravelMin" type="number" min="5" step="5" value="30" class="ev-input"></div>
+                        </div>
+                        <div class="ev-row">
+                            <span class="ev-row-ic">${calSvg("video")}</span>
+                            <div class="ev-row-txt"><span class="t1">Google Meet hívás</span><span class="t2">Link automatikusan generálódik mentéskor</span></div>
+                            <label class="ev-switch"><input type="checkbox" id="qcMeet"><span></span></label>
+                        </div>
+                        <div class="ev-row">
+                            <span class="ev-row-ic">${calSvg("car")}</span>
+                            <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Az esemény fölött jelenik meg a naptárban</span></div>
+                            <label class="ev-switch"><input type="checkbox" id="qcTravel"><span></span></label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-foot ev-edit-foot">
@@ -4748,11 +4759,46 @@ window.sfOnViewSwitch = function(){
         const close = () => overlay.remove();
         overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
 
-        const typeSel = overlay.querySelector("#qcType");
+        // Típus-csempék: a fül (OVB / Nem OVB) szűri a listát, a csempe színe
+        // ugyanaz, amit az esemény a naptárban kapni fog.
+        const tilesBox = overlay.querySelector("#qcTiles");
         const unitWrap = overlay.querySelector("#qcUnitWrap");
-        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
-        typeSel.addEventListener("change", syncUnit);
-        syncUnit();
+        const segWrap = overlay.querySelector("#qcSeg");
+        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[curType].unit; };
+        const renderTiles = () => {
+            const list = EVENT_TYPES.map((t,i) => ({ t, i })).filter(x => !!x.t.ovb === (curTab === "ovb"));
+            if (!list.some(x => x.i === curType)) curType = list[0].i;
+            tilesBox.innerHTML = list.map(({t,i}) =>
+                `<button type="button" class="ev-tile${i===curType?" on":""}" data-ti="${i}"><span class="ev-tile-dot" style="background:${GCAL_HEX[t.colorId] || DEFAULT_EVENT_HEX}"></span>${escM(t.label)}</button>`
+            ).join("");
+            syncUnit();
+        };
+        tilesBox.addEventListener("click", e => {
+            const b = e.target.closest("[data-ti]"); if (!b) return;
+            curType = +b.dataset.ti;
+            tilesBox.querySelectorAll(".ev-tile").forEach(x => x.classList.toggle("on", x === b));
+            syncUnit();
+        });
+        // A "Megtörtént" állapot csak az OVB tevékenységeknél értelmes.
+        overlay.querySelector("#qcTabs").addEventListener("click", e => {
+            const b = e.target.closest("[data-tab]"); if (!b) return;
+            curTab = b.dataset.tab;
+            overlay.querySelectorAll(".ev-tab").forEach(x => x.classList.toggle("active", x === b));
+            segWrap.hidden = curTab !== "ovb";
+            renderTiles();
+        });
+        overlay.querySelectorAll(".ev-tab").forEach(x => x.classList.toggle("active", x.dataset.tab === curTab));
+        segWrap.hidden = curTab !== "ovb";
+        renderTiles();
+
+        const advToggle = overlay.querySelector("#qcAdvToggle");
+        const adv = overlay.querySelector("#qcAdv");
+        advToggle.addEventListener("click", () => {
+            const open = adv.hidden;
+            adv.hidden = !open;
+            advToggle.setAttribute("aria-expanded", String(open));
+            advToggle.querySelector(".ev-adv-chev").textContent = open ? "▾" : "▸";
+        });
 
         // Ismétlődés: az "Egyéni…"-nél lehet napokat választani, a vége-dátum
         // pedig minden ismétlődő beállításnál elérhető (üresen: soha nem áll le).
@@ -4778,11 +4824,13 @@ window.sfOnViewSwitch = function(){
 
         // Egész napos eseménynél nincs kezdés/vég idő és utazási idő sem.
         const allDayChk = overlay.querySelector("#qcAllDay");
-        const timeWrap = overlay.querySelector("#qcTimeWrap");
+        const startWrap = overlay.querySelector("#qcStartWrap");
+        const endWrap = overlay.querySelector("#qcEndWrap");
         const travelRow = travelChk.closest(".ev-row");
         const syncAllDay = () => {
             const on = allDayChk.checked;
-            timeWrap.hidden = on;
+            startWrap.hidden = on;
+            endWrap.hidden = on;
             travelRow.hidden = on;
             if (on){ travelChk.checked = false; travelWrap.hidden = true; }
         };
@@ -4814,7 +4862,7 @@ window.sfOnViewSwitch = function(){
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
             const location = overlay.querySelector("#qcLoc").value.trim();
             const addMeet = isAllDay ? false : overlay.querySelector("#qcMeet").checked;
-            const type = EVENT_TYPES[+typeSel.value];
+            const type = EVENT_TYPES[curType];
             let summary = title;
             if (type.suffix){
                 summary += ` (${type.suffix})`;
@@ -4823,8 +4871,11 @@ window.sfOnViewSwitch = function(){
                     summary += ` - ${(u === "" ? "0" : u)} EH`;
                 }
             }
-            if (qcStatus === "yes") summary = "✅ " + summary;
-            else if (qcStatus === "no") summary = "❌ " + summary;
+            // A "Megtörtént" jelölés csak az OVB fülön elérhető, a Nem OVB
+            // eseményeknél nincs értelme, ezért ott nem kerül emoji a cím elé.
+            const effStatus = curTab === "ovb" ? qcStatus : null;
+            if (effStatus === "yes") summary = "✅ " + summary;
+            else if (effStatus === "no") summary = "❌ " + summary;
             // A "task" forrás (Feladatok fülről húzott Google Task) csak a címet adja –
             // nem ügyfél-sor, ezért nem kap "Ügyfél:" leírást, extendedProperties-t,
             // és nem módosítja a registry eredményét (sfMarkResult).
@@ -4851,7 +4902,7 @@ window.sfOnViewSwitch = function(){
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
-                    window.sfMarkResult(srcList, srcIndex, qcStatus === "yes" ? "ok" : qcStatus === "no" ? "no" : "pending");
+                    window.sfMarkResult(srcList, srcIndex, effStatus === "yes" ? "ok" : effStatus === "no" ? "no" : "pending");
                 }
                 close();
                 initCalendar();
