@@ -534,6 +534,12 @@
         .hweek-chevron svg { width:16px; height:16px; }
         .hweek-block.collapsed .hweek-chevron { transform:rotate(-90deg); }
         .hweek-block.collapsed .havi-table-wrap { display:none; }
+        .havi-formcard .hcard-title[data-hform-toggle] { cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+        .havi-formcard.collapsed .hcard-title[data-hform-toggle] { margin-bottom:0; }
+        .hform-chevron { color:var(--muted); display:flex; transition:transform .2s; flex-shrink:0; }
+        .hform-chevron svg { width:16px; height:16px; }
+        .havi-formcard.collapsed .hform-chevron { transform:rotate(-90deg); }
+        .havi-formcard.collapsed .havi-formula { display:none; }
         table.havi .hlblcol { width:70px; }
         table.havi tr.hdiffrow td { background:#fafbfd; }
         table.havi.hsum { background:#f5f7fa; }
@@ -888,7 +894,7 @@
         .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
         .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-        .wk-grid { display:flex; max-height:540px; overflow-y:auto; }
+        .wk-grid { display:flex; height:calc(100vh - 300px); min-height:420px; overflow-y:auto; }
         .wk-times { width:52px; flex-shrink:0; }
         .wk-times .t { height:44px; font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
         .wk-canvas { position:relative; flex:1; }
@@ -1234,6 +1240,7 @@
                             <button data-view="clients">Ügyfelek</button>
                         </div>
                         <a class="link" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" style="margin-left:12px;">Megnyitás a Google Naptárban ↗</a>
+                        <button class="btn icon-btn" id="calScreenshot" title="Naptár mentése képként" style="margin-left:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></button>
                         <span class="collapse-btn" data-collapse="cal" title="Össze-/kinyitás" style="margin-left:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
                     <div class="cal-grid" id="calGrid"></div>
@@ -1307,7 +1314,11 @@
                     <section class="card">
                         <div class="card-head">
                             <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
-                            <h2>Statisztikák <span style="font-weight:400;font-size:12px;color:var(--muted);">(aktuális hét)</span></h2>
+                            <h2>Statisztikák</h2>
+                            <div class="plan-week-switch" id="statsWeekSwitch" style="margin-left:12px;">
+                                <button type="button" data-off="0">Aktuális hét</button>
+                                <button type="button" data-off="1">Következő hét</button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="stats-grid" id="statsGrid">
@@ -1555,6 +1566,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 // ===== STORAGE HELPERS =====
 const store = {
@@ -1946,6 +1958,14 @@ renderMoney(); renderCareer(); renderInfo();
     const links = Array.from(document.querySelectorAll('[data-page]'));
     links.forEach(a => a.addEventListener('click', e => {
         e.preventDefault();
+        if(a.classList.contains('active')){
+            const sb = document.getElementById('sidebar');
+            if(sb && window.innerWidth > 1000){
+                const collapsed = sb.classList.toggle('collapsed');
+                store.save('sf_sidebar_collapsed', collapsed);
+            }
+            return;
+        }
         const p = a.dataset.page;
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
         links.forEach(x => x.classList.remove('active'));
@@ -2104,8 +2124,12 @@ function renderHaviBody(){
         <div class="hsaj-item"><span class="hsaj-ic">${ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>')}</span><div><div class="hsaj-lbl">Célom ES-ben</div><div class="hsaj-inline"><input class="hsaj-val" data-hf="celES" value="${esc(haviData.celES)}"><span>EH</span></div></div></div>
     </div>`;
 
-    // --- Történelmi teljesítményképlet ---
-    const form=`<div class="card havi-formcard"><div class="hcard-title">Történelmi teljesítményképlet</div>
+    // --- Történelmi teljesítményképlet (alapból összecsukva) ---
+    const form=`<div class="card havi-formcard collapsed">
+        <div class="hcard-title" data-hform-toggle>
+            <span>Történelmi teljesítményképlet</span>
+            <span class="hform-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
+        </div>
         <div class="havi-formula">`+HAVI_METRICS.map((m,i)=>`<div class="fbox"><span class="fbox-ic">${ic(HAVI_ICONS[i])}</span><input type="text" inputmode="numeric" data-hformula="${i}" value="${esc(haviData.formula[i])}"><label>${m}</label></div>`).join('')+`</div></div>`;
 
     // --- Heti táblák + Összesen ---
@@ -2225,6 +2249,8 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(t.dataset.cl!==undefined){ haviData.clients[+t.dataset.cl][t.dataset.clf]=t.value; saveHavi(); recomputeHaviClients(); return; }
 });
 document.getElementById('haviBody').addEventListener('click', e=>{
+    const formToggle=e.target.closest('[data-hform-toggle]');
+    if(formToggle){ formToggle.closest('.havi-formcard').classList.toggle('collapsed'); return; }
     const wkToggle=e.target.closest('[data-wk-toggle]');
     if(wkToggle){ wkToggle.closest('.hweek-block').classList.toggle('collapsed'); return; }
     const del=e.target.closest('[data-cldel]');
@@ -3112,8 +3138,10 @@ window.sfOnConfig = function(){
 window.sfOnViewSwitch = function(){
     const hp=document.getElementById('page-havi');
     const ep=document.getElementById('page-eves');
+    const sp=document.getElementById('page-struktura');
     if(hp && !hp.hidden) renderHavi();
     if(ep && !ep.hidden) renderEves();
+    if(sp && !sp.hidden && typeof window.sfShowStruktura === 'function') window.sfShowStruktura();
     updateHaviEgysegCard();
     renderPlan();
 };
@@ -3664,14 +3692,17 @@ window.sfOnViewSwitch = function(){
         return -1;
     }
     let statsBusy = false;
+    let statsWeekOffset = 0; // 0 = aktuális hét, 1 = következő hét
     async function updateStats(token){
         const grid = document.getElementById("statsGrid");
         if(!grid || statsBusy) return;
+        const sw = document.getElementById("statsWeekSwitch");
+        if(sw) sw.querySelectorAll("button").forEach(b => b.classList.toggle("active", +b.dataset.off === statsWeekOffset));
         token = token || getCalendarToken();
         if(!token) return;
         statsBusy = true;
         try {
-            const thisStart = startOfWeek(new Date());
+            const thisStart = addDays(startOfWeek(new Date()), statsWeekOffset * 7);
             const lastStart = addDays(thisStart, -7);
             const thisEnd   = addDays(thisStart, 7);
             const events = await fetchEvents(token, lastStart, thisEnd);
@@ -3894,6 +3925,34 @@ window.sfOnViewSwitch = function(){
             viewMode = b.dataset.view;
             seg.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
             initCalendar();
+        });
+        const shot = document.getElementById("calScreenshot");
+        if (shot) shot.addEventListener("click", async () => {
+            if (typeof window.html2canvas !== "function"){
+                alert("A képmentés funkció még betöltés alatt van, próbáld újra pár másodperc múlva.");
+                return;
+            }
+            const target = document.getElementById("calGrid");
+            shot.disabled = true;
+            try {
+                const canvas = await window.html2canvas(target, { backgroundColor: "#ffffff", scale: 2 });
+                canvas.toBlob(blob => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    const now = new Date();
+                    a.href = url;
+                    a.download = `naptar-${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                });
+            } catch (e){
+                alert("Nem sikerült elmenteni a naptárat képként: " + (e.message || e));
+            } finally {
+                shot.disabled = false;
+            }
         });
     }
     function shiftAnchor(dir){
@@ -4258,7 +4317,14 @@ window.sfOnViewSwitch = function(){
     async function initCalendar(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
-        if (!calWired){ wireToolbar(); wireGridClicks(); calWired = true; }
+        if (!calWired){
+            wireToolbar(); wireGridClicks(); calWired = true;
+            document.getElementById("statsWeekSwitch")?.addEventListener("click", e => {
+                const b = e.target.closest("button[data-off]"); if(!b) return;
+                statsWeekOffset = +b.dataset.off;
+                updateStats();
+            });
+        }
         const now = new Date();
         const dateLabel = document.querySelector(".cal-date");
 
@@ -4817,26 +4883,30 @@ window.sfOnViewSwitch = function(){
     }
 
     // ===================== STRUKTÚRA OLDAL =====================
-    // Megosztott csapat-struktúra: config/structure (Firestore), localStorage csak
-    // offline/nincs-Firebase esetén tartalék, illetve gyors induláshoz cache-ként.
+    // Személyes (nem megosztott) struktúra-rajz: structures/{uid} (Firestore),
+    // localStorage csak offline/nincs-Firebase esetén tartalék, illetve gyors
+    // induláshoz cache-ként. Vezetői "ránézés" esetén a megtekintett munkatárs
+    // saját rajza jelenik meg, ugyanúgy mint a Havi/Éves tervnél.
     let strTree = null, strBusy = false;
-    const STR_KEY = "sf_struktura";
+
+    function strUid(){ return window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || 'local'; }
+    function strKey(){ return 'sf_struktura_' + strUid(); }
 
     function strId(){ return Math.random().toString(36).slice(2,9); }
 
     async function loadStrTree(){
         if(isConfigured){
             try {
-                const remote = await getStructure();
-                if(remote){ store.save(STR_KEY, remote); return remote; }
+                const remote = await getStructure(strUid());
+                if(remote){ store.save(strKey(), remote); return remote; }
             } catch(e){ console.warn("Struktúra betöltése a felhőből sikertelen, helyi mentés használata:", e); }
         }
-        return store.load(STR_KEY, null) || { id:'root', name:'', role:'leader', children:[] };
+        return store.load(strKey(), null) || { id:'root', name:'', role:'leader', children:[] };
     }
     async function saveStrTree(t){
-        store.save(STR_KEY, t);
+        store.save(strKey(), t);
         if(isConfigured){
-            try { await saveStructure(t); }
+            try { await saveStructure(strUid(), t); }
             catch(e){ console.warn("Struktúra mentése a felhőbe sikertelen:", e); }
         }
     }
