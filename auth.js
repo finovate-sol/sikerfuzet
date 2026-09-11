@@ -66,6 +66,20 @@ export async function saveStructure(uid, tree){
     await setDoc(doc(db, "structures", uid), { tree });
 }
 
+// Személyes "Karrier-létra" adatok (dátumok + teljesített szintek) –
+// karrier_letra/{uid} dokumentum. Ugyanúgy személyes, mint a Struktúra-rajz,
+// és korábban CSAK localStorage-ban élt egy közös (nem munkatárs-specifikus)
+// kulcs alatt, ami megosztott gépen/böngészőben munkatársak között összekeveredett.
+export async function getKarrierLetra(uid){
+    if(!isConfigured || !db || !uid) return null;
+    try { const snap = await getDoc(doc(db, "karrier_letra", uid)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Karrier-létra olvasása sikertelen:", e); return null; }
+}
+export async function saveKarrierLetra(uid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "karrier_letra", uid), data);
+}
+
 // Megosztott "Ki lesz a következő" adatok, negyedévenként – kov_quarters/{year}_Q{q}
 export async function getKovQuarter(key){
     if(!isConfigured || !db) return null;
