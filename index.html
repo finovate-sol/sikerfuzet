@@ -3647,7 +3647,7 @@ window.sfOnViewSwitch = function(){
     // ===================== GOOGLE NAPTÁR =====================
     const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
     const HU_MONTHS = ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
-    const START_H = 7, END_H = 23, ROW = 44;      // 07:00–23:00, 44px / óra
+    const START_H = 6, END_H = 24, ROW = 44;      // 06:00–24:00, 44px / óra
     // Ideális időpont-zónák naponként (hétfő=0 … vasárnap=6)
     const IDEAL_ZONES = {
         0: [ {s:17,e:20,cls:'ideal-client'}, {s:20,e:22,cls:'ideal-colleague'} ], // Hétfő
@@ -4002,7 +4002,10 @@ window.sfOnViewSwitch = function(){
             const idx = colIndexOf(cols, s);
             if (idx < 0) return;
             const startDec = s.getHours() + s.getMinutes()/60;
-            const endDec = e.getHours() + e.getMinutes()/60;
+            // Éjfélkor végződő (vagy másnapra átnyúló) eseménynél a getHours() 0-t ad,
+            // ami negatív magasságot eredményezne – ilyenkor a rács aljáig tart.
+            let endDec = e.getHours() + e.getMinutes()/60;
+            if (endDec <= startDec) endDec = END_H;
             let top = (startDec - START_H) * ROW;
             let height = Math.max(30, (endDec - startDec) * ROW);
             if (top < 0){ height += top; top = 0; }
