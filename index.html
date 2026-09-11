@@ -1002,7 +1002,8 @@
         .rf-add input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .rf-add button { flex-shrink:0; width:36px; border-radius:8px; font-size:16px; font-weight:800; line-height:1; }
         .rf-list { display:flex; flex-direction:column; }
-        .rf-row { display:flex; align-items:center; gap:8px; padding:7px 2px; border-top:1px solid #f1f4f8; }
+        .rf-row { display:flex; align-items:center; gap:8px; padding:7px 2px; border-top:1px solid #f1f4f8; cursor:grab; }
+        .rf-row:active { cursor:grabbing; }
         .rf-list .rf-row:first-child { border-top:none; }
         .rf-check input { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
         .rf-title { flex:1; min-width:0; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -4537,12 +4538,16 @@ window.sfOnViewSwitch = function(){
             }
             if (qcStatus === "yes") summary = "✅ " + summary;
             else if (qcStatus === "no") summary = "❌ " + summary;
-            const description = srcList ? "Ügyfél: " + title : undefined;
+            // A "task" forrás (Feladatok fülről húzott Google Task) csak a címet adja –
+            // nem ügyfél-sor, ezért nem kap "Ügyfél:" leírást, extendedProperties-t,
+            // és nem módosítja a registry eredményét (sfMarkResult).
+            const isClientSrc = srcList === "money" || srcList === "career";
+            const description = isClientSrc ? "Ügyfél: " + title : undefined;
             const colorId = type.colorId;
             const repeatFreq = overlay.querySelector("#qcRepeat").value;
             const recurrence = repeatFreq ? [`RRULE:FREQ=${repeatFreq}`] : undefined;
-            const srcRow = srcList ? registry[srcIndex] : null;
-            const extendedProperties = srcList ? { private: {
+            const srcRow = isClientSrc ? registry[srcIndex] : null;
+            const extendedProperties = isClientSrc ? { private: {
                 sfList: srcList,
                 sfRegId: (srcRow && srcRow.id != null) ? String(srcRow.id) : "",
                 sfRegIdx: String(srcIndex)
@@ -4552,7 +4557,7 @@ window.sfOnViewSwitch = function(){
                 await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
-                if (srcList && typeof window.sfMarkResult === "function"){
+                if (isClientSrc && typeof window.sfMarkResult === "function"){
                     window.sfMarkResult(srcList, srcIndex, qcStatus === "yes" ? "ok" : qcStatus === "no" ? "no" : "pending");
                 }
                 close();
@@ -4841,7 +4846,7 @@ window.sfOnViewSwitch = function(){
         const today = new Date().toISOString().substring(0,10);
         const overdue = due && due < today && !meta.done;
         const dueLabel = due ? due.slice(5).split("-").reverse().join(".") + "." : "";
-        return `<div class="rf-row${meta.done ? " done" : ""}">
+        return `<div class="rf-row${meta.done ? " done" : ""}" draggable="true" data-name="${escM(t.title || "(névtelen feladat)")}" title="Húzd a naptárba">
             <label class="rf-check"><input type="checkbox" data-rftoggle="${t.id}"${meta.done ? " checked" : ""}></label>
             <span class="rf-title">${escM(t.title || "(névtelen feladat)")}</span>
             ${dueLabel ? `<span class="rf-due${overdue ? " overdue" : ""}">${dueLabel}</span>` : ""}
@@ -4895,6 +4900,22 @@ window.sfOnViewSwitch = function(){
         if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); doAdd(); } });
         document.querySelectorAll("#railFeladatokMount [data-rftoggle]").forEach(cb => cb.addEventListener("change", () => pgToggle(cb.dataset.rftoggle, cb.checked)));
         document.querySelectorAll("#railFeladatokMount [data-rfdel]").forEach(bt => bt.addEventListener("click", () => pgDelete(bt.dataset.rfdel)));
+        // Feladat húzása a naptárba – ugyanaz a mechanizmus, mint a PÉNZEM/KARRIEREM
+        // soroknál, csak "task" forrás-jelöléssel (a feladat a listán marad, nem
+        // törlődik/nem lesz kész automatikusan a naptárba húzástól).
+        document.querySelectorAll("#railFeladatokMount .rf-row[draggable]").forEach(row => {
+            row.addEventListener("dragstart", e => {
+                const name = row.dataset.name || "";
+                e.dataTransfer.setData("text/plain", JSON.stringify({ name, list: "task" }));
+                e.dataTransfer.effectAllowed = "copy";
+                const ghost = document.createElement("div");
+                ghost.textContent = name;
+                ghost.style.cssText = "position:absolute;top:-1000px;left:-1000px;padding:6px 12px;background:#1f5fd0;color:#fff;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(15,47,95,.3);";
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 12, 12);
+                setTimeout(() => ghost.remove(), 0);
+            });
+        });
         const doneToggle = document.getElementById("rfDoneToggle");
         if (doneToggle) doneToggle.addEventListener("click", () => { railFeladatokDoneOpen = !railFeladatokDoneOpen; renderRailFeladatok(); });
         const openFull = document.getElementById("rfOpenFull");
