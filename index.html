@@ -3848,6 +3848,15 @@ window.sfOnViewSwitch = function(){
             if (!name) return;
             openEventModal(name, start, payload.list, payload.regidx);
         });
+        canvas.addEventListener("click", e => {
+            if (draggingEvent || e.target.closest(".wk-ev")) return;
+            if (!currentColumns.length) return;
+            const { idx, minutes } = slotFromEvent(canvas, e);
+            const start = new Date(currentColumns[idx]);
+            start.setHours(0, 0, 0, 0);
+            start.setMinutes(minutes);
+            openCreateEventModal(start);
+        });
     }
 
     // Kattintás-kezelő az egész naptár-területre (validálás / törlés) – egyszer bekötve
@@ -4113,6 +4122,77 @@ window.sfOnViewSwitch = function(){
         }
         if (!res.ok){ const err = new Error("Mentés hiba: " + res.status); err.status = res.status; throw err; }
         return res.json();
+    }
+
+    // Gyors esemény-létrehozás – üres naptár-időpontra kattintva (nem ügyfél-lista húzásból)
+    function openCreateEventModal(start){
+        const end = new Date(start.getTime() + 3600000);
+        const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
+        const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
+        const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal ev-edit-modal">
+                <div class="modal-head ev-edit-head"><span>Esemény a naptárba</span></div>
+                <div class="modal-body">
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("person")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" placeholder="(névtelen)"></div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("clock")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="qcDate">Időpont</label>
+                            <div class="ev-when">
+                                <input id="qcDate" type="date" class="ev-input" value="${dateStr}">
+                                <input id="qcStartT" type="time" class="ev-input ev-input-time" value="${startStr}">
+                                <span class="ev-when-sep">–</span>
+                                <input id="qcEndT" type="time" class="ev-input ev-input-time" value="${endStr}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("pin")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="qcLoc">Helyszín</label><input id="qcLoc" class="ev-input" placeholder="Helyszín"></div>
+                    </div>
+                    <div class="ev-divider"></div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("video")}</span>
+                        <div class="ev-row-txt"><span class="t1">Google Meet hívás</span><span class="t2">Link automatikusan generálódik mentéskor</span></div>
+                        <label class="ev-switch"><input type="checkbox" id="qcMeet"><span></span></label>
+                    </div>
+                </div>
+                <div class="modal-foot ev-edit-foot">
+                    <button class="btn primary ev-save-btn" id="qcSave">Mentés a naptárba</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+        const saveBtn = overlay.querySelector("#qcSave");
+        saveBtn.addEventListener("click", async () => {
+            const title = overlay.querySelector("#qcTitle").value.trim() || "(névtelen)";
+            const d = overlay.querySelector("#qcDate").value || dateStr;
+            const st = overlay.querySelector("#qcStartT").value || startStr;
+            const et = overlay.querySelector("#qcEndT").value || endStr;
+            const sDt = new Date(`${d}T${st}:00`);
+            const eDtRaw = new Date(`${d}T${et}:00`);
+            const eDt = eDtRaw > sDt ? eDtRaw : new Date(sDt.getTime() + 900000);
+            const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
+            const location = overlay.querySelector("#qcLoc").value.trim();
+            const addMeet = overlay.querySelector("#qcMeet").checked;
+            saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
+            try {
+                await createCalendarEvent({ summary: title, location, start: sDt, durationMin, addMeet });
+                close();
+                initCalendar();
+            } catch (e){
+                alert("Nem sikerült menteni a naptárba: " + (e.message || e));
+                saveBtn.disabled = false; saveBtn.textContent = "Mentés a naptárba";
+            }
+        });
     }
 
     function openEventModal(name, start, srcList, srcIndex){
