@@ -828,6 +828,13 @@
         .cal-date { font-weight:700; font-size:15px; color:var(--navy); }
         .cal-h2 { font-size:16px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:9px; margin-right:6px; }
         .cal-h2 .icon { color:var(--blue); display:flex; }
+        .havi-cel-inline { display:flex; align-items:center; gap:8px; margin-left:auto; }
+        .havi-cel-inline .hci-label { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+        .havi-cel-inline .hci-bar { width:90px; height:8px; border-radius:5px; background:var(--border); overflow:hidden; flex-shrink:0; }
+        .havi-cel-inline .hci-bar span { display:block; height:100%; background:var(--blue); border-radius:5px; }
+        .havi-cel-inline .hcel-pct { font-size:14px; }
+        .havi-cel-inline .hcel-frac { white-space:nowrap; }
+        @media (max-width:760px){ .havi-cel-inline { margin-left:0; width:100%; } .havi-cel-inline .hci-bar { flex:1; } }
         /* Hónap nézet */
         .mn-head { display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--border); }
         .mn-head div { text-align:center; font-size:12px; font-weight:600; color:var(--muted); padding:8px 0; }
@@ -1371,6 +1378,12 @@
                 <button class="btn icon-btn" id="haviPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
                 <button class="btn icon-btn" id="haviNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
                 <span class="cal-date" id="haviMonthLabel"></span>
+                <div class="havi-cel-inline" id="haviCelInline">
+                  <span class="hci-label">Havi cél teljesítése</span>
+                  <div class="hci-bar"><span id="hcelBar" style="width:0%"></span></div>
+                  <span class="hcel-pct" id="hcelPct">0%</span>
+                  <span class="hcel-frac" id="hcelFrac"></span>
+                </div>
               </div>
               <div class="card-body" id="haviBody"></div>
             </section>
@@ -2118,9 +2131,6 @@ function renderHaviBody(){
     const actRows=HAVI_METRICS.map((m,i)=>`<div class="hact-row"><span class="hact-lbl">${m}</span><span class="hact-frac" id="hact-frac-${i}">0 / 0</span><div class="hact-bar"><span id="hact-bar-${i}"></span></div><span class="hact-pct" id="hact-pct-${i}">0%</span></div>`).join('');
     const clRows=(haviData.clients||[]).map((c,i)=>`<div class="havi-cl-row"><input class="cln" data-cl="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Ügyfél"><input class="clu" type="number" data-cl="${i}" data-clf="units" value="${esc(c.units)}" placeholder="EH"><button class="row-del" data-cldel="${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('');
     const right=`
-        <div class="card havi-side-card"><div class="hcard-title2">Havi cél teljesítése <span class="hcel-pct" id="hcelPct">0%</span></div>
-            <div class="goals-bar"><span id="hcelBar" style="width:0%"></span></div>
-            <div class="hcel-frac" id="hcelFrac"></div></div>
         <div class="card havi-side-card"><div class="hcard-title2">Aktuális hét</div>
             <div class="hcurweek"><div><div class="hcurweek-n">${haviCurWeek+1}. hét</div><div class="hcurweek-r">${ranges[haviCurWeek]||''}</div></div>${cwIdx!==null?'<span class="hcurweek-badge">Aktuális</span>':''}</div></div>
         <div class="card havi-side-card"><div class="hcard-title2">Aktuális teljesítmény</div>${actRows}</div>
