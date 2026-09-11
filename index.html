@@ -3849,7 +3849,7 @@ window.sfOnViewSwitch = function(){
             }
             const name = (payload.name || "").trim();
             if (!name) return;
-            openEventModal(name, start, payload.list, payload.regidx);
+            openEventModal(start, { title: name, srcList: payload.list, srcIndex: payload.regidx });
         });
         canvas.addEventListener("click", e => {
             if (draggingEvent || e.target.closest(".wk-ev")) return;
@@ -3858,7 +3858,7 @@ window.sfOnViewSwitch = function(){
             const start = new Date(currentColumns[idx]);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
-            openCreateEventModal(start);
+            openEventModal(start, {});
         });
     }
 
@@ -4128,7 +4128,12 @@ window.sfOnViewSwitch = function(){
     }
 
     // Gyors esemény-létrehozás – üres naptár-időpontra kattintva (nem ügyfél-lista húzásból)
-    function openCreateEventModal(start){
+    // Egységes esemény-létrehozó modal – akár egy ügyfél/pénz/karrier sor naptárra
+    // húzásából, akár egy üres időpontra kattintva jutunk ide, ugyanaz a felület,
+    // ugyanazokkal a mezőkkel (cím, típus, egység, időpont, helyszín, Meet, állapot).
+    function openEventModal(start, opts){
+        opts = opts || {};
+        const { title: prefillTitle, srcList, srcIndex } = opts;
         const end = new Date(start.getTime() + 3600000);
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
@@ -4141,7 +4146,21 @@ window.sfOnViewSwitch = function(){
                 <div class="modal-body">
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("person")}</span>
-                        <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" placeholder="(névtelen)"></div>
+                        <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" value="${escM(prefillTitle || "")}" placeholder="(névtelen)"></div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("book")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="qcType">Esemény típusa</label>
+                            <select id="qcType" class="ev-input">
+                                <option value="">— Egyéb (nincs típus) —</option>
+                                ${EVENT_TYPES.map((t,i)=>`<option value="${i}">${escM(t.label)}</option>`).join("")}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="ev-row" id="qcUnitWrap" hidden>
+                        <span class="ev-row-ic">${calSvg("activity")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="qcUnit">Hány egységre számítasz? (EH)</label><input id="qcUnit" type="number" min="0" step="1" value="100" class="ev-input"></div>
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("clock")}</span>
@@ -4167,12 +4186,35 @@ window.sfOnViewSwitch = function(){
                     </div>
                 </div>
                 <div class="modal-foot ev-edit-foot">
+                    <div class="ev-seg" id="qcSeg">
+                        <button type="button" class="ev-seg-btn ev-seg-no" id="qcNo">${calSvg("x")} Nem történt meg</button>
+                        <button type="button" class="ev-seg-btn ev-seg-none active" id="qcNone">Még nincs</button>
+                        <button type="button" class="ev-seg-btn ev-seg-yes" id="qcYes">${calSvg("check")} Megtörtént</button>
+                    </div>
                     <button class="btn primary ev-save-btn" id="qcSave">Mentés a naptárba</button>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
         const close = () => overlay.remove();
         overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+        const typeSel = overlay.querySelector("#qcType");
+        const unitWrap = overlay.querySelector("#qcUnitWrap");
+        const syncUnit = () => { unitWrap.hidden = typeSel.value === "" || !EVENT_TYPES[+typeSel.value].unit; };
+        typeSel.addEventListener("change", syncUnit);
+        syncUnit();
+
+        let qcStatus = null; // null | 'yes' | 'no'
+        const segNo = overlay.querySelector("#qcNo"), segNone = overlay.querySelector("#qcNone"), segYes = overlay.querySelector("#qcYes");
+        const setStatus = s => {
+            qcStatus = s;
+            segNo.classList.toggle("active", s === "no");
+            segNone.classList.toggle("active", s === null);
+            segYes.classList.toggle("active", s === "yes");
+        };
+        segNo.addEventListener("click", () => setStatus("no"));
+        segNone.addEventListener("click", () => setStatus(null));
+        segYes.addEventListener("click", () => setStatus("yes"));
 
         const saveBtn = overlay.querySelector("#qcSave");
         saveBtn.addEventListener("click", async () => {
@@ -4186,76 +4228,26 @@ window.sfOnViewSwitch = function(){
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
             const location = overlay.querySelector("#qcLoc").value.trim();
             const addMeet = overlay.querySelector("#qcMeet").checked;
-            saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
-            try {
-                await createCalendarEvent({ summary: title, location, start: sDt, durationMin, addMeet });
-                close();
-                initCalendar();
-            } catch (e){
-                alert("Nem sikerült menteni a naptárba: " + (e.message || e));
-                saveBtn.disabled = false; saveBtn.textContent = "Mentés a naptárba";
+            let summary = title;
+            if (typeSel.value !== ""){
+                const type = EVENT_TYPES[+typeSel.value];
+                summary += ` (${type.suffix})`;
+                if (type.unit){
+                    const u = overlay.querySelector("#qcUnit").value;
+                    summary += ` - ${(u === "" ? "0" : u)} EH`;
+                }
             }
-        });
-    }
-
-    function openEventModal(name, start, srcList, srcIndex){
-        const overlay = document.createElement("div");
-        overlay.className = "modal-overlay";
-        const optionsHtml = EVENT_TYPES.map((t,i) => `<option value="${i}">${t.label}</option>`).join("");
-        overlay.innerHTML = `
-            <div class="modal" role="dialog" aria-modal="true">
-                <div class="modal-head">Esemény a naptárba</div>
-                <div class="modal-body">
-                    <div><label>Ügyfél</label><div class="modal-client">${escM(name)}</div></div>
-                    <div><label for="evType">Esemény típusa</label><select id="evType">${optionsHtml}</select></div>
-                    <div id="evUnitWrap" hidden><label for="evUnit">Hány egységre számítasz? (EH)</label><input id="evUnit" type="number" min="0" step="1" value="100"></div>
-                    <div><label for="evStart">Időpont</label><input id="evStart" type="datetime-local"></div>
-                    <div><label for="evDur">Időtartam (perc)</label><input id="evDur" type="number" min="15" step="15" value="60"></div>
-                    <div><label for="evLoc">Hol lesz?</label><input id="evLoc" type="text" placeholder="Helyszín"></div>
-                    <div class="rd-check"><label><input type="checkbox" id="evMeet"> Google Meet hívás hozzáadása</label></div>
-                </div>
-                <div class="modal-foot">
-                    <button class="btn" id="evCancel">Mégse</button>
-                    <button class="btn primary" id="evSave">Mentés a naptárba</button>
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-
-        const typeSel = overlay.querySelector("#evType");
-        const unitWrap = overlay.querySelector("#evUnitWrap");
-        const startInput = overlay.querySelector("#evStart");
-        const durInput = overlay.querySelector("#evDur");
-        const saveBtn = overlay.querySelector("#evSave");
-
-        startInput.value = localIso(start).slice(0, 16);      // datetime-local formátum
-        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
-        typeSel.addEventListener("change", syncUnit);
-        syncUnit();
-
-        const close = () => overlay.remove();
-        overlay.querySelector("#evCancel").addEventListener("click", close);
-        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
-
-        saveBtn.addEventListener("click", async () => {
-            const type = EVENT_TYPES[+typeSel.value];
-            const when = startInput.value ? new Date(startInput.value) : start;
-            const durationMin = Math.max(15, parseInt(durInput.value, 10) || 60);
-            let summary = `${name} (${type.suffix})`;
-            if (type.unit){
-                const u = overlay.querySelector("#evUnit").value;
-                summary += ` - ${(u === "" ? "0" : u)} EH`;
-            }
-            const location = overlay.querySelector("#evLoc").value.trim();
-            const description = "Ügyfél: " + name;
+            if (qcStatus === "yes") summary = "✅ " + summary;
+            else if (qcStatus === "no") summary = "❌ " + summary;
+            const description = srcList ? "Ügyfél: " + title : undefined;
             const colorId = srcList === "money" ? COLOR_MONEY : (srcList === "career" ? COLOR_CAREER : undefined);
-            const addMeet = overlay.querySelector("#evMeet").checked;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: when, durationMin, addMeet });
-                // A forrás-sor eredménye legyen "sikeres" (✓)
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet });
+                // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az legyen "sikeres" (✓)
                 if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
-                initCalendar();                                 // frissítés, hogy megjelenjen az új esemény
+                initCalendar();
             } catch (e){
                 alert("Nem sikerült menteni a naptárba: " + (e.message || e));
                 saveBtn.disabled = false; saveBtn.textContent = "Mentés a naptárba";
