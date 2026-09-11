@@ -3679,10 +3679,9 @@ window.sfOnViewSwitch = function(){
     const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
     const HU_MONTHS = ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
     const START_H = 6, END_H = 24;                // a rács teljes tartománya
-    // Alapból ennyi látszik; a maradék (2 óra felfelé 06:00-ig, 2 óra lefelé
-    // 24:00-ig) görgetéssel érhető el. Az óra-magasság ehhez igazodik: a naptár
-    // a képernyő aljáig ér, és pont ez a 14 óra fér ki benne.
-    const VIEW_START_H = 8, VIEW_END_H = 22;
+    // Ennyi látszik egyszerre: a teljes tartomány, tehát nincs görgetés. Az
+    // óra-magasság ehhez igazodik, hogy a 18 óra kiférjen a naptárnak jutó helyre.
+    const VIEW_START_H = 6, VIEW_END_H = 24;
     let ROW = 44;                                  // óra-magasság px-ben (renderkor számolt)
     // Ideális időpont-zónák naponként (hétfő=0 … vasárnap=6)
     const IDEAL_ZONES = {
@@ -3843,12 +3842,22 @@ window.sfOnViewSwitch = function(){
     // az óra-magasság. Első rendereléskor a rács teteje még nem mérhető, ilyenkor
     // a fejléc + "egész nap" sáv becsült magasságával számolunk, majd a
     // renderTimeShell egyszer korrigál.
+    // A naptár alatti Heti tervezés kártya helye: a naptár ennyivel kisebb, hogy
+    // a heti terv essen a képernyő aljára (22px = a .col-main oszlopköz).
+    let lastPlanH = -1;
+    function planCardHeight(){
+        const card = document.getElementById("planGrid")?.closest(".card");
+        return card ? card.getBoundingClientRect().height + 22 : 0;
+    }
+
     function computeRow(grid){
         const wk = grid.querySelector(".wk-grid");
         const top = wk ? wk.getBoundingClientRect().top
                        : grid.getBoundingClientRect().top + 88;
-        const avail = Math.max(280, window.innerHeight - top - 16);
-        return Math.max(28, avail / (VIEW_END_H - VIEW_START_H));
+        const content = document.querySelector(".content");
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const avail = Math.max(280, window.innerHeight - top - planCardHeight() - padB);
+        return Math.max(22, avail / (VIEW_END_H - VIEW_START_H));
     }
 
     function renderTimeShell(grid, cols, now, pass){
@@ -3893,6 +3902,7 @@ window.sfOnViewSwitch = function(){
             wkGridEl.style.height = ((VIEW_END_H - VIEW_START_H) * ROW) + "px";
             wkGridEl.scrollTop = Math.max(0, (VIEW_START_H - START_H) * ROW);
         }
+        lastPlanH = planCardHeight();
         // Egyszeri korrekció, ha a becsült és a tényleges rács-tető eltér.
         if (!pass && Math.abs(computeRow(grid) - ROW) > 0.5){
             renderTimeShell(grid, cols, now, 1);
@@ -4064,7 +4074,7 @@ window.sfOnViewSwitch = function(){
             let endDec = e.getHours() + e.getMinutes()/60;
             if (endDec <= startDec) endDec = END_H;
             let top = (startDec - START_H) * ROW;
-            let height = Math.max(30, (endDec - startDec) * ROW);
+            let height = Math.max(18, (endDec - startDec) * ROW);
             if (top < 0){ height += top; top = 0; }
             if (top >= maxH) return;
             if (top + height > maxH) height = maxH - top;
@@ -4956,6 +4966,18 @@ window.sfOnViewSwitch = function(){
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(() => { if (currentColumns.length) initCalendar(); }, 250);
             });
+            // Ha a Heti tervezés kártya magassága változik (pl. összecsukás), a
+            // naptár igazodjon, hogy a heti terv a képernyő alján maradjon.
+            const planCard = document.getElementById("planGrid")?.closest(".card");
+            if (planCard && window.ResizeObserver){
+                let planTimer = null;
+                new ResizeObserver(() => {
+                    clearTimeout(planTimer);
+                    planTimer = setTimeout(() => {
+                        if (currentColumns.length && Math.abs(planCardHeight() - lastPlanH) > 4) initCalendar();
+                    }, 250);
+                }).observe(planCard);
+            }
         }
         const now = new Date();
         const dateLabel = document.querySelector(".cal-date");
