@@ -282,6 +282,9 @@
         .rd-field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
         .rd-field input, .rd-field textarea { width:100%; padding:6px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); outline:none; resize:vertical; box-sizing:border-box; }
         .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); }
+        .rd-check { margin-bottom:8px; }
+        .rd-check label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; }
+        .rd-check input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
         .rd-sec { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; }
         .kt-summary { border:1px solid var(--border); border-radius:10px; padding:12px; }
         .kt-status-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; margin-bottom:8px; }
@@ -855,6 +858,10 @@
         .wk-ev:hover .wk-ev-del { opacity:.6; }
         .wk-ev-del:hover { opacity:1 !important; color:#fff; background:var(--red); }
         .wk-ev-loc { display:block; font-size:10px; opacity:.85; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .wk-ev-meet, .ag-meet { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:inherit; opacity:.9; margin-top:2px; text-decoration:none; }
+        .wk-ev-meet:hover, .ag-meet:hover { text-decoration:underline; }
+        .wk-ev-meet svg, .ag-meet svg { width:11px; height:11px; }
+        .ag-meet { margin-top:2px; margin-left:0; font-size:11px; }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:10px 10px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
         .drop-indicator { position:absolute; background:rgba(31,95,208,.16); border:1.5px dashed var(--blue); border-radius:6px; pointer-events:none; z-index:5; font-size:10px; color:var(--blue); font-weight:700; padding:2px 5px; box-sizing:border-box; }
@@ -3429,6 +3436,24 @@ window.sfOnViewSwitch = function(){
         return `rgba(${r},${g},${b},${a})`;
     }
 
+    // Google Meet – link kiolvasása egy eseményből, illetve új konferencia-kérés generálása
+    function getMeetLink(ev){
+        if (!ev) return null;
+        if (ev.hangoutLink) return ev.hangoutLink;
+        const eps = ev.conferenceData && ev.conferenceData.entryPoints;
+        if (Array.isArray(eps)){
+            const v = eps.find(p => p.entryPointType === "video");
+            if (v) return v.uri;
+        }
+        return null;
+    }
+    function genConfReqId(){
+        return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("meet-" + Date.now() + "-" + Math.random().toString(36).slice(2));
+    }
+    function meetConferenceData(){
+        return { createRequest: { requestId: genConfReqId(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
+    }
+
     function weekBounds(){
         const now = new Date();
         const dow = (now.getDay()+6) % 7;                 // hétfő = 0
@@ -3461,6 +3486,7 @@ window.sfOnViewSwitch = function(){
         clock:   '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         check:   '<path d="m5 13 4 4L19 7"/>',
         x:       '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+        video:   '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
     };
     function calSvg(key, extra){ return `<svg class="wk-ev-svg${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAL_ICONS[key]||CAL_ICONS.clock}</svg>`; }
     function calEvIconKey(summary){
@@ -3644,9 +3670,11 @@ window.sfOnViewSwitch = function(){
             div.dataset.durationMin = Math.round((e - s) / 60000);
             const iconSvg = status === "yes" ? calSvg("check") : status === "no" ? calSvg("x") : calSvg(calEvIconKey(clean));
             const locHtml = ev.location ? `<span class="wk-ev-loc">📍 ${escM(ev.location)}</span>` : "";
+            const meetUrl = getMeetLink(ev);
+            const meetHtml = meetUrl ? `<a class="wk-ev-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
                 <span class="wk-ev-head" style="color:${hex}">${iconSvg}<b>${hh}</b></span>
-                <span class="wk-ev-title">${escM(clean || "(névtelen)")}</span>${locHtml}`;
+                <span class="wk-ev-title">${escM(clean || "(névtelen)")}</span>${locHtml}${meetHtml}`;
             div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
             canvas.appendChild(div);
         });
@@ -3756,6 +3784,7 @@ window.sfOnViewSwitch = function(){
             const host = e.target.closest("[data-event-id]");
             if (!host || !host.dataset.eventId) return;
             const id = host.dataset.eventId;
+            if (e.target.closest(".wk-ev-meet, .ag-meet")) return;
             if (e.target.closest(".wk-ev-del, .ag-del")){
                 if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (host.dataset.title || ""))) return;
                 try { await deleteCalendarEvent(id); initCalendar(); }
@@ -3832,10 +3861,12 @@ window.sfOnViewSwitch = function(){
             const { clean, status } = parseValidation(ev.summary);
             const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
             const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
+            const meetUrl = getMeetLink(ev);
+            const meetHtml = meetUrl ? `<a class="ag-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             html += `<div class="ag-item" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}">
                 <span class="ag-time">${time}</span>
                 <span class="ag-dot" style="background:${hex}"></span>
-                <span><span class="ag-title">${escM(clean||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}</span>
+                <span><span class="ag-title">${escM(clean||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}${meetUrl?`<br>${meetHtml}`:""}</span>
                 <span class="ag-del" title="Törlés">×</span>
             </div>`;
         });
@@ -3846,7 +3877,7 @@ window.sfOnViewSwitch = function(){
     async function updateCalendarEvent(id, patch){
         let token = getCalendarToken();
         const doPatch = tok => fetch(
-            "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events/" + encodeURIComponent(id),
+            "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events/" + encodeURIComponent(id) + "?conferenceDataVersion=1",
             { method: "PATCH", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify(patch) }
         );
         let res = await doPatch(token);
@@ -3866,6 +3897,10 @@ window.sfOnViewSwitch = function(){
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
         const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
+        const meetUrl = getMeetLink(ev);
+        const meetFieldHtml = meetUrl
+            ? `<div class="rd-field"><label>Videóhívás</label><a class="btn" href="${meetUrl}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; width:fit-content;">${calSvg("video")} Csatlakozás a Google Meethez</a></div>`
+            : `<div class="rd-check"><label><input type="checkbox" id="evAddMeet"> Google Meet hívás hozzáadása</label></div>`;
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
@@ -3879,6 +3914,7 @@ window.sfOnViewSwitch = function(){
                         <div class="rd-field"><label>Befejezés</label><input id="evEndT" type="time" value="${endStr}"></div>`}
                     </div>
                     <div class="rd-field"><label>Helyszín</label><input id="evLocEdit" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín"></div>
+                    ${meetFieldHtml}
                 </div>
                 <div class="modal-foot" style="flex-wrap:wrap; gap:8px; justify-content:space-between;">
                     <button class="btn" id="evDelete" style="border-color:#dc2626;color:#dc2626;">Törlés</button>
@@ -3897,16 +3933,22 @@ window.sfOnViewSwitch = function(){
             const title = overlay.querySelector("#evTitle").value.trim() || "(névtelen)";
             const d = overlay.querySelector("#evDate").value || dateStr;
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
-            if (allDay) return { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), start: { date: d }, end: { date: d } };
-            const st = overlay.querySelector("#evStartT").value || startStr;
-            const et = overlay.querySelector("#evEndT").value || endStr;
-            const sDt = new Date(`${d}T${st}:00`), eDt = new Date(`${d}T${et}:00`);
-            return {
-                summary: title,
-                location: overlay.querySelector("#evLocEdit").value.trim(),
-                start: { dateTime: localIso(sDt), timeZone: tz },
-                end:   { dateTime: localIso(eDt > sDt ? eDt : new Date(sDt.getTime()+900000)), timeZone: tz }
-            };
+            const addMeetEl = overlay.querySelector("#evAddMeet");
+            const patch = allDay
+                ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), start: { date: d }, end: { date: d } }
+                : (() => {
+                    const st = overlay.querySelector("#evStartT").value || startStr;
+                    const et = overlay.querySelector("#evEndT").value || endStr;
+                    const sDt = new Date(`${d}T${st}:00`), eDt = new Date(`${d}T${et}:00`);
+                    return {
+                        summary: title,
+                        location: overlay.querySelector("#evLocEdit").value.trim(),
+                        start: { dateTime: localIso(sDt), timeZone: tz },
+                        end:   { dateTime: localIso(eDt > sDt ? eDt : new Date(sDt.getTime()+900000)), timeZone: tz }
+                    };
+                })();
+            if (addMeetEl && addMeetEl.checked) patch.conferenceData = meetConferenceData();
+            return patch;
         };
         const busy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = true);
         const unbusy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = false);
@@ -3944,7 +3986,7 @@ window.sfOnViewSwitch = function(){
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const end = new Date(start.getTime() + durationMin * 60000);
@@ -3956,9 +3998,10 @@ window.sfOnViewSwitch = function(){
         if (description) body.description = description;
         if (location) body.location = location;
         if (colorId) body.colorId = colorId;
+        if (addMeet) body.conferenceData = meetConferenceData();
 
         async function doInsert(tok){
-            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events", {
+            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1", {
                 method: "POST",
                 headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
                 body: JSON.stringify(body)
@@ -3988,6 +4031,7 @@ window.sfOnViewSwitch = function(){
                     <div><label for="evStart">Időpont</label><input id="evStart" type="datetime-local"></div>
                     <div><label for="evDur">Időtartam (perc)</label><input id="evDur" type="number" min="15" step="15" value="60"></div>
                     <div><label for="evLoc">Hol lesz?</label><input id="evLoc" type="text" placeholder="Helyszín"></div>
+                    <div class="rd-check"><label><input type="checkbox" id="evMeet"> Google Meet hívás hozzáadása</label></div>
                 </div>
                 <div class="modal-foot">
                     <button class="btn" id="evCancel">Mégse</button>
@@ -4023,9 +4067,10 @@ window.sfOnViewSwitch = function(){
             const location = overlay.querySelector("#evLoc").value.trim();
             const description = "Ügyfél: " + name;
             const colorId = srcList === "money" ? COLOR_MONEY : (srcList === "career" ? COLOR_CAREER : undefined);
+            const addMeet = overlay.querySelector("#evMeet").checked;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: when, durationMin });
+                await createCalendarEvent({ summary, description, location, colorId, start: when, durationMin, addMeet });
                 // A forrás-sor eredménye legyen "sikeres" (✓)
                 if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
