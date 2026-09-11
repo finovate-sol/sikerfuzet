@@ -904,7 +904,7 @@
         .wk-canvas { position:relative; flex:1; }
         .ideal-zone { position:absolute; pointer-events:none; z-index:0; border-radius:5px; box-sizing:border-box; }
         .ideal-zone.ideal-client { background:rgba(22,163,74,.22); box-shadow:inset 0 0 0 1px rgba(22,163,74,.4); }
-        .ideal-zone.ideal-colleague { background:rgba(246,191,38,.28); box-shadow:inset 0 0 0 1px rgba(246,191,38,.5); }
+        .ideal-zone.ideal-colleague { background:rgba(244,81,30,.24); box-shadow:inset 0 0 0 1px rgba(244,81,30,.5); }
         .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
         .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
         .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
@@ -3554,8 +3554,6 @@ window.sfOnViewSwitch = function(){
     // Google Calendar colorId → hex (az esemény tényleges színe)
     const GCAL_HEX = { "1":"#7986cb","2":"#33b679","3":"#8e24aa","4":"#e67c73","5":"#f6bf26","6":"#f4511e","7":"#039be5","8":"#616161","9":"#3f51b5","10":"#0b8043","11":"#d50000" };
     const DEFAULT_EVENT_HEX = "#1f5fd0";
-    const COLOR_MONEY  = "2";   // zöld  (PÉNZEM)
-    const COLOR_CAREER = "6";   // narancs (KARRIEREM)
     function hexToRgba(hex, a){
         const h = hex.replace("#","");
         const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
@@ -3615,6 +3613,7 @@ window.sfOnViewSwitch = function(){
         video:   '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
         pin:     '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
         trash:   '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/>',
+        repeat:  '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     };
     function calSvg(key, extra){ return `<svg class="wk-ev-svg${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAL_ICONS[key]||CAL_ICONS.clock}</svg>`; }
     function calEvIconKey(summary){
@@ -3813,12 +3812,20 @@ window.sfOnViewSwitch = function(){
     }
 
     // ===== Naptárba húzás → esemény típus + mentés =====
+    // Minden esemény-típusnak saját Google Calendar-színe van (colorId) –
+    // ez adja az esemény tényleges színét a naptárban.
     const EVENT_TYPES = [
-        { label: "Elemzés",     suffix: "E",  unit: false },
-        { label: "Tanácsadás",  suffix: "TA", unit: true  },
-        { label: "Szerviz",     suffix: "SZ", unit: true  },
-        { label: "Felvételi 1", suffix: "F1", unit: false },
-        { label: "Felvételi 2", suffix: "F2", unit: false },
+        { label: "Munka",       suffix: null, unit: false, colorId: "8" }, // Szürke
+        { label: "Egyéb",       suffix: null, unit: false, colorId: "5" }, // Citromsárga
+        { label: "Elemzés",     suffix: "E",  unit: false, colorId: "2" }, // Zöld
+        { label: "Tanácsadás",  suffix: "TA", unit: true,  colorId: "2" }, // Zöld
+        { label: "Szerviz",     suffix: "SZ", unit: true,  colorId: "2" }, // Zöld
+        { label: "Felvételi 1", suffix: "F1", unit: false, colorId: "6" }, // Narancssárga
+        { label: "Felvételi 2", suffix: "F2", unit: false, colorId: "6" }, // Narancssárga
+        { label: "PG",          suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Oktatás",     suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "MT",          suffix: null, unit: false, colorId: "6" }, // Narancssárga
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
@@ -4180,7 +4187,7 @@ window.sfOnViewSwitch = function(){
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const end = new Date(start.getTime() + durationMin * 60000);
@@ -4193,6 +4200,7 @@ window.sfOnViewSwitch = function(){
         if (location) body.location = location;
         if (colorId) body.colorId = colorId;
         if (addMeet) body.conferenceData = meetConferenceData();
+        if (recurrence && recurrence.length) body.recurrence = recurrence;
 
         async function doInsert(tok){
             return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1", {
@@ -4237,8 +4245,7 @@ window.sfOnViewSwitch = function(){
                         <div class="ev-row-field">
                             <label class="lbl" for="qcType">Esemény típusa</label>
                             <select id="qcType" class="ev-input">
-                                <option value="">— Egyéb (nincs típus) —</option>
-                                ${EVENT_TYPES.map((t,i)=>`<option value="${i}">${escM(t.label)}</option>`).join("")}
+                                ${EVENT_TYPES.map((t,i)=>`<option value="${i}"${t.label==="Egyéb"?' selected':''}>${escM(t.label)}</option>`).join("")}
                             </select>
                         </div>
                     </div>
@@ -4256,6 +4263,19 @@ window.sfOnViewSwitch = function(){
                                 <span class="ev-when-sep">–</span>
                                 <input id="qcEndT" type="time" class="ev-input ev-input-time" value="${endStr}">
                             </div>
+                        </div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("repeat")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="qcRepeat">Ismétlődés</label>
+                            <select id="qcRepeat" class="ev-input">
+                                <option value="">Nincs ismétlődés</option>
+                                <option value="DAILY">Minden nap</option>
+                                <option value="WEEKLY">Minden héten</option>
+                                <option value="MONTHLY">Minden hónapban</option>
+                                <option value="YEARLY">Minden évben</option>
+                            </select>
                         </div>
                     </div>
                     <div class="ev-row">
@@ -4284,7 +4304,7 @@ window.sfOnViewSwitch = function(){
 
         const typeSel = overlay.querySelector("#qcType");
         const unitWrap = overlay.querySelector("#qcUnitWrap");
-        const syncUnit = () => { unitWrap.hidden = typeSel.value === "" || !EVENT_TYPES[+typeSel.value].unit; };
+        const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
         typeSel.addEventListener("change", syncUnit);
         syncUnit();
 
@@ -4312,9 +4332,9 @@ window.sfOnViewSwitch = function(){
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
             const location = overlay.querySelector("#qcLoc").value.trim();
             const addMeet = overlay.querySelector("#qcMeet").checked;
+            const type = EVENT_TYPES[+typeSel.value];
             let summary = title;
-            if (typeSel.value !== ""){
-                const type = EVENT_TYPES[+typeSel.value];
+            if (type.suffix){
                 summary += ` (${type.suffix})`;
                 if (type.unit){
                     const u = overlay.querySelector("#qcUnit").value;
@@ -4324,10 +4344,12 @@ window.sfOnViewSwitch = function(){
             if (qcStatus === "yes") summary = "✅ " + summary;
             else if (qcStatus === "no") summary = "❌ " + summary;
             const description = srcList ? "Ügyfél: " + title : undefined;
-            const colorId = srcList === "money" ? COLOR_MONEY : (srcList === "career" ? COLOR_CAREER : undefined);
+            const colorId = type.colorId;
+            const repeatFreq = overlay.querySelector("#qcRepeat").value;
+            const recurrence = repeatFreq ? [`RRULE:FREQ=${repeatFreq}`] : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet });
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az legyen "sikeres" (✓)
                 if (srcList && typeof window.sfMarkResult === "function") window.sfMarkResult(srcList, srcIndex);
                 close();
