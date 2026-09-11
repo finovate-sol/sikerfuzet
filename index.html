@@ -176,6 +176,12 @@
         table.reg td { padding:5px 8px; border-bottom:1px solid #f1f4f8; }
         table.reg tbody tr:hover { background:#fafbfd; }
         table.reg tbody tr.reg-row { cursor:pointer; }
+        table.reg tbody tr.reg-row.open { background:var(--bg); }
+        .reg-chev { flex-shrink:0; display:flex; align-items:center; color:var(--muted); transition:transform .2s; }
+        tr.reg-row.open .reg-chev { transform:rotate(180deg); }
+        tr.reg-detail-row > td { padding:0; border-bottom:1px solid var(--border); }
+        .reg-detail { padding:16px 22px 20px; background:var(--bg); }
+        .reg-detail .modal-foot { padding:0; border:none; margin-top:14px; justify-content:flex-end; }
         table.reg td input:not([type="checkbox"]) { width:100%; min-width:110px; padding:6px 8px; border:1px solid transparent; border-radius:6px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
         table.reg td input:not([type="checkbox"]):hover { border-color:var(--border); }
         table.reg td input:not([type="checkbox"]):focus { border-color:var(--blue); background:#fff; }
@@ -342,6 +348,11 @@
         .ket-quality.q-C { background:var(--amber-light); color:var(--amber); }
         .ket-last { flex-shrink:0; font-size:11.5px; color:var(--muted); min-width:110px; text-align:right; }
         .ket-empty { padding:24px; text-align:center; color:var(--muted); font-size:13px; }
+        .ket-chev { flex-shrink:0; display:flex; color:var(--muted); transition:transform .2s; }
+        .ket-row.open { background:var(--bg); border-bottom-color:transparent; }
+        .ket-row.open .ket-chev { transform:rotate(180deg); }
+        .ket-detail { padding:16px 18px 20px; background:var(--bg); border-bottom:1px solid var(--border); }
+        .ket-detail .modal-foot { padding:0; border:none; margin-top:14px; }
         .tob-quality-picker { display:flex; gap:8px; }
         .tob-quality-picker label { flex:1; border:1px solid var(--border); border-radius:8px; padding:8px; text-align:center; cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); }
         .tob-quality-picker input { display:none; }
@@ -2448,6 +2459,35 @@ function regInitials(name){
     return n.slice(0,2).toUpperCase();
 }
 const flagChip = (i,field,label,checked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}><span>${label}</span></label>`;
+let regExpandedIdx = null;   // a helyben kinyitott (accordion) ügyfél-sor indexe
+function regDetailHtml(i){
+    const r = registry[i];
+    r.details = r.details || {};
+    r.celok = r.celok || {};
+    const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
+    return `<div class="reg-detail" data-regdetail="${i}">
+        <div class="rd-sec" style="margin-top:0;">Adatok</div>
+        <div class="rd-grid">
+            <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
+            ${f('eletkor','Életkor')}
+            ${f('telepules','Település')}
+            ${f('miert','Miért gondolt rá')}
+            ${f('lakas','Lakáshelyzet / Családi állapot')}
+            ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
+            ${f('gyerekek','Gyerekek száma / Életkora')}
+        </div>
+        <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>
+        <div class="rd-sec">Elemzés / Célok</div>
+        <div class="rd-grid rd-grid-3">
+            <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="2">${esc(r.celok.rovid||'')}</textarea></div>
+            <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
+            <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
+        </div>
+        ${kiertekeloSummaryHtml(r.kiertekelo)}
+        ${kezeloHistoryHtml(r.kezeloHistory)}
+        <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
+    </div>`;
+}
 function renderRegistry(){
     const tbl = document.getElementById('regTable');
     if(!tbl) return;
@@ -2460,11 +2500,12 @@ function renderRegistry(){
     // A 2 órás füzetbe került (mt) jelöltek innen eltűnnek – onnantól a 2 órás
     // füzetből kezelendők, hogy ne legyen két helyen ugyanaz a teendő.
     const matched = registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && textMatch(r) && rowMatchesFilters(r));
-    const editIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
     const delIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+    const chevIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
     const rows = matched.map(({r,i})=>{
         const hasName = !!(r.name && r.name.trim());
-        return `<tr class="reg-row" data-open="${i}">
+        const open = i === regExpandedIdx;
+        return `<tr class="reg-row${open?' open':''}" data-open="${i}">
         <td><div class="reg-person">
             <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="reg-person-meta">
@@ -2478,8 +2519,8 @@ function renderRegistry(){
         <td><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}"></td>
         <td>${regStatusSelect(i, r.status)}</td>
         <td class="chk"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes)}${flagChip(i,'portal','PF',r.portal)}${flagChip(i,'tanacsadas','TA',r.tanacsadas)}</div></td>
-        <td><div class="reg-actions"><button class="reg-ico" data-open="${i}" title="Szerkesztés">${editIco}</button><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${delIco}</button></div></td>
-    </tr>`;
+        <td><div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${delIco}</button><span class="reg-chev">${chevIc}</span></div></td>
+    </tr>${open ? `<tr class="reg-detail-row"><td colspan="8">${regDetailHtml(i)}</td></tr>` : ''}`;
     }).join('') || `<tr><td colspan="8" style="color:var(--muted);padding:24px;text-align:center;">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</td></tr>`;
     tbl.innerHTML = head + `<tbody>${rows}</tbody>`;
     const foot=document.getElementById('regFoot');
@@ -2520,54 +2561,6 @@ function kezeloHistoryHtml(hist){
         ${h.by ? `<span class="kh-by">átállította: ${esc(h.by)}</span>` : ''}
     </div>`).join('');
     return `<div class="rd-sec">Kezelő előzmények</div><div class="kh-list">${rows}</div>`;
-}
-function openRegDetail(i){
-    const r = registry[i];
-    if(!r) return;
-    r.details = r.details || {};
-    r.celok = r.celok || {};
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
-    overlay.innerHTML = `
-        <div class="modal modal-lg">
-            <div class="modal-head">Ügyfél adatlap</div>
-            <div class="modal-body">
-                <div class="rd-sec" style="margin-top:0;">Adatok</div>
-                <div class="rd-grid">
-                    <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
-                    ${f('eletkor','Életkor')}
-                    ${f('telepules','Település')}
-                    ${f('miert','Miért gondolt rá')}
-                    ${f('lakas','Lakáshelyzet / Családi állapot')}
-                    ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
-                    ${f('gyerekek','Gyerekek száma / Életkora')}
-                </div>
-                <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>
-                <div class="rd-sec">Elemzés / Célok</div>
-                <div class="rd-grid rd-grid-3">
-                    <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="2">${esc(r.celok.rovid||'')}</textarea></div>
-                    <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
-                    <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
-                </div>
-                ${kiertekeloSummaryHtml(r.kiertekelo)}
-                ${kezeloHistoryHtml(r.kezeloHistory)}
-            </div>
-            <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
-        </div>`;
-    document.body.appendChild(overlay);
-    overlay.addEventListener('input', e=>{
-        const t=e.target;
-        if(t.dataset.name!==undefined) r.name=t.value;
-        else if(t.dataset.d!==undefined) r.details[t.dataset.d]=t.value;
-        else if(t.dataset.c!==undefined) r.celok[t.dataset.c]=t.value;
-        else return;
-        store.save('sf_registry', registry);
-        persistReg(i);
-    });
-    const close=()=>{ overlay.remove(); renderRegistry(); refreshMoneyCareer(); };
-    overlay.querySelector('#rdClose').addEventListener('click', close);
-    overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
 }
 // Kiértékelő telefon adatlap – akkor jelenik meg, ha egy ügyfélnél
 // bejelölik a "Portálon fent" mezőt. A dátum és az "Egyéb" mező kivételével
@@ -2629,10 +2622,22 @@ function openKiertekeloModal(idx, checkboxEl){
     if(!tbl) return;
     tbl.addEventListener('input', e=>{
         const t=e.target;
-        if(t.dataset.ri===undefined || t.type==='checkbox') return;
-        const idx=+t.dataset.ri;
-        registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); refreshMoneyCareer();
-        persistReg(idx);
+        if(t.dataset.ri!==undefined && t.type!=='checkbox'){
+            const idx=+t.dataset.ri;
+            registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); refreshMoneyCareer();
+            persistReg(idx);
+            return;
+        }
+        // A helyben kinyitott (accordion) adatlap mezői – legfeljebb egy van nyitva egyszerre.
+        const i = regExpandedIdx; if(i==null) return;
+        const r = registry[i]; if(!r) return;
+        r.details = r.details || {}; r.celok = r.celok || {};
+        if(t.dataset.name!==undefined) r.name = t.value;
+        else if(t.dataset.d!==undefined) r.details[t.dataset.d] = t.value;
+        else if(t.dataset.c!==undefined) r.celok[t.dataset.c] = t.value;
+        else return;
+        store.save('sf_registry', registry); refreshMoneyCareer();
+        persistReg(i);
     });
     tbl.addEventListener('change', e=>{
         const t=e.target;
@@ -2675,13 +2680,15 @@ function openKiertekeloModal(idx, checkboxEl){
             if(r && r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
             registry.splice(idx,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return;
         }
-        const openBtn = e.target.closest('.reg-name[data-open], .reg-ico[data-open]');
-        if(openBtn){ openRegDetail(+openBtn.dataset.open); return; }
-        // Szerkeszthető mezőre (input/select/checkbox/gomb) kattintva ne nyíljon meg az
-        // adatlap – csak a sor egyéb (nem szerkeszthető) részére kattintva.
+        // "Kész" gomb a kinyitott adatlapon belül → csak összecsukja a sort.
+        if(e.target.closest('#rdClose')){ regExpandedIdx = null; renderRegistry(); refreshMoneyCareer(); return; }
+        const nameBtn = e.target.closest('.reg-name[data-open]');
+        if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; renderRegistry(); return; }
+        // Szerkeszthető mezőre (input/select/checkbox/gomb) kattintva ne nyíljon/záruljon
+        // a sor – csak a sor egyéb (nem szerkeszthető) részére kattintva.
         if(e.target.closest('input, select, textarea, label, button, a')) return;
         const row = e.target.closest('tr[data-open]');
-        if(row) openRegDetail(+row.dataset.open);
+        if(row){ const idx=+row.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; renderRegistry(); }
     });
     document.getElementById('regAdd').addEventListener('click', ()=>{
         const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
@@ -2706,6 +2713,49 @@ function openKiertekeloModal(idx, checkboxEl){
 // egyszerre lehet ügyfél-jelölt (tp) és munkatárs-jelölt (mt) is, egy adatbázisban.
 function ketorasCandidates(){ return registry.map((r,i)=>({r,i})).filter(({r})=>r.mt); }
 function ketorasQualityLabel(q){ return q==='A'?'Vezető':(q==='B'?'Munkatárs':(q==='C'?'Ügyfél':'')); }
+let ketorasExpandedIdx = null;   // a helyben kinyitott (accordion) jelölt sor indexe
+const tobLogRows = (arr, kind) => (arr||[]).map((row,ri)=>`<tr>
+    <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="datum" value="${esc(row.datum)}" placeholder="dátum"></td>
+    <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="nap" value="${esc(row.nap)}" placeholder="nap"></td>
+    <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="ido" value="${esc(row.ido)}" placeholder="idő"></td>
+    <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="feljegyzes" value="${esc(row.feljegyzes)}" placeholder="feljegyzés"></td>
+    <td><button class="row-del" data-tobdel="${kind}:${ri}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td>
+</tr>`).join('');
+function ketorasDetailHtml(i){
+    const r = registry[i];
+    const tob = r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+    return `<div class="ket-detail" data-tobdetail="${i}">
+        <div class="rd-grid">
+            <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
+            <div class="rd-field"><label>Telefonszám</label><input data-tobphone value="${esc(r.phone)}"></div>
+            <div class="rd-field"><label>Lakhely</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
+            <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
+        </div>
+        <div class="rd-sec">Kapcsolat minősége</div>
+        <div class="tob-quality-picker">
+            <label><input type="radio" name="tobq" value="A" ${tob.minoseg==='A'?'checked':''}><span>A – Vezető</span></label>
+            <label><input type="radio" name="tobq" value="B" ${tob.minoseg==='B'?'checked':''}><span>B – Munkatárs</span></label>
+            <label><input type="radio" name="tobq" value="C" ${tob.minoseg==='C'?'checked':''}><span>C – Ügyfél</span></label>
+        </div>
+        <div class="rd-field" style="margin-top:10px;"><label>Kapcsolat létrehozásának módja</label><input data-tobmodja value="${esc(tob.modja)}"></div>
+        <div class="rd-field"><label>Megjegyzés</label><textarea data-tobmegj rows="2">${esc(tob.megjegyzes)}</textarea></div>
+
+        <div class="rd-sec">Telefonálási kísérletek</div>
+        <table class="tob-log-table"><thead><tr><th>Dátum</th><th>Nap</th><th>Idő</th><th>Feljegyzés</th><th></th></tr></thead>
+            <tbody id="tobHivasok">${tobLogRows(tob.hivasok,'hivasok')}</tbody></table>
+        <button class="add-row tob-log-add" id="tobAddHivas">+ Hívási kísérlet</button>
+
+        <div class="rd-sec">Időpontegyeztetés</div>
+        <table class="tob-log-table"><thead><tr><th>Dátum</th><th>Nap</th><th>Idő</th><th>Feljegyzés</th><th></th></tr></thead>
+            <tbody id="tobIdopontok">${tobLogRows(tob.idopontok,'idopontok')}</tbody></table>
+        <button class="add-row tob-log-add" id="tobAddIdopont">+ Időpont</button>
+
+        <div class="modal-foot">
+            <button class="btn" id="tobUnflag">Levétel a jelöltek közül</button>
+            <button class="btn primary" id="tobClose">Kész</button>
+        </div>
+    </div>`;
+}
 function renderKetorasList(){
     const el = document.getElementById('ketorasList');
     if(!el) return;
@@ -2714,12 +2764,14 @@ function renderKetorasList(){
         el.innerHTML = `<div class="ket-empty">Még nincs munkatárs-jelölt. Adj hozzá egyet a „+ Új jelölt” gombbal, vagy jelölj meg egy meglévő kapcsolatot a fenti keresővel.</div>`;
         return;
     }
+    const chevIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
     el.innerHTML = list.map(({r,i})=>{
         const hasName = !!(r.name && r.name.trim());
         const tob = r.toborzas || {};
         const lastCall = (tob.hivasok && tob.hivasok.length) ? tob.hivasok[tob.hivasok.length-1] : null;
         const lastTxt = lastCall ? `Utolsó hívás: ${lastCall.datum ? esc(lastCall.datum) : 'dátum nélkül'}` : 'Még nincs hívási kísérlet';
-        return `<div class="ket-row" data-ketopen="${i}">
+        const open = i === ketorasExpandedIdx;
+        return `<div class="ket-row${open?' open':''}" data-ketopen="${i}">
             <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="ket-meta">
                 <div class="ket-name${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
@@ -2727,65 +2779,18 @@ function renderKetorasList(){
             </div>
             <div class="flaggroup" title="Felhívandó – bekerül a Saját Karrierem listába">${flagChip(i,'karrierTp','TP',r.karrierTp)}</div>
             <span class="ket-quality${tob.minoseg?' q-'+tob.minoseg:''}" title="${esc(ketorasQualityLabel(tob.minoseg))}">${esc(tob.minoseg||'—')}</span>
-        </div>`;
+            <span class="ket-chev">${chevIc}</span>
+        </div>${open ? ketorasDetailHtml(i) : ''}`;
     }).join('');
 }
-function openTobDetail(i){
-    const r = registry[i];
-    if(!r) return;
-    r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
-    const tob = r.toborzas;
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    const logRows = (arr, kind) => (arr||[]).map((row,ri)=>`<tr>
-        <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="datum" value="${esc(row.datum)}" placeholder="dátum"></td>
-        <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="nap" value="${esc(row.nap)}" placeholder="nap"></td>
-        <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="ido" value="${esc(row.ido)}" placeholder="idő"></td>
-        <td><input data-tobrow="${kind}" data-tobri="${ri}" data-tobf="feljegyzes" value="${esc(row.feljegyzes)}" placeholder="feljegyzés"></td>
-        <td><button class="row-del" data-tobdel="${kind}:${ri}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td>
-    </tr>`).join('');
-    overlay.innerHTML = `
-        <div class="modal modal-lg">
-            <div class="modal-head">Beszélgetési jelentés</div>
-            <div class="modal-body">
-                <div class="rd-grid">
-                    <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
-                    <div class="rd-field"><label>Telefonszám</label><input data-tobphone value="${esc(r.phone)}"></div>
-                    <div class="rd-field"><label>Lakhely</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
-                    <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
-                </div>
-                <div class="rd-sec">Kapcsolat minősége</div>
-                <div class="tob-quality-picker">
-                    <label><input type="radio" name="tobq" value="A" ${tob.minoseg==='A'?'checked':''}><span>A – Vezető</span></label>
-                    <label><input type="radio" name="tobq" value="B" ${tob.minoseg==='B'?'checked':''}><span>B – Munkatárs</span></label>
-                    <label><input type="radio" name="tobq" value="C" ${tob.minoseg==='C'?'checked':''}><span>C – Ügyfél</span></label>
-                </div>
-                <div class="rd-field" style="margin-top:10px;"><label>Kapcsolat létrehozásának módja</label><input data-tobmodja value="${esc(tob.modja)}"></div>
-                <div class="rd-field"><label>Megjegyzés</label><textarea data-tobmegj rows="2">${esc(tob.megjegyzes)}</textarea></div>
-
-                <div class="rd-sec">Telefonálási kísérletek</div>
-                <table class="tob-log-table"><thead><tr><th>Dátum</th><th>Nap</th><th>Idő</th><th>Feljegyzés</th><th></th></tr></thead>
-                    <tbody id="tobHivasok">${logRows(tob.hivasok,'hivasok')}</tbody></table>
-                <button class="add-row tob-log-add" id="tobAddHivas">+ Hívási kísérlet</button>
-
-                <div class="rd-sec">Időpontegyeztetés</div>
-                <table class="tob-log-table"><thead><tr><th>Dátum</th><th>Nap</th><th>Idő</th><th>Feljegyzés</th><th></th></tr></thead>
-                    <tbody id="tobIdopontok">${logRows(tob.idopontok,'idopontok')}</tbody></table>
-                <button class="add-row tob-log-add" id="tobAddIdopont">+ Időpont</button>
-            </div>
-            <div class="modal-foot">
-                <button class="btn" id="tobUnflag">Levétel a jelöltek közül</button>
-                <button class="btn primary" id="tobClose">Kész</button>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    const persist = () => { store.save('sf_registry', registry); persistReg(i); };
-    const renderTobBody = () => {
-        document.getElementById('tobHivasok').innerHTML = logRows(tob.hivasok,'hivasok');
-        document.getElementById('tobIdopontok').innerHTML = logRows(tob.idopontok,'idopontok');
-    };
-    overlay.addEventListener('input', e=>{
+(function(){
+    const list = document.getElementById('ketorasList');
+    const persistExpanded = () => { store.save('sf_registry', registry); if(ketorasExpandedIdx!=null) persistReg(ketorasExpandedIdx); };
+    if(list) list.addEventListener('input', e=>{
         const t = e.target;
+        const i = ketorasExpandedIdx; if(i==null) return;
+        const r = registry[i]; if(!r) return;
+        const tob = r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
         if(t.dataset.tobname!==undefined) r.name = t.value;
         else if(t.dataset.tobphone!==undefined) r.phone = t.value;
         else if(t.dataset.toblakhely!==undefined) r.lakhely = t.value;
@@ -2796,23 +2801,7 @@ function openTobDetail(i){
             const arr = tob[t.dataset.tobrow];
             if(arr && arr[+t.dataset.tobri]) arr[+t.dataset.tobri][t.dataset.tobf] = t.value;
         } else return;
-        persist();
-    });
-    overlay.addEventListener('change', e=>{ if(e.target.name==='tobq'){ tob.minoseg=e.target.value; persist(); } });
-    overlay.addEventListener('click', e=>{
-        if(e.target.closest('#tobAddHivas')){ tob.hivasok=tob.hivasok||[]; tob.hivasok.push({datum:'',nap:'',ido:'',feljegyzes:''}); persist(); renderTobBody(); return; }
-        if(e.target.closest('#tobAddIdopont')){ tob.idopontok=tob.idopontok||[]; tob.idopontok.push({datum:'',nap:'',ido:'',feljegyzes:''}); persist(); renderTobBody(); return; }
-        const del = e.target.closest('[data-tobdel]');
-        if(del){ const [kind,ri]=del.dataset.tobdel.split(':'); tob[kind].splice(+ri,1); persist(); renderTobBody(); return; }
-        if(e.target.closest('#tobUnflag')){ r.mt=false; persist(); overlay.remove(); renderKetorasList(); return; }
-        if(e.target.closest('#tobClose') || e.target===overlay){ overlay.remove(); renderRegistry(); renderKetorasList(); }
-    });
-}
-(function(){
-    const list = document.getElementById('ketorasList');
-    if(list) list.addEventListener('click', e=>{
-        if(e.target.closest('input, label')) return;
-        const o=e.target.closest('[data-ketopen]'); if(o) openTobDetail(+o.dataset.ketopen);
+        persistExpanded();
     });
     if(list) list.addEventListener('change', e=>{
         const t = e.target;
@@ -2820,7 +2809,40 @@ function openTobDetail(i){
             const idx = +t.dataset.ri;
             registry[idx].karrierTp = t.checked;
             store.save('sf_registry', registry); persistReg(idx); refreshMoneyCareer();
+            return;
         }
+        if(t.name==='tobq' && ketorasExpandedIdx!=null){
+            const r = registry[ketorasExpandedIdx];
+            r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+            r.toborzas.minoseg = t.value;
+            persistExpanded(); renderKetorasList();
+        }
+    });
+    if(list) list.addEventListener('click', e=>{
+        const i = ketorasExpandedIdx;
+        if(e.target.closest('#tobAddHivas') && i!=null){
+            const tob = registry[i].toborzas; tob.hivasok = tob.hivasok||[]; tob.hivasok.push({datum:'',nap:'',ido:'',feljegyzes:''});
+            persistExpanded(); renderKetorasList(); return;
+        }
+        if(e.target.closest('#tobAddIdopont') && i!=null){
+            const tob = registry[i].toborzas; tob.idopontok = tob.idopontok||[]; tob.idopontok.push({datum:'',nap:'',ido:'',feljegyzes:''});
+            persistExpanded(); renderKetorasList(); return;
+        }
+        const del = e.target.closest('[data-tobdel]');
+        if(del && i!=null){
+            const [kind,ri] = del.dataset.tobdel.split(':');
+            registry[i].toborzas[kind].splice(+ri,1);
+            persistExpanded(); renderKetorasList(); return;
+        }
+        if(e.target.closest('#tobUnflag') && i!=null){
+            registry[i].mt = false;
+            persistExpanded(); ketorasExpandedIdx = null; renderRegistry(); renderKetorasList(); return;
+        }
+        if(e.target.closest('#tobClose')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
+        // Sorra kattintva nyit/zár (accordion) – szerkeszthető mezőkre kattintva nem.
+        if(e.target.closest('input, label, button, textarea')) return;
+        const o = e.target.closest('[data-ketopen]');
+        if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; renderKetorasList(); }
     });
     const addBtn = document.getElementById('ketorasAdd');
     if(addBtn) addBtn.addEventListener('click', ()=>{
@@ -2828,15 +2850,22 @@ function openTobDetail(i){
         const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
         const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:true, karrierTp:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{}, toborzas:{ minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] }, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'', _localKey:localKey };
         registry.push(r);
-        store.save('sf_registry', registry); renderKetorasList();
+        store.save('sf_registry', registry);
+        ketorasExpandedIdx = registry.indexOf(r);
+        renderKetorasList();
         if(typeof window.sfAddClient === 'function'){
             window.sfAddClient(regClientPayload(r)).then(id => {
                 if (!id) return;
                 const rec = registry.find(x => x._localKey === localKey);
-                if (rec) { rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); }
+                if (rec) {
+                    const wasExpanded = ketorasExpandedIdx === registry.indexOf(rec);
+                    rec.id = id; delete rec._localKey; store.save('sf_registry', registry);
+                    const newIdx = registry.indexOf(rec);
+                    if(wasExpanded) ketorasExpandedIdx = newIdx;
+                    persistReg(newIdx);
+                }
             });
         }
-        openTobDetail(registry.indexOf(r));
     });
     const searchInp = document.getElementById('ketorasSearch');
     const resultsEl = document.getElementById('ketorasSearchResults');
@@ -2860,8 +2889,8 @@ function openTobDetail(i){
             r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
             store.save('sf_registry', registry); persistReg(idx);
             searchInp.value=''; resultsEl.hidden=true; resultsEl.innerHTML='';
+            ketorasExpandedIdx = idx;
             renderKetorasList();
-            openTobDetail(idx);
         });
     }
     const timerSlot = document.getElementById('ketorasTimerSlot');
