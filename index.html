@@ -996,6 +996,26 @@
         .side-view table thead th { padding:8px 10px; font-size:10px; }
         .side-view table tbody td { padding:9px 10px; font-size:12.5px; }
         .side-view .phone { font-size:12px; }
+        /* Jobb sáv "Feladatok" fül – kompakt Google Tasks widget */
+        .rf-add { display:flex; gap:6px; margin-bottom:8px; }
+        .rf-add input { flex:1; min-width:0; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); outline:none; }
+        .rf-add input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+        .rf-add button { flex-shrink:0; width:36px; border-radius:8px; font-size:16px; font-weight:800; line-height:1; }
+        .rf-list { display:flex; flex-direction:column; }
+        .rf-row { display:flex; align-items:center; gap:8px; padding:7px 2px; border-top:1px solid #f1f4f8; }
+        .rf-list .rf-row:first-child { border-top:none; }
+        .rf-check input { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
+        .rf-title { flex:1; min-width:0; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .rf-row.done .rf-title { text-decoration:line-through; color:var(--muted); }
+        .rf-due { font-size:11px; color:var(--muted); font-weight:700; flex-shrink:0; }
+        .rf-due.overdue { color:var(--red); }
+        .rf-del { flex-shrink:0; border:none; background:none; color:var(--muted); font-size:16px; font-weight:800; line-height:1; cursor:pointer; padding:0 2px; opacity:0; }
+        .rf-row:hover .rf-del { opacity:1; }
+        .rf-del:hover { color:var(--red); }
+        .rf-empty { padding:14px 2px; color:var(--muted); font-size:12.5px; text-align:center; }
+        .rf-donetoggle { display:block; width:100%; text-align:left; background:none; border:none; padding:9px 2px 3px; font-size:11.5px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit; }
+        .rf-donetoggle:hover { color:var(--text); }
+        .rf-more { display:block; margin-top:10px; font-size:12px; font-weight:700; text-align:center; }
         .res { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-weight:800; font-size:13px; }
         .res.ok { background:#e6f6ec; color:var(--green); }
         .res.no { background:#fdeaea; color:var(--red); }
@@ -1375,12 +1395,24 @@
                     </section>
                 </div>
 
+                <!-- FELADATOK NÉZET (Google Tasks, kompakt) -->
+                <div class="side-view" id="sideViewFeladatok" hidden>
+                    <section class="card">
+                        <div class="card-head">
+                            <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+                            <h2>Feladatok</h2>
+                        </div>
+                        <div class="card-body" id="railFeladatokMount"><div class="rf-empty">Betöltés…</div></div>
+                    </section>
+                </div>
+
                 </div><!-- /side-panel -->
 
                 <!-- RAIL -->
                 <div class="rail">
                     <button class="rail-btn active" id="railBtnSikerfuzet" onclick="sfSelectView('sikerfuzet')"><span>Sikerfüzet</span></button>
                     <button class="rail-btn" id="railBtnInfo" onclick="sfSelectView('info')"><span>Info</span></button>
+                    <button class="rail-btn" id="railBtnFeladatok" onclick="sfSelectView('feladatok')"><span>Feladatok</span></button>
                 </div>
 
             </div><!-- /col-side -->
@@ -1974,19 +2006,20 @@ window.sfApplyResultFromEvent = function(ev, result){
 
 // (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
 
-// ===== JOBB OLDALI RAIL NÉZETVÁLTÁS (Sikerfüzet / Info) =====
-// Egy már aktív rail-fülre (Sikerfüzet/Info) újra kattintva a jobb oldali
-// panel össze-/kinyílik, a naptár pedig kitölti a felszabaduló helyet.
+// ===== JOBB OLDALI RAIL NÉZETVÁLTÁS (Sikerfüzet / Info / Feladatok) =====
+// Egy már aktív rail-fülre újra kattintva a jobb oldali panel össze-/
+// kinyílik, a naptár pedig kitölti a felszabaduló helyet.
+const SF_SIDE_VIEWS = {
+    sikerfuzet: { view: 'sideViewSikerfuzet', btn: 'railBtnSikerfuzet' },
+    info:       { view: 'sideViewInfo',       btn: 'railBtnInfo' },
+    feladatok:  { view: 'sideViewFeladatok',  btn: 'railBtnFeladatok', onShow: () => { if (typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok(); } },
+};
 window.sfSelectView = function(v){
-    const viewSikerfuzet = document.getElementById('sideViewSikerfuzet');
-    const viewInfo = document.getElementById('sideViewInfo');
-    const btnSf = document.getElementById('railBtnSikerfuzet');
-    const btnInfo = document.getElementById('railBtnInfo');
     const panel = document.getElementById('sidePanel');
     const content = document.querySelector('.content');
-    if(!viewSikerfuzet || !viewInfo) return;
-    const isSf = v !== 'info';
-    const alreadyActive = (isSf && btnSf && btnSf.classList.contains('active')) || (!isSf && btnInfo && btnInfo.classList.contains('active'));
+    const target = SF_SIDE_VIEWS[v] ? v : 'sikerfuzet';
+    const targetBtn = document.getElementById(SF_SIDE_VIEWS[target].btn);
+    const alreadyActive = targetBtn && targetBtn.classList.contains('active');
     if(alreadyActive && panel && !panel.classList.contains('collapsed')){
         panel.classList.add('collapsed');
         if(content) content.classList.add('side-collapsed');
@@ -1998,11 +2031,14 @@ window.sfSelectView = function(v){
         if(content) content.classList.remove('side-collapsed');
         store.save('sf_side_collapsed', false);
     }
-    viewSikerfuzet.hidden = !isSf;
-    viewInfo.hidden = isSf;
-    if(btnSf) btnSf.classList.toggle('active', isSf);
-    if(btnInfo) btnInfo.classList.toggle('active', !isSf);
-    store.save('sf_side_view', isSf ? 'sikerfuzet' : 'info');
+    Object.keys(SF_SIDE_VIEWS).forEach(k => {
+        const cfg = SF_SIDE_VIEWS[k];
+        const el = document.getElementById(cfg.view), btn = document.getElementById(cfg.btn);
+        if(el) el.hidden = (k !== target);
+        if(btn) btn.classList.toggle('active', k === target);
+    });
+    store.save('sf_side_view', target);
+    if(SF_SIDE_VIEWS[target].onShow) SF_SIDE_VIEWS[target].onShow();
 };
 sfSelectView(store.load('sf_side_view', 'sikerfuzet'));
 if(store.load('sf_side_collapsed', false)){
@@ -3192,6 +3228,11 @@ window.sfOnConfig = function(){
     if(hp && !hp.hidden) renderHavi();
     updateHaviEgysegCard();
     renderPlan();
+    // Ha a bejelentkezéskor a jobb sávban épp a Feladatok fül volt aktív
+    // (megjegyzett nézet), most töltjük be – korábban a modul-script még
+    // nem futott, amikor az induló sfSelectView lefutott.
+    const rf = document.getElementById('sideViewFeladatok');
+    if(rf && !rf.hidden && typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok();
 };
 // A modul-script hívja meg, amikor a vezető "ránézés" nézetet vált (vagy
 // visszavált a sajátjára) – a Havi/Éves terv (uid szerint kulcsolva) és a
@@ -3200,9 +3241,11 @@ window.sfOnViewSwitch = function(){
     const hp=document.getElementById('page-havi');
     const ep=document.getElementById('page-eves');
     const sp=document.getElementById('page-struktura');
+    const rf=document.getElementById('sideViewFeladatok');
     if(hp && !hp.hidden) renderHavi();
     if(ep && !ep.hidden) renderEves();
     if(sp && !sp.hidden && typeof window.sfShowStruktura === 'function') window.sfShowStruktura();
+    if(rf && !rf.hidden && typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok();
     updateHaviEgysegCard();
     renderPlan();
 };
@@ -3625,6 +3668,7 @@ window.sfOnViewSwitch = function(){
         if (/training|tréning/.test(low)) return EVENT_TYPES.find(t => t.label === "Training");
         if (/oktatás|képzés|tanfolyam/.test(low)) return EVENT_TYPES.find(t => t.label === "Oktatás");
         if (/\bmt\b/.test(low)) return EVENT_TYPES.find(t => t.label === "MT");
+        if (/\bmeeting\b|vezetőségi|megbeszélés/.test(low)) return EVENT_TYPES.find(t => t.label === "Munka");
         return null;
     }
     function eventColorHex(ev, cleanTitle){
@@ -4681,6 +4725,14 @@ window.sfOnViewSwitch = function(){
         wirePG();
     }
 
+    // A jobb oldali sáv "Feladatok" füle ugyanazt a Google Tasks listát mutatja,
+    // csak kompakt formában – ha épp mindkét nézet (a teljes PG oldal és a
+    // sáv-widget) a DOM-ban van, mindkettőt frissítjük egy adatváltozás után.
+    function refreshPGViews(){
+        if (document.getElementById("pgMount")) renderPGList();
+        if (document.getElementById("railFeladatokMount")) renderRailFeladatok();
+    }
+
     function renderPGConnect(msg){
         const m = document.getElementById("pgMount"); if(!m) return;
         m.innerHTML = `<div class="card pg-connect">
@@ -4718,6 +4770,98 @@ window.sfOnViewSwitch = function(){
         document.querySelectorAll("#pgMount [data-pgfilter]").forEach(bt => bt.addEventListener("click", () => { pgTypeFilter = bt.dataset.pgfilter; renderPGList(); }));
     }
 
+    // ===================== FELADATOK (a jobb sáv kompakt Google Tasks widgetje) =====================
+    // Ugyanazt a Google Tasks listát (pgListId/pgTasks) mutatja, mint a teljes
+    // PG Modul, csak leegyszerűsítve – gyors áttekintés és gyors hozzáadás,
+    // a típus/prioritás/jegyzet finomhangolásához a PG Modul a hivatkozott hely.
+    let railFeladatokDoneOpen = false;
+
+    function railTaskRow(t){
+        const meta = pgMeta(t);
+        const due = t.due ? t.due.substring(0,10) : "";
+        const today = new Date().toISOString().substring(0,10);
+        const overdue = due && due < today && !meta.done;
+        const dueLabel = due ? due.slice(5).split("-").reverse().join(".") + "." : "";
+        return `<div class="rf-row${meta.done ? " done" : ""}">
+            <label class="rf-check"><input type="checkbox" data-rftoggle="${t.id}"${meta.done ? " checked" : ""}></label>
+            <span class="rf-title">${escM(t.title || "(névtelen feladat)")}</span>
+            ${dueLabel ? `<span class="rf-due${overdue ? " overdue" : ""}">${dueLabel}</span>` : ""}
+            <button class="rf-del" data-rfdel="${t.id}" title="Törlés">×</button>
+        </div>`;
+    }
+
+    function renderRailFeladatok(){
+        const m = document.getElementById("railFeladatokMount"); if(!m) return;
+        const open = pgTasks.filter(t => !pgMeta(t).done);
+        const done = pgTasks.filter(t => pgMeta(t).done);
+        m.innerHTML = `
+            <div class="rf-add"><input type="text" id="rfInput" placeholder="Új feladat…" maxlength="500"><button class="btn primary" id="rfAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+</button></div>
+            <div class="rf-list">${open.length ? open.map(railTaskRow).join("") : `<div class="rf-empty">Nincs aktív feladat.</div>`}</div>
+            ${done.length ? `
+                <button class="rf-donetoggle" id="rfDoneToggle">${railFeladatokDoneOpen ? "▾" : "▸"} ${done.length} kész feladat</button>
+                ${railFeladatokDoneOpen ? `<div class="rf-list">${done.map(railTaskRow).join("")}</div>` : ""}
+            ` : ""}
+            <a class="link rf-more" href="#" id="rfOpenFull">Összes megnyitása a PG Modulban →</a>`;
+        wireRailFeladatok();
+    }
+
+    function renderRailFeladatokConnect(msg){
+        const m = document.getElementById("railFeladatokMount"); if(!m) return;
+        m.innerHTML = `<div class="rf-empty">${escM(msg)}</div>
+            <button class="btn primary" id="rfConnect" style="width:100%;margin-top:8px;background:var(--blue);color:#fff;border-color:var(--blue);">Google Tasks csatlakoztatása</button>`;
+        const b = document.getElementById("rfConnect");
+        if (b) b.addEventListener("click", async () => {
+            b.disabled = true;
+            try { await connectTasks(); window.sfShowRailFeladatok(); }
+            catch (err){ alert("Nem sikerült csatlakozni: " + (err.message || err)); b.disabled = false; }
+        });
+    }
+
+    function wireRailFeladatok(){
+        const inp = document.getElementById("rfInput"), add = document.getElementById("rfAdd");
+        const doAdd = async () => {
+            if (!inp || pgBusy) return;
+            const title = inp.value.trim(); if (!title) return;
+            const meta = { p: "Alacsony", type: "szemelyes", done: false, note: "", created: new Date().toISOString().substring(0,10) };
+            pgBusy = true; inp.disabled = true;
+            try {
+                await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify({ title, notes: JSON.stringify(meta) }) }, true);
+                await loadPGTasks(true); refreshPGViews();
+                const ni = document.getElementById("rfInput"); if (ni){ ni.value = ""; ni.focus(); }
+            }
+            catch(e){ alert("Nem sikerült hozzáadni: " + (e.message || e)); inp.disabled = false; }
+            finally { pgBusy = false; }
+        };
+        if (add) add.addEventListener("click", doAdd);
+        if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); doAdd(); } });
+        document.querySelectorAll("#railFeladatokMount [data-rftoggle]").forEach(cb => cb.addEventListener("change", () => pgToggle(cb.dataset.rftoggle, cb.checked)));
+        document.querySelectorAll("#railFeladatokMount [data-rfdel]").forEach(bt => bt.addEventListener("click", () => pgDelete(bt.dataset.rfdel)));
+        const doneToggle = document.getElementById("rfDoneToggle");
+        if (doneToggle) doneToggle.addEventListener("click", () => { railFeladatokDoneOpen = !railFeladatokDoneOpen; renderRailFeladatok(); });
+        const openFull = document.getElementById("rfOpenFull");
+        if (openFull) openFull.addEventListener("click", e => { e.preventDefault(); const l = document.querySelector('.nav a[data-page="pg"]'); if (l) l.click(); });
+    }
+
+    window.sfShowRailFeladatok = async function(){
+        const m = document.getElementById("railFeladatokMount"); if (!m) return;
+        // A Google Tasks fiókonként privát – "ránézéskor" (view-as) ezt nem
+        // lehet megmutatni, ugyanúgy, mint a teljes PG Modulnál.
+        const ownUid = window.sfCurrentUser && window.sfCurrentUser.uid;
+        if (window.sfViewedUid && window.sfViewedUid !== ownUid){
+            const emp = (window.sfViewAsEmployees || []).find(e => e.uid === window.sfViewedUid);
+            m.innerHTML = `<div class="rf-empty">A Google Tasks fiókonként privát – ${escM(emp ? (emp.name || emp.email) : "a munkatárs")} feladatai innen nem érhetők el.</div>`;
+            return;
+        }
+        if (!isConfigured){ renderRailFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
+        m.innerHTML = `<div class="rf-empty">Betöltés…</div>`;
+        try { await loadPGTasks(false); renderRailFeladatok(); }
+        catch(e){
+            renderRailFeladatokConnect((e.status === 401 || e.status === 403)
+                ? "A feladatok eléréséhez engedélyezned kell a Google Tasks hozzáférést."
+                : ("Nem sikerült betölteni a feladatokat: " + (e.message || e)));
+        }
+    };
+
     async function pgAddTask(){
         const inp = document.getElementById("pgInput");
         const typeSel = document.getElementById("pgTypeSel");
@@ -4734,7 +4878,7 @@ window.sfOnViewSwitch = function(){
         pgBusy = true; inp.disabled = true;
         try {
             await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
-            await loadPGTasks(true); renderPGList();
+            await loadPGTasks(true); refreshPGViews();
             const ni = document.getElementById("pgInput"); if(ni){ ni.value = ''; ni.focus(); }
         }
         catch(e){ alert("Nem sikerült hozzáadni: " + (e.message || e)); inp.disabled = false; }
@@ -4746,7 +4890,7 @@ window.sfOnViewSwitch = function(){
         const meta = pgMeta(t); meta.done = checked;
         try {
             await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
-            t.notes = JSON.stringify(meta); renderPGList();
+            t.notes = JSON.stringify(meta); refreshPGViews();
         }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
@@ -4756,7 +4900,7 @@ window.sfOnViewSwitch = function(){
         const meta = pgMeta(t); meta.p = prio;
         try {
             await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
-            t.notes = JSON.stringify(meta); renderPGList();
+            t.notes = JSON.stringify(meta); refreshPGViews();
         }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
@@ -4766,7 +4910,7 @@ window.sfOnViewSwitch = function(){
         const meta = pgMeta(t); meta.type = type;
         try {
             await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
-            t.notes = JSON.stringify(meta); renderPGList();
+            t.notes = JSON.stringify(meta); refreshPGViews();
         }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
@@ -4776,7 +4920,7 @@ window.sfOnViewSwitch = function(){
         const meta = pgMeta(t); meta.note = note;
         try {
             await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
-            t.notes = JSON.stringify(meta); renderPGList();
+            t.notes = JSON.stringify(meta); refreshPGViews();
         }
         catch(e){ alert("Nem sikerült menteni a jegyzetet: " + (e.message || e)); }
     }
@@ -4787,13 +4931,13 @@ window.sfOnViewSwitch = function(){
             await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify(body) }, true);
             const t = pgTasks.find(x => x.id === id);
             if(t) t.due = dateStr ? dateStr + 'T00:00:00.000Z' : null;
-            renderPGList();
+            refreshPGViews();
         }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
 
     async function pgDelete(id){
-        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }, true); await loadPGTasks(true); renderPGList(); }
+        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }, true); await loadPGTasks(true); refreshPGViews(); }
         catch(e){ alert("Nem sikerült törölni: " + (e.message || e)); }
     }
 
