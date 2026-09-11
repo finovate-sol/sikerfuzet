@@ -817,16 +817,17 @@
         .ideal-zone.ideal-colleague { background:rgba(244,124,32,.06); box-shadow:inset 0 0 0 1px rgba(244,124,32,.14); }
         .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
         .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
-        .wk-ev { position:absolute; border-radius:6px; padding:3px 6px; font-size:11px; line-height:1.2; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:pointer; }
-        .wk-ev b { display:block; font-weight:600; font-size:10px; }
-        .wk-ev.c0 { background:#e8f0fc; border-color:#1f5fd0; color:#1a3f7a; }
-        .wk-ev.c1 { background:#e6f6ec; border-color:#16a34a; color:#14532d; }
-        .wk-ev.c2 { background:#efeafe; border-color:#7c3aed; color:#4c1d95; }
-        .wk-ev.c3 { background:#fef3e2; border-color:#d97706; color:#7c3a06; }
-        .wk-ev.c4 { background:#fdeaea; border-color:#dc2626; color:#7f1d1d; }
-        .wk-ev-del { position:absolute; top:0; right:2px; font-size:15px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; padding:1px 3px; }
-        .wk-ev:hover .wk-ev-del { opacity:.7; }
-        .wk-ev-del:hover { opacity:1 !important; color:var(--red); }
+        .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; border-left:3px solid; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
+        .wk-ev:hover { box-shadow:0 3px 10px rgba(15,47,95,.18); z-index:2; }
+        .wk-ev:active { cursor:grabbing; }
+        .wk-ev.dragging { opacity:.4; }
+        .wk-ev-head { display:flex; align-items:center; gap:4px; }
+        .wk-ev-svg { width:12px; height:12px; flex-shrink:0; }
+        .wk-ev b { display:block; font-weight:700; font-size:10px; }
+        .wk-ev-title { display:block; font-weight:600; margin-top:1px; }
+        .wk-ev-del { position:absolute; top:2px; right:2px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; border-radius:4px; }
+        .wk-ev:hover .wk-ev-del { opacity:.6; }
+        .wk-ev-del:hover { opacity:1 !important; color:#fff; background:var(--red); }
         .wk-ev-loc { display:block; font-size:10px; opacity:.85; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .wk-msg { position:absolute; top:0; left:0; right:0; padding:10px 10px; text-align:center; color:var(--muted); font-size:13px; }
         .wk-msg .btn { margin-top:12px; }
@@ -3232,6 +3233,35 @@ window.sfOnConfig = function(){
     let viewAnchor = new Date();        // a nézet referencia-dátuma
     let currentColumns = [];            // az idő-rács oszlopai (Date, éjfél)
     let calWired = false;
+    let eventsById = {};                 // a legutóbb betöltött események id szerint (szerkesztéshez)
+
+    // Esemény-ikon a cím kulcsszavai alapján (csak vizuális segédlet)
+    const CAL_ICONS = {
+        phone:   '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
+        activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+        book:    '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+        people:  '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        person:  '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+        clock:   '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        check:   '<path d="m5 13 4 4L19 7"/>',
+        x:       '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    };
+    function calSvg(key, extra){ return `<svg class="wk-ev-svg${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAL_ICONS[key]||CAL_ICONS.clock}</svg>`; }
+    function calEvIconKey(summary){
+        const s = (summary||"").toLowerCase();
+        if (/telefon|hívás/.test(s)) return "phone";
+        if (/edzés|tréning|training|sport/.test(s)) return "activity";
+        if (/oktatás|képzés|tanfolyam/.test(s)) return "book";
+        if (/csapat|vezetőségi|\bnap\b|workshop|megbeszélés|meeting|csoport|parti/.test(s)) return "people";
+        if (/\bpg\b/.test(s) || / - pg/.test(s)) return "person";
+        return "clock";
+    }
+    // A cím elejéről levágott ✅/❌ jel → { clean, status: 'yes'|'no'|null }
+    function parseValidation(summary){
+        const m = /^([✅❌])\s*/.exec(summary || "");
+        if (!m) return { clean: summary || "", status: null };
+        return { clean: (summary || "").slice(m[0].length), status: m[1] === "✅" ? "yes" : "no" };
+    }
 
     function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
     function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
@@ -3340,7 +3370,8 @@ window.sfOnConfig = function(){
         const alldayCells = document.querySelectorAll("#wkAllday .cell");
         const maxH = (END_H - START_H) * ROW;
         events.forEach(ev => {
-            const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+            const { clean, status } = parseValidation(ev.summary);
+            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
             if (!ev.start.dateTime){                       // egész napos
                 const d = new Date((ev.start.date || "") + "T00:00:00");
                 const idx = colIndexOf(cols, d);
@@ -3352,7 +3383,7 @@ window.sfOnConfig = function(){
                     chip.style.cursor = "pointer";
                     chip.dataset.eventId = ev.id || "";
                     chip.dataset.title = ev.summary || "";
-                    chip.textContent = ev.summary || "(névtelen)";
+                    chip.textContent = clean || "(névtelen)";
                     chip.title = chip.textContent;
                     alldayCells[idx].appendChild(chip);
                 }
@@ -3364,14 +3395,15 @@ window.sfOnConfig = function(){
             const startDec = s.getHours() + s.getMinutes()/60;
             const endDec = e.getHours() + e.getMinutes()/60;
             let top = (startDec - START_H) * ROW;
-            let height = Math.max(20, (endDec - startDec) * ROW);
+            let height = Math.max(30, (endDec - startDec) * ROW);
             if (top < 0){ height += top; top = 0; }
             if (top >= maxH) return;
             if (top + height > maxH) height = maxH - top;
             const hh = pad2(s.getHours()) + ":" + pad2(s.getMinutes());
             const div = document.createElement("div");
             div.className = "wk-ev";
-            div.style.background = hexToRgba(hex, .15);
+            div.draggable = true;
+            div.style.background = hexToRgba(hex, .16);
             div.style.borderLeftColor = hex;
             div.style.color = "#1c2b45";
             div.style.left = `calc(${idx*(100/n)}% + 3px)`;
@@ -3380,9 +3412,13 @@ window.sfOnConfig = function(){
             div.style.height = height + "px";
             div.dataset.eventId = ev.id || "";
             div.dataset.title = ev.summary || "";
+            div.dataset.durationMin = Math.round((e - s) / 60000);
+            const iconSvg = status === "yes" ? calSvg("check") : status === "no" ? calSvg("x") : calSvg(calEvIconKey(clean));
             const locHtml = ev.location ? `<span class="wk-ev-loc">📍 ${escM(ev.location)}</span>` : "";
-            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span><b>${hh}</b>${escM(ev.summary || "(névtelen)")}${locHtml}`;
-            div.title = (ev.summary || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
+            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
+                <span class="wk-ev-head" style="color:${hex}">${iconSvg}<b>${hh}</b></span>
+                <span class="wk-ev-title">${escM(clean || "(névtelen)")}</span>${locHtml}`;
+            div.title = (clean || "") + " — " + hh + (ev.location ? " @ " + ev.location : "");
             canvas.appendChild(div);
         });
     }
@@ -3408,6 +3444,38 @@ window.sfOnConfig = function(){
         return { idx, minutes };
     }
 
+    // Meglévő naptár-esemény húzása (áthelyezés) – a wk-ev elemek dragstart-ja tölti fel.
+    let draggingEvent = null;   // { id, durationMin }
+    function wireEventDrag(){
+        const canvas = document.getElementById("wkCanvas");
+        if (!canvas) return;
+        canvas.addEventListener("dragstart", e => {
+            const host = e.target.closest(".wk-ev");
+            if (!host || !host.dataset.eventId) return;
+            draggingEvent = { id: host.dataset.eventId, durationMin: +host.dataset.durationMin || 60 };
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", JSON.stringify({ type: "reschedule", eventId: draggingEvent.id }));
+            host.classList.add("dragging");
+        });
+        canvas.addEventListener("dragend", e => {
+            const host = e.target.closest(".wk-ev");
+            if (host) host.classList.remove("dragging");
+            draggingEvent = null;
+        });
+    }
+
+    async function rescheduleEvent(id, newStart, durationMin){
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
+        const newEnd = new Date(newStart.getTime() + durationMin * 60000);
+        try {
+            await updateCalendarEvent(id, {
+                start: { dateTime: localIso(newStart), timeZone: tz },
+                end:   { dateTime: localIso(newEnd),   timeZone: tz }
+            });
+            initCalendar();
+        } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
+    }
+
     function wireDrop(){
         const canvas = document.getElementById("wkCanvas");
         if (!canvas) return;
@@ -3417,15 +3485,16 @@ window.sfOnConfig = function(){
 
         canvas.addEventListener("dragover", e => {
             e.preventDefault();
-            e.dataTransfer.dropEffect = "copy";
+            e.dataTransfer.dropEffect = draggingEvent ? "move" : "copy";
             const { idx, minutes } = slotFromEvent(canvas, e);
             if (!indicator){ indicator = document.createElement("div"); indicator.className = "drop-indicator"; }
             if (indicator.parentNode !== canvas) canvas.appendChild(indicator);
             const top = (minutes - START_H * 60) / 60 * ROW;
+            const blockMin = draggingEvent ? draggingEvent.durationMin : 60;
             indicator.style.left = `calc(${idx*(100/n)}% + 2px)`;
             indicator.style.width = `calc(${100/n}% - 4px)`;
             indicator.style.top = top + "px";
-            indicator.style.height = ROW + "px";               // 60 perces blokk
+            indicator.style.height = Math.max(16, blockMin/60*ROW) + "px";
             indicator.textContent = pad2(Math.floor(minutes/60)) + ":" + pad2(minutes % 60);
         });
         canvas.addEventListener("dragleave", e => {
@@ -3436,12 +3505,17 @@ window.sfOnConfig = function(){
             clearIndicator();
             const raw = e.dataTransfer.getData("text/plain") || "";
             let payload; try { payload = JSON.parse(raw); } catch(_) { payload = { name: raw }; }
-            const name = (payload.name || "").trim();
-            if (!name || !currentColumns.length) return;
+            if (!currentColumns.length) return;
             const { idx, minutes } = slotFromEvent(canvas, e);
             const start = new Date(currentColumns[idx]);
             start.setHours(0, 0, 0, 0);
             start.setMinutes(minutes);
+            if (payload.type === "reschedule" && payload.eventId){
+                rescheduleEvent(payload.eventId, start, (draggingEvent && draggingEvent.durationMin) || 60);
+                return;
+            }
+            const name = (payload.name || "").trim();
+            if (!name) return;
             openEventModal(name, start, payload.list, payload.regidx);
         });
     }
@@ -3459,7 +3533,7 @@ window.sfOnConfig = function(){
                 catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
                 return;
             }
-            openValidateModal(id, host.dataset.title);
+            openEditEventModal(id);
         });
     }
 
@@ -3504,9 +3578,10 @@ window.sfOnConfig = function(){
             const other = d.getMonth() !== anchorMonth ? " other" : "";
             const today = sameDay(d, now) ? " today" : "";
             let evs = list.slice(0,3).map(({ev,ds}) => {
-                const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+                const { clean, status } = parseValidation(ev.summary);
+                const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
-                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hexToRgba(hex,.15)};border-left-color:${hex};color:#1c2b45;">${t}${escM(ev.summary||"(névtelen)")}</span>`;
+                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hexToRgba(hex,.15)};border-left-color:${hex};color:#1c2b45;">${t}${escM(clean||"(névtelen)")}</span>`;
             }).join("");
             if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
@@ -3525,12 +3600,13 @@ window.sfOnConfig = function(){
         items.forEach(({ev,ds,allDay}) => {
             const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
             if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
-            const hex = GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX;
+            const { clean, status } = parseValidation(ev.summary);
+            const hex = status === "yes" ? "#16a34a" : status === "no" ? "#dc2626" : (GCAL_HEX[ev.colorId] || DEFAULT_EVENT_HEX);
             const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
             html += `<div class="ag-item" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}">
                 <span class="ag-time">${time}</span>
                 <span class="ag-dot" style="background:${hex}"></span>
-                <span><span class="ag-title">${escM(ev.summary||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}</span>
+                <span><span class="ag-title">${escM(clean||"(névtelen)")}</span>${ev.location?`<br><span class="ag-loc">📍 ${escM(ev.location)}</span>`:""}</span>
                 <span class="ag-del" title="Törlés">×</span>
             </div>`;
         });
@@ -3550,35 +3626,81 @@ window.sfOnConfig = function(){
         return res.json();
     }
 
-    function openValidateModal(id, title){
-        const clean = (title || "").replace(/^([✅❌]\s*)+/, "");   // meglévő ✅/❌ levágása
+    // Egyesített esemény-modal: szerkesztés (cím/idő/helyszín), megtörtént-jelölés (✅/❌) és törlés
+    // egy helyen – bármelyik nézetből (nap/hét/hónap/napló) ugyanide jut a felhasználó.
+    function openEditEventModal(id, fallbackTitle){
+        const ev = eventsById[id];
+        const allDay = ev ? !ev.start.dateTime : false;
+        const start = ev ? new Date(ev.start.dateTime || (ev.start.date + "T00:00:00")) : new Date();
+        const end = ev ? new Date(ev.end.dateTime || (ev.end.date + "T00:00:00")) : new Date(start.getTime()+3600000);
+        const { clean } = parseValidation(ev ? ev.summary : fallbackTitle);
+        const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
+        const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
+        const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
-            <div class="modal" style="max-width:390px;">
-                <div class="modal-head">Megtörtént az esemény?</div>
+            <div class="modal" style="max-width:420px;">
+                <div class="modal-head">Esemény szerkesztése</div>
                 <div class="modal-body">
-                    <div class="modal-client">${escM(clean || "(névtelen)")}</div>
+                    <div class="rd-field"><label>Cím</label><input id="evTitle" value="${escM(clean || "")}" placeholder="(névtelen)"></div>
+                    <div class="rd-grid${allDay ? "" : " rd-grid-3"}">
+                        <div class="rd-field"><label>Dátum</label><input id="evDate" type="date" value="${dateStr}"></div>
+                        ${allDay ? "" : `<div class="rd-field"><label>Kezdés</label><input id="evStartT" type="time" value="${startStr}"></div>
+                        <div class="rd-field"><label>Befejezés</label><input id="evEndT" type="time" value="${endStr}"></div>`}
+                    </div>
+                    <div class="rd-field"><label>Helyszín</label><input id="evLocEdit" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín"></div>
                 </div>
-                <div class="modal-foot" style="justify-content:space-between;">
-                    <button class="btn" id="vCancel">Mégse</button>
-                    <span style="display:flex; gap:10px;">
-                        <button class="btn" id="vNo" style="border-color:#dc2626;color:#dc2626;">❌ Nem</button>
-                        <button class="btn primary" id="vYes" style="background:#16a34a;border-color:#16a34a;">✅ Megtörtént</button>
+                <div class="modal-foot" style="flex-wrap:wrap; gap:8px; justify-content:space-between;">
+                    <button class="btn" id="evDelete" style="border-color:#dc2626;color:#dc2626;">Törlés</button>
+                    <span style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn" id="evNo" style="border-color:#dc2626;color:#dc2626;">❌ Nem történt meg</button>
+                        <button class="btn" id="evYes" style="border-color:#16a34a;color:#16a34a;">✅ Megtörtént</button>
+                        <button class="btn primary" id="evSaveEdit">Mentés</button>
                     </span>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
         const close = () => overlay.remove();
         overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
-        overlay.querySelector("#vCancel").addEventListener("click", close);
-        const apply = async (emoji, btn) => {
-            btn.disabled = true;
-            try { await updateCalendarEvent(id, { summary: emoji + " " + clean }); close(); initCalendar(); }
-            catch (e){ alert("Nem sikerült frissíteni: " + (e.message || e)); btn.disabled = false; }
+
+        const readPatch = () => {
+            const title = overlay.querySelector("#evTitle").value.trim() || "(névtelen)";
+            const d = overlay.querySelector("#evDate").value || dateStr;
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
+            if (allDay) return { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), start: { date: d }, end: { date: d } };
+            const st = overlay.querySelector("#evStartT").value || startStr;
+            const et = overlay.querySelector("#evEndT").value || endStr;
+            const sDt = new Date(`${d}T${st}:00`), eDt = new Date(`${d}T${et}:00`);
+            return {
+                summary: title,
+                location: overlay.querySelector("#evLocEdit").value.trim(),
+                start: { dateTime: localIso(sDt), timeZone: tz },
+                end:   { dateTime: localIso(eDt > sDt ? eDt : new Date(sDt.getTime()+900000)), timeZone: tz }
+            };
         };
-        overlay.querySelector("#vYes").addEventListener("click", e => apply("✅", e.currentTarget));
-        overlay.querySelector("#vNo").addEventListener("click", e => apply("❌", e.currentTarget));
+        const busy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = true);
+        const unbusy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = false);
+        overlay.querySelector("#evSaveEdit").addEventListener("click", async () => {
+            busy();
+            try { await updateCalendarEvent(id, readPatch()); close(); initCalendar(); }
+            catch (err){ alert("Nem sikerült menteni: " + (err.message || err)); unbusy(); }
+        });
+        const applyStatus = async emoji => {
+            busy();
+            const patch = readPatch();
+            patch.summary = emoji + " " + patch.summary;
+            try { await updateCalendarEvent(id, patch); close(); initCalendar(); }
+            catch (err){ alert("Nem sikerült frissíteni: " + (err.message || err)); unbusy(); }
+        };
+        overlay.querySelector("#evYes").addEventListener("click", () => applyStatus("✅"));
+        overlay.querySelector("#evNo").addEventListener("click", () => applyStatus("❌"));
+        overlay.querySelector("#evDelete").addEventListener("click", async () => {
+            if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (clean || ""))) return;
+            busy();
+            try { await deleteCalendarEvent(id); close(); initCalendar(); }
+            catch (err){ alert("Nem sikerült törölni: " + (err.message || err)); unbusy(); }
+        });
     }
 
     async function deleteCalendarEvent(id){
@@ -3717,11 +3839,13 @@ window.sfOnConfig = function(){
 
         updateStats(token);
 
-        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); }
+        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); }
         else currentColumns = [];
 
         try {
             const events = await fetchEvents(token, rangeStart, rangeEnd);
+            eventsById = {};
+            events.forEach(ev => { if (ev.id) eventsById[ev.id] = ev; });
             if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events);
             else if (viewMode === "month") renderMonth(grid, now, events);
             else if (viewMode === "clients"){
