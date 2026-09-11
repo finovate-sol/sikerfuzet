@@ -3678,7 +3678,10 @@ window.sfOnViewSwitch = function(){
     // ===================== GOOGLE NAPTÁR =====================
     const HU_DAYS = ["H","K","Sze","Cs","P","Szo","V"];
     const HU_MONTHS = ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
-    const START_H = 6, END_H = 24, ROW = 44;      // 06:00–24:00, 44px / óra
+    const START_H = 6, END_H = 24, ROW = 44;      // a rács teljes tartománya, 44px / óra
+    // Alapból ennyi látszik; a maradék (2 óra felfelé 06:00-ig, 2 óra lefelé
+    // 24:00-ig) görgetéssel érhető el.
+    const VIEW_START_H = 8, VIEW_END_H = 22;
     // Ideális időpont-zónák naponként (hétfő=0 … vasárnap=6)
     const IDEAL_ZONES = {
         0: [ {s:17,e:20,cls:'ideal-client'}, {s:20,e:22,cls:'ideal-colleague'} ], // Hétfő
@@ -3871,7 +3874,10 @@ window.sfOnViewSwitch = function(){
                 `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}${nowLine}</div>` +
             `</div>`;
         const wkGridEl = grid.querySelector(".wk-grid");
-        if (wkGridEl) wkGridEl.scrollTop = Math.max(0, (10 - START_H) * ROW);
+        if (wkGridEl){
+            wkGridEl.style.height = ((VIEW_END_H - VIEW_START_H) * ROW) + "px";
+            wkGridEl.scrollTop = Math.max(0, (VIEW_START_H - START_H) * ROW);
+        }
         startNowTick();
     }
 
