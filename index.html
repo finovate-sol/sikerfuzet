@@ -318,6 +318,10 @@
         .ev-maps-link { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; color:var(--blue); text-decoration:none; }
         .ev-maps-link svg { width:12px; height:12px; }
         .ev-maps-link:hover { text-decoration:underline; }
+        .ev-days { display:flex; gap:4px; }
+        .ev-days button { flex:1; min-width:0; padding:8px 0; border:1px solid var(--border); background:var(--card); border-radius:8px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit; }
+        .ev-days button:hover { border-color:var(--blue); color:var(--blue); }
+        .ev-days button.active { background:var(--blue); border-color:var(--blue); color:#fff; }
         .ev-divider { height:1px; background:var(--border); margin:2px 0; }
         .ev-switch { position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0; }
         .ev-switch input { position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
@@ -901,14 +905,19 @@
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
         .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
         .wk-grid { display:flex; height:calc(100vh - 300px); min-height:420px; overflow-y:auto; }
-        .wk-times { width:52px; flex-shrink:0; }
+        .wk-times { width:52px; flex-shrink:0; position:relative; }
         .wk-times .t { height:44px; font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
         .wk-canvas { position:relative; flex:1; }
         .ideal-zone { position:absolute; pointer-events:none; z-index:0; border-radius:5px; box-sizing:border-box; }
         .ideal-zone.ideal-client { background:rgba(22,163,74,.22); box-shadow:inset 0 0 0 1px rgba(22,163,74,.4); }
         .ideal-zone.ideal-colleague { background:rgba(244,81,30,.24); box-shadow:inset 0 0 0 1px rgba(244,81,30,.5); }
-        .wk-line { position:absolute; left:0; right:0; border-top:1px solid #f0f2f6; }
-        .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #eef1f5; }
+        .wk-line { position:absolute; left:0; right:0; border-top:1px solid #d8dfe9; }
+        .wk-col { position:absolute; top:0; bottom:0; border-left:1px solid #e3e8ef; }
+        /* Piros "most" jelző: teljes szélességű vonal + pötty a mai oszlopon, az
+           óra-sávban pedig a pontos idő – a naptár-nézetekben megszokott módon. */
+        .wk-now { position:absolute; left:0; right:0; height:0; border-top:2px solid var(--red); z-index:3; pointer-events:none; }
+        .wk-now-dot { position:absolute; top:-5px; width:8px; height:8px; border-radius:50%; background:var(--red); }
+        .wk-now-lbl { position:absolute; right:4px; transform:translateY(-50%); background:var(--red); color:#fff; font-size:10px; font-weight:700; padding:1px 5px; border-radius:10px; font-variant-numeric:tabular-nums; z-index:3; }
         .wk-ev { position:absolute; border-radius:9px; padding:4px 7px; font-size:11px; line-height:1.25; overflow:hidden; box-sizing:border-box; cursor:grab; transition:box-shadow .12s, transform .12s; }
         .wk-ev:hover { box-shadow:0 5px 16px rgba(15,47,95,.32) !important; z-index:2; transform:translateY(-1px); }
         .wk-ev:active { cursor:grabbing; }
@@ -3672,6 +3681,7 @@ window.sfOnViewSwitch = function(){
         if (/rendezvény/.test(low)) return EVENT_TYPES.find(t => t.label === "Rendezvény");
         if (/munkatársnyerő/.test(low)) return EVENT_TYPES.find(t => t.label === "Munkatársnyerő nap");
         if (/telefonparty/.test(low)) return EVENT_TYPES.find(t => t.label === "Telefonparty");
+        if (/futás|\brun\b|kerékpár|bicikli|úszás|edzés|konditerem|\bgym\b|\bfoci\b|\bsport\b/.test(low)) return EVENT_TYPES.find(t => t.label === "Sport");
         if (/\bmeeting\b|megbeszélés/.test(low)) return EVENT_TYPES.find(t => t.label === "Munka");
         return null;
     }
@@ -3743,6 +3753,8 @@ window.sfOnViewSwitch = function(){
         pin:     '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
         trash:   '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/>',
         repeat:  '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+        car:     '<path d="M4 16V9.5L5.8 6h12.4L20 9.5V16"/><path d="M2 16h20"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+        calendar:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
     };
     function calSvg(key, extra){ return `<svg class="wk-ev-svg${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAL_ICONS[key]||CAL_ICONS.clock}</svg>`; }
     // A cím elejéről levágott ✅/❌ jel → { clean, status: 'yes'|'no'|null }
@@ -3798,15 +3810,42 @@ window.sfOnViewSwitch = function(){
                 zones += `<div class="ideal-zone ${z.cls}" style="left:calc(${i*(100/n)}% + 1px); width:calc(${100/n}% - 2px); top:${top}px; height:${h}px;"></div>`;
             });
         });
+        const nowDec = now.getHours() + now.getMinutes()/60;
+        let nowLine = "", nowLbl = "";
+        if (nowDec >= START_H && nowDec < END_H){
+            const top = (nowDec - START_H) * ROW;
+            const todayIdx = cols.findIndex(d => sameDay(d, now));
+            const dot = todayIdx >= 0 ? `<span class="wk-now-dot" style="left:calc(${todayIdx*(100/n)}% - 4px)"></span>` : "";
+            nowLine = `<div class="wk-now" style="top:${top}px">${dot}</div>`;
+            nowLbl = `<div class="wk-now-lbl" style="top:${top}px">${pad2(now.getHours())}:${pad2(now.getMinutes())}</div>`;
+        }
         grid.innerHTML =
             `<div class="wk-head" style="grid-template-columns:${tmpl}">${head.join("")}</div>` +
             `<div class="wk-allday" id="wkAllday" style="grid-template-columns:${tmpl}"><div class="lbl">egész nap</div>${'<div class="cell"></div>'.repeat(n)}</div>` +
             `<div class="wk-grid">` +
-                `<div class="wk-times">${times}</div>` +
-                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}</div>` +
+                `<div class="wk-times">${times}${nowLbl}</div>` +
+                `<div class="wk-canvas" id="wkCanvas" style="height:${hoursCount*ROW}px">${zones}${lines}${colsHtml}${nowLine}</div>` +
             `</div>`;
         const wkGridEl = grid.querySelector(".wk-grid");
         if (wkGridEl) wkGridEl.scrollTop = Math.max(0, (10 - START_H) * ROW);
+        startNowTick();
+    }
+
+    // A piros "most" jelző percenként lépjen tovább, hogy ne ragadjon be a
+    // rendereléskori időpontra (a naptár nem renderelődik újra magától).
+    let nowTickTimer = null;
+    function startNowTick(){
+        if (nowTickTimer) return;
+        nowTickTimer = setInterval(() => {
+            const line = document.querySelector(".wk-now"), lbl = document.querySelector(".wk-now-lbl");
+            if (!line && !lbl) return;
+            const d = new Date();
+            const dec = d.getHours() + d.getMinutes()/60;
+            const inRange = dec >= START_H && dec < END_H;
+            const top = (dec - START_H) * ROW;
+            if (line){ line.hidden = !inRange; line.style.top = top + "px"; }
+            if (lbl){ lbl.hidden = !inRange; lbl.style.top = top + "px"; lbl.textContent = pad2(d.getHours())+":"+pad2(d.getMinutes()); }
+        }, 60000);
     }
 
     function showConnect(grid, msg){
@@ -3965,6 +4004,18 @@ window.sfOnViewSwitch = function(){
         { label: "Training",    suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Vezetőségi",  suffix: null, unit: false, colorId: "7" }, // Kék
         { label: "Rendezvény",  suffix: null, unit: false, colorId: "7" }, // Kék
+        { label: "Sport",       suffix: null, unit: false, colorId: "3" }, // Lila
+    ];
+    // Az egyéni ismétlődés napjai (RRULE BYDAY kódok), hétfővel kezdve.
+    // jsDay = a Date.getDay() szerinti sorszám, hogy az ejtés napját elő tudjuk jelölni.
+    const RRULE_DAYS = [
+        { code:"MO", label:"H",   jsDay:1 },
+        { code:"TU", label:"K",   jsDay:2 },
+        { code:"WE", label:"Sze", jsDay:3 },
+        { code:"TH", label:"Cs",  jsDay:4 },
+        { code:"FR", label:"P",   jsDay:5 },
+        { code:"SA", label:"Szo", jsDay:6 },
+        { code:"SU", label:"V",   jsDay:0 },
     ];
     const pad2 = n => String(n).padStart(2, "0");
     const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
@@ -4414,6 +4465,29 @@ window.sfOnViewSwitch = function(){
         return res.json();
     }
 
+    // A modal ismétlődés-mezőiből RRULE-t épít: az "Egyéni…" heti ismétlődés a
+    // kiválasztott napokkal (BYDAY), a megadott vége-dátum pedig UNTIL-ként kerül
+    // bele (üres vége = korlátlan ismétlődés).
+    function buildRecurrence(overlay){
+        const freq = overlay.querySelector("#qcRepeat").value;
+        if (!freq) return undefined;
+        const parts = [];
+        if (freq === "CUSTOM"){
+            parts.push("FREQ=WEEKLY");
+            const days = Array.from(overlay.querySelectorAll("#qcRepeatDays button.active")).map(b => b.dataset.day);
+            if (days.length) parts.push("BYDAY=" + days.join(","));
+        } else {
+            parts.push("FREQ=" + freq);
+        }
+        const endVal = overlay.querySelector("#qcRepeatEnd").value;
+        if (endVal){
+            const u = new Date(endVal + "T23:59:59");
+            parts.push("UNTIL=" + u.getUTCFullYear() + pad2(u.getUTCMonth()+1) + pad2(u.getUTCDate())
+                + "T" + pad2(u.getUTCHours()) + pad2(u.getUTCMinutes()) + pad2(u.getUTCSeconds()) + "Z");
+        }
+        return ["RRULE:" + parts.join(";")];
+    }
+
     // Gyors esemény-létrehozás – üres naptár-időpontra kattintva (nem ügyfél-lista húzásból)
     // Egységes esemény-létrehozó modal – akár egy ügyfél/pénz/karrier sor naptárra
     // húzásából, akár egy üres időpontra kattintva jutunk ide, ugyanaz a felület,
@@ -4470,8 +4544,22 @@ window.sfOnViewSwitch = function(){
                                 <option value="WEEKLY">Minden héten</option>
                                 <option value="MONTHLY">Minden hónapban</option>
                                 <option value="YEARLY">Minden évben</option>
+                                <option value="CUSTOM">Egyéni…</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="ev-row" id="qcRepeatDaysWrap" hidden>
+                        <span class="ev-row-ic">${calSvg("calendar")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl">Mely napokon ismétlődjön</label>
+                            <div class="ev-days" id="qcRepeatDays">
+                                ${RRULE_DAYS.map(d => `<button type="button" data-day="${d.code}"${d.jsDay === start.getDay() ? ' class="active"' : ''}>${d.label}</button>`).join("")}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ev-row" id="qcRepeatEndWrap" hidden>
+                        <span class="ev-row-ic">${calSvg("clock")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="qcRepeatEnd">Ismétlés vége (üresen: soha)</label><input id="qcRepeatEnd" type="date" class="ev-input"></div>
                     </div>
                     <div class="ev-row">
                         <span class="ev-row-ic">${calSvg("pin")}</span>
@@ -4482,6 +4570,15 @@ window.sfOnViewSwitch = function(){
                         <span class="ev-row-ic">${calSvg("video")}</span>
                         <div class="ev-row-txt"><span class="t1">Google Meet hívás</span><span class="t2">Link automatikusan generálódik mentéskor</span></div>
                         <label class="ev-switch"><input type="checkbox" id="qcMeet"><span></span></label>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("car")}</span>
+                        <div class="ev-row-txt"><span class="t1">Utazási idő</span><span class="t2">Külön esemény az esemény elé</span></div>
+                        <label class="ev-switch"><input type="checkbox" id="qcTravel"><span></span></label>
+                    </div>
+                    <div class="ev-row" id="qcTravelWrap" hidden>
+                        <span class="ev-row-ic">${calSvg("clock")}</span>
+                        <div class="ev-row-field"><label class="lbl" for="qcTravelMin">Utazási idő (perc)</label><input id="qcTravelMin" type="number" min="5" step="5" value="30" class="ev-input"></div>
                     </div>
                 </div>
                 <div class="modal-foot ev-edit-foot">
@@ -4502,6 +4599,28 @@ window.sfOnViewSwitch = function(){
         const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
         typeSel.addEventListener("change", syncUnit);
         syncUnit();
+
+        // Ismétlődés: az "Egyéni…"-nél lehet napokat választani, a vége-dátum
+        // pedig minden ismétlődő beállításnál elérhető (üresen: soha nem áll le).
+        const repeatSel = overlay.querySelector("#qcRepeat");
+        const repeatDaysWrap = overlay.querySelector("#qcRepeatDaysWrap");
+        const repeatEndWrap = overlay.querySelector("#qcRepeatEndWrap");
+        const syncRepeat = () => {
+            const v = repeatSel.value;
+            repeatDaysWrap.hidden = v !== "CUSTOM";
+            repeatEndWrap.hidden = !v;
+        };
+        repeatSel.addEventListener("change", syncRepeat);
+        syncRepeat();
+        overlay.querySelector("#qcRepeatDays").addEventListener("click", e => {
+            const b = e.target.closest("button[data-day]"); if (!b) return;
+            b.classList.toggle("active");
+        });
+
+        // Utazási idő: bekapcsolva egy külön, az esemény elé illesztett blokk jön létre.
+        const travelChk = overlay.querySelector("#qcTravel");
+        const travelWrap = overlay.querySelector("#qcTravelWrap");
+        travelChk.addEventListener("change", () => { travelWrap.hidden = !travelChk.checked; });
 
         let qcStatus = null; // null | 'yes' | 'no'
         const segNo = overlay.querySelector("#qcNo"), segNone = overlay.querySelector("#qcNone"), segYes = overlay.querySelector("#qcYes");
@@ -4544,17 +4663,29 @@ window.sfOnViewSwitch = function(){
             const isClientSrc = srcList === "money" || srcList === "career";
             const description = isClientSrc ? "Ügyfél: " + title : undefined;
             const colorId = type.colorId;
-            const repeatFreq = overlay.querySelector("#qcRepeat").value;
-            const recurrence = repeatFreq ? [`RRULE:FREQ=${repeatFreq}`] : undefined;
+            const recurrence = buildRecurrence(overlay);
             const srcRow = isClientSrc ? registry[srcIndex] : null;
             const extendedProperties = isClientSrc ? { private: {
                 sfList: srcList,
                 sfRegId: (srcRow && srcRow.id != null) ? String(srcRow.id) : "",
                 sfRegIdx: String(srcIndex)
             } } : undefined;
+            const travelMin = overlay.querySelector("#qcTravel").checked
+                ? Math.max(0, parseInt(overlay.querySelector("#qcTravelMin").value, 10) || 0) : 0;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
                 await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties });
+                // Az utazási idő külön, az esemény elé illesztett blokként kerül a
+                // naptárba (a Google Calendar-nak nincs saját "travel time" mezője),
+                // ugyanazzal az ismétlődéssel, mint maga az esemény.
+                if (travelMin > 0){
+                    await createCalendarEvent({
+                        summary: `🚗 ${travelMin} perc utazás`,
+                        location, colorId: "8",
+                        start: new Date(sDt.getTime() - travelMin*60000),
+                        durationMin: travelMin, recurrence
+                    });
+                }
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
