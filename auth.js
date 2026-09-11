@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, serverTimestamp
+    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
@@ -183,7 +183,12 @@ let app, auth, db;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+    // Néhány hálózat/hirdetésblokkoló megszakítja a Firestore alapértelmezett
+    // streamelt (WebChannel) kapcsolatát ("RPC Write stream ... transport
+    // errored"), ami miatt egy-egy felhasználónál csendben elhasalnak az
+    // írások. Az automatikus long-polling detektálás ilyenkor átvált egy
+    // kompatibilisebb szállítási módra, máshol nincs hatása.
+    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 }
 export { auth, db };
 
