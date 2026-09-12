@@ -3609,6 +3609,15 @@ window.sfOnViewSwitch = function(){
         sel.innerHTML = `<option value="">Saját nézet</option>` + employees
             .map(e => `<option value="${e.uid}">${(e.name || e.email || "").replace(/</g,"&lt;")}</option>`).join("");
         wrap.hidden = false;
+        // Ez a függvény minden alkalommal lefut, amikor a bejelentkezés-
+        // állapot újraellenőrződik (pl. token-frissítéskor) – ilyenkor a
+        // "saját nézet" is mindig újraáll (lásd sfViewedUid = user.uid a
+        // hívás előtt), a legördülő pedig alapállapotból épül fel. A "Vissza
+        // a sajátomhoz" gomb láthatóságát enélkül a sor nélkül nem követte
+        // ez a visszaállás, és láthatóként ragadt be egy korábbi "rá tud
+        // nézni" váltás után, holott már a saját nézet volt aktív.
+        sel.value = "";
+        if (backBtn) backBtn.hidden = true;
         // A "más nézetét nézed" jelzés a sidebaron belül marad: a legördülő
         // maga mutatja, kit nézünk, a "Vissza a sajátomhoz" gomb pedig csak
         // ilyenkor jelenik meg alatta – nincs külön, a tartalom tetején
