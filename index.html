@@ -739,6 +739,16 @@
         .adm-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .adm-hero p { font-size:13px; color:var(--muted); margin:0; }
         /* Admin → Naptár: a két esemény-stílus választója, élő előnézettel. */
+        /* Ismétlődő esemény: hatókör-választó (csak ez / összes előfordulás). */
+        .modal.rec-modal { max-width:440px; }
+        .rec-txt { font-size:13.5px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
+        .rec-opt { display:block; width:100%; text-align:left; background:#fff; border:2px solid var(--border);
+            border-radius:11px; padding:11px 13px; margin-bottom:10px; cursor:pointer; font-family:inherit;
+            transition:border-color .15s, box-shadow .15s; }
+        .rec-opt:hover { border-color:var(--blue); box-shadow:0 4px 14px rgba(31,95,208,.14); }
+        .rec-opt b { display:block; font-size:14px; color:var(--navy); }
+        .rec-opt span { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+
         /* Helyszín-kereső (OpenStreetMap) legördülője a Helyszín mező alatt. */
         .ev-ac-host { position:relative; }
         .ev-ac { position:absolute; left:0; right:0; top:100%; z-index:30; margin-top:4px; background:#fff;
@@ -4456,8 +4466,13 @@ window.sfOnViewSwitch = function(){
             const id = host.dataset.eventId;
             if (e.target.closest(".wk-ev-meet, .ag-meet")) return;
             if (e.target.closest(".wk-ev-del, .ag-del")){
-                if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (host.dataset.title || ""))) return;
-                try { await deleteCalendarEvent(id); initCalendar(); }
+                const evObj = eventsById[id];
+                let scope = "single";
+                if (isRecurring(evObj)){
+                    scope = await askRecurringScope(host.dataset.title || "", "törlés");
+                    if (!scope) return;
+                } else if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (host.dataset.title || ""))) return;
+                try { await deleteCalendarEvent(scope === "all" ? seriesIdOf(evObj) : id); initCalendar(); }
                 catch (err) { alert("Nem sikerült törölni: " + (err.message || err)); }
                 return;
             }
@@ -4607,6 +4622,78 @@ window.sfOnViewSwitch = function(){
         grid.innerHTML = html;
     }
 
+    // A Google API hibaüzenetét is megmutatjuk – a puszta státuszkódból nem derül
+    // ki, mi a baj a kéréssel (pl. "Invalid value for ...").
+    async function apiError(res, prefix){
+        let msg = "";
+        try { const j = await res.json(); msg = (j && j.error && j.error.message) || ""; } catch(_){}
+        const err = new Error(prefix + ": " + res.status + (msg ? " – " + msg : ""));
+        err.status = res.status;
+        return err;
+    }
+
+    // singleEvents=true mellett az ismétlődő esemény egy-egy előfordulása jön vissza:
+    // ilyenkor a recurringEventId mutat a sorozat mester-eseményére.
+    const isRecurring = ev => !!(ev && (ev.recurringEventId || (ev.recurrence && ev.recurrence.length)));
+    const seriesIdOf = ev => (ev && (ev.recurringEventId || ev.id)) || "";
+
+    // Ismétlődő eseménynél – a Google Naptárhoz hasonlóan – megkérdezzük, mire
+    // vonatkozzon a művelet: csak erre az alkalomra vagy az egész sorozatra.
+    function askRecurringScope(title, actionLabel){
+        return new Promise(resolve => {
+            const overlay = document.createElement("div");
+            overlay.className = "modal-overlay";
+            overlay.innerHTML = `
+                <div class="modal rec-modal">
+                    <div class="modal-head">Ismétlődő esemény</div>
+                    <div class="modal-body">
+                        <p class="rec-txt">${escM(title || "Ez az esemény")} — ismétlődő esemény. Mire vonatkozzon a ${escM(actionLabel)}?</p>
+                        <button type="button" class="rec-opt" data-scope="single"><b>Csak ez az előfordulás</b><span>A sorozat többi alkalma változatlan marad.</span></button>
+                        <button type="button" class="rec-opt" data-scope="all"><b>Az összes előfordulás</b><span>A sorozat minden alkalmára érvényes.</span></button>
+                    </div>
+                    <div class="modal-foot"><button class="btn" data-scope="">Mégse</button></div>
+                </div>`;
+            document.body.appendChild(overlay);
+            const done = v => { overlay.remove(); resolve(v || null); };
+            overlay.addEventListener("click", e => {
+                if (e.target === overlay) return done(null);
+                const b = e.target.closest("[data-scope]"); if (!b) return;
+                done(b.dataset.scope);
+            });
+        });
+    }
+
+    async function getCalendarEvent(id){
+        const token = getCalendarToken();
+        const res = await fetch(
+            "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events/" + encodeURIComponent(id),
+            { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) throw await apiError(res, "Betöltés hiba");
+        return res.json();
+    }
+
+    // Az egész sorozatra szóló módosítás a mester-eseményt írja. A sorozat kezdő
+    // DÁTUMÁT nem mozgatjuk – csak a napon belüli időpont és a hossz változik,
+    // minden más mező (cím, típus, helyszín…) változatlanul megy át.
+    async function updateSeries(masterId, patch){
+        const body = Object.assign({}, patch);
+        delete body.start; delete body.end;
+        if (patch.start && patch.start.dateTime && patch.end && patch.end.dateTime){
+            let master = null;
+            try { master = await getCalendarEvent(masterId); } catch(_){}
+            const mIso = master && master.start && master.start.dateTime;
+            if (mIso){
+                const nS = new Date(patch.start.dateTime), nE = new Date(patch.end.dateTime);
+                const s = new Date(mIso);
+                s.setHours(nS.getHours(), nS.getMinutes(), 0, 0);
+                const e = new Date(s.getTime() + (nE - nS));
+                body.start = { dateTime: localIso(s), timeZone: patch.start.timeZone };
+                body.end   = { dateTime: localIso(e), timeZone: patch.end.timeZone };
+            }
+        }
+        return updateCalendarEvent(masterId, body);
+    }
+
     async function updateCalendarEvent(id, patch){
         let token = getCalendarToken();
         const doPatch = tok => fetch(
@@ -4615,7 +4702,7 @@ window.sfOnViewSwitch = function(){
         );
         let res = await doPatch(token);
         if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doPatch(token); }
-        if (!res.ok){ const err = new Error("Frissítés hiba: " + res.status); err.status = res.status; throw err; }
+        if (!res.ok) throw await apiError(res, "Frissítés hiba");
         return res.json();
     }
 
@@ -4755,7 +4842,10 @@ window.sfOnViewSwitch = function(){
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
             const addMeetEl = overlay.querySelector("#evAddMeet");
             const patch = allDay
-                ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), colorId, start: { date: d }, end: { date: d } }
+                // Egész naposnál az "end" KIZÁRÓLAGOS: a következő nap kell bele,
+                // különben a Google 400-zal utasítja vissza a kérést.
+                ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), colorId,
+                    start: { date: d }, end: { date: ymd(new Date(new Date(d + "T00:00:00").getTime() + 86400000)) } }
                 : (() => {
                     const st = overlay.querySelector("#evStartT").value || startStr;
                     const et = overlay.querySelector("#evEndT").value || endStr;
@@ -4769,19 +4859,31 @@ window.sfOnViewSwitch = function(){
                     };
                 })();
             if (addMeetEl && addMeetEl.checked) patch.conferenceData = meetConferenceData();
-            // Az utazási idő az esemény saját adata (sfTravelMin). A Google Calendar
-            // a private map kulcsait külön kezeli, ezért a null érték törli a kulcsot,
-            // a többi (pl. ügyfél-hivatkozás) érintetlen marad.
+            // Az utazási idő az esemény saját adata (sfTravelMin). A private map
+            // értéke csak szöveg lehet – a kikapcsolást üres értékkel jelöljük
+            // (a null 400-as hibát adna), és csak akkor küldjük, ha van mit írni.
             const travelMin = travelChk.checked
                 ? Math.max(0, parseInt(overlay.querySelector("#evTravelMin").value, 10) || 0) : 0;
-            patch.extendedProperties = { private: { sfTravelMin: travelMin > 0 ? String(travelMin) : null } };
+            if (travelMin > 0) patch.extendedProperties = { private: { sfTravelMin: String(travelMin) } };
+            else if (curTravel > 0) patch.extendedProperties = { private: { sfTravelMin: "" } };
             return patch;
         };
         const busy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = true);
         const unbusy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = false);
+        // Ismétlődő eseménynél előbb megkérdezzük, mire vonatkozzon a módosítás.
         overlay.querySelector("#evSaveEdit").addEventListener("click", async () => {
+            let scope = "single";
+            if (isRecurring(ev)){
+                scope = await askRecurringScope(clean, "módosítás");
+                if (!scope) return;
+            }
             busy();
-            try { await updateCalendarEvent(id, readPatch()); close(); initCalendar(); }
+            try {
+                const patch = readPatch();
+                if (scope === "all") await updateSeries(seriesIdOf(ev), patch);
+                else await updateCalendarEvent(id, patch);
+                close(); initCalendar();
+            }
             catch (err){ alert("Nem sikerült menteni: " + (err.message || err)); unbusy(); }
         });
         const applyStatus = async newStatus => {
@@ -4799,9 +4901,13 @@ window.sfOnViewSwitch = function(){
         overlay.querySelector("#evNo").addEventListener("click", () => applyStatus("no"));
         overlay.querySelector("#evNone").addEventListener("click", () => applyStatus(null));
         overlay.querySelector("#evDelete").addEventListener("click", async () => {
-            if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (clean || ""))) return;
+            let scope = "single";
+            if (isRecurring(ev)){
+                scope = await askRecurringScope(clean, "törlés");
+                if (!scope) return;
+            } else if (!confirm("Törlöd ezt az eseményt a naptárból?\n\n" + (clean || ""))) return;
             busy();
-            try { await deleteCalendarEvent(id); close(); initCalendar(); }
+            try { await deleteCalendarEvent(scope === "all" ? seriesIdOf(ev) : id); close(); initCalendar(); }
             catch (err){ alert("Nem sikerült törölni: " + (err.message || err)); unbusy(); }
         });
     }
@@ -4814,7 +4920,7 @@ window.sfOnViewSwitch = function(){
         );
         let res = await doDel(token);
         if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doDel(token); }
-        if (!res.ok && res.status !== 410){ const err = new Error("Törlés hiba: " + res.status); err.status = res.status; throw err; }
+        if (!res.ok && res.status !== 410) throw await apiError(res, "Törlés hiba");
         return true;
     }
 
@@ -4852,7 +4958,7 @@ window.sfOnViewSwitch = function(){
             token = await reconnectCalendar();
             res = await doInsert(token);
         }
-        if (!res.ok){ const err = new Error("Mentés hiba: " + res.status); err.status = res.status; throw err; }
+        if (!res.ok) throw await apiError(res, "Mentés hiba");
         return res.json();
     }
 
