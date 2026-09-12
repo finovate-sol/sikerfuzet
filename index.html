@@ -1035,6 +1035,12 @@
         .wk-ev-light { border-radius:7px; }
         .wk-ev-light:hover { filter:brightness(.96); }
         .wk-ev-light b { opacity:.75; }
+        /* "Kontúros" stílus: fehér háttér, a cím a típus színében, a szegély
+           pedig körben (nem csak balra) fut – az időpont/helyszín viszont
+           semleges szürke marad, hogy a cím maradjon a hangsúlyos elem. */
+        .wk-ev-outline { border-radius:9px; }
+        .wk-ev-outline:hover { filter:none; }
+        .wk-ev-outline .wk-ev-head, .wk-ev-outline .wk-ev-loc { color:var(--muted); }
         .wk-ev:active { cursor:grabbing; }
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
@@ -3435,7 +3441,7 @@ window.sfOnViewSwitch = function(){
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
             if (typeof window.sfSetInfo === "function") window.sfSetInfo((cfg && cfg.infoParticipants) || []);
-            const cs = (cfg && cfg.calendarStyle === "light") ? "light" : "solid";
+            const cs = (cfg && (cfg.calendarStyle === "light" || cfg.calendarStyle === "outline")) ? cfg.calendarStyle : "solid";
             if (cs !== calStyle){ calStyle = cs; initCalendar(); }
             if (isAdmin(user)) setupAdminPanel();
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
@@ -4243,6 +4249,10 @@ window.sfOnViewSwitch = function(){
                         chip.style.background = tintHex(hex);
                         chip.style.color = deepHex(hex);
                         chip.style.borderLeft = "3px solid " + hex;
+                    } else if (calStyle === "outline"){
+                        chip.style.background = "#ffffff";
+                        chip.style.color = hex;
+                        chip.style.border = "1.5px solid " + hex;
                     } else {
                         chip.style.background = hex;
                         chip.style.color = contrastTextColor(hex);
@@ -4290,20 +4300,24 @@ window.sfOnViewSwitch = function(){
             const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
             const div = document.createElement("div");
             const light = calStyle === "light";
+            const outline = calStyle === "outline";
             const isTask = t.kind === "task";
-            div.className = "wk-ev" + (isTask ? " wk-task" : (light ? " wk-ev-light" : ""));
+            div.className = "wk-ev" + (isTask ? " wk-task" : light ? " wk-ev-light" : outline ? " wk-ev-outline" : "");
             div.draggable = true;
-            div.style.background = isTask ? "#ffffff" : (light ? tintHex(t.hex) : t.hex);
-            div.style.color = isTask ? "#1c2b45" : (light ? deepHex(t.hex) : contrastTextColor(t.hex));
+            div.style.background = isTask ? "#ffffff" : light ? tintHex(t.hex) : outline ? "#ffffff" : t.hex;
+            div.style.color = isTask ? "#1c2b45" : light ? deepHex(t.hex) : outline ? t.hex : contrastTextColor(t.hex);
             if (isTask) div.style.borderLeft = "4px solid " + t.hex;
             else if (light) div.style.borderLeft = "3px solid " + t.hex;
+            else if (outline) div.style.border = "1.5px solid " + t.hex;
             // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
             const ring = t.depth > 0 ? "0 0 0 2px #fff, " : "";
             div.style.boxShadow = isTask
                 ? ring + "inset 0 0 0 1px #dbe3ee" + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
                 : light
                     ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
-                    : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
+                    : outline
+                        ? ring + (t.depth > 0 ? "0 3px 10px rgba(15,47,95,.16)" : "0 1px 3px rgba(15,47,95,.08)")
+                        : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
             div.style.zIndex = String(1 + t.depth);
             div.style.left = left;
             div.style.width = width;
@@ -5898,16 +5912,20 @@ window.sfOnViewSwitch = function(){
     // Naptár megjelenés: az esemény-blokkok stílusa a heti/napi nézetben.
     // Megosztott beállítás (config/app.calendarStyle), hogy a csapat ugyanazt lássa.
     const CAL_STYLES = [
-        { key:"solid", name:"Telt szín",  desc:"Az esemény teljes felülete a típus színe, fehér szöveggel. Erős, messziről is jól elkülönülő blokkok." },
-        { key:"light", name:"Világos",    desc:"Halvány, pasztell háttér színes bal szegéllyel és sötét szöveggel. Visszafogottabb, sűrű naptárnál nyugodtabb kép." },
+        { key:"solid",   name:"Telt szín",  desc:"Az esemény teljes felülete a típus színe, fehér szöveggel. Erős, messziről is jól elkülönülő blokkok." },
+        { key:"light",   name:"Világos",    desc:"Halvány, pasztell háttér színes bal szegéllyel és sötét szöveggel. Visszafogottabb, sűrű naptárnál nyugodtabb kép." },
+        { key:"outline", name:"Kontúros",   desc:"Fehér háttér, körben futó vékony színes szegély, a cím a típus színében. A helyszín/időpont semleges szürke marad." },
     ];
     function calStylePreview(style){
         const demo = [["#33b679","Tanácsadás","10:00"],["#039be5","Vezetőségi","12:30"],["#f4511e","Felvételi 1","15:00"]];
         return demo.map(([hex,title,time]) => {
             const css = style === "light"
                 ? `background:${tintHex(hex)};color:${deepHex(hex)};border-left:3px solid ${hex};box-shadow:inset 0 0 0 1px ${hexToRgba(hex,.3)};border-radius:7px;`
-                : `background:${hex};color:${contrastTextColor(hex)};box-shadow:0 2px 6px ${hexToRgba(hex,.35)};`;
-            return `<div class="adm-cal-ev" style="${css}"><b>${title}</b><span>${time}</span></div>`;
+                : style === "outline"
+                    ? `background:#fff;color:${hex};border:1.5px solid ${hex};box-shadow:0 1px 3px rgba(15,47,95,.08);`
+                    : `background:${hex};color:${contrastTextColor(hex)};box-shadow:0 2px 6px ${hexToRgba(hex,.35)};`;
+            const timeCss = style === "outline" ? ` style="color:var(--muted)"` : "";
+            return `<div class="adm-cal-ev" style="${css}"><b>${title}</b><span${timeCss}>${time}</span></div>`;
         }).join("");
     }
     function renderAdmCalendar(cont){
