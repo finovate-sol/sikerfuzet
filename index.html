@@ -4491,21 +4491,25 @@ window.sfOnViewSwitch = function(){
         const newEnd = new Date(newStart.getTime() + durationMin * 60000);
         try {
             await updateCalendarEvent(id, {
-                start: { dateTime: localIso(newStart), timeZone: tz },
-                end:   { dateTime: localIso(newEnd),   timeZone: tz }
+                // A "date" mezőt explicit null-lal töröljük – ha az esemény korábban
+                // egész napos volt, a PATCH önmagában nem cserélné le, és a "date" +
+                // "dateTime" együtt 400-as "Invalid start time" hibát ad.
+                start: { date: null, dateTime: localIso(newStart), timeZone: tz },
+                end:   { date: null, dateTime: localIso(newEnd),   timeZone: tz }
             });
             initCalendar();
         } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
     }
 
     // Időzített esemény egész naposra váltása (az "egész nap" sávba húzáskor).
-    // Az "end" itt is KIZÁRÓLAGOS, ezért a következő nap kerül bele.
+    // Az "end" itt is KIZÁRÓLAGOS, ezért a következő nap kerül bele. A "dateTime"/
+    // "timeZone" explicit null-lal törlődik, ugyanazon okból, mint fent.
     async function convertToAllDay(id, day){
         const start = new Date(day); start.setHours(0, 0, 0, 0);
         try {
             await updateCalendarEvent(id, {
-                start: { date: ymd(start) },
-                end:   { date: ymd(new Date(start.getTime() + 86400000)) }
+                start: { dateTime: null, timeZone: null, date: ymd(start) },
+                end:   { dateTime: null, timeZone: null, date: ymd(new Date(start.getTime() + 86400000)) }
             });
             initCalendar();
         } catch (e){ alert("Nem sikerült egész naposra állítani: " + (e.message || e)); }
