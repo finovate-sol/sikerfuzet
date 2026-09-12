@@ -2131,16 +2131,19 @@ function wire(containerId, which){
 }
 wire('infoList','info');
 
-// Eredmény váltás kattintással (PÉNZEM / KARRIEREM)
+// Eredmény váltás kattintással (PÉNZEM / KARRIEREM) – a helyi mentés mellett
+// a Firestore-ba is el kell jutnia (persistReg), különben a következő
+// szinkronizáláskor (pl. egy sima oldalfrissítéskor) a felhőből visszatöltött,
+// e nélkül a mező nélküli rekord felülírja a csak helyben elmentett váltást.
 document.getElementById('moneyTable').addEventListener('click', e=>{
     const s=e.target.closest('[data-resmoney]'); if(!s) return;
-    const r=registry[+s.dataset.resmoney]; if(!r) return;
-    r.resPenz=cycleRes(r.resPenz||'pending'); store.save('sf_registry', registry); renderMoney();
+    const i=+s.dataset.resmoney; const r=registry[i]; if(!r) return;
+    r.resPenz=cycleRes(r.resPenz||'pending'); store.save('sf_registry', registry); persistReg(i); renderMoney();
 });
 document.getElementById('careerTable').addEventListener('click', e=>{
     const s=e.target.closest('[data-rescareer]'); if(!s) return;
-    const r=registry[+s.dataset.rescareer]; if(!r) return;
-    r.resKarrier=cycleRes(r.resKarrier||'pending'); store.save('sf_registry', registry); renderCareer();
+    const i=+s.dataset.rescareer; const r=registry[i]; if(!r) return;
+    r.resKarrier=cycleRes(r.resKarrier||'pending'); store.save('sf_registry', registry); persistReg(i); renderCareer();
 });
 
 // ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
