@@ -1039,6 +1039,11 @@
         .wk-ev-del { position:absolute; top:2px; right:2px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; border-radius:4px; }
         .wk-ev:hover .wk-ev-del { opacity:.6; }
         .wk-ev-del:hover { opacity:1 !important; color:#fff; background:var(--red); }
+        /* Helyszín az esemény-blokk alján – egy sor, kifutó szöveg "…"-tal.
+           Csak akkor kerül ki, ha a blokkban van rá hely (lásd renderWeek). */
+        .wk-ev-loc { display:flex; align-items:center; gap:3px; margin-top:1px; font-size:10px; font-weight:600; line-height:12px; opacity:.85; overflow:hidden; }
+        .wk-ev-loc > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .wk-ev-loc .wk-ev-svg { width:10px; height:10px; }
         .wk-ev-meet, .ag-meet { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:inherit; opacity:.9; margin-top:2px; text-decoration:none; }
         .wk-ev-meet:hover, .ag-meet:hover { text-decoration:underline; }
         .wk-ev-meet svg, .ag-meet svg { width:11px; height:11px; }
@@ -1382,7 +1387,6 @@
                             <button data-view="day">Nap</button>
                             <button data-view="week" class="active">Hét</button>
                             <button data-view="month">Hónap</button>
-                            <button data-view="agenda">Napló</button>
                             <button data-view="clients">Ügyfelek</button>
                         </div>
                         <a class="btn icon-btn" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" title="Megnyitás a Google Naptárban" aria-label="Megnyitás a Google Naptárban" style="margin-left:12px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></a>
@@ -4268,6 +4272,8 @@ window.sfOnViewSwitch = function(){
         const colPct = 100 / n;
         const INDENT = 14;                       // behúzás átfedésenként (px)
         const TITLE_LINE_H = 14;                 // a cím egy sorának magassága (11px × 1.25)
+        const LOC_LINE_H = 13;                   // a helyszín-sor magassága (10px × 1.2 + margó)
+        const LOC_MIN_W = 54;                    // ennél keskenyebb blokkon a helyszín olvashatatlanul csonkolódna
         timed.forEach(t => {
             const indent = t.depth * INDENT;
             const pad = 6 + indent + t.depth * 4;          // teljes vízszintes levonás
@@ -4310,8 +4316,18 @@ window.sfOnViewSwitch = function(){
             // Nagyon alacsony blokknál a függőleges belső margó elvenné a cím helyét.
             const padY = t.height < 26 ? 1 : 4;
             if (padY !== 4) div.style.padding = padY + "px 7px";
-            const avail = t.height - 2*padY - (showTime ? 13 : 0);
+            const availAll = t.height - 2*padY - (showTime ? 13 : 0);
+            // A helyszín csak akkor kerül ki, ha a cím egy sora (és az időpont)
+            // mellett még egy teljes sor elfér – félbevágott szöveg helyett
+            // inkább ne látszódjon. A tooltip továbbra is megmutatja.
+            const locText = String(t.ev.location || "").trim();
+            // Az időpont előbbre való a helyszínnél: ha az nem látszik, ez sem.
+            const showLoc = !!locText && showTime && (availAll - TITLE_LINE_H) >= LOC_LINE_H;
+            const avail = availAll - (showLoc ? LOC_LINE_H : 0);
             const lines = Math.max(1, Math.floor(avail / TITLE_LINE_H));
+            // Ha a helyszín a blokk szélessége miatt mégis kimarad, a cím
+            // visszakapja az érte feláldozott sort (lásd a lentebbi ellenőrzést).
+            if (showLoc) div.dataset.noLocLines = String(Math.max(1, Math.floor(availAll / TITLE_LINE_H)));
             // Feladatnál a ✅/❌ helyett a cím elé rajzolt karika mutatja az állapotot.
             const dot = isTask
                 ? `<span class="wk-task-dot${t.status === "yes" ? " done" : t.status === "no" ? " no" : ""}" style="--c:${t.hex}"></span>`
@@ -4319,7 +4335,8 @@ window.sfOnViewSwitch = function(){
             const label = isTask ? (t.clean || "(névtelen)") : statusTitle(t.clean, t.status);
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
                 <span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>
-                ${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}`;
+                ${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}
+                ${showLoc ? `<span class="wk-ev-loc">${calSvg("pin")}<span>${escM(locText)}</span></span>` : ""}`;
             div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
@@ -4344,6 +4361,17 @@ window.sfOnViewSwitch = function(){
                 }
             }
             canvas.appendChild(div);
+        });
+
+        // Szélesség-ellenőrzés: a keskeny (egymás mellé tolt, átfedő) blokkokon a
+        // helyszín csak pár karakterre csonkolódna, ott inkább elhagyjuk. Minden
+        // blokk kirakása után, egyetlen olvasási körben – így nincs layout-thrash.
+        canvas.querySelectorAll(".wk-ev-loc").forEach(el => {
+            if (el.clientWidth >= LOC_MIN_W) return;
+            const box = el.closest(".wk-ev");
+            el.remove();
+            const title = box && box.querySelector(".wk-ev-title");
+            if (title && box.dataset.noLocLines) title.style.setProperty("-webkit-line-clamp", box.dataset.noLocLines);
         });
     }
 
@@ -4632,7 +4660,8 @@ window.sfOnViewSwitch = function(){
         grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${cellsHtml}</div>`;
     }
 
-    // ===== NAPLÓ (agenda) nézet =====
+    // ===== Listás (agenda) nézet – a nézetváltóból a "Napló" kikerült,
+    // ezt a megjelenítést már csak az "Ügyfelek" nézet használja. =====
     function renderAgenda(grid, now, events, emptyMsg){
         const items = events.map(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
