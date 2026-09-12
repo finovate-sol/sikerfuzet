@@ -4888,7 +4888,15 @@ window.sfOnViewSwitch = function(){
         const { base, type: curType, units: curUnits } = splitEventTitle(clean);
         const evPriv = (ev && ev.extendedProperties && ev.extendedProperties.private) || {};
         const curTravel = parseInt(evPriv.sfTravelMin, 10) || 0;
-        const curTypeIdx = Math.max(0, curType ? EVENT_TYPES.indexOf(curType) : EVENT_TYPES.findIndex(t => t.label === "Egyéb"));
+        // A típus felismerése elsősorban a címből jön (suffix, pl. "(TA)", vagy
+        // kulcsszó, lásd splitEventTitle/detectEventType) – ez a legpontosabb,
+        // mert a suffix egyértelmű. Ha ez nem ad találatot (pl. suffix nélküli
+        // típus, amelynek kulcsszava időközben kikerült a címből), a tényleges
+        // Google-színt (colorId) vesszük alapul, NE az "Egyéb"-et: különben a
+        // szerkesztő rossz típust mutatna, és puszta mentéskor (a szín újra-
+        // építésekor) átfestené az eseményt egy másik típus színére.
+        const colorFallbackType = ev && ev.colorId && EVENT_TYPES.find(t => t.colorId === ev.colorId);
+        const curTypeIdx = Math.max(0, EVENT_TYPES.indexOf(curType || colorFallbackType || EVENT_TYPES.find(t => t.label === "Egyéb")));
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
         const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
