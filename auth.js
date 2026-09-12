@@ -210,14 +210,29 @@ if (isConfigured) {
 export { auth, db };
 
 // --- Segéd: benne van-e az email az allowlistben? ---
-async function isEmailAllowed(email) {
+// FONTOS: egy átmeneti hálózati/kapcsolati hiba (pl. a Firestore streamelt
+// kapcsolata megszakad – a konzolban "RPC Write/Listen stream ... transport
+// errored" – lásd experimentalForceLongPolling fentebb, ez a hiba enélkül is
+// jelentkezhet) NEM ugyanaz, mint amikor a dokumentum ténylegesen nem
+// létezik. Korábban mindkettő "nincs hozzáférés" eredményt adott, ami egy
+// pillanatnyi hálózati akadozásnál is kiléptette (és jogosulatlannak
+// mutatta) az egyébként engedélyezett felhasználót. Most egy rövid
+// újrapróbálkozás után is hiba esetén a hívó külön ("hálózati hiba") jelzést
+// kap, nem hamis "nincs a listán" választ.
+async function isEmailAllowed(email, attempt) {
     if (!email) return false;
     try {
         const snap = await getDoc(doc(db, ALLOWLIST, email.toLowerCase()));
         return snap.exists();
     } catch (e) {
-        console.error("Allowlist ellenőrzés sikertelen:", e);
-        return false;
+        if (!attempt){
+            await new Promise(r => setTimeout(r, 900));
+            return isEmailAllowed(email, 1);
+        }
+        console.error("Allowlist ellenőrzés sikertelen (hálózati hiba):", e);
+        const err = new Error("Nem sikerült ellenőrizni a hozzáférést a hálózati kapcsolat miatt. Próbáld újra.");
+        err.isNetworkError = true;
+        throw err;
     }
 }
 
@@ -313,7 +328,16 @@ export function requireAuth(onReady) {
     }
     onAuthStateChanged(auth, async (user) => {
         if (!user) { window.location.replace("login.html"); return; }
-        const allowed = await isEmailAllowed(user.email);
+        let allowed;
+        try { allowed = await isEmailAllowed(user.email); }
+        catch (e) {
+            // Hálózati hiba a jogosultság-ellenőrzésnél – ez NEM jelenti azt,
+            // hogy nincs hozzáférés. Kiléptetés/redirect helyett egyszerű
+            // újratöltés próbálja meg a kapcsolatot, az oldal a helyén marad.
+            console.warn("Hozzáférés-ellenőrzés sikertelen (hálózati hiba), újratöltés próbálkozik:", e);
+            setTimeout(() => window.location.reload(), 2000);
+            return;
+        }
         if (!allowed) { await signOut(auth); window.location.replace("login.html?denied=1"); return; }
         if (onReady) onReady(user);
     });
@@ -323,8 +347,11 @@ export function requireAuth(onReady) {
 export function redirectIfLoggedIn() {
     if (!isConfigured || !auth) return;
     onAuthStateChanged(auth, async (user) => {
-        if (user && await isEmailAllowed(user.email)) {
-            window.location.replace("index.html");
+        if (!user) return;
+        try { if (await isEmailAllowed(user.email)) window.location.replace("index.html"); }
+        catch (e) {
+            // Hálózati hiba – maradjon a login oldalon, a gomb újra megnyomható.
+            console.warn("Hozzáférés-ellenőrzés sikertelen (hálózati hiba):", e);
         }
     });
 }
