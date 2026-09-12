@@ -826,6 +826,11 @@
         .adm-role-name div:first-child { font-size:14px; font-weight:600; color:var(--text); }
         .adm-role-email { font-size:12px; color:var(--muted); }
         .adm-role-sel { padding:7px 9px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); background:var(--card); }
+        /* Meghívott, de még be nem lépett munkatárs – halványabb sor, mert a
+           felettes-hozzárendelés (uid-hez kötött) csak belépés után elérhető. */
+        .adm-role-row.adm-role-pending { opacity:.55; }
+        .adm-role-row.adm-role-pending .adm-role-name div:first-child { font-weight:600; }
+        .adm-role-pending-note { font-size:12px; color:var(--muted); font-style:italic; }
 
         /* ===== STRUKTÚRA ===== */
         .str-hero { margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -6092,10 +6097,18 @@ window.sfOnViewSwitch = function(){
     }
     async function renderAdmRoles(cont){
         cont.innerHTML = '<div class="card pg-loading">Betöltés…</div>';
-        let employees, accessMap;
-        try { [employees, accessMap] = await Promise.all([getEmployees(), getAccessMap()]); }
+        let employees, accessMap, allowedEmails;
+        try { [employees, accessMap, allowedEmails] = await Promise.all([getEmployees(), getAccessMap(), getAllowedUsers()]); }
         catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
         employees = (employees||[]).filter(e => e.email).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'hu'));
+        // A meghívottak közül azok, akik e-mailje szerepel az allowlisten, de még
+        // nem léptek be egyszer sem (nincs employees/{uid} dokumentumuk) – nekik
+        // nincs valódi uid-juk, a felettes-hozzárendelés (ami uid-hez kötött)
+        // csak az első belépésük után válik elérhetővé. Enélkül az admin nem
+        // értette, miért "tűnik el" innen egy már meghívott munkatárs.
+        const loggedInEmails = new Set(employees.map(e => String(e.email||'').toLowerCase()));
+        const pendingEmails = (allowedEmails||[]).filter(email => !loggedInEmails.has(String(email||'').toLowerCase()))
+            .sort((a,b)=>String(a).localeCompare(String(b),'hu'));
         const rowsHtml = employees.map(emp=>{
             const mgrUid = accessMap[emp.uid] || '';
             const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid)
@@ -6110,15 +6123,24 @@ window.sfOnViewSwitch = function(){
                     ${mgrOpts}
                 </select>
             </div>`;
-        }).join('') || `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Még nincs bejelentkezett munkatárs.</div>`;
+        }).join('');
+        const pendingHtml = pendingEmails.map(email => `<div class="adm-role-row adm-role-pending">
+                <div class="adm-role-name">
+                    <div>${escM(email)}</div>
+                    <div class="adm-role-email">Meghívva, még nem lépett be</div>
+                </div>
+                <span class="adm-role-pending-note">Belépés után állítható</span>
+            </div>`).join('');
+        const allRowsHtml = rowsHtml + pendingHtml || `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Még nincs bejelentkezett munkatárs.</div>`;
         cont.innerHTML = `<div class="card"><div class="card-body">
             <div class="adm-section-title">Hozzáférés</div>
-            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Állítsd be, ki kinek a felettese. A felettes látja a beosztottja (és annak beosztottjai) ügyfeleit, Havi/Éves tervét, illetve "rá tud nézni" a nézetükre. Ez független a Struktúra rajztól – az csak vizuális tervező modul.</p>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Állítsd be, ki kinek a felettese. A felettes látja a beosztottja (és annak beosztottjai) ügyfeleit, Havi/Éves tervét, illetve "rá tud nézni" a nézetükre. Ez független a Struktúra rajztól – az csak vizuális tervező modul. A meghívott, de még be nem lépett munkatársak halványan, felettes-választó nélkül jelennek meg – az első belépésük után kerülnek ide szerkeszthetően.</p>
             <div class="adm-role-head"><span>Név</span><span>Felettese</span></div>
-            <div class="adm-role-list">${rowsHtml}</div>
+            <div class="adm-role-list">${allRowsHtml}</div>
         </div></div>`;
         cont.querySelectorAll('.adm-role-row').forEach(rowEl=>{
             const sel = rowEl.querySelector('[data-af="manager"]');
+            if (!sel) return;   // meghívott, de még be nem lépett munkatárs sora
             sel.addEventListener('change', async () => {
                 const uid = rowEl.dataset.uid;
                 const newVal = sel.value;
