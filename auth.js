@@ -264,17 +264,40 @@ export async function loginWithGoogle() {
         try { sessionStorage.setItem("sf_gcal_token", credential.accessToken); } catch (e) {}
     }
 
-    // A munkatárs profil létrehozása/frissítése (első belépéskor is).
-    try {
-        await setDoc(doc(db, "employees", result.user.uid), {
-            email: email,
-            name: result.user.displayName || "",
-            photoURL: result.user.photoURL || "",
-            lastLogin: serverTimestamp()
-        }, { merge: true });
-    } catch (e) { console.warn("Profil mentés kihagyva:", e); }
+    // A munkatárs profil létrehozása/frissítése – lásd ensureEmployeeProfile
+    // lentebb: itt ÉS minden további oldalbetöltésnél (requireAuth) is fut,
+    // hogy egy elakadt írás ne maradjon véglegesen elmentetlen.
+    await ensureEmployeeProfile(result.user);
 
     return result.user;
+}
+
+// Munkatárs profil (employees/{uid}) létrehozása/frissítése. Ugyanaz a
+// hálózati hiba (lásd isEmailAllowed fenti megjegyzése) korábban itt is
+// előfordulhatott: a mentés csendben elmaradt, és mivel ez a hívás régen
+// KIZÁRÓLAG a Google-popupos bejelentkezéskor futott le, egy meglévő
+// munkamenettel visszatérő felhasználónál (requireAuth → onAuthStateChanged,
+// nincs újabb popup) soha többé nem próbálkozott újra – az illető ettől
+// függetlenül simán be tudott lépni és használni az appot, csak a profilja
+// (és így pl. az Admin "Hozzáférés" listája) nem jött létre. Most egy rövid
+// újrapróbálkozás után is hiba esetén csak figyelmeztet, nem dob hibát –
+// ez az írás sosem akadályozhatja a bejelentkezést/appot.
+async function ensureEmployeeProfile(user, attempt) {
+    if (!user || !user.uid) return;
+    try {
+        await setDoc(doc(db, "employees", user.uid), {
+            email: user.email || "",
+            name: user.displayName || "",
+            photoURL: user.photoURL || "",
+            lastLogin: serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        if (!attempt){
+            await new Promise(r => setTimeout(r, 900));
+            return ensureEmployeeProfile(user, 1);
+        }
+        console.warn("Munkatárs-profil mentés sikertelen (hálózati hiba), később újra próbálkozik:", e);
+    }
 }
 
 // --- A session-re eltárolt Google naptár access token ---
@@ -339,6 +362,10 @@ export function requireAuth(onReady) {
             return;
         }
         if (!allowed) { await signOut(auth); window.location.replace("login.html?denied=1"); return; }
+        // Minden érvényes munkamenetnél (nemcsak a Google-popupos belépéskor)
+        // – lásd ensureEmployeeProfile megjegyzését. Szándékosan nincs await
+        // előtte: ne késleltesse az app betöltését, a hibáját már kezeli.
+        ensureEmployeeProfile(user);
         if (onReady) onReady(user);
     });
 }
