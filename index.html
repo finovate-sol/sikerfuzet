@@ -152,12 +152,14 @@
         .card.money-card { border: 2px solid var(--green); }
         .card.career-card { border: 2px solid var(--amber); }
         .col-main { display:flex; flex-direction:column; gap:22px; min-width:0; }
-        .col-side { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
+        /* A rail mindig a jobb képernyőszélre simul – összecsukott panelnél is
+           (ilyenkor a panel display:none, ezért kell a jobbra igazítás). */
+        .col-side { display:flex; flex-direction:row; align-items:stretch; justify-content:flex-end; gap:12px; }
 
         /* ===== JOBB OLDALI SÁV (rail + csúszó panel) ===== */
         .side-panel { flex:1; min-width:0; display:flex; flex-direction:column; gap:22px; overflow:hidden; padding-right:0; }
         .side-view { display:flex; flex-direction:column; gap:22px; }
-        .rail { width:46px; flex-shrink:0; background:var(--card); border-left:1px solid var(--border); border-radius:0 var(--radius) var(--radius) 0; display:flex; flex-direction:column; }
+        .rail { width:46px; flex-shrink:0; background:var(--card); border-left:1px solid var(--border); border-radius:var(--radius) 0 0 var(--radius); display:flex; flex-direction:column; }
         .rail-btn { flex:1; border:none; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); border-bottom:1px solid var(--border); transition:background .15s,color .15s; padding:0; }
         .rail-btn:last-child { border-bottom:none; }
         .rail-btn.active { background:var(--navy); color:#fff; }
@@ -737,6 +739,22 @@
         .adm-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .adm-hero p { font-size:13px; color:var(--muted); margin:0; }
         /* Admin → Naptár: a két esemény-stílus választója, élő előnézettel. */
+        /* Helyszín-kereső (OpenStreetMap) legördülője a Helyszín mező alatt. */
+        .ev-ac-host { position:relative; }
+        .ev-ac { position:absolute; left:0; right:0; top:100%; z-index:30; margin-top:4px; background:#fff;
+            border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 30px rgba(15,47,95,.18);
+            max-height:230px; overflow-y:auto; }
+        .ev-ac[hidden] { display:none; }
+        .ev-ac.up { top:auto; bottom:100%; margin:0 0 4px; }
+        .ev-ac-item { display:flex; gap:8px; align-items:flex-start; padding:8px 10px; font-size:12.5px; cursor:pointer; border-bottom:1px solid #f1f4f9; }
+        .ev-ac-item:last-child { border-bottom:0; }
+        .ev-ac-item:hover, .ev-ac-item.on { background:var(--blue-light); }
+        .ev-ac-item .wk-ev-svg { width:13px; height:13px; margin-top:2px; color:var(--blue); }
+        .ev-ac-main { font-weight:700; color:var(--navy); }
+        .ev-ac-sub { color:var(--muted); font-size:11.5px; line-height:1.35; }
+        /* "Minden N. héten" – az ismétlődés gyakorisága. */
+        .ev-every { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+        .ev-every input { max-width:88px; text-align:center; }
         .adm-cal-opts { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
         .adm-cal-opt { text-align:left; background:#fff; border:2px solid var(--border); border-radius:12px; padding:12px; cursor:pointer; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
         .adm-cal-opt:hover { border-color:#c7d4e6; }
@@ -984,7 +1002,8 @@
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
         .wk-ev-svg { width:12px; height:12px; flex-shrink:0; }
         /* A cím a hangsúlyos, alatta halványabban az időpont. */
-        .wk-ev-title { display:block; font-weight:700; }
+        /* A cím annyi sorban látszik, amennyi a blokkban kifér – a maradék "…". */
+        .wk-ev-title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-weight:700; overflow-wrap:anywhere; }
         .wk-ev b { display:block; font-weight:600; font-size:10px; opacity:.9; margin-top:1px; }
         .wk-ev-del { position:absolute; top:2px; right:2px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; color:inherit; opacity:0; cursor:pointer; font-weight:800; border-radius:4px; }
         .wk-ev:hover .wk-ev-del { opacity:.6; }
@@ -1482,8 +1501,8 @@
                 <!-- RAIL -->
                 <div class="rail">
                     <button class="rail-btn active" id="railBtnSikerfuzet" onclick="sfSelectView('sikerfuzet')"><span>Sikerfüzet</span></button>
-                    <button class="rail-btn" id="railBtnInfo" onclick="sfSelectView('info')"><span>Info</span></button>
                     <button class="rail-btn" id="railBtnFeladatok" onclick="sfSelectView('feladatok')"><span>Feladatok</span></button>
+                    <button class="rail-btn" id="railBtnInfo" onclick="sfSelectView('info')"><span>INFO / STARTER</span></button>
                 </div>
 
             </div><!-- /col-side -->
@@ -2719,10 +2738,21 @@ function updateHaviEgysegCard(){
 }
 updateHaviEgysegCard();
 renderPlan();
+// ===== KÖZÖS HÉT: Heti tervezés ↔ naptár ↔ Statisztikák =====
+// Bármelyik hét-váltó gomb (vagy a naptár nyilai) mozdul, a másik kettő követi,
+// hogy a Sikerfüzet oldalon mindenhol ugyanaz a hét látszódjon.
+// off = az aktuális héthez képesti eltolás hetekben (0 = aktuális, 1 = következő).
+window.sfWeekOffset = 0;
+window.sfSetWeekOffset = function(off, from){
+    off = Math.round(off) || 0;
+    window.sfWeekOffset = off;
+    planWeekOffset = off;
+    renderPlan();
+    if (typeof window.sfSyncWeekViews === 'function') window.sfSyncWeekViews(off, from);
+};
 document.getElementById('planWeekSwitch')?.addEventListener('click', e => {
     const b = e.target.closest('button[data-off]'); if(!b) return;
-    planWeekOffset = +b.dataset.off;
-    renderPlan();
+    window.sfSetWeekOffset(+b.dataset.off, 'plan');
 });
 function todayKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 // "10 perces füzet" – statikus segédlet + számláló-kártya feltöltése
@@ -3790,6 +3820,79 @@ window.sfOnViewSwitch = function(){
         }
         return null;
     }
+    // Helyszín-kereső a Helyszín mezőkhöz: OpenStreetMap (Nominatim) találatok,
+    // API-kulcs nélkül. Ha a keresés nem érhető el, a mező sima szabad szöveges
+    // marad – begépelt cím ugyanúgy menthető.
+    function attachPlaceSearch(input, onPick){
+        const host = input.parentElement;
+        if (!host) return;
+        host.classList.add("ev-ac-host");
+        const box = document.createElement("div");
+        box.className = "ev-ac";
+        box.hidden = true;
+        input.insertAdjacentElement("afterend", box);
+        let timer = null, ctrl = null, items = [], cur = -1, lastQ = "";
+        const hide = () => { box.hidden = true; cur = -1; };
+        const paint = () => {
+            box.innerHTML = items.map((it,i) =>
+                `<div class="ev-ac-item${i===cur?" on":""}" data-i="${i}">${calSvg("pin")}<div><div class="ev-ac-main">${escM(it.main)}</div><div class="ev-ac-sub">${escM(it.sub)}</div></div></div>`
+            ).join("");
+            box.hidden = !items.length;
+            // A modal törzse görgethető: ha a mező alatt nincs elég hely, a lista
+            // fölfelé nyílik, hogy ne vágódjon le.
+            const sc = input.closest(".modal-body");
+            if (sc && !box.hidden){
+                const r = input.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+                box.classList.toggle("up", (sr.bottom - r.bottom) < 170 && (r.top - sr.top) > 170);
+            }
+        };
+        const pick = i => {
+            const it = items[i]; if (!it) return;
+            input.value = it.full;
+            lastQ = it.full;
+            hide();
+            if (onPick) onPick(it.full);
+        };
+        const search = async q => {
+            if (ctrl) ctrl.abort();
+            ctrl = new AbortController();
+            try {
+                const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=hu&q=" + encodeURIComponent(q);
+                const res = await fetch(url, { signal: ctrl.signal, headers: { Accept: "application/json" } });
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                items = (data || []).map(d => {
+                    const parts = String(d.display_name || "").split(", ");
+                    return { full: d.display_name || "", main: parts[0] || "", sub: parts.slice(1).join(", ") };
+                }).filter(x => x.full);
+                cur = -1;
+                paint();
+            } catch(e){ if (e.name !== "AbortError"){ items = []; hide(); } }
+        };
+        input.setAttribute("autocomplete", "off");
+        input.addEventListener("input", () => {
+            const q = input.value.trim();
+            clearTimeout(timer);
+            if (q.length < 3){ items = []; hide(); return; }
+            if (q === lastQ) return;
+            lastQ = q;
+            timer = setTimeout(() => search(q), 450);   // Nominatim: kíméletes lekérés-ütem
+        });
+        input.addEventListener("keydown", e => {
+            if (box.hidden || !items.length) return;
+            if (e.key === "ArrowDown"){ e.preventDefault(); cur = (cur + 1) % items.length; paint(); }
+            else if (e.key === "ArrowUp"){ e.preventDefault(); cur = (cur - 1 + items.length) % items.length; paint(); }
+            else if (e.key === "Enter" && cur >= 0){ e.preventDefault(); pick(cur); }
+            else if (e.key === "Escape"){ hide(); }
+        });
+        box.addEventListener("mousedown", e => {
+            const el = e.target.closest("[data-i]"); if (!el) return;
+            e.preventDefault();                        // ne vesszen el a fókusz a kattintás előtt
+            pick(+el.dataset.i);
+        });
+        input.addEventListener("blur", () => setTimeout(hide, 150));
+    }
+
     // Google Maps keresés/navigálás link egy szabad szöveges helyszínhez.
     function mapsUrl(location){
         return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location || "");
@@ -4007,12 +4110,16 @@ window.sfOnViewSwitch = function(){
         return -1;
     }
     let statsBusy = false;
+    let statsRetry = null;
     let statsWeekOffset = 0; // 0 = aktuális hét, 1 = következő hét
     async function updateStats(token){
         const grid = document.getElementById("statsGrid");
-        if(!grid || statsBusy) return;
+        if(!grid) return;
+        // A hét-jelölés a futó lekéréstől függetlenül azonnal frissül.
         const sw = document.getElementById("statsWeekSwitch");
         if(sw) sw.querySelectorAll("button").forEach(b => b.classList.toggle("active", +b.dataset.off === statsWeekOffset));
+        // Ha épp fut egy lekérés, a hétváltás nem veszhet el: kis idő múlva újra.
+        if(statsBusy){ clearTimeout(statsRetry); statsRetry = setTimeout(() => updateStats(), 400); return; }
         token = token || getCalendarToken();
         if(!token) return;
         statsBusy = true;
@@ -4122,6 +4229,7 @@ window.sfOnViewSwitch = function(){
 
         const colPct = 100 / n;
         const INDENT = 14;                       // behúzás átfedésenként (px)
+        const TITLE_LINE_H = 14;                 // a cím egy sorának magassága (11px × 1.25)
         timed.forEach(t => {
             const indent = t.depth * INDENT;
             const pad = 6 + indent + t.depth * 4;          // teljes vízszintes levonás
@@ -4149,9 +4257,22 @@ window.sfOnViewSwitch = function(){
             div.dataset.eventId = t.ev.id || "";
             div.dataset.title = t.ev.summary || "";
             div.dataset.durationMin = Math.round((t.e - t.s) / 60000);
+            // Rövid (30 percnél kisebb) eseménynél nem fér ki két sor – ott csak a cím.
+            const durMin = Math.round((t.e - t.s) / 60000);
+            // ...és akkor sem, ha a blokk magassága nem enged meg egy cím- és egy
+            // idő-sort – félbevágott időpont helyett inkább ne látszódjon.
+            const showTime = durMin >= 30 && (t.height - 8) >= TITLE_LINE_H + 13;
+
+            // A cím annyi sorban jelenik meg, amennyi a blokk magasságából kifér;
+            // ami nem fér ki, az "…"-tal záródik (nem lóg ki, nem vágódik félbe).
+            // Nagyon alacsony blokknál a függőleges belső margó elvenné a cím helyét.
+            const padY = t.height < 26 ? 1 : 4;
+            if (padY !== 4) div.style.padding = padY + "px 7px";
+            const avail = t.height - 2*padY - (showTime ? 13 : 0);
+            const lines = Math.max(1, Math.floor(avail / TITLE_LINE_H));
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
-                <span class="wk-ev-title">${escM(statusTitle(t.clean, t.status))}</span>
-                <span class="wk-ev-head"><b>${hh}</b></span>`;
+                <span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${escM(statusTitle(t.clean, t.status))}</span>
+                ${showTime ? `<span class="wk-ev-head"><b>${hh}</b></span>` : ""}`;
             div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
@@ -4363,11 +4484,11 @@ window.sfOnViewSwitch = function(){
         const prev  = document.getElementById("calPrev");
         const next  = document.getElementById("calNext");
         const seg   = document.getElementById("calSeg");
-        if (today) today.addEventListener("click", () => { viewAnchor = new Date(); initCalendar(); });
+        if (today) today.addEventListener("click", () => { viewAnchor = new Date(); initCalendar(); pushWeekFromCalendar(); });
         const addBtn = document.getElementById("calAddEvent");
         if (addBtn) addBtn.addEventListener("click", () => openEventModal(defaultNewEventStart()));
-        if (prev)  prev.addEventListener("click",  () => { shiftAnchor(-1); initCalendar(); });
-        if (next)  next.addEventListener("click",  () => { shiftAnchor(1);  initCalendar(); });
+        if (prev)  prev.addEventListener("click",  () => { shiftAnchor(-1); initCalendar(); pushWeekFromCalendar(); });
+        if (next)  next.addEventListener("click",  () => { shiftAnchor(1);  initCalendar(); pushWeekFromCalendar(); });
         if (seg) seg.addEventListener("click", e => {
             const b = e.target.closest("button[data-view]"); if (!b) return;
             viewMode = b.dataset.view;
@@ -4408,6 +4529,26 @@ window.sfOnViewSwitch = function(){
         else if (viewMode === "month"){ const d = new Date(viewAnchor); d.setDate(1); d.setMonth(d.getMonth() + dir); viewAnchor = d; }
         else viewAnchor = addDays(viewAnchor, dir * 7);   // week & agenda
     }
+    // Hány héttel tér el a megadott dátum hete az aktuális héttől.
+    function weekOffsetOf(d){
+        const a = startOfWeek(new Date()), b = startOfWeek(d);
+        return Math.round((b - a) / (7 * 24 * 3600 * 1000));
+    }
+    // A naptárban lapozva a Heti tervezés és a Statisztikák is ugyanarra a hétre vált.
+    function pushWeekFromCalendar(){
+        if (typeof window.sfSetWeekOffset === "function") window.sfSetWeekOffset(weekOffsetOf(viewAnchor), "cal");
+    }
+    // A közös hét-váltó innen mozgatja a naptárat és a statisztikát.
+    window.sfSyncWeekViews = function(off, from){
+        statsWeekOffset = off;
+        const timeView = viewMode === "week" || viewMode === "day" || viewMode === "agenda" || viewMode === "clients";
+        if (from !== "cal" && timeView){
+            viewAnchor = addDays(startOfWeek(new Date()), off * 7);
+            initCalendar();                 // a statisztikát is újratölti
+        } else {
+            updateStats();
+        }
+    };
 
     // ===== HÓNAP nézet =====
     function renderMonth(grid, now, events){
@@ -4577,11 +4718,9 @@ window.sfOnViewSwitch = function(){
 
         const locInput = overlay.querySelector("#evLocEdit");
         const locMaps = overlay.querySelector("#evLocMaps");
-        locInput.addEventListener("input", () => {
-            const v = locInput.value.trim();
-            locMaps.href = mapsUrl(v);
-            locMaps.hidden = !v;
-        });
+        const syncLocMaps = v => { locMaps.href = mapsUrl(v); locMaps.hidden = !v; };
+        locInput.addEventListener("input", () => syncLocMaps(locInput.value.trim()));
+        attachPlaceSearch(locInput, syncLocMaps);
 
         const typeSel = overlay.querySelector("#evType");
         const unitWrap = overlay.querySelector("#evUnitWrap");
@@ -4718,8 +4857,9 @@ window.sfOnViewSwitch = function(){
     }
 
     // A modal ismétlődés-mezőiből RRULE-t épít: az "Egyéni…" heti ismétlődés a
-    // kiválasztott napokkal (BYDAY), a megadott vége-dátum pedig UNTIL-ként kerül
-    // bele (üres vége = korlátlan ismétlődés).
+    // kiválasztott napokkal (BYDAY), a heti gyakoriság INTERVAL-ként (pl. minden
+    // 2. héten), a megadott vége-dátum pedig UNTIL-ként kerül bele (üres vége =
+    // korlátlan ismétlődés).
     function buildRecurrence(overlay){
         const freq = overlay.querySelector("#qcRepeat").value;
         if (!freq) return undefined;
@@ -4730,6 +4870,10 @@ window.sfOnViewSwitch = function(){
             if (days.length) parts.push("BYDAY=" + days.join(","));
         } else {
             parts.push("FREQ=" + freq);
+        }
+        if (freq === "CUSTOM" || freq === "WEEKLY"){
+            const every = parseInt(overlay.querySelector("#qcRepeatEvery").value, 10);
+            if (every > 1) parts.push("INTERVAL=" + Math.min(52, every));
         }
         const endVal = overlay.querySelector("#qcRepeatEnd").value;
         if (endVal){
@@ -4799,6 +4943,10 @@ window.sfOnViewSwitch = function(){
                                 </select>
                             </div>
                             <div class="ev-row-field" id="qcRepeatEndWrap" hidden><label class="lbl" for="qcRepeatEnd">Ismétlés vége (üresen: soha)</label><input id="qcRepeatEnd" type="date" class="ev-input"></div>
+                        </div>
+                        <div class="ev-row-field" id="qcRepeatEveryWrap" hidden>
+                            <label class="lbl" for="qcRepeatEvery">Hány hetente ismétlődjön</label>
+                            <div class="ev-every"><span>Minden</span><input id="qcRepeatEvery" type="number" min="1" max="52" step="1" value="1" class="ev-input"><span>. héten</span></div>
                         </div>
                         <div class="ev-row-field" id="qcRepeatDaysWrap" hidden>
                             <label class="lbl">Mely napokon ismétlődjön</label>
@@ -4881,9 +5029,11 @@ window.sfOnViewSwitch = function(){
         const repeatSel = overlay.querySelector("#qcRepeat");
         const repeatDaysWrap = overlay.querySelector("#qcRepeatDaysWrap");
         const repeatEndWrap = overlay.querySelector("#qcRepeatEndWrap");
+        const repeatEveryWrap = overlay.querySelector("#qcRepeatEveryWrap");
         const syncRepeat = () => {
             const v = repeatSel.value;
             repeatDaysWrap.hidden = v !== "CUSTOM";
+            repeatEveryWrap.hidden = !(v === "WEEKLY" || v === "CUSTOM");
             repeatEndWrap.hidden = !v;
         };
         repeatSel.addEventListener("change", syncRepeat);
@@ -4892,6 +5042,8 @@ window.sfOnViewSwitch = function(){
             const b = e.target.closest("button[data-day]"); if (!b) return;
             b.classList.toggle("active");
         });
+
+        attachPlaceSearch(overlay.querySelector("#qcLoc"));
 
         // Utazási idő: bekapcsolva egy külön, az esemény elé illesztett blokk jön létre.
         const travelChk = overlay.querySelector("#qcTravel");
@@ -5002,8 +5154,8 @@ window.sfOnViewSwitch = function(){
             wireToolbar(); wireGridClicks(); calWired = true;
             document.getElementById("statsWeekSwitch")?.addEventListener("click", e => {
                 const b = e.target.closest("button[data-off]"); if(!b) return;
-                statsWeekOffset = +b.dataset.off;
-                updateStats();
+                if (typeof window.sfSetWeekOffset === "function") window.sfSetWeekOffset(+b.dataset.off, "stats");
+                else { statsWeekOffset = +b.dataset.off; updateStats(); }
             });
             // Ablak-átméretezésnél az óra-magasság újraszámolandó, hogy a naptár
             // továbbra is a képernyő aljáig érjen (események nélkül, hálózat nélkül).
