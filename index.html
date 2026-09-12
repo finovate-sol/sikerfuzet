@@ -739,6 +739,27 @@
         .adm-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .adm-hero p { font-size:13px; color:var(--muted); margin:0; }
         /* Admin → Naptár: a két esemény-stílus választója, élő előnézettel. */
+        /* Esemény / Feladat kapcsoló a felviteli és a szerkesztő modal fejlécében. */
+        .ev-kind { display:flex; gap:3px; background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:3px; }
+        .ev-kind button { display:inline-flex; align-items:center; gap:5px; border:none; background:transparent; cursor:pointer;
+            font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); padding:5px 11px; border-radius:7px; transition:background .15s,color .15s; }
+        .ev-kind button svg { width:13px; height:13px; }
+        .ev-kind button.on { background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(15,47,95,.14); }
+
+        /* Feladat a naptárban: nem telt színű blokk, hanem világos sáv karikával –
+           így egy pillantásra elkülönül a "rendes" eseményektől. */
+        .wk-ev.wk-task { border-radius:7px; }
+        .wk-ev.wk-task:hover { filter:brightness(.98); }
+        .wk-task b { opacity:.7; }
+        .wk-task-dot { display:inline-block; width:11px; height:11px; margin-right:5px; vertical-align:-1px;
+            border:1.7px solid var(--c,#6b7a90); border-radius:50%; box-sizing:border-box; position:relative; }
+        .wk-task-dot.done { background:var(--c,#6b7a90); }
+        .wk-task-dot.done::after { content:"✓"; position:absolute; inset:0; color:#fff; font-size:8px; line-height:10px; text-align:center; font-weight:900; }
+        .wk-task-dot.no { border-color:var(--red); }
+        .wk-task-dot.no::after { content:"✕"; position:absolute; inset:0; color:var(--red); font-size:8px; line-height:9px; text-align:center; font-weight:900; }
+        .wk-task .wk-ev-head { gap:3px; opacity:.85; }
+        .allday-ev.allday-task { background:#fff; color:var(--text); box-shadow:inset 0 0 0 1px #dbe3ee; }
+
         /* Ismétlődő esemény: hatókör-választó (csak ez / összes előfordulás). */
         .modal.rec-modal { max-width:440px; }
         .rec-txt { font-size:13.5px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
@@ -3903,6 +3924,9 @@ window.sfOnViewSwitch = function(){
         input.addEventListener("blur", () => setTimeout(hide, 150));
     }
 
+    // "esemény" vagy "feladat" – a felvitelkor választott fajta (sfKind).
+    const evKind = ev => ((((ev || {}).extendedProperties || {}).private || {}).sfKind === "task" ? "task" : "event");
+
     // Google Maps keresés/navigálás link egy szabad szöveges helyszínhez.
     function mapsUrl(location){
         return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location || "");
@@ -4200,8 +4224,11 @@ window.sfOnViewSwitch = function(){
                 const idx = colIndexOf(cols, d);
                 if (idx>=0){
                     const chip = document.createElement("div");
-                    chip.className = "allday-ev";
-                    if (calStyle === "light"){
+                    const chipTask = evKind(ev) === "task";
+                    chip.className = "allday-ev" + (chipTask ? " allday-task" : "");
+                    if (chipTask){
+                        chip.style.borderLeft = "4px solid " + hex;
+                    } else if (calStyle === "light"){
                         chip.style.background = tintHex(hex);
                         chip.style.color = deepHex(hex);
                         chip.style.borderLeft = "3px solid " + hex;
@@ -4213,8 +4240,9 @@ window.sfOnViewSwitch = function(){
                     chip.style.cursor = "pointer";
                     chip.dataset.eventId = ev.id || "";
                     chip.dataset.title = ev.summary || "";
-                    chip.textContent = clean || "(névtelen)";
-                    chip.title = chip.textContent;
+                    chip.title = clean || "(névtelen)";
+                    chip.innerHTML = (chipTask ? `<span class="wk-task-dot${status === "yes" ? " done" : status === "no" ? " no" : ""}" style="--c:${hex}"></span>` : "")
+                        + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status));
                     alldayCells[idx].appendChild(chip);
                 }
                 return;
@@ -4232,7 +4260,7 @@ window.sfOnViewSwitch = function(){
             if (top < 0){ height += top; top = 0; }
             if (top >= maxH) return;
             if (top + height > maxH) height = maxH - top;
-            timed.push({ ev, clean, status, hex, s, e, idx, startDec, endDec, top, height, depth:0, slot:0, slots:1 });
+            timed.push({ ev, clean, status, hex, s, e, idx, startDec, endDec, top, height, kind: evKind(ev), depth:0, slot:0, slots:1 });
         });
 
         for (let c = 0; c < n; c++) layoutOverlaps(timed.filter(t => t.idx === c));
@@ -4249,16 +4277,20 @@ window.sfOnViewSwitch = function(){
             const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
             const div = document.createElement("div");
             const light = calStyle === "light";
-            div.className = "wk-ev" + (light ? " wk-ev-light" : "");
+            const isTask = t.kind === "task";
+            div.className = "wk-ev" + (isTask ? " wk-task" : (light ? " wk-ev-light" : ""));
             div.draggable = true;
-            div.style.background = light ? tintHex(t.hex) : t.hex;
-            div.style.color = light ? deepHex(t.hex) : contrastTextColor(t.hex);
-            if (light) div.style.borderLeft = "3px solid " + t.hex;
+            div.style.background = isTask ? "#ffffff" : (light ? tintHex(t.hex) : t.hex);
+            div.style.color = isTask ? "#1c2b45" : (light ? deepHex(t.hex) : contrastTextColor(t.hex));
+            if (isTask) div.style.borderLeft = "4px solid " + t.hex;
+            else if (light) div.style.borderLeft = "3px solid " + t.hex;
             // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
             const ring = t.depth > 0 ? "0 0 0 2px #fff, " : "";
-            div.style.boxShadow = light
-                ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
-                : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
+            div.style.boxShadow = isTask
+                ? ring + "inset 0 0 0 1px #dbe3ee" + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
+                : light
+                    ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
+                    : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
             div.style.zIndex = String(1 + t.depth);
             div.style.left = left;
             div.style.width = width;
@@ -4280,9 +4312,14 @@ window.sfOnViewSwitch = function(){
             if (padY !== 4) div.style.padding = padY + "px 7px";
             const avail = t.height - 2*padY - (showTime ? 13 : 0);
             const lines = Math.max(1, Math.floor(avail / TITLE_LINE_H));
+            // Feladatnál a ✅/❌ helyett a cím elé rajzolt karika mutatja az állapotot.
+            const dot = isTask
+                ? `<span class="wk-task-dot${t.status === "yes" ? " done" : t.status === "no" ? " no" : ""}" style="--c:${t.hex}"></span>`
+                : "";
+            const label = isTask ? (t.clean || "(névtelen)") : statusTitle(t.clean, t.status);
             div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
-                <span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${escM(statusTitle(t.clean, t.status))}</span>
-                ${showTime ? `<span class="wk-ev-head"><b>${hh}</b></span>` : ""}`;
+                <span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>
+                ${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}`;
             div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
@@ -4737,7 +4774,11 @@ window.sfOnViewSwitch = function(){
         overlay.innerHTML = `
             <div class="modal ev-edit-modal">
                 <div class="modal-head ev-edit-head">
-                    <span>Esemény szerkesztése</span>
+                    <span id="evHeadTitle">Esemény szerkesztése</span>
+                    <div class="ev-kind" id="evKind">
+                        <button type="button" data-kind="event">${calSvg("clock")} Esemény</button>
+                        <button type="button" data-kind="task">${calSvg("check")} Feladat</button>
+                    </div>
                     <button class="ev-delete-link" id="evDelete" type="button">${calSvg("trash")} Törlés</button>
                 </div>
                 <div class="modal-body">
@@ -4809,6 +4850,21 @@ window.sfOnViewSwitch = function(){
         locInput.addEventListener("input", () => syncLocMaps(locInput.value.trim()));
         attachPlaceSearch(locInput, syncLocMaps);
 
+        // Esemény / Feladat – utólag is átváltható.
+        let evCurKind = evKind(ev);
+        const evKindBox = overlay.querySelector("#evKind");
+        const evHeadTitle = overlay.querySelector("#evHeadTitle");
+        const syncEvKind = () => {
+            evKindBox.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === evCurKind));
+            evHeadTitle.textContent = evCurKind === "task" ? "Feladat szerkesztése" : "Esemény szerkesztése";
+        };
+        evKindBox.addEventListener("click", e => {
+            const b = e.target.closest("[data-kind]"); if (!b) return;
+            evCurKind = b.dataset.kind;
+            syncEvKind();
+        });
+        syncEvKind();
+
         const typeSel = overlay.querySelector("#evType");
         const unitWrap = overlay.querySelector("#evUnitWrap");
         const syncUnit = () => { unitWrap.hidden = !EVENT_TYPES[+typeSel.value].unit; };
@@ -4864,8 +4920,12 @@ window.sfOnViewSwitch = function(){
             // (a null 400-as hibát adna), és csak akkor küldjük, ha van mit írni.
             const travelMin = travelChk.checked
                 ? Math.max(0, parseInt(overlay.querySelector("#evTravelMin").value, 10) || 0) : 0;
-            if (travelMin > 0) patch.extendedProperties = { private: { sfTravelMin: String(travelMin) } };
-            else if (curTravel > 0) patch.extendedProperties = { private: { sfTravelMin: "" } };
+            const priv = {};
+            if (travelMin > 0) priv.sfTravelMin = String(travelMin);
+            else if (curTravel > 0) priv.sfTravelMin = "";
+            if (evCurKind === "task") priv.sfKind = "task";
+            else if (evKind(ev) === "task") priv.sfKind = "";
+            if (Object.keys(priv).length) patch.extendedProperties = { private: priv };
             return patch;
         };
         const busy = () => overlay.querySelectorAll("button").forEach(b => b.disabled = true);
@@ -5001,6 +5061,8 @@ window.sfOnViewSwitch = function(){
         // Ügyfél-sorról húzva OVB tevékenységet viszünk fel (alapból Tanácsadás),
         // egyébként a korábbi alapértelmezés marad: Nem OVB / Egyéb.
         const fromClient = srcList === "money" || srcList === "career";
+        // A Feladatok fülről behúzott Google Task alapból "feladat" fajtát kap.
+        let curKind = srcList === "task" ? "task" : "event";
         let curTab = fromClient ? "ovb" : "nem";
         let curType = EVENT_TYPES.findIndex(t => t.label === (fromClient ? "Tanácsadás" : "Egyéb"));
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
@@ -5010,7 +5072,13 @@ window.sfOnViewSwitch = function(){
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
             <div class="modal ev-edit-modal ev-create-modal">
-                <div class="modal-head ev-edit-head"><span>Esemény a naptárba</span></div>
+                <div class="modal-head ev-edit-head">
+                    <span id="qcHeadTitle">Esemény a naptárba</span>
+                    <div class="ev-kind" id="qcKind">
+                        <button type="button" data-kind="event">${calSvg("clock")} Esemény</button>
+                        <button type="button" data-kind="task">${calSvg("check")} Feladat</button>
+                    </div>
+                </div>
                 <div class="ev-tabs" id="qcTabs">
                     <button type="button" class="ev-tab" data-tab="ovb">OVB</button>
                     <button type="button" class="ev-tab" data-tab="nem">Nem OVB</button>
@@ -5121,6 +5189,26 @@ window.sfOnViewSwitch = function(){
         segWrap.hidden = curTab !== "ovb";
         renderTiles();
 
+        // Esemény / Feladat: a feladat ugyanúgy a naptárba kerül, csak más
+        // megjelenéssel (karikás, világos sáv) – és Meet hívás nem tartozik hozzá.
+        const kindBox = overlay.querySelector("#qcKind");
+        const headTitle = overlay.querySelector("#qcHeadTitle");
+        const meetRow = overlay.querySelector("#qcMeet").closest(".ev-row");
+        const syncKind = () => {
+            kindBox.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === curKind));
+            headTitle.textContent = curKind === "task" ? "Feladat a naptárba" : "Esemény a naptárba";
+            if (meetRow){
+                meetRow.hidden = curKind === "task";
+                if (curKind === "task") overlay.querySelector("#qcMeet").checked = false;
+            }
+        };
+        kindBox.addEventListener("click", e => {
+            const b = e.target.closest("[data-kind]"); if (!b) return;
+            curKind = b.dataset.kind;
+            syncKind();
+        });
+        syncKind();
+
         const advToggle = overlay.querySelector("#qcAdvToggle");
         const adv = overlay.querySelector("#qcAdv");
         advToggle.addEventListener("click", () => {
@@ -5229,6 +5317,7 @@ window.sfOnViewSwitch = function(){
                 priv.sfRegIdx = String(srcIndex);
             }
             if (travelMin > 0) priv.sfTravelMin = String(travelMin);
+            if (curKind === "task") priv.sfKind = "task";
             const extendedProperties = Object.keys(priv).length ? { private: priv } : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
