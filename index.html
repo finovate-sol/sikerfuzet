@@ -802,6 +802,11 @@
         .adm-cal-ev { border-radius:9px; padding:5px 8px; font-size:11px; line-height:1.25; }
         .adm-cal-ev b { display:block; font-weight:700; }
         .adm-cal-ev span { display:block; font-weight:600; font-size:10px; opacity:.85; }
+        /* "Kétszínű sáv" előnézete: a rendes .adm-cal-ev paddingje helyett két,
+           egymástól elütő sáv (ugyanaz az elrendezés, mint a valós wk-ev-split). */
+        .adm-cal-ev.ev-split-prev { padding:0; overflow:hidden; }
+        .ev-split-prev-top { padding:5px 8px 3px; }
+        .ev-split-prev-bot { padding:3px 8px 4px; }
         .adm-cal-name { font-weight:800; color:var(--navy); font-size:14px; }
         .adm-cal-desc { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.45; }
         .adm-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; }
@@ -1075,6 +1080,16 @@
         .wk-ev-outline { border-radius:9px; }
         .wk-ev-outline:hover { filter:none; }
         .wk-ev-outline .wk-ev-head, .wk-ev-outline .wk-ev-loc { color:var(--muted); }
+        /* "Gradiens" stílus: átlós színátmenet, fehér szöveg – lágy szövegárnyék,
+           hogy a világosabb sarkokon is olvasható maradjon a cím. */
+        .wk-ev-gradient .wk-ev-title, .wk-ev-gradient .wk-ev-head, .wk-ev-gradient .wk-ev-loc { text-shadow:0 1px 2px rgba(0,0,0,.18); }
+        /* "Kétszínű sáv" stílus: a blokk két, egymástól elütő árnyalatú sávra
+           oszlik – felül a cím az alapszínen, alul az időpont/helyszín egy
+           határozottan sötétebb árnyalatú sávban. Sehol nincs fehér felület. */
+        .wk-ev-split { display:flex; flex-direction:column; padding:0 !important; }
+        .wk-ev-split .wk-ev-split-top { flex:1 1 auto; min-height:0; overflow:hidden; }
+        .wk-ev-split .wk-ev-split-bot { flex:0 0 auto; }
+        .wk-ev-split .wk-ev-head, .wk-ev-split .wk-ev-loc { text-shadow:0 1px 2px rgba(0,0,0,.15); }
         .wk-ev:active { cursor:grabbing; }
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
@@ -3504,7 +3519,9 @@ window.sfOnViewSwitch = function(){
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
             if (typeof window.sfSetInfo === "function") window.sfSetInfo((cfg && cfg.infoParticipants) || []);
-            const cs = (cfg && (cfg.calendarStyle === "light" || cfg.calendarStyle === "outline")) ? cfg.calendarStyle : "solid";
+            // CAL_STYLES lentebb (Admin → Naptár) definiálja az érvényes kulcsokat –
+            // mire ez a callback lefut, a szinkron szkript már inicializálta.
+            const cs = (cfg && CAL_STYLES.some(s => s.key === cfg.calendarStyle)) ? cfg.calendarStyle : "solid";
             if (cs !== calStyle){ calStyle = cs; initCalendar(); }
             if (isAdmin(user)) setupAdminPanel();
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
@@ -3885,6 +3902,9 @@ window.sfOnViewSwitch = function(){
     }
     const tintHex = hex => mixHex(hex, "#ffffff", .87);   // pasztell háttér
     const deepHex = hex => mixHex(hex, "#12233d", .42);   // olvasható sötét szöveg
+    const gradTopHex  = hex => mixHex(hex, "#ffffff", .22);  // "Gradiens" stílus világosabb sarka
+    const gradBotHex  = hex => mixHex(hex, "#12233d", .38);  // "Gradiens" stílus mélyebb sarka
+    const splitDeepHex = hex => mixHex(hex, "#12233d", .40); // "Kétszínű sáv" alsó (időpont) sávja
 
     // Naptár esemény-blokkok stílusa (Admin → Naptár): "solid" = telt szín,
     // "light" = halvány háttér színes bal szegéllyel. Megosztott beállítás.
@@ -4344,7 +4364,12 @@ window.sfOnViewSwitch = function(){
                         chip.style.background = "#ffffff";
                         chip.style.color = hex;
                         chip.style.border = "1.5px solid " + hex;
+                    } else if (calStyle === "gradient"){
+                        chip.style.background = `linear-gradient(135deg, ${gradTopHex(hex)}, ${hex} 60%, ${gradBotHex(hex)})`;
+                        chip.style.color = "#ffffff";
                     } else {
+                        // "split"-nél egy egysoros chipen nincs hely két sávra –
+                        // itt a telt színnel egyezik meg.
                         chip.style.background = hex;
                         chip.style.color = contrastTextColor(hex);
                     }
@@ -4395,25 +4420,42 @@ window.sfOnViewSwitch = function(){
             const width = `calc(${slotW}${t.slots > 1 ? " - 3px" : ""})`;
             const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
             const div = document.createElement("div");
-            const light = calStyle === "light";
-            const outline = calStyle === "outline";
             const isTask = t.kind === "task";
-            div.className = "wk-ev" + (isTask ? " wk-task" : light ? " wk-ev-light" : outline ? " wk-ev-outline" : "");
+            // A feladatoknak (isTask) saját, calStyle-tól független megjelenésük
+            // van (lásd PR "esemény vagy feladat" – fehér, bal szegéllyel); minden
+            // más esemény az öt naptár-stílus egyikét kapja.
+            const mode = isTask ? "task" : calStyle;
+            const modeClass = { task:" wk-task", light:" wk-ev-light", outline:" wk-ev-outline", gradient:" wk-ev-gradient", split:" wk-ev-split" }[mode] || "";
+            div.className = "wk-ev" + modeClass;
             div.draggable = true;
-            div.style.background = isTask ? "#ffffff" : light ? tintHex(t.hex) : outline ? "#ffffff" : t.hex;
-            div.style.color = isTask ? "#1c2b45" : light ? deepHex(t.hex) : outline ? t.hex : contrastTextColor(t.hex);
-            if (isTask) div.style.borderLeft = "4px solid " + t.hex;
-            else if (light) div.style.borderLeft = "3px solid " + t.hex;
-            else if (outline) div.style.border = "1.5px solid " + t.hex;
+            if (mode === "task"){
+                div.style.background = "#ffffff";
+                div.style.color = "#1c2b45";
+                div.style.borderLeft = "4px solid " + t.hex;
+            } else if (mode === "light"){
+                div.style.background = tintHex(t.hex);
+                div.style.color = deepHex(t.hex);
+                div.style.borderLeft = "3px solid " + t.hex;
+            } else if (mode === "outline"){
+                div.style.background = "#ffffff";
+                div.style.color = t.hex;
+                div.style.border = "1.5px solid " + t.hex;
+            } else if (mode === "gradient"){
+                div.style.background = `linear-gradient(135deg, ${gradTopHex(t.hex)} 0%, ${t.hex} 55%, ${gradBotHex(t.hex)} 100%)`;
+                div.style.color = "#ffffff";
+            } else {   // "solid" és "split" – teli alapszín (a "split" az alsó sávban sötétít)
+                div.style.background = t.hex;
+                div.style.color = mode === "split" ? "#ffffff" : contrastTextColor(t.hex);
+            }
             // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
             const ring = t.depth > 0 ? "0 0 0 2px #fff, " : "";
-            div.style.boxShadow = isTask
-                ? ring + "inset 0 0 0 1px #dbe3ee" + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
-                : light
-                    ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
-                    : outline
-                        ? ring + (t.depth > 0 ? "0 3px 10px rgba(15,47,95,.16)" : "0 1px 3px rgba(15,47,95,.08)")
-                        : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
+            div.style.boxShadow =
+                mode === "task" ? ring + "inset 0 0 0 1px #dbe3ee" + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
+                : mode === "light" ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
+                : mode === "outline" ? ring + (t.depth > 0 ? "0 3px 10px rgba(15,47,95,.16)" : "0 1px 3px rgba(15,47,95,.08)")
+                : mode === "gradient" ? ring + (t.depth > 0 ? `0 5px 16px ${hexToRgba(t.hex, .55)}` : `0 4px 12px ${hexToRgba(t.hex, .45)}`)
+                : mode === "split" ? ring + (t.depth > 0 ? `0 4px 12px ${hexToRgba(t.hex, .45)}` : `0 3px 10px ${hexToRgba(t.hex, .4)}`)
+                : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
             div.style.zIndex = String(1 + t.depth);
             div.style.left = left;
             div.style.width = width;
@@ -4450,10 +4492,19 @@ window.sfOnViewSwitch = function(){
                 ? `<span class="wk-task-dot${t.status === "yes" ? " done" : t.status === "no" ? " no" : ""}" style="--c:${t.hex}"></span>`
                 : "";
             const label = isTask ? (t.clean || "(névtelen)") : statusTitle(t.clean, t.status);
-            div.innerHTML = `<span class="wk-ev-del" title="Törlés">×</span>
-                <span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>
-                ${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}
+            const titleHtml = `<span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>`;
+            const timeLocHtml = `${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}
                 ${showLoc ? `<span class="wk-ev-loc">${calSvg("pin")}<span>${escM(locText)}</span></span>` : ""}`;
+            div.innerHTML = mode === "split"
+                // "Kétszínű sáv": a cím és az időpont/helyszín külön, saját hátterű
+                // sávba kerül (lásd .wk-ev-split CSS) – a sötétebb alsó sávat a
+                // splitDeepHex adja, ugyanazzal a padY-jal, mint a többi stílus.
+                ? `<span class="wk-ev-del" title="Törlés">×</span>
+                    <div class="wk-ev-split-top" style="padding:${padY}px 7px 2px;">${titleHtml}</div>
+                    ${(showTime || showLoc) ? `<div class="wk-ev-split-bot" style="background:${splitDeepHex(t.hex)};padding:2px 7px ${padY}px;">${timeLocHtml}</div>` : ""}`
+                : `<span class="wk-ev-del" title="Törlés">×</span>
+                    ${titleHtml}
+                    ${timeLocHtml}`;
             div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
@@ -6168,18 +6219,29 @@ window.sfOnViewSwitch = function(){
     // Naptár megjelenés: az esemény-blokkok stílusa a heti/napi nézetben.
     // Megosztott beállítás (config/app.calendarStyle), hogy a csapat ugyanazt lássa.
     const CAL_STYLES = [
-        { key:"solid",   name:"Telt szín",  desc:"Az esemény teljes felülete a típus színe, fehér szöveggel. Erős, messziről is jól elkülönülő blokkok." },
-        { key:"light",   name:"Világos",    desc:"Halvány, pasztell háttér színes bal szegéllyel és sötét szöveggel. Visszafogottabb, sűrű naptárnál nyugodtabb kép." },
-        { key:"outline", name:"Kontúros",   desc:"Fehér háttér, körben futó vékony színes szegély, a cím a típus színében. A helyszín/időpont semleges szürke marad." },
+        { key:"solid",    name:"Telt szín",     desc:"Az esemény teljes felülete a típus színe, fehér szöveggel. Erős, messziről is jól elkülönülő blokkok." },
+        { key:"light",    name:"Világos",       desc:"Halvány, pasztell háttér színes bal szegéllyel és sötét szöveggel. Visszafogottabb, sűrű naptárnál nyugodtabb kép." },
+        { key:"outline",  name:"Kontúros",      desc:"Fehér háttér, körben futó vékony színes szegély, a cím a típus színében. A helyszín/időpont semleges szürke marad." },
+        { key:"gradient", name:"Gradiens",      desc:"A blokk teli felülete átlós színátmenetet kap, a típus színe köré, lágy izzó árnyékkal. Élénkebb, \"prémiumabb\" hatás, mint a lapos telt szín." },
+        { key:"split",    name:"Kétszínű sáv",  desc:"A teljes blokk színes marad: felül a cím az alapszínen, egy határozottan sötétebb alsó sávban az időpont/helyszín. Sehol nincs fehér felület – a legerősebb, legszínesebb stílus." },
     ];
     function calStylePreview(style){
         const demo = [["#33b679","Tanácsadás","10:00"],["#039be5","Vezetőségi","12:30"],["#f4511e","Felvételi 1","15:00"]];
         return demo.map(([hex,title,time]) => {
+            if (style === "split"){
+                const css = `background:${hex};color:#fff;box-shadow:0 3px 10px ${hexToRgba(hex,.4)};`;
+                return `<div class="adm-cal-ev ev-split-prev" style="${css}">
+                    <div class="ev-split-prev-top"><b>${title}</b></div>
+                    <div class="ev-split-prev-bot" style="background:${splitDeepHex(hex)}"><span>${time}</span></div>
+                </div>`;
+            }
             const css = style === "light"
                 ? `background:${tintHex(hex)};color:${deepHex(hex)};border-left:3px solid ${hex};box-shadow:inset 0 0 0 1px ${hexToRgba(hex,.3)};border-radius:7px;`
                 : style === "outline"
                     ? `background:#fff;color:${hex};border:1.5px solid ${hex};box-shadow:0 1px 3px rgba(15,47,95,.08);`
-                    : `background:${hex};color:${contrastTextColor(hex)};box-shadow:0 2px 6px ${hexToRgba(hex,.35)};`;
+                    : style === "gradient"
+                        ? `background:linear-gradient(135deg, ${gradTopHex(hex)} 0%, ${hex} 55%, ${gradBotHex(hex)} 100%);color:#fff;box-shadow:0 4px 14px ${hexToRgba(hex,.45)};`
+                        : `background:${hex};color:${contrastTextColor(hex)};box-shadow:0 2px 6px ${hexToRgba(hex,.35)};`;
             const timeCss = style === "outline" ? ` style="color:var(--muted)"` : "";
             return `<div class="adm-cal-ev" style="${css}"><b>${title}</b><span${timeCss}>${time}</span></div>`;
         }).join("");
