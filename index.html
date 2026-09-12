@@ -1004,7 +1004,12 @@
         .wk-allday { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
         .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
-        .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+        /* Az időzített naptár-rácsból ide húzott esemény célpontja – ugyanaz a
+           kékes kiemelés, mint az időzített rács saját drop-jelzőjén. */
+        .wk-allday .cell.allday-drop-target { background:var(--blue-light); }
+        .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; cursor:grab; }
+        .allday-ev:active { cursor:grabbing; }
+        .allday-ev.dragging { opacity:.4; }
         .wk-grid { display:flex; overflow-y:auto; }
         .wk-times { width:52px; flex-shrink:0; position:relative; }
         .wk-times .t { height:var(--row,44px); font-size:11px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
@@ -4276,10 +4281,10 @@ window.sfOnViewSwitch = function(){
                         chip.style.color = contrastTextColor(hex);
                     }
                     chip.style.fontWeight = "600";
-                    chip.style.cursor = "pointer";
+                    chip.draggable = true;
                     chip.dataset.eventId = ev.id || "";
                     chip.dataset.title = ev.summary || "";
-                    chip.title = clean || "(névtelen)";
+                    chip.title = (clean || "(névtelen)") + " — húzd a naptárba időpontot adni neki";
                     chip.innerHTML = (chipTask ? `<span class="wk-task-dot${status === "yes" ? " done" : status === "no" ? " no" : ""}" style="--c:${hex}"></span>` : "")
                         + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status));
                     alldayCells[idx].appendChild(chip);
@@ -4493,9 +4498,26 @@ window.sfOnViewSwitch = function(){
         } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
     }
 
+    // Időzített esemény egész naposra váltása (az "egész nap" sávba húzáskor).
+    // Az "end" itt is KIZÁRÓLAGOS, ezért a következő nap kerül bele.
+    async function convertToAllDay(id, day){
+        const start = new Date(day); start.setHours(0, 0, 0, 0);
+        try {
+            await updateCalendarEvent(id, {
+                start: { date: ymd(start) },
+                end:   { date: ymd(new Date(start.getTime() + 86400000)) }
+            });
+            initCalendar();
+        } catch (e){ alert("Nem sikerült egész naposra állítani: " + (e.message || e)); }
+    }
+
     // Az "egész nap" sáv üres helyére kattintva egész napos esemény vehető fel
     // az adott napra (a meglévő chipekre kattintás a szerkesztőt nyitja).
+    // Ugyanez a sáv fogadja is a naptár-rácsból ide húzott eseményt (egész
+    // naposra váltja), és a saját chipjei is kihúzhatók onnan időpontot kapni
+    // (a "reschedule" payloadot a #wkCanvas drop-kezelője már úgyis kezeli).
     function wireAllDayClicks(cols){
+        const row = document.getElementById("wkAllday");
         document.querySelectorAll("#wkAllday .cell").forEach((cell, i) => {
             cell.style.cursor = "pointer";
             cell.addEventListener("click", e => {
@@ -4504,6 +4526,46 @@ window.sfOnViewSwitch = function(){
                 d.setHours(0, 0, 0, 0);
                 openEventModal(d, { allDay: true });
             });
+        });
+        if (!row) return;
+        const cellOf = e => e.target.closest(".cell");
+        const clearDropTarget = () => row.querySelectorAll(".cell.allday-drop-target").forEach(c => c.classList.remove("allday-drop-target"));
+        row.addEventListener("dragover", e => {
+            if (!draggingEvent) return;
+            const cell = cellOf(e); if (!cell) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            clearDropTarget();
+            cell.classList.add("allday-drop-target");
+        });
+        row.addEventListener("dragleave", e => { if (!row.contains(e.relatedTarget)) clearDropTarget(); });
+        row.addEventListener("drop", e => {
+            clearDropTarget();
+            const cell = cellOf(e);
+            if (!cell || !draggingEvent) return;
+            e.preventDefault();
+            const raw = e.dataTransfer.getData("text/plain") || "";
+            let payload; try { payload = JSON.parse(raw); } catch(_) { payload = null; }
+            if (!payload || payload.type !== "reschedule" || !payload.eventId) return;
+            const i = Array.from(row.querySelectorAll(".cell")).indexOf(cell);
+            if (i < 0) return;
+            convertToAllDay(payload.eventId, cols[i]);
+        });
+        // A chip húzása a naptár-rácsba: ugyanaz a "reschedule" payload, mint
+        // az időzített blokkoknál – a #wkCanvas drop-kezelője adja a
+        // ledobás helye szerinti időpontot.
+        row.addEventListener("dragstart", e => {
+            const chip = e.target.closest(".allday-ev[draggable]");
+            if (!chip || !chip.dataset.eventId) return;
+            draggingEvent = { id: chip.dataset.eventId, durationMin: chip.classList.contains("allday-task") ? 15 : 60 };
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", JSON.stringify({ type: "reschedule", eventId: draggingEvent.id }));
+            chip.classList.add("dragging");
+        });
+        row.addEventListener("dragend", e => {
+            const chip = e.target.closest(".allday-ev");
+            if (chip) chip.classList.remove("dragging");
+            draggingEvent = null;
         });
     }
 
