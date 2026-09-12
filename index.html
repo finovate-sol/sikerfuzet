@@ -95,10 +95,6 @@
         .viewas-select { width:100%; padding:7px 9px; border-radius:8px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:13px; font-family:inherit; }
         .viewas-select option { color:#1c2b45; }
         .sidebar.collapsed .sidebar-viewas { display:none; }
-        .viewas-banner { display:none; align-items:center; gap:10px; background:var(--amber-light); color:#7c3a06; padding:10px 16px; font-size:13px; font-weight:600; }
-        .viewas-banner.show { display:flex; }
-        .viewas-banner svg { width:18px; height:18px; flex-shrink:0; }
-        .viewas-banner button { margin-left:auto; }
 
         /* Bal oldali menü összecsukása – csak asztali méretnél (mobilon a sidebar
            amúgy is teljes szélességű kihúzható fiók, ott nincs értelme az ikon-módnak). */
@@ -1395,6 +1391,10 @@
             <select id="viewAsSelect" class="viewas-select">
                 <option value="">Saját nézet</option>
             </select>
+            <button class="su-logout viewas-back-btn" id="viewAsBackBtn" type="button" hidden style="width:100%; justify-content:center; gap:7px; margin-top:8px; font-size:12px; font-weight:700;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Vissza a sajátomhoz
+            </button>
         </div>
         <div id="adminPanel" hidden style="padding:12px 16px; border-top:1px solid rgba(255,255,255,.09);">
             <a href="#" class="su-logout" id="adminInfoBtn" data-page="admin" title="Admin" style="width:100%; justify-content:center; gap:8px; text-decoration:none;">
@@ -1412,13 +1412,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
             <span class="mb-title" id="mbTitle">Sikerfüzet</span>
-        </div>
-
-        <!-- "RÁNÉZÉS" BANNER – csak akkor látszik, ha egy vezető más munkatárs nézetét nézi -->
-        <div class="viewas-banner" id="viewAsBanner" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-            <span id="viewAsBannerText">Más munkatárs adatait nézed</span>
-            <button class="btn" id="viewAsBannerBack">Vissza a sajátomhoz</button>
         </div>
 
         <!-- KEZDŐOLDAL -->
@@ -3606,9 +3599,7 @@ window.sfOnViewSwitch = function(){
     function setupViewAsSwitcher(){
         const wrap = document.getElementById("sidebarViewAs");
         const sel = document.getElementById("viewAsSelect");
-        const banner = document.getElementById("viewAsBanner");
-        const bannerText = document.getElementById("viewAsBannerText");
-        const bannerBack = document.getElementById("viewAsBannerBack");
+        const backBtn = document.getElementById("viewAsBackBtn");
         if (!wrap || !sel) return;
         // Admin bárkire ránézhet; egyéb vezetők csak a hozzáférés-térkép szerinti beosztottjaikra.
         const employees = (window.sfEmployeesList || []).filter(e =>
@@ -3618,25 +3609,22 @@ window.sfOnViewSwitch = function(){
         sel.innerHTML = `<option value="">Saját nézet</option>` + employees
             .map(e => `<option value="${e.uid}">${(e.name || e.email || "").replace(/</g,"&lt;")}</option>`).join("");
         wrap.hidden = false;
+        // A "más nézetét nézed" jelzés a sidebaron belül marad: a legördülő
+        // maga mutatja, kit nézünk, a "Vissza a sajátomhoz" gomb pedig csak
+        // ilyenkor jelenik meg alatta – nincs külön, a tartalom tetején
+        // megjelenő figyelmeztető sáv.
         const applyView = (uid) => {
             const own = window.sfCurrentUser.uid;
             window.sfViewedUid = uid || own;
             const isOther = window.sfViewedUid !== own;
-            if (banner){
-                banner.classList.toggle("show", isOther);
-                banner.hidden = !isOther;
-            }
-            if (isOther && bannerText){
-                const emp = employees.find(e => e.uid === window.sfViewedUid);
-                bannerText.textContent = (emp ? (emp.name || emp.email) : "Munkatárs") + " adatait nézed";
-            }
+            if (backBtn) backBtn.hidden = !isOther;
             sel.value = isOther ? window.sfViewedUid : "";
             loadAndDistributeClients();
             if (typeof window.sfOnViewSwitch === "function") window.sfOnViewSwitch();
             initCalendar();
         };
         sel.addEventListener("change", () => applyView(sel.value));
-        if (bannerBack) bannerBack.addEventListener("click", () => applyView(""));
+        if (backBtn) backBtn.addEventListener("click", () => applyView(""));
     }
 
     // ===== KIÉRTÉKELŐ TELEFON (csak vezetőknek/adminnak) =====
