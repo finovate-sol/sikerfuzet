@@ -952,6 +952,29 @@
         .cal-add-btn { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:700; }
         .cal-add-btn:hover { background:#1a52b8; }
         .cal-date { font-weight:700; font-size:15px; color:var(--navy); }
+        /* "Ugrás dátumra" – a natív date-inputot láthatatlanul az ikon-gomb fölé
+           tesszük, így kattintásra a böngésző saját dátumválasztója nyílik meg. */
+        .cal-jump-btn { position:relative; overflow:hidden; }
+        .cal-jump-btn input[type="date"] { position:absolute; inset:0; opacity:0; border:none; cursor:pointer; padding:0; }
+        /* Naptár-keresés: ikon-gomb, ami egy lenyíló keresőmezőt/találati listát nyit. */
+        .cal-search { position:relative; }
+        .cal-search-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:20; width:min(300px, calc(100vw - 32px));
+            background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 28px rgba(15,47,95,.16); padding:8px; }
+        .cal-search-inp { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--muted); }
+        .cal-search-inp input { border:none; background:transparent; outline:none; font-size:13.5px; font-family:inherit; color:var(--text); width:100%; }
+        .cal-search-results { max-height:280px; overflow-y:auto; margin-top:6px; }
+        .cal-search-empty { color:var(--muted); font-size:12.5px; padding:10px 6px; text-align:center; }
+        .cal-search-item { display:flex; align-items:center; gap:9px; padding:8px 6px; border-radius:7px; cursor:pointer; }
+        .cal-search-item:hover { background:var(--bg); }
+        .cal-search-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+        .cal-search-item-txt { min-width:0; flex:1; }
+        .cal-search-item-title { font-size:13px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cal-search-item-when { font-size:11.5px; color:var(--muted); }
+        /* Keresésből ide ugorva az esemény pár másodpercig kiemelkedik, hogy
+           azonnal látszódjon a rácsban/hónap-nézetben, hova is ugrottunk. */
+        @keyframes calHighlightPulse { 0%,100% { box-shadow:0 0 0 3px rgba(31,95,208,.55); } 50% { box-shadow:0 0 0 3px rgba(31,95,208,.15); } }
+        .wk-ev.cal-highlight, .allday-ev.cal-highlight { animation:calHighlightPulse 1s ease-in-out 3; }
+        .mev.cal-highlight { animation:calHighlightPulse 1s ease-in-out 3; }
         .cal-h2 { font-size:16px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:9px; margin-right:6px; }
         .cal-h2 .icon { color:var(--blue); display:flex; }
         .havi-cel-inline { display:flex; align-items:center; gap:8px; margin-left:auto; }
@@ -1413,12 +1436,23 @@
                         <button class="btn" id="calToday">Ma</button>
                         <button class="btn icon-btn" id="calPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
                         <button class="btn icon-btn" id="calNext"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+                        <label class="btn icon-btn cal-jump-btn" title="Ugrás dátumra" aria-label="Ugrás dátumra">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+                            <input type="date" id="calJumpDate">
+                        </label>
                         <span class="cal-date"></span>
                         <div class="seg" id="calSeg">
                             <button data-view="day">Nap</button>
                             <button data-view="week" class="active">Hét</button>
                             <button data-view="month">Hónap</button>
                             <button data-view="clients">Ügyfelek</button>
+                        </div>
+                        <div class="cal-search" id="calSearchBox">
+                            <button class="btn icon-btn" id="calSearchToggle" title="Esemény keresése" aria-label="Esemény keresése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+                            <div class="cal-search-pop" id="calSearchPop" hidden>
+                                <div class="cal-search-inp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="calSearchInput" placeholder="Esemény keresése…" autocomplete="off"></div>
+                                <div class="cal-search-results" id="calSearchResults"></div>
+                            </div>
                         </div>
                         <a class="btn icon-btn" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" title="Megnyitás a Google Naptárban" aria-label="Megnyitás a Google Naptárban" style="margin-left:12px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></a>
                         <button class="btn icon-btn" id="calScreenshot" title="Naptár mentése képként" style="margin-left:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></button>
@@ -4004,6 +4038,7 @@ window.sfOnViewSwitch = function(){
     let currentColumns = [];            // az idő-rács oszlopai (Date, éjfél)
     let calWired = false;
     let eventsById = {};                 // a legutóbb betöltött események id szerint (szerkesztéshez)
+    let pendingHighlightId = null;       // keresésből ugrott esemény – a következő render kiemeli
 
     const CAL_ICONS = {
         activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
@@ -4174,6 +4209,29 @@ window.sfOnViewSwitch = function(){
         return data.items || [];
     }
 
+    // Esemény-keresés (cím/leírás/helyszín) a naptár-eszköztár keresőjéhez.
+    // Ésszerűen tág, de véges időablakban keres (fél év vissza, egy év előre) –
+    // a valós használatban (időpontok, tervek) ez bőven lefedi a keresést, és
+    // az orderBy=startTime a Google API-nál timeMin nélkül nem megbízható.
+    async function searchCalendarEvents(query){
+        const token = getCalendarToken();
+        if (!token || !query || !query.trim()) return [];
+        const now = new Date();
+        const timeMin = new Date(now.getTime() - 180*86400000);
+        const timeMax = new Date(now.getTime() + 365*86400000);
+        const url = "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events"
+            + "?singleEvents=true&orderBy=startTime&maxResults=8"
+            + "&q=" + encodeURIComponent(query.trim())
+            + "&timeMin=" + encodeURIComponent(timeMin.toISOString())
+            + "&timeMax=" + encodeURIComponent(timeMax.toISOString());
+        const doFetch = tok => fetch(url, { headers: { Authorization: "Bearer " + tok } });
+        let res = await doFetch(token);
+        if (res.status === 401 || res.status === 403) res = await doFetch(await reconnectCalendar());
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.items || [];
+    }
+
     // ===== Statisztikák (aktuális hét vs. előző hét) =====
     const STAT_TYPES = [
         { label:"E",  test: s => ["E"].some(c => s.includes("(" + c + ")")) },
@@ -4293,6 +4351,11 @@ window.sfOnViewSwitch = function(){
                     chip.innerHTML = (chipTask ? `<span class="wk-task-dot${status === "yes" ? " done" : status === "no" ? " no" : ""}" style="--c:${hex}"></span>` : "")
                         + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status));
                     alldayCells[idx].appendChild(chip);
+                    if (ev.id && ev.id === pendingHighlightId){
+                        chip.classList.add("cal-highlight");
+                        setTimeout(() => chip.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
+                        pendingHighlightId = null;
+                    }
                 }
                 return;
             }
@@ -4410,6 +4473,11 @@ window.sfOnViewSwitch = function(){
                 }
             }
             canvas.appendChild(div);
+            if (t.ev.id && t.ev.id === pendingHighlightId){
+                div.classList.add("cal-highlight");
+                setTimeout(() => div.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
+                pendingHighlightId = null;
+            }
         });
 
         // Szélesség-ellenőrzés: a keskeny (egymás mellé tolt, átfedő) blokkokon a
@@ -4685,6 +4753,80 @@ window.sfOnViewSwitch = function(){
             seg.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
             initCalendar();
         });
+
+        // "Ugrás dátumra" – a natív date-input mögé rejtve (lásd CSS), a
+        // választás után ugyanúgy vált nézetet, mint a Ma/‹/› gombok.
+        const jumpDate = document.getElementById("calJumpDate");
+        if (jumpDate) jumpDate.addEventListener("change", () => {
+            if (!jumpDate.value) return;
+            viewAnchor = new Date(jumpDate.value + "T00:00:00");
+            initCalendar();
+            pushWeekFromCalendar();
+        });
+
+        // Esemény-keresés: ikon-gomb nyit egy kereső popupot, ami a Google
+        // Calendar API "q" paraméterével keres (cím/leírás/helyszín). Találatra
+        // kattintva a naptár arra a napra ugrik, a talált esemény pedig pár
+        // másodpercig kiemelkedik (lásd renderTimeEvents/renderMonth).
+        const searchToggle = document.getElementById("calSearchToggle");
+        const searchPop = document.getElementById("calSearchPop");
+        const searchInput = document.getElementById("calSearchInput");
+        const searchResults = document.getElementById("calSearchResults");
+        if (searchToggle && searchPop && searchInput && searchResults){
+            const closeSearch = () => { searchPop.hidden = true; };
+            searchToggle.addEventListener("click", e => {
+                e.stopPropagation();
+                if (searchPop.hidden){ searchPop.hidden = false; searchInput.focus(); }
+                else closeSearch();
+            });
+            searchPop.addEventListener("click", e => e.stopPropagation());
+            document.addEventListener("click", closeSearch);
+            document.addEventListener("keydown", e => { if (e.key === "Escape") closeSearch(); });
+
+            let searchTimer = null, searchSeq = 0;
+            const runSearch = async () => {
+                const q = searchInput.value.trim();
+                if (q.length < 2){ searchResults.innerHTML = ""; return; }
+                const seq = ++searchSeq;
+                searchResults.innerHTML = `<div class="cal-search-empty">Keresés…</div>`;
+                const items = await searchCalendarEvents(q);
+                if (seq !== searchSeq) return;      // közben újabb keresés indult
+                if (!items.length){ searchResults.innerHTML = `<div class="cal-search-empty">Nincs találat.</div>`; return; }
+                searchResults.innerHTML = items.map(ev => {
+                    const { clean, status } = parseValidation(ev.summary);
+                    const hex = eventColorHex(ev, clean);
+                    const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
+                    const when = fmtDay(ds) + (ev.start.dateTime ? " · " + pad2(ds.getHours())+":"+pad2(ds.getMinutes()) : " · egész nap");
+                    return `<div class="cal-search-item" data-event-id="${ev.id}" data-date="${ymd(ds)}">
+                        <span class="cal-search-dot" style="background:${hex}"></span>
+                        <div class="cal-search-item-txt">
+                            <div class="cal-search-item-title">${escM(statusTitle(clean, status))}</div>
+                            <div class="cal-search-item-when">${escM(when)}</div>
+                        </div>
+                    </div>`;
+                }).join("");
+            };
+            searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 350); });
+            searchInput.addEventListener("keydown", e => {
+                if (e.key === "Enter"){ e.preventDefault(); clearTimeout(searchTimer); runSearch(); }
+            });
+            searchResults.addEventListener("click", e => {
+                const item = e.target.closest("[data-event-id]"); if (!item) return;
+                closeSearch();
+                searchInput.value = ""; searchResults.innerHTML = "";
+                pendingHighlightId = item.dataset.eventId;
+                // Az "Ügyfelek" nézet a címet szűri (csak OVB-kódos eseményeket
+                // mutat) – ha nem ilyen a találat, ott sosem látszódna.
+                if (viewMode === "clients"){
+                    viewMode = "week";
+                    document.querySelectorAll("#calSeg button[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === "week"));
+                }
+                viewAnchor = new Date(item.dataset.date + "T00:00:00");
+                initCalendar();
+                pushWeekFromCalendar();
+            });
+        }
+
         const shot = document.getElementById("calScreenshot");
         if (shot) shot.addEventListener("click", async () => {
             if (typeof window.html2canvas !== "function"){
@@ -4756,18 +4898,30 @@ window.sfOnViewSwitch = function(){
             const d = addDays(gridStart, i);
             const key = d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
             const list = (byDay[key] || []).sort((a,b)=>a.ds-b.ds);
+            // Ha a keresésből kiemelendő esemény ezen a napon van, kerüljön az
+            // első 3 közé – különben a "+N további" mögé rejtve sosem látszana.
+            if (pendingHighlightId){
+                const hi = list.findIndex(x => x.ev.id === pendingHighlightId);
+                if (hi > 0) list.unshift(list.splice(hi, 1)[0]);
+            }
             const other = d.getMonth() !== anchorMonth ? " other" : "";
             const today = sameDay(d, now) ? " today" : "";
             let evs = list.slice(0,3).map(({ev,ds}) => {
                 const { clean, status } = parseValidation(ev.summary);
                 const hex = eventColorHex(ev, clean);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
-                return `<span class="mev" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(statusTitle(clean, status))}</span>`;
+                const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
+                return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(statusTitle(clean, status))}</span>`;
             }).join("");
             if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
         }
         grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${cellsHtml}</div>`;
+        const hiEl = grid.querySelector(".mev.cal-highlight");
+        if (hiEl){
+            setTimeout(() => hiEl.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
+            pendingHighlightId = null;
+        }
     }
 
     // ===== Listás (agenda) nézet – a nézetváltóból a "Napló" kikerült,
