@@ -736,6 +736,17 @@
         .adm-hero { margin-bottom:20px; }
         .adm-hero h2 { font-size:22px; font-weight:800; color:var(--navy); margin:0 0 4px; }
         .adm-hero p { font-size:13px; color:var(--muted); margin:0; }
+        /* Admin → Naptár: a két esemény-stílus választója, élő előnézettel. */
+        .adm-cal-opts { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+        .adm-cal-opt { text-align:left; background:#fff; border:2px solid var(--border); border-radius:12px; padding:12px; cursor:pointer; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+        .adm-cal-opt:hover { border-color:#c7d4e6; }
+        .adm-cal-opt.active { border-color:var(--blue); box-shadow:0 4px 14px rgba(31,95,208,.14); }
+        .adm-cal-prev { background:#f7f9fc; border:1px solid var(--border); border-radius:9px; padding:8px; display:flex; flex-direction:column; gap:6px; margin-bottom:11px; }
+        .adm-cal-ev { border-radius:9px; padding:5px 8px; font-size:11px; line-height:1.25; }
+        .adm-cal-ev b { display:block; font-weight:700; }
+        .adm-cal-ev span { display:block; font-weight:600; font-size:10px; opacity:.85; }
+        .adm-cal-name { font-weight:800; color:var(--navy); font-size:14px; }
+        .adm-cal-desc { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.45; }
         .adm-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; }
         .adm-tab { padding:9px 18px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:none; background:transparent; border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; white-space:nowrap; flex-shrink:0; }
         .adm-tab.active { color:var(--blue); border-bottom-color:var(--blue); }
@@ -963,6 +974,11 @@
         /* Hover-visszajelzés szándékosan NEM emel z-indexet: átfedésnél a felül
            lévő (kisebb) esemény nem tűnhet el, amikor a nagyobb fölé ér az egér. */
         .wk-ev:hover { filter:brightness(1.07); transform:translateY(-1px); }
+        /* "Világos" stílus: pasztell háttéren a felvilágosítás nem látszik – itt
+           kicsit sötétedik a blokk hoverre. */
+        .wk-ev-light { border-radius:7px; }
+        .wk-ev-light:hover { filter:brightness(.96); }
+        .wk-ev-light b { opacity:.75; }
         .wk-ev:active { cursor:grabbing; }
         .wk-ev.dragging { opacity:.4; }
         .wk-ev-head { display:flex; align-items:center; gap:4px; }
@@ -3347,6 +3363,8 @@ window.sfOnViewSwitch = function(){
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
             if (typeof window.sfSetInfo === "function") window.sfSetInfo((cfg && cfg.infoParticipants) || []);
+            const cs = (cfg && cfg.calendarStyle === "light") ? "light" : "solid";
+            if (cs !== calStyle){ calStyle = cs; initCalendar(); }
             if (isAdmin(user)) setupAdminPanel();
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
         });
@@ -3713,6 +3731,19 @@ window.sfOnViewSwitch = function(){
         const yiq = (r*299 + g*587 + b*114) / 1000;
         return yiq >= 150 ? "#3a2e00" : "#ffffff";
     }
+    // Két szín keverése (t = a második szín aránya) – a "világos" esemény-stílushoz.
+    function mixHex(hex, to, t){
+        const p = h => [parseInt(h.substr(1,2),16), parseInt(h.substr(3,2),16), parseInt(h.substr(5,2),16)];
+        const [r1,g1,b1] = p(hex), [r2,g2,b2] = p(to);
+        const m = (a,b) => Math.round(a + (b-a)*t).toString(16).padStart(2,"0");
+        return "#" + m(r1,r2) + m(g1,g2) + m(b1,b2);
+    }
+    const tintHex = hex => mixHex(hex, "#ffffff", .87);   // pasztell háttér
+    const deepHex = hex => mixHex(hex, "#12233d", .42);   // olvasható sötét szöveg
+
+    // Naptár esemény-blokkok stílusa (Admin → Naptár): "solid" = telt szín,
+    // "light" = halvány háttér színes bal szegéllyel. Megosztott beállítás.
+    let calStyle = "solid";
 
     // Esemény típusának felismerése a (tisztított) címből – akár a típus-választóval
     // létrehozott "(CODE)" jelöléssel, akár szabadon írt kulcsszavakkal (pl. "Training").
@@ -4053,8 +4084,14 @@ window.sfOnViewSwitch = function(){
                 if (idx>=0){
                     const chip = document.createElement("div");
                     chip.className = "allday-ev";
-                    chip.style.background = hex;
-                    chip.style.color = contrastTextColor(hex);
+                    if (calStyle === "light"){
+                        chip.style.background = tintHex(hex);
+                        chip.style.color = deepHex(hex);
+                        chip.style.borderLeft = "3px solid " + hex;
+                    } else {
+                        chip.style.background = hex;
+                        chip.style.color = contrastTextColor(hex);
+                    }
                     chip.style.fontWeight = "600";
                     chip.style.cursor = "pointer";
                     chip.dataset.eventId = ev.id || "";
@@ -4093,14 +4130,17 @@ window.sfOnViewSwitch = function(){
             const width = `calc(${slotW}${t.slots > 1 ? " - 3px" : ""})`;
             const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
             const div = document.createElement("div");
-            div.className = "wk-ev";
+            const light = calStyle === "light";
+            div.className = "wk-ev" + (light ? " wk-ev-light" : "");
             div.draggable = true;
-            div.style.background = t.hex;
-            div.style.color = contrastTextColor(t.hex);
+            div.style.background = light ? tintHex(t.hex) : t.hex;
+            div.style.color = light ? deepHex(t.hex) : contrastTextColor(t.hex);
+            if (light) div.style.borderLeft = "3px solid " + t.hex;
             // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
-            div.style.boxShadow = t.depth > 0
-                ? `0 0 0 2px #fff, 0 3px 10px ${hexToRgba(t.hex, .45)}`
-                : `0 2px 6px ${hexToRgba(t.hex, .35)}`;
+            const ring = t.depth > 0 ? "0 0 0 2px #fff, " : "";
+            div.style.boxShadow = light
+                ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
+                : ring + (t.depth > 0 ? `0 3px 10px ${hexToRgba(t.hex, .45)}` : `0 2px 6px ${hexToRgba(t.hex, .35)}`);
             div.style.zIndex = String(1 + t.depth);
             div.style.left = left;
             div.style.width = width;
@@ -4949,9 +4989,15 @@ window.sfOnViewSwitch = function(){
         });
     }
 
+    // Ha egy újabb renderelés indul (pl. megjött a config, ablak-átméretezés),
+    // a korábbi, még függőben lévő lekérés eredményét el kell dobni – különben
+    // ugyanazok az események kétszer kerülnek ki a vászonra.
+    let calRenderSeq = 0;
+
     async function initCalendar(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
+        const seq = ++calRenderSeq;
         if (!calWired){
             wireToolbar(); wireGridClicks(); calWired = true;
             document.getElementById("statsWeekSwitch")?.addEventListener("click", e => {
@@ -5011,6 +5057,7 @@ window.sfOnViewSwitch = function(){
 
         try {
             const events = await fetchEvents(token, rangeStart, rangeEnd);
+            if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
             eventsById = {};
             events.forEach(ev => { if (ev.id) eventsById[ev.id] = ev; });
             if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events);
@@ -5021,6 +5068,7 @@ window.sfOnViewSwitch = function(){
             }
             else renderAgenda(grid, now, events);
         } catch (e){
+            if (seq !== calRenderSeq) return;
             const viewingOther = activeCalendarId() !== "primary";
             if (viewingOther && (e.status === 401 || e.status === 403 || e.status === 404)){
                 // Más naptárát nézzük – ez NEM a saját tokenünk problémája, azt nem
@@ -5441,7 +5489,7 @@ window.sfOnViewSwitch = function(){
     };
 
     // ===================== ADMIN OLDAL =====================
-    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium'];
+    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium','Naptár'];
     let admCurTab = 0;
 
     window.sfShowAdmin = async function(){
@@ -5461,6 +5509,52 @@ window.sfOnViewSwitch = function(){
         else if(tab===3) renderAdmRanks(cont);
         else if(tab===4) renderAdmInfos(cont);
         else if(tab===5) await renderAdmSeminar(cont);
+        else if(tab===6) renderAdmCalendar(cont);
+    }
+
+    // Naptár megjelenés: az esemény-blokkok stílusa a heti/napi nézetben.
+    // Megosztott beállítás (config/app.calendarStyle), hogy a csapat ugyanazt lássa.
+    const CAL_STYLES = [
+        { key:"solid", name:"Telt szín",  desc:"Az esemény teljes felülete a típus színe, fehér szöveggel. Erős, messziről is jól elkülönülő blokkok." },
+        { key:"light", name:"Világos",    desc:"Halvány, pasztell háttér színes bal szegéllyel és sötét szöveggel. Visszafogottabb, sűrű naptárnál nyugodtabb kép." },
+    ];
+    function calStylePreview(style){
+        const demo = [["#33b679","Tanácsadás","10:00"],["#039be5","Vezetőségi","12:30"],["#f4511e","Felvételi 1","15:00"]];
+        return demo.map(([hex,title,time]) => {
+            const css = style === "light"
+                ? `background:${tintHex(hex)};color:${deepHex(hex)};border-left:3px solid ${hex};box-shadow:inset 0 0 0 1px ${hexToRgba(hex,.3)};border-radius:7px;`
+                : `background:${hex};color:${contrastTextColor(hex)};box-shadow:0 2px 6px ${hexToRgba(hex,.35)};`;
+            return `<div class="adm-cal-ev" style="${css}"><b>${title}</b><span>${time}</span></div>`;
+        }).join("");
+    }
+    function renderAdmCalendar(cont){
+        cont.innerHTML = `<div class="card"><div class="card-body">
+            <div class="adm-section-title">Naptár megjelenés</div>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Az esemény-blokkok stílusa a heti és napi naptár-nézetben. A beállítás mindenkire érvényes, és azonnal életbe lép.</p>
+            <div class="adm-cal-opts">${CAL_STYLES.map(o=>`
+                <button class="adm-cal-opt${o.key===calStyle?' active':''}" data-calstyle="${o.key}">
+                    <div class="adm-cal-prev">${calStylePreview(o.key)}</div>
+                    <div class="adm-cal-name">${o.name}</div>
+                    <div class="adm-cal-desc">${o.desc}</div>
+                </button>`).join('')}</div>
+        </div></div>`;
+        cont.querySelectorAll('[data-calstyle]').forEach(b => b.addEventListener('click', async () => {
+            const val = b.dataset.calstyle;
+            if (val === calStyle) return;
+            const prev = calStyle;
+            calStyle = val;
+            cont.querySelectorAll('.adm-cal-opt').forEach(x => x.classList.toggle('active', x.dataset.calstyle === val));
+            try {
+                await saveAppConfig({ calendarStyle: val });
+                currentConfig = Object.assign({}, currentConfig, { calendarStyle: val });
+                window._admCfg = currentConfig;
+                initCalendar();
+            } catch(e){
+                calStyle = prev;
+                renderAdmCalendar(cont);
+                alert('Nem sikerült menteni: ' + (e.message || e));
+            }
+        }));
     }
 
     async function renderAdmUsers(cont){
