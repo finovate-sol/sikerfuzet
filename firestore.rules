@@ -1,0 +1,194 @@
+rules_version = '2';
+
+// ============================================================================
+//  SIKERFÜZET – FIRESTORE BIZTONSÁGI SZABÁLYOK
+//
+//  Ez a fájl a forrása az igazságnak, de a Firestore NEM innen olvassa:
+//  a Firebase konzolban kell beilleszteni (Firestore Database → Rules →
+//  Publish), vagy a Firebase CLI-vel kitolni (firebase deploy --only firestore:rules).
+//
+//  ALAPELVEK
+//  1. Belépni csak az allowlistán szereplő email tud – ugyanaz a kapu, amit az
+//     auth.js is használ. Minden szabály erre épül (isUser()).
+//  2. Ami csapatszintű (ügyféllista, munkatársak, INFO időpontok, "Ki lesz a
+//     következő"), azt minden belépett munkatárs olvashatja – az app is így
+//     működik, kliensoldalon szűr.
+//  3. Ami személyes (havi/éves terv, pénzügyek, struktúra-rajz, karrier-létra),
+//     azt a saját gazdája, a felettesei a hozzáférés-térkép szerint, és az
+//     admin éri el.
+//  4. A PG-jegyzet (pg) CSAK a vezetőé. A munkatárs abból semmit nem lát – amit
+//     a PG-ből megkap, az az akcióterv (pg_akcio).
+//
+//  FONTOS: a szabály nem szűr, csak enged vagy tilt. Ha egy lekérdezés többet
+//  kérne, mint amennyit a szabály enged, a Firestore az EGÉSZ lekérdezést
+//  elutasítja. Ezért olvas a pg és a pg_akcio kollekcióból szűrt lekérdezéssel
+//  az auth.js (getPGs / getAkciok) – ne alakítsd vissza teljes listázásra.
+//
+//  ELLENŐRZÉS: a firestore-rules-test/ mappában egy futtatható tesztkészlet van,
+//  ami ezt a fájlt a Firestore emulátoron méri végig (felettes-lánc, PG-jegyzet
+//  zártsága, listázások). Ha itt módosítasz, futtasd le.
+//
+//  ÉLESÍTÉS ELŐTT:
+//  • A config/access dokumentumnak léteznie kell (Admin → Hozzáférés fül egyszeri
+//    mentése létrehozza). Enélkül a felettesi rálátás nem működik.
+//  • A pg_akcio dokumentumokon lennie kell leaderUid mezőnek. A 2026-09-13-i
+//    verzió előtt létrejött (teszt) akciótervekben ez hiányzik – azok a vezetői
+//    nézetből kiesnek; a Firebase konzolban pótold a mezőt vagy töröld őket.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- alapok ----------
+    function uid()       { return request.auth.uid; }
+    function signedIn()  { return request.auth != null; }
+    function myEmail()   { return request.auth.token.email.lower(); }
+    function isAdmin()   { return signedIn() && request.auth.token.email != null
+                                  && myEmail() == 'szecsimark@gmail.com'; }
+
+    // Belépett ÉS az allowlistán szereplő felhasználó. Ez az app tényleges
+    // kapuja: a Google-fiókkal bárki be tud jelentkezni, de csak az láthat
+    // bármit is, akit az Admin → Felhasználók fülön felvettél.
+    function isUser() {
+      return signedIn()
+          && request.auth.token.email != null
+          && exists(/databases/$(database)/documents/allowed_users/$(myEmail()));
+    }
+
+    // ---------- hozzáférés-térkép (ki kinek a beosztottja) ----------
+    // A config/access egyetlen dokumentum: { beosztott uid: felettes uid }.
+    // A szabálynyelv nem ismer ciklust, ezért a felettes-láncot kézzel
+    // bontjuk ki 5 szintig – ennél mélyebb struktúránál bővítsd a sort.
+    function accessMap() {
+      return exists(/databases/$(database)/documents/config/access)
+        ? get(/databases/$(database)/documents/config/access).data
+        : {};
+    }
+    function isManagerOf(target) {
+      let m  = accessMap();
+      let l1 = m.get(target, '');
+      let l2 = l1 == '' ? '' : m.get(l1, '');
+      let l3 = l2 == '' ? '' : m.get(l2, '');
+      let l4 = l3 == '' ? '' : m.get(l3, '');
+      let l5 = l4 == '' ? '' : m.get(l4, '');
+      return uid() in [l1, l2, l3, l4, l5];
+    }
+
+    // Elérheti-e a bejelentkezett felhasználó a megadott munkatárs adatait?
+    // Saját maga, a felettese (bármilyen mélyen), vagy az admin. A vezető a
+    // "ránézés" (view-as) módban szerkeszt is, ezért ez írásra is ez a feltétel.
+    function canAccess(target) {
+      return isUser() && (uid() == target || isAdmin() || isManagerOf(target));
+    }
+
+    // A havi_terv / eves_terv / activity_timers dokumentum-azonosító alakja
+    // "{uid}_...", a gazda az első szelet.
+    function ownerFromKey(key) { return key.split('_')[0]; }
+
+    // ========================================================================
+    //  BELÉPÉS-VEZÉRLÉS
+    // ========================================================================
+
+    // Az allowlist. A belépéskor mindenki CSAK a saját email-címéhez tartozó
+    // dokumentumot kérdezheti le (létezik-e) – a teljes lista már admin-jog.
+    match /allowed_users/{email} {
+      allow get:    if signedIn() && request.auth.token.email != null && myEmail() == email;
+      allow list:   if isAdmin();
+      allow write:  if isAdmin();
+    }
+
+    // Belépett munkatársak profilja. Mindenki látja a csapatot (névválasztók,
+    // "Kezelő" oszlop, hozzáférés-beállítás), de csak a sajátját írja –
+    // ezt a loginWithGoogle() teszi minden belépéskor.
+    match /employees/{userId} {
+      allow read:   if isUser();
+      allow write:  if isUser() && (uid() == userId || isAdmin());
+    }
+
+    // Megosztott app-konfiguráció (INFO időpontok, rangok, fontos infók,
+    // szeminárium, naptár) és a hozzáférés-térkép. Olvasni mindenki tudja,
+    // írni csak az admin – a hozzáférés-térkép átírása az egész jogosultsági
+    // rendszert átírná.
+    match /config/{docId} {
+      allow read:   if isUser();
+      allow write:  if isAdmin();
+    }
+
+    // ========================================================================
+    //  SZEMÉLYES ADATOK – gazda + felettesei + admin
+    // ========================================================================
+
+    match /structures/{userId}    { allow read, write: if canAccess(userId); }
+    match /karrier_letra/{userId} { allow read, write: if canAccess(userId); }
+    match /penzugyek/{userId}     { allow read, write: if canAccess(userId); }
+
+    match /havi_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
+    match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
+
+    // Tevékenység-számlálók ("10 perces füzet", "2 órás füzet" eltöltött idő).
+    // Az app csak ír bele; olvasni a vezető és az admin tudja.
+    match /activity_timers/{key} {
+      allow read:   if canAccess(ownerFromKey(key));
+      allow write:  if isUser() && uid() == ownerFromKey(key);
+    }
+
+    // ========================================================================
+    //  CSAPATSZINTŰ ADATOK
+    // ========================================================================
+
+    // Megosztott ügyféllista. Olvasni minden munkatárs tudja (a Kiértékelő
+    // telefon oldalnak a teljes lista kell, az app kliensoldalon szűr), írni
+    // a gazdája, a felettese és az admin – beleértve az átadást is, ezért
+    // vizsgáljuk a régi ÉS az új gazdát.
+    match /clients/{clientId} {
+      allow read:   if isUser();
+      allow create: if canAccess(request.resource.data.ownerUid);
+      allow update: if canAccess(resource.data.ownerUid)
+                    && canAccess(request.resource.data.ownerUid);
+      allow delete: if canAccess(resource.data.ownerUid);
+    }
+
+    // "Ki lesz a következő" – negyedéves, közös csapatoldal.
+    match /kov_quarters/{key} { allow read, write: if isUser(); }
+
+    // ========================================================================
+    //  PG MODUL
+    // ========================================================================
+
+    // A PG alkalom a vezetőé: a napirend és a PG Highlight jegyzet CSAK az övé.
+    // A munkatárs ebből semmit nem olvashat – amit megkap, az az akcióterv.
+    // (Az auth.js getPGs() ezért szűr leaderUid-ra: szűretlen listázást ez a
+    // szabály egészében elutasítana.)
+    match /pg/{pgId} {
+      allow read:   if isUser() && (resource.data.leaderUid == uid() || isAdmin());
+      allow create: if isUser() && request.resource.data.leaderUid == uid();
+      allow update: if isUser() && resource.data.leaderUid == uid()
+                    && request.resource.data.leaderUid == uid();
+      allow delete: if isUser() && (resource.data.leaderUid == uid() || isAdmin());
+    }
+
+    // Az akcióterv a PG közös kimenete: látja az, akire szól (mtUid) és az,
+    // aki kiadta (leaderUid).
+    //
+    // A munkatárs a rá bízott feladat SZÖVEGÉT nem írhatja át, csak azt
+    // jelezheti vissza, hogy hol tart és kitette-e a Google Tasks-ába –
+    // különben a vezető feljegyzése utólag átírható lenne.
+    match /pg_akcio/{akcioId} {
+      function mine()    { return resource.data.mtUid == uid(); }
+      function givenBy() { return resource.data.leaderUid == uid(); }
+      function onlyStatusChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['done', 'doneAt', 'taskId', 'updated']);
+      }
+      allow read:   if isUser() && (mine() || givenBy() || isAdmin());
+      allow create: if isUser() && request.resource.data.leaderUid == uid();
+      allow update: if isUser() && (givenBy() || isAdmin() || (mine() && onlyStatusChanged()));
+      allow delete: if isUser() && (givenBy() || isAdmin());
+    }
+
+    // ========================================================================
+    //  MINDEN MÁS TILOS
+    // ========================================================================
+    match /{document=**} { allow read, write: if false; }
+  }
+}

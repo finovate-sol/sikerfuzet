@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, serverTimestamp
+    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
@@ -207,10 +207,15 @@ export async function savePenzugyek(uid, data){
 // A kettéválasztás miatt a "csak az akciótervet kapja meg" szabály egyetlen
 // Firestore-szabállyal kikényszeríthető a pg kollekcióra, anélkül hogy az
 // akciótervek is elzáródnának.
-export async function getPGs(){
-    if(!isConfigured || !db) return [];
+// FONTOS: szűrt lekérdezés, nem a teljes kollekció. A Firestore-szabály nem
+// szűr, csak enged vagy tilt: egy szűretlen listázást egy "csak a sajátodat
+// láthatod" szabály egészében elutasítana. A leaderUid szűrő pontosan azt
+// hozza, amit a PG oldal használ – a saját Személyes PG-idet és a saját
+// Csendes PG-idet (ott a leaderUid is te vagy).
+export async function getPGs(uid){
+    if(!isConfigured || !db || !uid) return [];
     try {
-        const snap = await getDocs(collection(db, "pg"));
+        const snap = await getDocs(query(collection(db, "pg"), where("leaderUid", "==", uid)));
         return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     } catch(e){ console.warn("PG alkalmak olvasása sikertelen:", e); return []; }
 }
@@ -227,11 +232,20 @@ export async function deletePG(id){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await deleteDoc(doc(db, "pg", id));
 }
-export async function getAkciok(){
-    if(!isConfigured || !db) return [];
+// Két szűrt lekérdezés uniója: a rám bízott akciótervek (mtUid) és az általam
+// kiadottak (leaderUid). Ugyanaz az ok, mint a getPGs()-nél – mindkét ágnak
+// megvan a maga szabály-ága, így egyik lekérdezés sem kér többet, mint amennyit
+// látni szabad.
+export async function getAkciok(uid){
+    if(!isConfigured || !db || !uid) return [];
     try {
-        const snap = await getDocs(collection(db, "pg_akcio"));
-        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        const [mine, given] = await Promise.all([
+            getDocs(query(collection(db, "pg_akcio"), where("mtUid", "==", uid))),
+            getDocs(query(collection(db, "pg_akcio"), where("leaderUid", "==", uid))),
+        ]);
+        const byId = new Map();
+        [...mine.docs, ...given.docs].forEach(d => byId.set(d.id, Object.assign({ id: d.id }, d.data())));
+        return [...byId.values()];
     } catch(e){ console.warn("Akciótervek olvasása sikertelen:", e); return []; }
 }
 export async function addAkcio(data){

@@ -4740,7 +4740,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio } from "./auth.js?v=3";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio } from "./auth.js?v=4";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -7211,7 +7211,7 @@ window.sfOnViewSwitch = function(){
     // ---- betöltés ----
     async function pgLoadAll(){
         if(!isConfigured){ pgRecs = []; pgAkciok = []; return; }
-        const [recs, akciok] = await Promise.all([getPGs(), getAkciok()]);
+        const [recs, akciok] = await Promise.all([getPGs(pgOwnUid()), getAkciok(pgOwnUid())]);
         pgRecs = recs || [];
         pgAkciok = akciok || [];
     }
@@ -7615,6 +7615,8 @@ window.sfOnViewSwitch = function(){
         const prio = wrap.querySelector('.pg-ak-psel').value;
         const due = wrap.querySelector('.pg-ak-dsel').value;
 
+        // A leaderUid mindig az, aki az akciótervet kiadja (Csendes PG-nél
+        // saját magad) – ezen szűr a vezetői lekérdezés és a Firestore-szabály.
         let mtUid = pgOwnUid(), mtName = pgOwnName(), source = 'csendes', fromPgId = '', fromName = '';
         if(scope === 'pgEdit'){
             const rec = pgRecs.find(r => r.id === pgOpenId); if(!rec) return;
@@ -7625,6 +7627,7 @@ window.sfOnViewSwitch = function(){
             fromPgId = rec.id;
         }
         const a = { mtUid, mtName, text, prio, due, source, fromPgId, fromName,
+                    leaderUid: pgOwnUid(), leaderName: pgOwnName(),
                     done:false, taskId:'', created:new Date().toISOString(), updated:new Date().toISOString() };
         if(isConfigured){
             try { a.id = await addAkcio(a); } catch(e){ alert('Nem sikerült menteni az akciótervet: ' + (e.message||e)); return; }
