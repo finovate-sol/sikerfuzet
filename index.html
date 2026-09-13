@@ -1825,13 +1825,24 @@
               <div id="ketorasTimerSlot"></div>
               <div class="card reg-toolbar-card">
                 <div class="reg-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="ketorasSearch" placeholder="Meglévő kapcsolat keresése és megjelölése jelöltként..."></div>
+                <div class="reg-tools">
+                  <div class="viewtog" id="ketorasViewTog">
+                    <button data-view="lista" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Lista</button>
+                    <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg>Pipeline</button>
+                    <button data-view="adatlap" title="Adatlap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>Adatlap</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div id="ketorasGuideSlot"></div>
             <div class="reg-chips-row" id="ketorasSearchResults" hidden></div>
-            <section class="card">
-              <div class="card-body" style="padding-top:8px;" id="ketorasList"></div>
-            </section>
+            <div id="ketorasViews">
+              <section class="card" id="ketorasListCard">
+                <div class="card-body" style="padding-top:8px;" id="ketorasList"></div>
+              </section>
+              <div id="ketorasPipeline" hidden></div>
+              <div id="ketorasSplit" hidden></div>
+            </div>
           </div>
         </div>
 
@@ -3273,6 +3284,7 @@ const STATUS_DOT = { gray:'#94a3b8', green:'#16a34a', blue:'#2563eb', amber:'#d9
 const PIPE_IC = {
     phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>',
     pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
 };
 // A státusz nélküli (frissen felvitt) ügyfél az "Új" oszlopba kerül.
 function regPipeCol(status){
@@ -3677,10 +3689,135 @@ function ketorasDetailHtml(i){
         </div>
     </div>`;
 }
+// Nézetmód a 2 órás füzetben: 'lista' (eredeti), 'pipeline', 'adatlap'.
+let ketorasView = store.load('sf_ketview', 'lista');
+// A kapcsolat minősége (A/B/C) adja az oszlopokat – ez a 2 órás füzet "státusza".
+const KET_PIPE_COLS = [
+    { key:'',  label:'Besorolatlan', color:'#94a3b8' },
+    { key:'A', label:'A – Vezető',   color:'#16a34a' },
+    { key:'B', label:'B – Munkatárs',color:'#1f5fd0' },
+    { key:'C', label:'C – Ügyfél',   color:'#d97706' },
+];
+function ketMinoseg(r){
+    const q = (r.toborzas && r.toborzas.minoseg) || '';
+    return KET_PIPE_COLS.some(c => c.key === q) ? q : '';
+}
+function ketLastCallTxt(r){
+    const tob = r.toborzas || {};
+    const last = (tob.hivasok && tob.hivasok.length) ? tob.hivasok[tob.hivasok.length-1] : null;
+    return last ? `Utolsó hívás: ${last.datum || 'dátum nélkül'}` : 'Még nincs hívási kísérlet';
+}
+// Melyik nézet aktív – a lista/pipeline/adatlap konténerek ki-be kapcsolása.
 function renderKetorasList(){
+    const list = ketorasCandidates();
+    const card = document.getElementById('ketorasListCard');
+    const pipe = document.getElementById('ketorasPipeline');
+    const split = document.getElementById('ketorasSplit');
+    if(card) card.hidden = ketorasView !== 'lista';
+    if(pipe) pipe.hidden = ketorasView !== 'pipeline';
+    if(split) split.hidden = ketorasView !== 'adatlap';
+    const tog = document.getElementById('ketorasViewTog');
+    if(tog) tog.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === ketorasView));
+    if(ketorasView === 'pipeline') renderKetorasPipeline(list);
+    else if(ketorasView === 'adatlap') renderKetorasSplit(list);
+    else renderKetorasRows(list);
+}
+function renderKetorasPipeline(list){
+    const host = document.getElementById('ketorasPipeline');
+    if(!host) return;
+    const buckets = {}; KET_PIPE_COLS.forEach(c => buckets[c.key] = []);
+    list.forEach(o => buckets[ketMinoseg(o.r)].push(o));
+    const board = KET_PIPE_COLS.map(c => `<div class="pipe-col" data-ketcol="${esc(c.key)}">
+        <div class="pipe-head"><span class="pipe-dot" style="background:${c.color};"></span><span class="nm">${esc(c.label)}</span><span class="n">${buckets[c.key].length}</span></div>
+        <div class="pipe-cards">${buckets[c.key].map(({r,i}) => {
+            const hasName = !!(r.name && r.name.trim());
+            const ac = hasName ? avatarColor(r.name) : null;
+            return `<div class="pipe-card${i===ketorasExpandedIdx?' sel':''}" draggable="true" data-ketpipe="${i}">
+                <div class="pipe-top">
+                    <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
+                    <div style="min-width:0;">
+                        <div class="pipe-nm${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
+                        ${r.ajanlo?`<div class="pipe-sub">Ajánló: ${esc(r.ajanlo)}</div>`:''}
+                    </div>
+                </div>
+                <div class="pipe-meta">
+                    ${r.phone?`<div>${PIPE_IC.phone}${esc(r.phone)}</div>`:''}
+                    <div>${PIPE_IC.clock}${esc(ketLastCallTxt(r))}</div>
+                </div>
+                <div class="pipe-foot"><span class="pipe-chip${r.karrierTp?' tp':''}">TP</span></div>
+            </div>`;
+        }).join('') || '<div class="pipe-empty">Húzz ide kártyát</div>'}</div>
+    </div>`).join('');
+    host.innerHTML = `<div class="pipe-board">${board}</div>${ketorasDrawerHtml(list)}`;
+}
+function ketorasDrawerHtml(list){
+    const i = ketorasExpandedIdx;
+    if(i == null || !registry[i] || !list.some(o => o.i === i)) return '';
+    const r = registry[i];
+    const hasName = !!(r.name && r.name.trim());
+    const ac = hasName ? avatarColor(r.name) : null;
+    return `<div class="drawer-back" data-ketdrawerclose="1"></div>
+    <div class="drawer">
+        <div class="drawer-head">
+            <span class="sv-avatar-lg"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
+            <div style="min-width:0;">
+                <h3 class="sv-dnm">${hasName?esc(r.name):'Nincs név megadva'}</h3>
+                <div class="sv-dmeta">${esc(r.phone||'nincs telefonszám')} · ${esc(ketLastCallTxt(r))}</div>
+            </div>
+            <button class="drawer-close" data-ketdrawerclose="1" title="Bezárás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="drawer-body">${ketorasDetailHtml(i)}</div>
+    </div>`;
+}
+function renderKetorasSplit(list){
+    const host = document.getElementById('ketorasSplit');
+    if(!host) return;
+    let html = '';
+    KET_PIPE_COLS.forEach(c => {
+        const items = list.filter(o => ketMinoseg(o.r) === c.key);
+        if(!items.length) return;
+        html += `<div class="sv-grp">${esc(c.label)} · ${items.length}</div>`;
+        html += items.map(({r,i}) => {
+            const hasName = !!(r.name && r.name.trim());
+            const ac = hasName ? avatarColor(r.name) : null;
+            return `<div class="sv-li${i===ketorasExpandedIdx?' on':''}" data-ketsel="${i}">
+                <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
+                <div class="sv-mid">
+                    <div class="sv-nm${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
+                    <div class="sv-sub"><span class="sv-sdot" style="background:${c.color};"></span>${esc(r.phone||'nincs telefonszám')}</div>
+                </div>
+            </div>`;
+        }).join('');
+    });
+    if(!html) html = `<div class="sv-none">Még nincs munkatárs-jelölt.</div>`;
+    const i = ketorasExpandedIdx;
+    let detail;
+    if(i == null || !registry[i] || !list.some(o => o.i === i)){
+        detail = `<div class="sv-none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div>Válassz egy jelöltet a bal oldali listából.</div>
+        </div>`;
+    } else {
+        const r = registry[i];
+        const hasName = !!(r.name && r.name.trim());
+        const ac = hasName ? avatarColor(r.name) : null;
+        detail = `<div class="sv-dhead">
+                <span class="sv-avatar-lg"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
+                <div style="min-width:0;">
+                    <h3 class="sv-dnm">${hasName?esc(r.name):'Nincs név megadva'}</h3>
+                    <div class="sv-dmeta">${esc(r.phone||'nincs telefonszám')} · ${esc(ketLastCallTxt(r))}</div>
+                </div>
+            </div>
+            ${ketorasDetailHtml(i)}`;
+    }
+    host.innerHTML = `<div class="sv-split">
+        <div class="sv-list"><div class="sv-scroll">${html}</div></div>
+        <div class="sv-detail">${detail}</div>
+    </div>`;
+}
+function renderKetorasRows(list){
     const el = document.getElementById('ketorasList');
     if(!el) return;
-    const list = ketorasCandidates();
     if(!list.length){
         el.innerHTML = `<div class="ket-empty">Még nincs munkatárs-jelölt. Adj hozzá egyet a „+ Új jelölt” gombbal, vagy jelölj meg egy meglévő kapcsolatot a fenti keresővel.</div>`;
         return;
@@ -3706,7 +3843,9 @@ function renderKetorasList(){
     }).join('');
 }
 (function(){
-    const list = document.getElementById('ketorasList');
+    // A három nézetet közösen tartalmazó konténer – így a lista, a pipeline
+    // oldalpanel és a kétpaneles adatlap mezői ugyanúgy mentenek.
+    const list = document.getElementById('ketorasViews');
     const persistExpanded = () => { store.save('sf_registry', registry); if(ketorasExpandedIdx!=null) persistReg(ketorasExpandedIdx); };
     if(list) list.addEventListener('input', e=>{
         const t = e.target;
@@ -3761,11 +3900,66 @@ function renderKetorasList(){
             persistExpanded(); ketorasExpandedIdx = null; renderRegistry(); renderKetorasList(); return;
         }
         if(e.target.closest('#tobClose')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
+        // Oldalpanel bezárása (pipeline nézet)
+        if(e.target.closest('[data-ketdrawerclose]')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
         // Sorra kattintva nyit/zár (accordion) – szerkeszthető mezőkre kattintva nem.
-        if(e.target.closest('input, label, button, textarea')) return;
+        if(e.target.closest('input, label, button, textarea, select')) return;
+        // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
+        const pipeCard = e.target.closest('[data-ketpipe]');
+        if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; renderKetorasList(); return; }
+        const svLi = e.target.closest('[data-ketsel]');
+        if(svLi){ const idx = +svLi.dataset.ketsel; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; renderKetorasList(); return; }
         const o = e.target.closest('[data-ketopen]');
         if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; renderKetorasList(); }
     });
+    // --- Nézetváltó ---
+    const ketTog = document.getElementById('ketorasViewTog');
+    if(ketTog) ketTog.addEventListener('click', e=>{
+        const b = e.target.closest('button[data-view]');
+        if(!b) return;
+        ketorasView = b.dataset.view; store.save('sf_ketview', ketorasView);
+        renderKetorasList();
+    });
+    // --- Pipeline: húzással átállított kapcsolat-minőség ---
+    let ketDragIdx = null;
+    if(list){
+        list.addEventListener('dragstart', e=>{
+            const c = e.target.closest('[data-ketpipe]');
+            if(!c) return;
+            ketDragIdx = +c.dataset.ketpipe;
+            c.classList.add('dragging');
+            if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', String(ketDragIdx)); }catch(err){} }
+        });
+        list.addEventListener('dragend', e=>{
+            const c = e.target.closest('[data-ketpipe]');
+            if(c) c.classList.remove('dragging');
+            list.querySelectorAll('.pipe-col.over').forEach(x=>x.classList.remove('over'));
+            ketDragIdx = null;
+        });
+        list.addEventListener('dragover', e=>{
+            const col = e.target.closest('[data-ketcol]');
+            if(!col || ketDragIdx==null) return;
+            e.preventDefault();
+            if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+            list.querySelectorAll('.pipe-col.over').forEach(x=>{ if(x!==col) x.classList.remove('over'); });
+            col.classList.add('over');
+        });
+        list.addEventListener('drop', e=>{
+            const col = e.target.closest('[data-ketcol]');
+            if(!col || ketDragIdx==null) return;
+            e.preventDefault();
+            const r = registry[ketDragIdx];
+            if(r){
+                r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+                if(r.toborzas.minoseg !== col.dataset.ketcol){
+                    r.toborzas.minoseg = col.dataset.ketcol;
+                    store.save('sf_registry', registry); persistReg(ketDragIdx);
+                }
+            }
+            ketDragIdx = null;
+            renderKetorasList();
+        });
+    }
     const addBtn = document.getElementById('ketorasAdd');
     if(addBtn) addBtn.addEventListener('click', ()=>{
         const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
