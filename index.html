@@ -3031,6 +3031,25 @@ function regInitials(name){
     if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return n.slice(0,2).toUpperCase();
 }
+// Résztvevő-avatar színe a név alapján: minden névhez stabilan ugyanaz a
+// pasztell szín tartozik (nem véletlenszerű, csak a betűkből számolt "hash"),
+// hogy a lista könnyebben áttekinthető legyen, mint az eddigi egységes kék.
+const AVATAR_PALETTE = [
+    { bg:'#dcf5e6', fg:'#1c7a43' },  // zöld
+    { bg:'#ece3fb', fg:'#6b3fa0' },  // lila
+    { bg:'#d9f4f2', fg:'#147a72' },  // türkiz
+    { bg:'#fde8d6', fg:'#b35c15' },  // narancs
+    { bg:'#e3e8fb', fg:'#3949ab' },  // indigó
+    { bg:'#dbeafe', fg:'#1d4ed8' },  // kék
+    { bg:'#fbe2ea', fg:'#ad1457' },  // rózsaszín
+    { bg:'#fbf3d2', fg:'#92720a' },  // sárga
+];
+function avatarColor(name){
+    const s = String(name || '');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
 const flagChip = (i,field,label,checked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}><span>${label}</span></label>`;
 let regExpandedIdx = null;   // a helyben kinyitott (accordion) ügyfél-sor indexe
 function regDetailHtml(i){
@@ -3078,9 +3097,10 @@ function renderRegistry(){
     const rows = matched.map(({r,i}, pos)=>{
         const hasName = !!(r.name && r.name.trim());
         const open = i === regExpandedIdx;
+        const ac = hasName ? avatarColor(r.name) : null;
         return `<tr class="reg-row${open?' open':''}${pos%2?' alt':''}" data-open="${i}">
         <td><div class="reg-person">
-            <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
+            <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="reg-person-meta">
                 <div class="reg-name-cell">${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
                 <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></div>
@@ -3344,8 +3364,9 @@ function renderKetorasList(){
         const lastCall = (tob.hivasok && tob.hivasok.length) ? tob.hivasok[tob.hivasok.length-1] : null;
         const lastTxt = lastCall ? `Utolsó hívás: ${lastCall.datum ? esc(lastCall.datum) : 'dátum nélkül'}` : 'Még nincs hívási kísérlet';
         const open = i === ketorasExpandedIdx;
+        const ac = hasName ? avatarColor(r.name) : null;
         return `<div class="ket-row${open?' open':''}${pos%2?' alt':''}" data-ketopen="${i}">
-            <span class="reg-avatar${hasName?'':' empty'}">${hasName?esc(regInitials(r.name)):'?'}</span>
+            <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
             <div class="ket-meta">
                 <div class="ket-name${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
                 <div class="ket-sub">${esc(r.phone||'nincs telefonszám')} · ${esc(lastTxt)}</div>
