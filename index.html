@@ -6954,7 +6954,7 @@ window.sfOnViewSwitch = function(){
     };
 
     // ===================== ADMIN OLDAL =====================
-    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium','Naptár'];
+    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium','Naptár','Import'];
     let admCurTab = 0;
 
     window.sfShowAdmin = async function(){
@@ -6975,6 +6975,160 @@ window.sfOnViewSwitch = function(){
         else if(tab===4) renderAdmInfos(cont);
         else if(tab===5) await renderAdmSeminar(cont);
         else if(tab===6) renderAdmCalendar(cont);
+        else if(tab===7) renderAdmImport(cont);
+    }
+
+    // ===================== NOTION IMPORT =====================
+    // A Notion "… – Ügyfél / MT Potenciál" adatbázis CSV exportját olvassa be.
+    // Az adat a böngészőből megy egyenesen a Firestore-ba – sehol nem tároljuk el.
+    const NOTION_STATUS_MAP = {
+        'Telefonra Vár': 'Telefonra Vár',
+        'Folyamatban': 'Elemzés folyamatban',
+        'Függő (Visszatérni)': 'Inaktív',
+        'Befejezve (Ügyfél)': 'Lezárt',
+        'Befejezve (MT)': 'Lezárt',
+        'Befejezve (Nem Ügyfél)': 'Lezárt',
+        'Befejezve (Nem MT)': 'Lezárt',
+    };
+    // RFC 4180 szerinti CSV: idézőjeles mezők, bennük vessző, sortörés és "" escape.
+    function parseCsv(text){
+        const rows = []; let row = [], field = '', q = false;
+        const s = String(text || '').replace(/^﻿/, '');
+        for(let i = 0; i < s.length; i++){
+            const c = s[i];
+            if(q){
+                if(c === '"'){ if(s[i+1] === '"'){ field += '"'; i++; } else q = false; }
+                else field += c;
+            } else if(c === '"') q = true;
+            else if(c === ','){ row.push(field); field = ''; }
+            else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+            else if(c !== '\r') field += c;
+        }
+        if(field !== '' || row.length){ row.push(field); rows.push(row); }
+        return rows.filter(r => r.some(v => String(v).trim() !== ''));
+    }
+    const notionBool = v => ['yes','true','igen','x','✓','checked'].includes(String(v||'').trim().toLowerCase());
+    const phoneKey = v => String(v||'').replace(/\D/g,'').replace(/^36/,'').replace(/^06/,'');
+    const nameKey = v => String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+    // Egy Notion CSV sorból ügyfél-rekord. Ismeretlen oszlopokat figyelmen kívül hagy.
+    function notionRowToClient(get){
+        const status = NOTION_STATUS_MAP[String(get('Status')||'').trim()] || '';
+        const mt = notionBool(get('MT'));
+        const notes = [];
+        if(get('E Időpontja')) notes.push('Elemzés időpontja: ' + get('E Időpontja'));
+        if(get('TA Időpontja')) notes.push('Tanácsadás időpontja: ' + get('TA Időpontja'));
+        if(get('E/T/SZ/F - Időpont')) notes.push(get('E/T/SZ/F - Időpont'));
+        const r = {
+            name: String(get('Név')||'').trim(),
+            phone: String(get('Telefonszám')||'').trim(),
+            ajanlo: String(get('Ajánló Személy')||'').trim(),
+            lakhely: String(get('Lakhely')||'').trim(),
+            munkatars: String(get('Munkatárs')||'').trim(),
+            status, tp: notionBool(get('TP')), mt,
+            elemzes: notionBool(get('E ID Biztositása')),
+            tanacsadas: notionBool(get('TA ID Biztositása')),
+            portal: false,
+            details: notes.length ? { megjegyzes: notes.join(' · ') } : {},
+            celok: {},
+        };
+        if(notionBool(get('Kiértékelő Telefon'))) r.kiertekelo = { status:'elvegezve', advisor:'', topic:'', amount:'', feedback:'' };
+        if(mt) r.toborzas = { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+        return r;
+    }
+    function renderAdmImport(cont){
+        const me = window.sfCurrentUser || {};
+        const emps = (window.sfEmployeesList || []);
+        const ownerOpts = (emps.length ? emps : [{ uid: me.uid, email: me.email, name: me.name }])
+            .map(e => `<option value="${escM(e.uid||'')}"${(e.uid===me.uid)?' selected':''}>${escM(e.name||e.email||'')}</option>`).join('');
+        cont.innerHTML = `<div class="card"><div class="card-body">
+            <div class="adm-section-title">Notion import</div>
+            <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 14px;">
+                Notionben nyisd meg az „… – Ügyfél / MT Potenciál” adatbázist, majd
+                <b>••• → Export → Markdown &amp; CSV</b>, „Include content: No files”. A kapott CSV-t töltsd fel ide.
+                Az <b>MT</b> jelölésű sorok a 2 órás füzetbe kerülnek, a többi a 10 percesbe.
+                Az adat közvetlenül a böngésződből megy a közös adatbázisba.
+            </p>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+                <label style="font-size:12.5px;font-weight:700;color:var(--muted);">Kezelő:</label>
+                <select id="impOwner" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;min-width:200px;">${ownerOpts}</select>
+                <input type="file" id="impFile" accept=".csv,text/csv" style="font-size:13px;">
+            </div>
+            <div id="impPreview"></div>
+        </div></div>`;
+        const prev = document.getElementById('impPreview');
+        let pending = [];
+        document.getElementById('impFile').addEventListener('change', e => {
+            const f = e.target.files && e.target.files[0];
+            if(!f) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                let rows;
+                try { rows = parseCsv(reader.result); }
+                catch(err){ prev.innerHTML = `<div style="color:var(--red);font-size:13px;">A fájl nem olvasható: ${escM(err.message||err)}</div>`; return; }
+                if(rows.length < 2){ prev.innerHTML = `<div style="color:var(--red);font-size:13px;">A CSV üres vagy csak fejlécet tartalmaz.</div>`; return; }
+                const head = rows[0].map(h => String(h).trim());
+                if(!head.includes('Név')){
+                    prev.innerHTML = `<div style="color:var(--red);font-size:13px;">Nem találom a „Név” oszlopot – biztosan a megfelelő adatbázis CSV exportja ez?<br>Talált oszlopok: ${escM(head.join(', '))}</div>`;
+                    return;
+                }
+                const idx = {}; head.forEach((h,i) => { if(idx[h] === undefined) idx[h] = i; });
+                const all = rows.slice(1).map(r => notionRowToClient(k => (idx[k] === undefined ? '' : r[idx[k]])))
+                                .filter(c => c.name);
+                // Duplikátum-szűrés: a már meglévő ügyfelek név + telefon alapján.
+                const existing = new Set((window.sfAllClients || []).map(c => nameKey(c.name)+'|'+phoneKey(c.phone)));
+                const seen = new Set();
+                pending = all.filter(c => {
+                    const k = nameKey(c.name)+'|'+phoneKey(c.phone);
+                    if(existing.has(k) || seen.has(k)) return false;
+                    seen.add(k); return true;
+                });
+                const skipped = all.length - pending.length;
+                const mtN = pending.filter(c => c.mt).length;
+                const sample = pending.slice(0, 8).map(c =>
+                    `<tr><td style="padding:5px 8px;">${escM(c.name)}</td><td style="padding:5px 8px;">${escM(c.phone)}</td>
+                     <td style="padding:5px 8px;">${escM(c.lakhely)}</td><td style="padding:5px 8px;">${escM(c.status||'—')}</td>
+                     <td style="padding:5px 8px;">${c.mt?'2 órás':'10 perces'}</td></tr>`).join('');
+                prev.innerHTML = `
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:12px;">
+                        <span>Fájlban: <b>${all.length}</b> sor</span>
+                        <span style="color:var(--green);">Importálható: <b>${pending.length}</b></span>
+                        <span style="color:var(--muted);">Kihagyva (már létezik): <b>${skipped}</b></span>
+                        <span>Ebből 2 órás füzet: <b>${mtN}</b></span>
+                    </div>
+                    ${pending.length ? `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;">
+                        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+                        <thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Név</th><th style="text-align:left;padding:7px 8px;">Telefon</th><th style="text-align:left;padding:7px 8px;">Lakhely</th><th style="text-align:left;padding:7px 8px;">Státusz</th><th style="text-align:left;padding:7px 8px;">Hová</th></tr></thead>
+                        <tbody>${sample}</tbody></table>
+                    </div>
+                    <div style="color:var(--muted);font-size:12px;margin-bottom:12px;">${pending.length > 8 ? `…és további ${pending.length-8} sor.` : ''}</div>
+                    <button class="btn primary" id="impGo" style="background:var(--blue);color:#fff;border-color:var(--blue);">${pending.length} ügyfél importálása</button>
+                    <span id="impStat" style="margin-left:12px;font-size:13px;color:var(--muted);"></span>`
+                    : `<div style="color:var(--muted);font-size:13px;">Nincs új importálható sor – úgy tűnik, már minden bent van.</div>`}`;
+                const go = document.getElementById('impGo');
+                if(go) go.addEventListener('click', async () => {
+                    const sel = document.getElementById('impOwner');
+                    const uid = sel.value;
+                    const emp = emps.find(x => x.uid === uid) || { uid: me.uid, email: me.email, name: me.name };
+                    if(!confirm(`${pending.length} ügyfél importálása ide: ${emp.name || emp.email}?`)) return;
+                    go.disabled = true;
+                    const stat = document.getElementById('impStat');
+                    let ok = 0, fail = 0;
+                    for(const c of pending){
+                        const payload = Object.assign({}, c, { ownerUid: emp.uid||'', ownerEmail: emp.email||'', ownerName: emp.name||emp.email||'' });
+                        try {
+                            const id = await window.sfAddClient(payload);
+                            if(id){ ok++; (window.sfAllClients = window.sfAllClients || []).push(Object.assign({ id }, payload)); }
+                            else fail++;
+                        } catch(err){ fail++; }
+                        stat.textContent = `${ok + fail} / ${pending.length}…`;
+                    }
+                    stat.textContent = `Kész: ${ok} importálva${fail ? `, ${fail} sikertelen` : ''}.`;
+                    pending = [];
+                    if(typeof window.sfShowUgyfelek === 'function') window.sfShowUgyfelek();
+                });
+            };
+            reader.readAsText(f, 'utf-8');
+        });
     }
 
     // Naptár megjelenés: az esemény-blokkok stílusa a heti/napi nézetben.
