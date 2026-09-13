@@ -206,6 +206,10 @@
         tr.reg-detail-row > td { padding:0; background:var(--bg); border:2px solid var(--blue); border-top:none; }
         .reg-detail { padding:16px 22px 20px; background:transparent; border:none; border-radius:0; margin:0; }
         .reg-detail .modal-foot { padding:0; border:none; margin-top:14px; justify-content:flex-end; }
+        /* A "Mentés" gomb itt nem valódi modálban van (.modal .btn.primary
+           csak ott adna kék kitöltést), a design mégis telt kék gombot kér. */
+        .reg-detail .modal-foot .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+        .reg-detail .modal-foot .btn.primary:hover { background:#1a52b8; }
         table.reg td input:not([type="checkbox"]) { width:100%; min-width:110px; padding:6px 8px; border:1px solid transparent; border-radius:6px; font-size:13px; font-family:inherit; color:var(--text); outline:none; background:transparent; }
         table.reg td input:not([type="checkbox"]):hover { border-color:var(--border); }
         table.reg td input:not([type="checkbox"]):focus { border-color:var(--blue); background:#fff; }
@@ -294,9 +298,10 @@
         .rd-grid .rd-field { margin-bottom:0; }
         .rd-full { margin-top:8px; }
         .rd-field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
-        .rd-field input, .rd-field textarea { width:100%; padding:6px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; }
+        .rd-field input, .rd-field textarea { width:100%; padding:8px 10px; border:1px solid transparent; border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; background:var(--bg); }
         .rd-field textarea { resize:vertical; }
-        .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); }
+        .rd-field input:hover, .rd-field textarea:hover { border-color:var(--border); }
+        .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 2px rgba(31,95,208,.1); }
         .rd-check { margin-bottom:8px; }
         .rd-check label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; }
         .rd-check input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
@@ -379,7 +384,14 @@
         .ev-seg-btn.ev-seg-none.active { background:#fff; color:var(--navy); box-shadow:0 1px 4px rgba(0,0,0,.08); }
         .ev-edit-modal .ev-save-btn { width:100%; padding:12px; font-size:14.5px; font-weight:800; border-radius:11px; }
         @media (max-width:480px){ .ev-seg-btn { font-size:11px; padding:8px 2px; } }
-        .rd-sec { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; }
+        .rd-sec { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 10px; }
+        .rd-sec-ic { width:22px; height:22px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; background:var(--blue-light); color:var(--blue); flex-shrink:0; }
+        .rd-sec-ic svg { width:13px; height:13px; }
+        /* "Elemzés / Célok" – teljes szélességű, halvány kék sáv, hogy elváljon
+           az Adatok résztől; a .reg-detail oldalsó paddingjét kompenzáló
+           negatív margóval fut ki a kártya széléig. */
+        .rd-goals { background:var(--blue-light); margin:14px -22px 0; padding:14px 22px; }
+        .rd-goals .rd-sec { margin-top:0; }
         .kt-summary { border:1px solid var(--border); border-radius:10px; padding:12px; }
         .kt-status-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; margin-bottom:8px; }
         .kt-status-badge.done { background:#d1fae5; color:#065f46; }
@@ -3057,8 +3069,10 @@ function regDetailHtml(i){
     r.details = r.details || {};
     r.celok = r.celok || {};
     const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
+    const personIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+    const targetIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
     return `<div class="reg-detail" data-regdetail="${i}">
-        <div class="rd-sec" style="margin-top:0;">Adatok</div>
+        <div class="rd-sec" style="margin-top:0;"><span class="rd-sec-ic">${personIc}</span>Adatok</div>
         <div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
             ${f('eletkor','Életkor')}
@@ -3069,15 +3083,17 @@ function regDetailHtml(i){
             ${f('gyerekek','Gyerekek száma / Életkora')}
         </div>
         <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>
-        <div class="rd-sec">Elemzés / Célok</div>
-        <div class="rd-grid rd-grid-3">
-            <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="2">${esc(r.celok.rovid||'')}</textarea></div>
-            <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
-            <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
+        <div class="rd-goals">
+            <div class="rd-sec"><span class="rd-sec-ic">${targetIc}</span>Elemzés / Célok</div>
+            <div class="rd-grid rd-grid-3">
+                <div class="rd-field"><label>Rövid</label><textarea data-c="rovid" rows="2">${esc(r.celok.rovid||'')}</textarea></div>
+                <div class="rd-field"><label>Közép</label><textarea data-c="kozep" rows="2">${esc(r.celok.kozep||'')}</textarea></div>
+                <div class="rd-field"><label>Hosszú</label><textarea data-c="hosszu" rows="2">${esc(r.celok.hosszu||'')}</textarea></div>
+            </div>
         </div>
         ${kiertekeloSummaryHtml(r.kiertekelo)}
         ${kezeloHistoryHtml(r.kezeloHistory)}
-        <div class="modal-foot"><button class="btn primary" id="rdClose">Kész</button></div>
+        <div class="modal-foot"><button class="btn primary" id="rdClose">Mentés</button></div>
     </div>`;
 }
 function renderRegistry(){
