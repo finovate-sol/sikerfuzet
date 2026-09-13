@@ -469,7 +469,10 @@
         /* ===== KÁRTYASOROS TÁBLÁZAT (10 perces füzet alapnézete) ===== */
         .rc-wrap { overflow-x:auto; padding-bottom:4px; }
         /* A fejléc és a sorok ugyanebből az oszlopképletből dolgoznak, így mindig igazodnak. */
-        .rc-rows { min-width:1180px; --rc-cols:300px 1fr 150px 50px 1fr 168px 112px 56px; }
+        .rc-rows { min-width:1250px; --rc-cols:300px 1fr 150px 50px 1fr 168px 92px 112px 56px; }
+        /* Adott ajánlás: rövid szám, középre, léptető nyilak nélkül. */
+        input.rc-cell.rc-num { text-align:center; max-width:74px; margin:0 auto; -moz-appearance:textfield; }
+        input.rc-cell.rc-num::-webkit-outer-spin-button, input.rc-cell.rc-num::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
         /* A Kezelő/Tanácsadó alsor maradjon egy sorban, különben soronként eltérő
            magasságúak lennének a kártyák. Fókuszban kinyílik a szűk vezérlő. */
         .rc .reg-person { min-width:0; }
@@ -581,6 +584,7 @@
         .pipe-chip { font-size:9.5px; font-weight:800; letter-spacing:.3px; border-radius:5px; padding:2.5px 5px; background:#eef2f7; color:#93a2b5; }
         .pipe-chip.on { background:var(--blue); color:#fff; }
         .pipe-chip.tp { background:#dcf5e6; color:#1c7a43; }
+        .pipe-ref { margin-left:auto; font-size:10px; font-weight:800; color:var(--navy); background:#fbf3d2; border-radius:5px; padding:2.5px 6px; white-space:nowrap; }
         .pipe-empty { border:1.5px dashed #c3cfe0; border-radius:11px; padding:14px 8px; text-align:center; font-size:11.5px; color:#9aa8bb; font-weight:600; }
 
         /* --- Oldalpanel (pipeline kártya megnyitása) --- */
@@ -3101,6 +3105,7 @@ const REG_FIELDS = [
     {key:'elemzes', label:'Elemzés', type:'bool'},
     {key:'portal', label:'Portálon fent', type:'bool'},
     {key:'tanacsadas', label:'Tanácsadás', type:'bool'},
+    {key:'ajanlasok', label:'Adott ajánlás', type:'text'},
 ];
 const REG_STATUS = [
     ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés folyamatban','Tanácsadás']],
@@ -3217,7 +3222,7 @@ const RD_PERSON_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const RD_TARGET_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
 // Az adatlap mezőcsoportjai. Ugyanezekből épül a táblázat kártyás nézetének
 // füles adatlapja és a többi nézet egymás alatti szekciós adatlapja is.
-function rdAdatokFields(r){
+function rdAdatokFields(r, i){
     const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
     // Lenyíló lista, de a korábban szabadon beírt, a felsorolásban nem szereplő
     // érték sem vész el – bekerül egy extra, kiválasztott opcióként.
@@ -3236,6 +3241,7 @@ function rdAdatokFields(r){
             ${fSel('lakas','Lakáshelyzet / Családi állapot', ['Egyedülálló','Párkapcsolatban él','Élettársi kapcsolatban él','Házas','Elvált','Özvegy'])}
             ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
             ${fSel('gyerekek','Gyerekek száma / Életkora', ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 vagy több gyermek'])}
+            <div class="rd-field"><label>Tőle kapott ajánlások száma</label><input type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}"></div>
         </div>
         <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>`;
 }
@@ -3254,7 +3260,7 @@ function regDetailHtml(i){
     const targetIc = RD_TARGET_IC;
     return `<div class="reg-detail" data-regdetail="${i}">
         <div class="rd-sec" style="margin-top:0;"><span class="rd-sec-ic">${personIc}</span>Adatok</div>
-        ${rdAdatokFields(r)}
+        ${rdAdatokFields(r, i)}
         <div class="rd-goals">
             <div class="rd-sec"><span class="rd-sec-ic">${targetIc}</span>Elemzés / Célok</div>
             ${rdCelokFields(r)}
@@ -3297,7 +3303,8 @@ function renderRegTable(matched){
     const q=(regSearch||'').trim().toLowerCase();
     const head = `<div class="rc-head">
         <div>Résztvevő</div><div>Ajánló személy</div><div>Telefonszám</div><div class="c">TP</div>
-        <div>Lakhely</div><div>Státusz</div><div class="c">Jelölők</div><div></div>
+        <div>Lakhely</div><div>Státusz</div><div class="c" title="Az ügyféltől kapott ajánlások száma">Ajánlás</div>
+        <div class="c">Jelölők</div><div></div>
     </div>`;
     const rows = matched.map(({r,i})=>{
         const hasName = !!(r.name && r.name.trim());
@@ -3317,6 +3324,7 @@ function renderRegTable(matched){
             <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp)}</div></div>
             <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="lakhely"></div>
             <div>${regStatusSelect(i, r.status)}</div>
+            <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"></div>
             <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes)}${flagChip(i,'portal','PF',r.portal)}${flagChip(i,'tanacsadas','TA',r.tanacsadas)}</div></div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
@@ -3326,7 +3334,9 @@ function renderRegTable(matched){
     const foot=document.getElementById('regFoot');
     if(foot){
         const n=matched.length;
-        foot.innerHTML = `<span class="reg-foot-count">${n?`1–${n} / ${n} találat`:'0 találat'}</span>
+        const ref = matched.reduce((s,o)=>s+ajanlasNum(o.r), 0);
+        const refFrom = matched.filter(o=>ajanlasNum(o.r)>0).length;
+        foot.innerHTML = `<span class="reg-foot-count">${n?`1–${n} / ${n} találat`:'0 találat'}${ref?` · <b style="color:var(--navy);">${ref}</b> ajánlás ${refFrom} ügyféltől`:''}</span>
             <div class="reg-pager"><button class="reg-page-btn" disabled>‹</button><button class="reg-page-btn active">1</button><button class="reg-page-btn" disabled>›</button></div>`;
     }
 }
@@ -3349,7 +3359,7 @@ function regCardDetailHtml(i){
     if(regDetailTab === 'celok') pane = rdCelokFields(r);
     else if(regDetailTab === 'kiertekelo') pane = kiertekeloSummaryHtml(r.kiertekelo) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>';
     else if(regDetailTab === 'elozmenyek') pane = kezeloHistoryHtml(r.kezeloHistory) || '<div class="rc-pane-empty">Még nincs kezelő-váltás.</div>';
-    else pane = rdAdatokFields(r);
+    else pane = rdAdatokFields(r, i);
     const kv = (label, val) => `<div class="rc-kv"><span>${label}</span><b>${esc(val || '—')}</b></div>`;
     return `<div class="rc-detail" data-regdetail="${i}">
         <div class="rc-rail">
@@ -3393,6 +3403,8 @@ const PIPE_IC = {
     pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
     clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
 };
+// Az ügyféltől kapott ajánlások száma – a mező szövegként tárolódik, mint a többi.
+function ajanlasNum(r){ const n = parseFloat(String(r && r.ajanlasok || '').replace(',','.')); return isNaN(n) || n <= 0 ? 0 : n; }
 // A státusz nélküli (frissen felvitt) ügyfél az "Új" oszlopba kerül.
 function regPipeCol(status){
     if(status === 'Lezárt' || status === 'Inaktív') return 'Lezárt';
@@ -3418,6 +3430,7 @@ function regPipeCardHtml(r, i){
             <span class="pipe-chip${r.elemzes?' on':''}">EL</span>
             <span class="pipe-chip${r.portal?' on':''}">PF</span>
             <span class="pipe-chip${r.tanacsadas?' on':''}">TA</span>
+            ${ajanlasNum(r) ? `<span class="pipe-ref" title="Tőle kapott ajánlások">${ajanlasNum(r)} ajánlás</span>` : ''}
         </div>
     </div>`;
 }
@@ -3427,8 +3440,10 @@ function renderRegPipeline(matched){
     const cols = REG_PIPE_COLS.concat([REG_PIPE_CLOSED]);
     const buckets = {}; cols.forEach(c => buckets[c.key] = []);
     matched.forEach(o => buckets[regPipeCol(o.r.status)].push(o));
+    const refTotal = matched.reduce((s,o)=>s+ajanlasNum(o.r), 0);
     const kpis = REG_PIPE_COLS.map(c =>
-        `<div class="pipe-kpi" style="border-left-color:${c.color};"><div class="lab">${esc(c.label)}</div><div class="val">${buckets[c.key].length}</div></div>`).join('');
+        `<div class="pipe-kpi" style="border-left-color:${c.color};"><div class="lab">${esc(c.label)}</div><div class="val">${buckets[c.key].length}</div></div>`).join('')
+        + `<div class="pipe-kpi" style="border-left-color:#92720a;"><div class="lab">Kapott ajánlás</div><div class="val">${refTotal}</div></div>`;
     const board = cols.map(c => `<div class="pipe-col" data-pipecol="${esc(c.key)}">
         <div class="pipe-head"><span class="pipe-dot" style="background:${c.color};"></span><span class="nm">${esc(c.label)}</span><span class="n">${buckets[c.key].length}</span></div>
         <div class="pipe-cards">${buckets[c.key].map(o => regPipeCardHtml(o.r, o.i)).join('') || '<div class="pipe-empty">Húzz ide kártyát</div>'}</div>
@@ -3738,7 +3753,7 @@ function openKiertekeloModal(idx, checkboxEl){
     document.getElementById('regAdd').addEventListener('click', ()=>{
         const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
         const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'', _localKey:localKey };
+        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, ajanlasok:'', details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'', _localKey:localKey };
         registry.push(r);
         store.save('sf_registry', registry); renderRegistry();
         if(typeof window.sfAddClient === 'function'){
@@ -7025,6 +7040,7 @@ window.sfOnViewSwitch = function(){
             lakhely: String(get('Lakhely')||'').trim(),
             munkatars: String(get('Munkatárs')||'').trim(),
             status, tp: notionBool(get('TP')), mt,
+            ajanlasok: (() => { const n = parseFloat(String(get('Ajánlás')||'').replace(',','.')); return isNaN(n) || n <= 0 ? '' : String(n); })(),
             elemzes: notionBool(get('E ID Biztositása')),
             tanacsadas: notionBool(get('TA ID Biztositása')),
             portal: false,
