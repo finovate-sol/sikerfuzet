@@ -1046,6 +1046,15 @@
         .str-node .str-meta { display:flex; flex-direction:column; gap:3px; }
         .str-node .str-name { font-weight:700; font-size:13.5px; color:var(--text); line-height:1.1; white-space:nowrap; }
         .str-node .str-role { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); font-weight:600; white-space:nowrap; }
+        .str-pt-total { display:flex; align-items:center; gap:9px; background:var(--blue-light); border:1px solid #c5d9f7; border-radius:10px; padding:7px 13px; }
+        .str-pt-total .lab { font-size:11px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; }
+        .str-pt-total .val { font-size:19px; font-weight:800; color:var(--blue); line-height:1; }
+        /* Struktúra-pont badge a csomóponton (vezető 2, munkatárs 1). */
+        .str-pt { margin-left:auto; flex-shrink:0; font-size:10px; font-weight:800; letter-spacing:.2px; border-radius:20px; padding:3px 8px; background:var(--blue-light); color:var(--blue); white-space:nowrap; }
+        .str-node.role-leader .str-pt { background:var(--navy); color:#fff; }
+        .str-node.strB .str-pt { background:rgba(255,255,255,.22); color:#fff; }
+        /* A 2. szintű réteges csomópont világos hátterű – ott sötét badge kell. */
+        .str-node.strB[data-depth="2"] .str-pt { background:var(--navy); color:#fff; }
         .str-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
         .str-node.role-leader .str-dot { background:var(--navy); }
         .str-node.role-member .str-dot { background:var(--blue); }
@@ -7454,6 +7463,12 @@ window.sfOnViewSwitch = function(){
     }
 
     const STR_ROLE_LABELS = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
+    // Struktúra-pont szerepkörönként: vezető 2, munkatárs 1, új munkatárs még 0.
+    const STR_ROLE_POINTS = { leader:2, member:1, new:0 };
+    // A saját (gyökér) csomópont nem számít bele – a csapat pontjait összegezzük.
+    function strPoints(node){
+        return (node.children||[]).reduce((s,c) => s + (STR_ROLE_POINTS[c.role]||0) + strPoints(c), 0);
+    }
 
     // ===== Két megjelenítési variáns: "a" = Csendes hierarchia, "b" = Réteges mélység =====
     let strVariant = store.load('sf_str_variant', 'a');
@@ -7471,14 +7486,18 @@ window.sfOnViewSwitch = function(){
         const roleClass = node.role || 'member';
         const label = node.name || STR_ROLE_LABELS[node.role] || 'Névtelen';
         const av = escM(strInitials(label));
+        const pts = STR_ROLE_POINTS[node.role] || 0;
+        const ptBadge = pts ? `<span class="str-pt" title="Struktúra pont">${pts} pont</span>` : '';
         const nodeHtml = strVariant === 'b'
-            ? `<div class="str-node strB" data-nid="${node.id}" data-depth="${Math.min(depth,2)}">
+            ? `<div class="str-node strB role-${roleClass}" data-nid="${node.id}" data-depth="${Math.min(depth,2)}">
                 <span class="str-avatar">${av}</span>
                 <span class="str-meta"><span class="str-name">${escM(label)}</span><span class="str-role">${STR_ROLE_LABELS[node.role]||''}</span></span>
+                ${ptBadge}
             </div>`
             : `<div class="str-node strA role-${roleClass}${isRoot?' root':''}" data-nid="${node.id}">
                 <span class="str-avatar">${av}</span>
                 <span class="str-meta"><span class="str-name">${escM(label)}</span><span class="str-role"><span class="str-dot"></span>${STR_ROLE_LABELS[node.role]||''}</span></span>
+                ${ptBadge}
             </div>`;
         const inner = `<div class="node-wrap">
             ${nodeHtml}
@@ -7573,6 +7592,9 @@ window.sfOnViewSwitch = function(){
         const treeHtml = strNodeHtml(strTree, true, 0);
         body.innerHTML = `<div class="str-hero">
             <div><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
+            <div class="str-pt-total" title="A csapat struktúra-pontjai – vezető 2, munkatárs 1 pont. Magadat nem számolja.">
+                <span class="lab">Struktúra pont</span><span class="val">${strPoints(strTree)}</span>
+            </div>
             <div class="str-switch" id="strSwitch">
                 <button class="str-switch-btn${strVariant==='a'?' active':''}" data-str-variant="a">Csendes</button>
                 <button class="str-switch-btn${strVariant==='b'?' active':''}" data-str-variant="b">Réteges</button>
