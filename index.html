@@ -630,6 +630,12 @@
         table.eves input { width:60px; text-align:center; border:1px solid var(--border); border-radius:7px; padding:5px 4px; font-size:12px; font-family:inherit; color:var(--text); outline:none; background:#fff; }
         table.eves input:hover { border-color:#c7d2e0; }
         table.eves input:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(31,95,208,.12); }
+        /* Kategóriánként 2 oszlop (Terv/Elért) tartozik össze – az "ev-alt"
+           osztály (a JS-ben felváltva kiosztva, lásd renderEvesBody) egy
+           halvány háttérsávval emeli ezt ki, az "-e" (Elért) oszlop utáni
+           erősebb elválasztó vonal pedig a kategória-határt jelzi. */
+        table.eves .ev-alt { background:rgba(31,95,208,.05); }
+        table.eves th.ev-sh-e, table.eves td.ev-td-e, table.eves th.ev-grp { border-right:2px solid #ccd6e6; }
 
         /* ===== KI LESZ A KÖVETKEZŐ ===== */
         .kov-meta { display:flex; gap:12px; flex-wrap:wrap; }
@@ -2617,16 +2623,19 @@ function renderEvesBody(){
     evesData=loadEves(evesAnchor);
     document.getElementById('evesYearLabel').textContent = evesAnchor + '.';
     const evIc=(p,c)=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-    let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map(g=>`<th colspan="2" class="ev-grp" style="--gc:${g.color};"><span class="ev-grp-in"><span class="ev-grp-ic">${evIc(g.icon,g.color)}</span>${g.label}</span></th>`).join('') + `</tr>`;
-    let h2 = `<tr>` + EVES_GROUPS.map(g=>`<th class="ev-sh ev-sh-t" style="--gc:${g.color};">Terv</th><th class="ev-sh ev-sh-e" style="--gc:${g.color};">Elért</th>`).join('') + `</tr>`;
-    const cell=(m,g)=>`<td><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
-    const comp=(id)=>`<td><span id="${id}-t"></span></td><td><span id="${id}-e"></span></td>`;
+    // Kategóriánként (Terv+Elért) egy "ev-alt" osztály felváltva emeli ki, melyik
+    // 2 oszlop tartozik egy címke alá – lásd a CSS-t.
+    const altCls = gi => gi%2 ? ' ev-alt' : '';
+    let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map((g,gi)=>`<th colspan="2" class="ev-grp${altCls(gi)}" style="--gc:${g.color};"><span class="ev-grp-in"><span class="ev-grp-ic">${evIc(g.icon,g.color)}</span>${g.label}</span></th>`).join('') + `</tr>`;
+    let h2 = `<tr>` + EVES_GROUPS.map((g,gi)=>`<th class="ev-sh ev-sh-t${altCls(gi)}" style="--gc:${g.color};">Terv</th><th class="ev-sh ev-sh-e${altCls(gi)}" style="--gc:${g.color};">Elért</th>`).join('') + `</tr>`;
+    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
+    const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span id="${id}-e"></span></td>`;
     let rows='';
     EVES_QUARTERS.forEach((q,qi)=>{
-        q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map(g=>cell(m,g.key)).join('')+`</tr>`; });
-        rows+=`<tr class="ev-sub"><td class="ev-month">Negyedév</td>`+EVES_GROUPS.map(g=>comp(`evq-${qi}-${g.key}`)).join('')+`</tr>`;
+        q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map((g,gi)=>cell(m,g.key,gi)).join('')+`</tr>`; });
+        rows+=`<tr class="ev-sub"><td class="ev-month">Negyedév</td>`+EVES_GROUPS.map((g,gi)=>comp(`evq-${qi}-${g.key}`,gi)).join('')+`</tr>`;
     });
-    rows+=`<tr class="ev-tot"><td class="ev-month">Összesen</td>`+EVES_GROUPS.map(g=>comp(`evtot-${g.key}`)).join('')+`</tr>`;
+    rows+=`<tr class="ev-tot"><td class="ev-month">Összesen</td>`+EVES_GROUPS.map((g,gi)=>comp(`evtot-${g.key}`,gi)).join('')+`</tr>`;
     body.innerHTML=`<table class="eves"><thead>${h1}${h2}</thead><tbody>${rows}</tbody></table>`;
     recomputeEves();
 }
@@ -2660,7 +2669,21 @@ function recomputeEves(){
             q.forEach(m=>{ qt+=haviNum(evesData.months[m][g.key].t); qe+=haviNum(evesData.months[m][g.key].e); });
             totT+=qt; totE+=qe;
             const et=document.getElementById(`evq-${qi}-${g.key}-t`); if(et) et.textContent=qt;
-            const ee=document.getElementById(`evq-${qi}-${g.key}-e`); if(ee) ee.textContent=qe;
+            const ee=document.getElementById(`evq-${qi}-${g.key}-e`);
+            if(ee){
+                ee.textContent=qe;
+                // Negyedéves teljesítés jelzése: zöld, ha elérte/túlteljesítette a
+                // negyedéves tervet, sárga a terv 80%-án belül, piros az alatt.
+                // Terv nélkül (0) nincs mihez viszonyítani, nincs jelzés.
+                if(qt>0){
+                    const ratio=qe/qt;
+                    ee.style.color = ratio>=1 ? 'var(--green)' : ratio>=0.8 ? 'var(--amber)' : 'var(--red)';
+                    ee.style.fontWeight = '800';
+                } else {
+                    ee.style.color = '';
+                    ee.style.fontWeight = '';
+                }
+            }
         });
         const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT;
         const te=document.getElementById(`evtot-${g.key}-e`); if(te) te.textContent=totE;
