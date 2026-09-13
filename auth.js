@@ -181,6 +181,18 @@ export async function saveEvesTerv(key, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "eves_terv", key), data, { merge: true });
 }
+// Munkatárs személyes pénzügyi terve – penzugyek/{uid}. Egy dokumentumban
+// minden év (havi sorok + évnyitó vagyon) és az évekre szóló 5 éves terv,
+// mert együtt is csak néhány száz szám.
+export async function getPenzugyek(uid){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "penzugyek", uid)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Pénzügyek olvasása sikertelen:", e); return null; }
+}
+export async function savePenzugyek(uid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "penzugyek", uid), data, { merge: true });
+}
 
 // Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
 // frissíti minden belépéskor. Az Admin "Csapat szerepkörök" fülének ez a
