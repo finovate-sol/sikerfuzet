@@ -298,10 +298,16 @@
         .rd-grid .rd-field { margin-bottom:0; }
         .rd-full { margin-top:8px; }
         .rd-field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
-        .rd-field input, .rd-field textarea { width:100%; padding:8px 10px; border:1px solid transparent; border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; background:var(--bg); }
-        .rd-field textarea { resize:vertical; }
-        .rd-field input:hover, .rd-field textarea:hover { border-color:var(--border); }
-        .rd-field input:focus, .rd-field textarea:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 2px rgba(31,95,208,.1); }
+        /* A .reg-detail/.ket-detail konténer maga is halvány szürke (var(--bg)) –
+           a mezőknek fehér háttér kell, különben beleolvadnak a környezetükbe. */
+        table.reg .reg-detail .rd-field input, table.reg .reg-detail .rd-field textarea, table.reg .reg-detail .rd-field select,
+        .ket-detail .rd-field input, .ket-detail .rd-field textarea, .ket-detail .rd-field select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; background:#fff; }
+        table.reg .reg-detail .rd-field select, .ket-detail .rd-field select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a90' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; background-size:16px; padding-right:30px; }
+        table.reg .reg-detail .rd-field textarea, .ket-detail .rd-field textarea { resize:vertical; }
+        table.reg .reg-detail .rd-field input:hover, table.reg .reg-detail .rd-field textarea:hover, table.reg .reg-detail .rd-field select:hover,
+        .ket-detail .rd-field input:hover, .ket-detail .rd-field textarea:hover, .ket-detail .rd-field select:hover { border-color:#c7d2e0; }
+        table.reg .reg-detail .rd-field input:focus, table.reg .reg-detail .rd-field textarea:focus, table.reg .reg-detail .rd-field select:focus,
+        .ket-detail .rd-field input:focus, .ket-detail .rd-field textarea:focus, .ket-detail .rd-field select:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(31,95,208,.1); }
         .rd-check { margin-bottom:8px; }
         .rd-check label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; }
         .rd-check input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
@@ -3069,6 +3075,15 @@ function regDetailHtml(i){
     r.details = r.details || {};
     r.celok = r.celok || {};
     const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
+    // Lenyíló lista, de a korábban szabadon beírt, a felsorolásban nem szereplő
+    // érték sem vész el – bekerül egy extra, kiválasztott opcióként.
+    const fSel = (key,label,options) => {
+        const val = r.details[key] || '';
+        const extra = (val && !options.includes(val)) ? `<option value="${esc(val)}" selected>${esc(val)}</option>` : '';
+        const opts = `<option value=""${val?'':' selected'}>—</option>` + extra
+            + options.map(o=>`<option value="${esc(o)}"${val===o?' selected':''}>${esc(o)}</option>`).join('');
+        return `<div class="rd-field"><label>${label}</label><select data-d="${key}">${opts}</select></div>`;
+    };
     const personIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
     const targetIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
     return `<div class="reg-detail" data-regdetail="${i}">
@@ -3078,9 +3093,9 @@ function regDetailHtml(i){
             ${f('eletkor','Életkor')}
             ${f('telepules','Település')}
             ${f('miert','Miért gondolt rá')}
-            ${f('lakas','Lakáshelyzet / Családi állapot')}
+            ${fSel('lakas','Lakáshelyzet / Családi állapot', ['Egyedülálló','Párkapcsolatban él','Élettársi kapcsolatban él','Házas','Elvált','Özvegy'])}
             ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
-            ${f('gyerekek','Gyerekek száma / Életkora')}
+            ${fSel('gyerekek','Gyerekek száma / Életkora', ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 vagy több gyermek'])}
         </div>
         <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>
         <div class="rd-goals">
