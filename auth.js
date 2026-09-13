@@ -194,6 +194,60 @@ export async function savePenzugyek(uid, data){
     await setDoc(doc(db, "penzugyek", uid), data, { merge: true });
 }
 
+// ===================== PG MODUL =====================
+// Két, szándékosan külön kollekció, mert más a láthatóságuk:
+//
+//  • pg/{id}       – a PG alkalom maga (napirend + a vezető jegyzete). Ez a
+//                    VEZETŐÉ: a munkatárs nem látja, mit írt fel róla.
+//  • pg_akcio/{id} – az alkalom kimenete, az akcióterv. Ez KÖZÖS: a vezető
+//                    írja, a munkatárs olvassa és pipálja, és innen teszi ki
+//                    a saját Google Tasks-ába (a Tasks fiókonként privát,
+//                    ezért a vezető nem hozhat létre benne feladatot).
+//
+// A kettéválasztás miatt a "csak az akciótervet kapja meg" szabály egyetlen
+// Firestore-szabállyal kikényszeríthető a pg kollekcióra, anélkül hogy az
+// akciótervek is elzáródnának.
+export async function getPGs(){
+    if(!isConfigured || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, "pg"));
+        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch(e){ console.warn("PG alkalmak olvasása sikertelen:", e); return []; }
+}
+export async function addPG(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "pg"), data);
+    return ref.id;
+}
+export async function savePG(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "pg", id), data, { merge: true });
+}
+export async function deletePG(id){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, "pg", id));
+}
+export async function getAkciok(){
+    if(!isConfigured || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, "pg_akcio"));
+        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch(e){ console.warn("Akciótervek olvasása sikertelen:", e); return []; }
+}
+export async function addAkcio(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "pg_akcio"), data);
+    return ref.id;
+}
+export async function saveAkcio(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "pg_akcio", id), data, { merge: true });
+}
+export async function deleteAkcio(id){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, "pg_akcio", id));
+}
+
 // Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
 // frissíti minden belépéskor. Az Admin "Csapat szerepkörök" fülének ez a
 // forrása (valódi, bejelentkezett fiókok, névvel).
