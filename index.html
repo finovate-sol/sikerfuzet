@@ -640,9 +640,11 @@
         .karrier-panel.open .karrier-toggle .chev { transform:rotate(180deg); }
         .karrier-body { display:none; padding:20px 22px 22px; border-top:1px solid var(--border); }
         .karrier-panel.open .karrier-body { display:block; }
-        .karrier-ladder { display:flex; flex-wrap:wrap; align-items:stretch; gap:0; }
-        .karrier-arrow { display:flex; align-items:center; justify-content:center; color:var(--blue); font-size:18px; font-weight:800; padding:0 10px; }
-        .karrier-tier { position:relative; flex:1 1 170px; min-width:150px; border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--card); }
+        /* Hat szint már nem fér ki tördelés nélkül – a létra inkább vízszintesen
+           görgethető, mint hogy az utolsó szint külön sorba törjön. */
+        .karrier-ladder { display:flex; flex-wrap:nowrap; align-items:stretch; gap:0; overflow-x:auto; padding-bottom:6px; }
+        .karrier-arrow { display:flex; align-items:center; justify-content:center; color:var(--blue); font-size:18px; font-weight:800; padding:0 8px; flex-shrink:0; }
+        .karrier-tier { position:relative; flex:1 0 172px; border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--card); }
         .karrier-check { position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:50%; border:2px solid var(--border); background:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; color:transparent; transition:background .15s, border-color .15s, color .15s; }
         .karrier-check svg { width:13px; height:13px; }
         .karrier-check.done { background:var(--green); border-color:var(--green); color:#fff; }
@@ -651,12 +653,17 @@
         .karrier-tier--top { background:var(--navy); border-color:var(--navy); }
         .karrier-tier--top .karrier-tier-title, .karrier-tier--top .karrier-tier-req { color:#fff; }
         .karrier-tier--top .karrier-tier-req { color:#cdd8ea; }
-        .karrier-tier--base { flex-basis:220px; background:var(--bg); }
-        .karrier-tier-title { font-size:13px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
+        .karrier-tier--base { flex:1 0 230px; background:var(--bg); }
+        /* A jobb felső pipa fölé ne fusson rá a cím. */
+        .karrier-tier-title { font-size:13px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; padding-right:26px; }
         .karrier-tier-req { font-size:12.5px; color:var(--muted); margin-bottom:10px; }
         .karrier-tier-date { display:block; font-size:11px; font-weight:600; color:var(--muted); }
         .karrier-tier--top .karrier-tier-date { color:#cdd8ea; }
         .karrier-tier-date input { display:block; width:100%; margin-top:4px; padding:7px 9px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; box-sizing:border-box; }
+        /* Több feltételes szint (BL) – rövid felsorolás a szintkártyán belül. */
+        .karrier-req-mini { margin:0 0 10px; padding-left:15px; }
+        .karrier-req-mini li { font-size:12px; color:var(--muted); line-height:1.5; }
+        .karrier-tier--top .karrier-req-mini li { color:#cdd8ea; }
         .karrier-req-list { margin:0; padding-left:18px; }
         .karrier-req-list li { font-size:12.5px; color:var(--text); line-height:1.6; }
         @media (max-width:800px){ .karrier-ladder{ flex-direction:column; } .karrier-arrow{ transform:rotate(90deg); padding:4px 0; } }
@@ -1961,11 +1968,22 @@
                     <label class="karrier-tier-date">Váltásom időpontja<input type="date" id="karrierDateRep3"></label>
                   </div>
                   <div class="karrier-arrow">→</div>
-                  <div class="karrier-tier karrier-tier--top">
+                  <div class="karrier-tier">
                     <span class="karrier-check" data-tier="fiok" title="Megvan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span>
                     <div class="karrier-tier-title">Fiókvezető</div>
                     <div class="karrier-tier-req">1 600 ES saját termelés, 3 Reprezentáns II (negyedéven át aktív)</div>
                     <label class="karrier-tier-date">Váltásom időpontja<input type="date" id="karrierDateFiok"></label>
+                  </div>
+                  <div class="karrier-arrow">→</div>
+                  <div class="karrier-tier karrier-tier--top">
+                    <span class="karrier-check" data-tier="bl" title="Megvan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span>
+                    <div class="karrier-tier-title">Területi vezető (BL)</div>
+                    <ul class="karrier-req-mini">
+                      <li>2 400 ES egyéni termelés</li>
+                      <li>Mérés: 6 000 ES/negyedév, két negyedéven át</li>
+                      <li>Aktív státusz: 3 000 ES/negyedév</li>
+                    </ul>
+                    <label class="karrier-tier-date">Váltásom időpontja<input type="date" id="karrierDateBl"></label>
                   </div>
                 </div>
               </div>
@@ -7465,9 +7483,10 @@ window.sfOnViewSwitch = function(){
     const STR_ROLE_LABELS = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
     // Struktúra-pont szerepkörönként: vezető 2, munkatárs 1, új munkatárs még 0.
     const STR_ROLE_POINTS = { leader:2, member:1, new:0 };
-    // A saját (gyökér) csomópont nem számít bele – a csapat pontjait összegezzük.
+    // Csak az első szint számít: a struktúra tetején álló (te) nem, és a
+    // közvetlen beosztottak alatti mélyebb szintek sem.
     function strPoints(node){
-        return (node.children||[]).reduce((s,c) => s + (STR_ROLE_POINTS[c.role]||0) + strPoints(c), 0);
+        return (node.children||[]).reduce((s,c) => s + (STR_ROLE_POINTS[c.role]||0), 0);
     }
 
     // ===== Két megjelenítési variáns: "a" = Csendes hierarchia, "b" = Réteges mélység =====
@@ -7592,7 +7611,7 @@ window.sfOnViewSwitch = function(){
         const treeHtml = strNodeHtml(strTree, true, 0);
         body.innerHTML = `<div class="str-hero">
             <div><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
-            <div class="str-pt-total" title="A csapat struktúra-pontjai – vezető 2, munkatárs 1 pont. Magadat nem számolja.">
+            <div class="str-pt-total" title="A közvetlen beosztottak pontjai – vezető 2, munkatárs 1 pont. A struktúra tetején álló és a mélyebb szintek nem számítanak bele.">
                 <span class="lab">Struktúra pont</span><span class="val">${strPoints(strTree)}</span>
             </div>
             <div class="str-switch" id="strSwitch">
@@ -7748,6 +7767,7 @@ window.sfOnViewSwitch = function(){
             rep2: document.getElementById('karrierDateRep2'),
             rep3: document.getElementById('karrierDateRep3'),
             fiok: document.getElementById('karrierDateFiok'),
+            bl: document.getElementById('karrierDateBl'),
         };
         function karrierUid(){ return window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || 'local'; }
         function karrierKey(){ return 'sf_karrier_letra_' + karrierUid(); }
