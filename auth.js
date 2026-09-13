@@ -194,6 +194,20 @@ export async function savePenzugyek(uid, data){
     await setDoc(doc(db, "penzugyek", uid), data, { merge: true });
 }
 
+// Munkatárs személyes céljai – celok/{uid}. Egy dokumentumban a vízió, a
+// célok listája és az életterület-önértékelések; együtt is csak néhány kB.
+// Privát: a gazdája, a felettesei és az admin éri el (ugyanaz, mint a
+// pénzügyeknél) – a vezető a "ránézés" váltóval nézi meg.
+export async function getCelok(uid){
+    if(!isConfigured || !db || !uid) return null;
+    try { const snap = await getDoc(doc(db, "celok", uid)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Célok olvasása sikertelen:", e); return null; }
+}
+export async function saveCelok(uid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "celok", uid), data, { merge: true });
+}
+
 // ===================== PG MODUL =====================
 // Két, szándékosan külön kollekció, mert más a láthatóságuk:
 //

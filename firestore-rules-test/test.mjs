@@ -28,6 +28,7 @@ await env.withSecurityRulesDisabled(async c => {
   await setDoc(doc(d,'config','app'), { infoDates: [] });
   await setDoc(doc(d,'employees',ADAM), { name:'Siliga Ádám' });
   await setDoc(doc(d,'penzugyek',ZSOLT), { kezdo:{} });
+  await setDoc(doc(d,'celok',ZSOLT), { vizio:{y1:'privát'}, goals:[] });
   await setDoc(doc(d,'structures',ZSOLT), { tree:{} });
   await setDoc(doc(d,'karrier_letra',ADAM), { done_base:true });
   await setDoc(doc(d,'havi_terv',`${ZSOLT}_2026_8`), { x:1 });
@@ -77,6 +78,12 @@ await T('a felettes felettese is olvassa (Márk → Ádám → Zsolt)', getDoc(d
 await T('idegen munkatárs NEM olvassa', getDoc(doc(other,'penzugyek',ZSOLT)), 'fail');
 await T('a BEOSZTOTT nem olvassa a felettese pénzügyeit', getDoc(doc(zsolt,'penzugyek',MARK)), 'fail');
 await T('a felettes ránézésben szerkeszthet is', setDoc(doc(adam,'structures',ZSOLT),{tree:{a:1}}), 'ok');
+await T('célok: saját olvasható', getDoc(doc(zsolt,'celok',ZSOLT)), 'ok');
+await T('célok: a felettes is olvassa', getDoc(doc(adam,'celok',ZSOLT)), 'ok');
+await T('célok: IDEGEN munkatárs NEM olvassa', getDoc(doc(other,'celok',ZSOLT)), 'fail');
+await T('célok: a beosztott nem olvassa a felettesét', getDoc(doc(zsolt,'celok',ADAM)), 'fail');
+await T('célok: a felettes ránézésben szerkeszthet', setDoc(doc(adam,'celok',ZSOLT),{vizio:{y1:'x'}},{merge:true}), 'ok');
+await T('célok: idegen nem írhat', setDoc(doc(other,'celok',ZSOLT),{vizio:{}},{merge:true}), 'fail');
 await T('idegen nem szerkesztheti a struktúrát', setDoc(doc(other,'structures',ZSOLT),{tree:{}}), 'fail');
 await T('karrier-létra: saját', setDoc(doc(adam,'karrier_letra',ADAM),{miert:{pozicio:'x'}},{merge:true}), 'ok');
 await T('karrier-létra: idegen tiltva', getDoc(doc(other,'karrier_letra',ADAM)), 'fail');
