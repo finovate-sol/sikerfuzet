@@ -160,7 +160,9 @@
         /* ===== JOBB OLDALI SÁV (rail + csúszó panel) ===== */
         .side-panel { flex:1; min-width:0; display:flex; flex-direction:column; gap:22px; overflow:hidden; padding-right:0; }
         .side-view { display:flex; flex-direction:column; gap:22px; }
-        .rail { width:46px; flex-shrink:0; background:var(--card); border-left:1px solid var(--border); border-radius:var(--radius) 0 0 var(--radius); display:flex; flex-direction:column; }
+        /* overflow:hidden nélkül az aktív (sötét hátterű) gomb túlfutna a konténer
+           lekerekített sarkán – felül szögletes, alul kerek lenne a sáv. */
+        .rail { width:46px; flex-shrink:0; background:var(--card); border-left:1px solid var(--border); border-radius:var(--radius) 0 0 var(--radius); overflow:hidden; display:flex; flex-direction:column; }
         .rail-btn { flex:1; border:none; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); border-bottom:1px solid var(--border); transition:background .15s,color .15s; padding:0; }
         .rail-btn:last-child { border-bottom:none; }
         .rail-btn.active { background:var(--navy); color:#fff; }
@@ -603,30 +605,10 @@
         .drawer-close svg { width:16px; height:16px; }
         .drawer-close:hover { border-color:var(--red); color:var(--red); }
 
-        /* --- Kétpaneles adatlap --- */
-        .sv-split { display:grid; grid-template-columns:330px 1fr; gap:14px; align-items:start; }
-        @media (max-width:900px){ .sv-split { grid-template-columns:1fr; } }
-        .sv-list { background:var(--card); border-radius:13px; box-shadow:var(--shadow); overflow:hidden; }
-        .sv-scroll { max-height:calc(100vh - 260px); min-height:240px; overflow-y:auto; }
-        .sv-grp { font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; padding:11px 14px 6px; background:#f7f9fc; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:1; }
-        .sv-li { display:flex; align-items:center; gap:10px; padding:10px 13px; border-bottom:1px solid #eef2f7; cursor:pointer; border-left:3px solid transparent; }
-        .sv-li:hover { background:#f7f9fc; }
-        .sv-li.on { background:var(--blue-light); border-left-color:var(--blue); }
-        .sv-mid { min-width:0; flex:1; }
-        .sv-nm { font-size:13.5px; font-weight:700; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .sv-nm.empty { color:var(--amber); font-style:italic; font-weight:600; }
-        .sv-sub { font-size:11.5px; color:var(--muted); margin-top:2px; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .sv-sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-        .sv-detail { background:var(--card); border-radius:13px; box-shadow:var(--shadow); overflow:hidden; min-height:300px; }
-        .sv-dhead { display:flex; align-items:center; gap:13px; padding:16px 20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#f7f9fc,#fff); flex-wrap:wrap; }
-        .sv-dnm { font-size:18px; font-weight:800; color:var(--navy); margin:0; letter-spacing:-.2px; }
-        .sv-dmeta { font-size:12.5px; color:var(--muted); margin-top:3px; }
-        .sv-dacts { margin-left:auto; display:flex; gap:8px; align-items:center; }
-        .sv-dacts .status-sel { min-width:170px; }
-        .sv-detail .reg-detail, .sv-detail .ket-detail { border:none; border-radius:0; margin:0; background:var(--card); }
-        .sv-none { padding:60px 24px; text-align:center; color:var(--muted); font-size:13.5px; }
-        .sv-none svg { width:34px; height:34px; opacity:.35; margin-bottom:10px; }
-        .sv-avatar-lg { width:48px; height:48px; border-radius:50%; font-size:15px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--blue-light); color:var(--navy); }
+        /* Betöltési hiba a Struktúra oldalon – ilyenkor a mentés is tiltott. */
+        .str-warn { display:flex; align-items:flex-start; gap:11px; background:#fef2f2; border:1px solid #f5c2c2; border-radius:var(--radius); padding:13px 16px; margin-bottom:14px; font-size:13px; color:var(--text); line-height:1.55; }
+        .str-warn svg { width:18px; height:18px; color:var(--red); flex-shrink:0; margin-top:1px; }
+        .str-warn b { color:#b91c1c; }
 
         /* ===== PÉNZÜGYEK ===== */
         /* A .seg alapból jobbra tolja magát – itt a cím mellett a helye. */
@@ -2173,7 +2155,6 @@
                 <div class="viewtog" id="regViewTog">
                   <button data-view="tabla" title="Táblázat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span>Táblázat</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
-                  <button data-view="adatlap" title="Adatlap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><span>Adatlap</span></button>
                 </div>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
@@ -2193,7 +2174,6 @@
                 <div class="reg-foot card" id="regFoot"></div>
               </div>
               <div id="regPipeline" hidden></div>
-              <div id="regSplit" hidden></div>
             </div>
           </div>
         </div>
@@ -2209,7 +2189,6 @@
                 <div class="viewtog" id="ketorasViewTog">
                   <button data-view="lista" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Lista</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
-                  <button data-view="adatlap" title="Adatlap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><span>Adatlap</span></button>
                 </div>
                 <button class="btn primary" id="ketorasAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új jelölt</button>
               </div>
@@ -2221,7 +2200,6 @@
                 <div class="rc-wrap"><div class="rc-rows" id="ketorasList"></div></div>
               </div>
               <div id="ketorasPipeline" hidden></div>
-              <div id="ketorasSplit" hidden></div>
             </div>
           </div>
         </div>
@@ -3835,7 +3813,10 @@ function avatarColor(name){
 const flagChip = (i,field,label,checked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}><span>${label}</span></label>`;
 let regExpandedIdx = null;   // a kinyitott / kiválasztott ügyfél indexe (mindhárom nézetben)
 // Nézetmód: 'tabla' (eredeti táblázat), 'pipeline' (állapot-oszlopok), 'adatlap' (kétpaneles)
+// A megszűnt 'adatlap' nézetet a böngésző még tárolhatja – ilyenkor a
+// táblázatra esünk vissza, különben üres oldalt látna, aki azt használta.
 let regView = store.load('sf_regview', 'tabla');
+if(regView !== 'tabla' && regView !== 'pipeline'){ regView = 'tabla'; store.save('sf_regview', regView); }
 const RD_PERSON_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 const RD_TARGET_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
 // Az adatlap mezőcsoportjai. Ugyanezekből épül a táblázat kártyás nézetének
@@ -3896,19 +3877,16 @@ function regMatched(){
     const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
     return registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && textMatch(r) && rowMatchesFilters(r));
 }
-// Melyik nézet aktív – a táblázat/pipeline/adatlap konténerek ki-be kapcsolása.
+// Melyik nézet aktív – a táblázat/pipeline konténerek ki-be kapcsolása.
 function renderRegistry(){
     const matched = regMatched();
     const card = document.getElementById('regTableCard');
     const pipe = document.getElementById('regPipeline');
-    const split = document.getElementById('regSplit');
     if(card) card.hidden = regView !== 'tabla';
     if(pipe) pipe.hidden = regView !== 'pipeline';
-    if(split) split.hidden = regView !== 'adatlap';
     const tog = document.getElementById('regViewTog');
     if(tog) tog.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === regView));
     if(regView === 'pipeline') renderRegPipeline(matched);
-    else if(regView === 'adatlap') renderRegSplit(matched);
     else renderRegTable(matched);
 }
 // Melyik fül aktív a kártyás adatlapon.
@@ -4089,64 +4067,6 @@ function regDrawerHtml(matched){
     </div>`;
 }
 
-// ===== KÉTPANELES NÉZET – bal oldalt névsor, jobb oldalt a teljes adatlap =====
-const REG_SPLIT_GROUPS = [null, 'Folyamatban', 'Új', 'Lezárt'];
-function regSplitGroup(r){
-    if(r.status === 'Lezárt' || r.status === 'Inaktív') return 3;
-    if(!r.status || r.status === 'Új') return 2;
-    return 1;
-}
-function renderRegSplit(matched){
-    const host = document.getElementById('regSplit');
-    if(!host) return;
-    const groups = [[],[],[],[]];
-    matched.forEach(o => groups[regSplitGroup(o.r)].push(o));
-    let list = '';
-    [1,2,3].forEach(g => {
-        if(!groups[g].length) return;
-        list += `<div class="sv-grp">${REG_SPLIT_GROUPS[g]} · ${groups[g].length}</div>`;
-        list += groups[g].map(({r,i}) => {
-            const hasName = !!(r.name && r.name.trim());
-            const ac = hasName ? avatarColor(r.name) : null;
-            const dot = STATUS_DOT[REG_STATUS_COLOR[r.status]] || '#94a3b8';
-            return `<div class="sv-li${i===regExpandedIdx?' on':''}" data-sel="${i}">
-                <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-                <div class="sv-mid">
-                    <div class="sv-nm${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
-                    <div class="sv-sub"><span class="sv-sdot" style="background:${dot};"></span>${esc(r.status||'Új')}${r.lakhely?' · '+esc(r.lakhely):''}</div>
-                </div>
-            </div>`;
-        }).join('');
-    });
-    const q = (regSearch||'').trim();
-    if(!list) list = `<div class="sv-none">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél.'}</div>`;
-    host.innerHTML = `<div class="sv-split">
-        <div class="sv-list"><div class="sv-scroll">${list}</div></div>
-        <div class="sv-detail">${regSplitDetailHtml(matched)}</div>
-    </div>`;
-}
-function regSplitDetailHtml(matched){
-    const i = regExpandedIdx;
-    if(i == null || !registry[i] || !matched.some(o => o.i === i)){
-        return `<div class="sv-none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <div>Válassz valakit a bal oldali listából.</div>
-        </div>`;
-    }
-    const r = registry[i];
-    const hasName = !!(r.name && r.name.trim());
-    const ac = hasName ? avatarColor(r.name) : null;
-    return `<div class="sv-dhead">
-            <span class="sv-avatar-lg"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-            <div style="min-width:0;">
-                <h3 class="sv-dnm">${hasName?esc(r.name):'Nincs név megadva'}</h3>
-                <div class="sv-dmeta">${esc(r.phone||'nincs telefonszám')}${r.lakhely?' · '+esc(r.lakhely):''}${r.ajanlo?' · Ajánló: '+esc(r.ajanlo):''}</div>
-            </div>
-            <div class="sv-dacts">${regStatusSelect(i, r.status)}</div>
-        </div>
-        ${regDetailHtml(i)}`;
-}
-
 // A vezető által a Kiértékelő telefon oldalon adott állapot/visszajelzés
 // megjelenítése az ügyfél adatlapján (a munkatársnál).
 function kiertekeloSummaryHtml(k){
@@ -4315,8 +4235,6 @@ function openKiertekeloModal(idx, checkboxEl){
         // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
         const pipeCard = e.target.closest('[data-pipe]');
         if(pipeCard){ regExpandedIdx = +pipeCard.dataset.pipe; renderRegistry(); return; }
-        const svLi = e.target.closest('[data-sel]');
-        if(svLi){ const idx=+svLi.dataset.sel; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; renderRegistry(); return; }
         // Kártyasor nyitása/zárása – a már kinyitott adatlapon belüli kattintás nem zárja be.
         if(e.target.closest('.rc-detail')) return;
         const row = e.target.closest('.rc[data-open]');
@@ -4440,6 +4358,7 @@ function ketorasDetailHtml(i){
 }
 // Nézetmód a 2 órás füzetben: 'lista' (eredeti), 'pipeline', 'adatlap'.
 let ketorasView = store.load('sf_ketview', 'lista');
+if(ketorasView !== 'lista' && ketorasView !== 'pipeline'){ ketorasView = 'lista'; store.save('sf_ketview', ketorasView); }
 // A kapcsolat minősége (A/B/C) adja az oszlopokat – ez a 2 órás füzet "státusza".
 const KET_PIPE_COLS = [
     { key:'',  label:'Besorolatlan', color:'#94a3b8' },
@@ -4456,19 +4375,16 @@ function ketLastCallTxt(r){
     const last = (tob.hivasok && tob.hivasok.length) ? tob.hivasok[tob.hivasok.length-1] : null;
     return last ? `Utolsó hívás: ${last.datum || 'dátum nélkül'}` : 'Még nincs hívási kísérlet';
 }
-// Melyik nézet aktív – a lista/pipeline/adatlap konténerek ki-be kapcsolása.
+// Melyik nézet aktív – a lista/pipeline konténerek ki-be kapcsolása.
 function renderKetorasList(){
     const list = ketorasCandidates();
     const card = document.getElementById('ketorasListCard');
     const pipe = document.getElementById('ketorasPipeline');
-    const split = document.getElementById('ketorasSplit');
     if(card) card.hidden = ketorasView !== 'lista';
     if(pipe) pipe.hidden = ketorasView !== 'pipeline';
-    if(split) split.hidden = ketorasView !== 'adatlap';
     const tog = document.getElementById('ketorasViewTog');
     if(tog) tog.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === ketorasView));
     if(ketorasView === 'pipeline') renderKetorasPipeline(list);
-    else if(ketorasView === 'adatlap') renderKetorasSplit(list);
     else renderKetorasRows(list);
 }
 function renderKetorasPipeline(list){
@@ -4516,52 +4432,6 @@ function ketorasDrawerHtml(list){
             <button class="drawer-close" data-ketdrawerclose="1" title="Bezárás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
         <div class="drawer-body">${ketorasDetailHtml(i)}</div>
-    </div>`;
-}
-function renderKetorasSplit(list){
-    const host = document.getElementById('ketorasSplit');
-    if(!host) return;
-    let html = '';
-    KET_PIPE_COLS.forEach(c => {
-        const items = list.filter(o => ketMinoseg(o.r) === c.key);
-        if(!items.length) return;
-        html += `<div class="sv-grp">${esc(c.label)} · ${items.length}</div>`;
-        html += items.map(({r,i}) => {
-            const hasName = !!(r.name && r.name.trim());
-            const ac = hasName ? avatarColor(r.name) : null;
-            return `<div class="sv-li${i===ketorasExpandedIdx?' on':''}" data-ketsel="${i}">
-                <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-                <div class="sv-mid">
-                    <div class="sv-nm${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
-                    <div class="sv-sub"><span class="sv-sdot" style="background:${c.color};"></span>${esc(r.phone||'nincs telefonszám')}</div>
-                </div>
-            </div>`;
-        }).join('');
-    });
-    if(!html) html = `<div class="sv-none">Még nincs munkatárs-jelölt.</div>`;
-    const i = ketorasExpandedIdx;
-    let detail;
-    if(i == null || !registry[i] || !list.some(o => o.i === i)){
-        detail = `<div class="sv-none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <div>Válassz egy jelöltet a bal oldali listából.</div>
-        </div>`;
-    } else {
-        const r = registry[i];
-        const hasName = !!(r.name && r.name.trim());
-        const ac = hasName ? avatarColor(r.name) : null;
-        detail = `<div class="sv-dhead">
-                <span class="sv-avatar-lg"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-                <div style="min-width:0;">
-                    <h3 class="sv-dnm">${hasName?esc(r.name):'Nincs név megadva'}</h3>
-                    <div class="sv-dmeta">${esc(r.phone||'nincs telefonszám')} · ${esc(ketLastCallTxt(r))}</div>
-                </div>
-            </div>
-            ${ketorasDetailHtml(i)}`;
-    }
-    host.innerHTML = `<div class="sv-split">
-        <div class="sv-list"><div class="sv-scroll">${html}</div></div>
-        <div class="sv-detail">${detail}</div>
     </div>`;
 }
 // Melyik fül aktív a 2 órás kártyás adatlapján.
@@ -4735,8 +4605,6 @@ function ketCardDetailHtml(i){
         // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
         const pipeCard = e.target.closest('[data-ketpipe]');
         if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; renderKetorasList(); return; }
-        const svLi = e.target.closest('[data-ketsel]');
-        if(svLi){ const idx = +svLi.dataset.ketsel; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; renderKetorasList(); return; }
         const o = e.target.closest('[data-ketopen]');
         if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; renderKetorasList(); }
     });
@@ -9034,26 +8902,45 @@ window.sfOnViewSwitch = function(){
     // induláshoz cache-ként. Vezetői "ránézés" esetén a megtekintett munkatárs
     // saját rajza jelenik meg, ugyanúgy mint a Havi/Éves tervnél.
     let strTree = null, strBusy = false;
+    // Igaz, ha a felhőből NEM sikerült beolvasni a rajzot. Ilyenkor tilos
+    // menteni: amit a képernyőn látunk, az nem a valódi adat, és a mentés
+    // (teljes dokumentum-írás) felülírná a felhőben lévőt.
+    let strLoadFailed = false;
 
     function strUid(){ return window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || 'local'; }
     function strKey(){ return 'sf_struktura_' + strUid(); }
 
     function strId(){ return Math.random().toString(36).slice(2,9); }
 
+    const strBlank = () => ({ id:'root', name:'', role:'leader', children:[] });
     async function loadStrTree(){
+        strLoadFailed = false;
         if(isConfigured){
             try {
                 const remote = await getStructure(strUid());
                 if(remote){ store.save(strKey(), remote); return remote; }
-            } catch(e){ console.warn("Struktúra betöltése a felhőből sikertelen, helyi mentés használata:", e); }
+                // Nincs felhő-dokumentum: még sosem mentett – a helyi cache jöhet.
+            } catch(e){
+                // Jogosultsági vagy hálózati hiba: NEM tudjuk, mi van a felhőben.
+                console.warn("Struktúra betöltése sikertelen:", e);
+                strLoadFailed = true;
+                return store.load(strKey(), null) || strBlank();
+            }
         }
-        return store.load(strKey(), null) || { id:'root', name:'', role:'leader', children:[] };
+        return store.load(strKey(), null) || strBlank();
     }
     async function saveStrTree(t){
+        if(strLoadFailed){
+            alert('A struktúrát nem sikerült betölteni a felhőből, ezért a mentés le van tiltva – különben felülírná a felhőben tárolt rajzot.\n\nTöltsd újra az oldalt, és ha a hiba megmarad, szólj.');
+            return;
+        }
         store.save(strKey(), t);
         if(isConfigured){
             try { await saveStructure(strUid(), t); }
-            catch(e){ console.warn("Struktúra mentése a felhőbe sikertelen:", e); }
+            catch(e){
+                console.warn("Struktúra mentése a felhőbe sikertelen:", e);
+                alert('A struktúra mentése a felhőbe nem sikerült: ' + (e && e.message || e));
+            }
         }
     }
 
@@ -9186,7 +9073,12 @@ window.sfOnViewSwitch = function(){
         const body = document.getElementById("strukturaBody"); if(!body) return;
         strEdges = [];
         const treeHtml = strNodeHtml(strTree, true, 0);
-        body.innerHTML = `<div class="str-hero">
+        // Ha az olvasás elhasalt, ezt látnia kell: amit lát, az nem a valódi adat.
+        const warn = strLoadFailed ? `<div class="str-warn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            <div><b>A struktúrát nem sikerült betölteni a felhőből.</b> Amit itt látsz, az csak ennek a böngészőnek a helyi másolata – lehet, hogy hiányos. A szerkesztés és a mentés le van tiltva, hogy ne írja felül a felhőben tárolt rajzot. Töltsd újra az oldalt.</div>
+        </div>` : '';
+        body.innerHTML = warn + `<div class="str-hero">
             <div><h2>Csapat struktúra</h2><p>Add hozzá a csapatod tagjait és vizualizáld a hierarchiát.</p></div>
             <div class="str-pt-total" title="A közvetlen beosztottak pontjai – vezető 2, munkatárs 1 pont. A struktúra tetején álló és a mélyebb szintek nem számítanak bele.">
                 <span class="lab">Struktúra pont</span><span class="val">${strPoints(strTree)}</span>
@@ -9363,19 +9255,32 @@ window.sfOnViewSwitch = function(){
                 if(document.activeElement !== ta) ta.value = miert[ta.dataset.miert] || '';
             });
         }
+        // Ugyanaz a védelem, mint a Struktúránál: ha az olvasás elhasalt, nem
+        // tudjuk, mi van a felhőben, ezért nem írunk fölé (a mentés teljes
+        // dokumentumot ír).
+        let karrierLoadFailed = false;
         function persist(){
             store.save(karrierKey(), dates);
+            if(karrierLoadFailed){
+                console.warn("Karrier-létra mentése kihagyva: a betöltés korábban nem sikerült.");
+                return;
+            }
             if(isConfigured) saveKarrierLetra(karrierUid(), dates).catch(e => console.warn("Karrier-létra mentése a felhőbe sikertelen:", e));
         }
         reloadKarrierLetra = function(){
             dates = store.load(karrierKey(), {});
+            karrierLoadFailed = false;
             applyDates();
             if(isConfigured){
                 const uidAtRequest = karrierUid();
                 getKarrierLetra(uidAtRequest).then(remote => {
                     if(karrierUid() !== uidAtRequest) return; // közben tovább váltottak
                     if(remote){ dates = remote; store.save(karrierKey(), dates); applyDates(); }
-                }).catch(e => console.warn("Karrier-létra betöltése a felhőből sikertelen:", e));
+                }).catch(e => {
+                    if(karrierUid() !== uidAtRequest) return;
+                    console.warn("Karrier-létra betöltése a felhőből sikertelen:", e);
+                    karrierLoadFailed = true;
+                });
             }
         };
         reloadKarrierLetra();

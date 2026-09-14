@@ -56,10 +56,15 @@ export async function removeAllowedUser(email){
 // Személyes (nem megosztott) struktúra-rajz – structures/{uid} dokumentum.
 // Mindenkinek a saját fiókjához tartozik; vezetői "ránézés" esetén a
 // megtekintett munkatárs uid-jával dolgozik az index.html.
+// FONTOS: olvasási hiba esetén DOBUNK, nem null-t adunk vissza. A null itt azt
+// jelenti, hogy tényleg nincs még rajz. Ha a jogosultsági/hálózati hibát is
+// null-ra fordítanánk, a hívó üres fával indulna, és az első szerkesztés
+// felülírná a felhőben lévő valódi struktúrát (a saveStructure teljes
+// dokumentumot ír, nem merge-el).
 export async function getStructure(uid){
     if(!isConfigured || !db || !uid) return null;
-    try { const snap = await getDoc(doc(db, "structures", uid)); return snap.exists() ? (snap.data().tree || null) : null; }
-    catch(e){ console.warn("Struktúra olvasás sikertelen:", e); return null; }
+    const snap = await getDoc(doc(db, "structures", uid));
+    return snap.exists() ? (snap.data().tree || null) : null;
 }
 export async function saveStructure(uid, tree){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
@@ -70,10 +75,12 @@ export async function saveStructure(uid, tree){
 // karrier_letra/{uid} dokumentum. Ugyanúgy személyes, mint a Struktúra-rajz,
 // és korábban CSAK localStorage-ban élt egy közös (nem munkatárs-specifikus)
 // kulcs alatt, ami megosztott gépen/böngészőben munkatársak között összekeveredett.
+// Ugyanaz a szabály, mint a getStructure()-nél: hiba esetén dobunk, mert a
+// saveKarrierLetra is teljes dokumentumot ír.
 export async function getKarrierLetra(uid){
     if(!isConfigured || !db || !uid) return null;
-    try { const snap = await getDoc(doc(db, "karrier_letra", uid)); return snap.exists() ? (snap.data() || null) : null; }
-    catch(e){ console.warn("Karrier-létra olvasása sikertelen:", e); return null; }
+    const snap = await getDoc(doc(db, "karrier_letra", uid));
+    return snap.exists() ? (snap.data() || null) : null;
 }
 export async function saveKarrierLetra(uid, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
