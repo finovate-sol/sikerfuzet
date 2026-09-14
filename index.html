@@ -9270,18 +9270,30 @@ window.sfOnViewSwitch = function(){
     function parseKtResult(text){
         const t = String(text || '');
         if(!KT_RESULT_RE.test(t)) return null;
-        // A felsorolásjel többféle lehet (•, -, –, *), és a sor elején állhat szóköz.
-        const lines = t.split(/\r?\n/).map(l => l.replace(/^[\s•\-–*·]+/, '').trim()).filter(Boolean);
+        // A felsorolásjel többféle lehet (•, -, –, *), a sor elején állhat szóköz,
+        // és a Notionből félkövér (**) jelölés is jöhet.
+        const lines = t.split(/\r?\n/)
+            .map(l => l.replace(/\*\*/g, '').replace(/^[\s•\-–*·]+/, '').trim())
+            .filter(Boolean);
         const out = { pont:'', tema:'', osszeg:'' };
+        const rest = [];
         for(const line of lines){
             if(KT_RESULT_RE.test(line)) continue;
             const m = line.match(/^t[eé]ma\s*:\s*(.+)$/i);
-            if(m && !out.tema){ out.tema = m[1].trim(); continue; }
+            if(m){ if(!out.tema) out.tema = m[1].trim(); continue; }
             const a = line.match(/^[öo]sszeg\s*:\s*(.+)$/i);
-            if(a && !out.osszeg){ out.osszeg = a[1].trim(); continue; }
-            // A pontszám az a sor, ami csak egy "x/y" alakú értékelés.
-            const p = line.match(/^(\d{1,2}\s*\/\s*\d{1,2})$/);
-            if(p && !out.pont){ out.pont = p[1].replace(/\s+/g,''); continue; }
+            if(a){ if(!out.osszeg) out.osszeg = a[1].trim(); continue; }
+            const e = line.match(/^(?:[ée]rt[ée]kel[ée]s|pont(?:sz[áa]m)?)\s*:\s*(.+)$/i);
+            if(e){ if(!out.pont) out.pont = e[1].trim(); continue; }
+            rest.push(line);
+        }
+        // A címke nem mindig van kiírva – a gyakoribb alak három puszta
+        // felsorolás: értékelés, téma, összeg, ebben a sorrendben. A címkézetlen
+        // sorok ezért sorban töltik a még üres mezőket.
+        for(const line of rest){
+            const slot = ['pont','tema','osszeg'].find(k => !out[k]);
+            if(!slot) break;
+            out[slot] = line;
         }
         return (out.pont || out.tema || out.osszeg) ? out : null;
     }
