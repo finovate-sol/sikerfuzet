@@ -536,6 +536,19 @@
         .rc-qa a:hover { border-color:var(--blue); color:var(--blue); }
         .rc-qa a.go { border-color:#bfe6cd; background:#e6f6ec; color:#15803d; }
         .rc-qa-none { font-size:11.5px; color:var(--muted); font-style:italic; }
+        /* Esemény jegyzete – a Google-esemény leírás mezeje, tehát a telefonodon
+           is ott lesz. Ugyanaz a keret, mint a többi mezőnél. */
+        textarea.ev-input { min-height:66px; resize:vertical; line-height:1.5; }
+        .rc-qa button { flex:1; min-width:88px; border:1px solid var(--border); background:#fff; border-radius:9px; padding:8px 0;
+                        display:flex; align-items:center; justify-content:center; gap:6px; color:var(--muted);
+                        font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+        .rc-qa button svg { width:14px; height:14px; }
+        .rc-qa button:hover { border-color:var(--blue); color:var(--blue); }
+        /* Feladat-ablak: gyors határidő-gombok */
+        .ct-due { display:flex; gap:7px; flex-wrap:wrap; margin-top:7px; }
+        .ct-due button { border:1px solid var(--border); background:var(--card); border-radius:999px; padding:5px 12px;
+                         font-family:inherit; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
+        .ct-due button:hover, .ct-due button.on { border-color:var(--blue); background:var(--blue-light); color:var(--blue); }
         .rc-kv { font-size:12px; padding:8px 0; border-top:1px solid #e6ecf5; display:flex; justify-content:space-between; gap:10px; }
         .rc-kv span { color:var(--muted); flex-shrink:0; }
         .rc-kv b { color:var(--text); font-weight:700; text-align:right; min-width:0; overflow-wrap:anywhere; }
@@ -4218,6 +4231,7 @@ function regCardDetailHtml(i){
                 ${tel ? `<a class="go" href="tel:${esc(tel)}" title="Hívás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>Hívás</a>
                 <a href="sms:${esc(tel)}" title="SMS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>SMS</a>`
                 : '<span class="rc-qa-none">Adj meg telefonszámot a gyorshíváshoz</span>'}
+                <button data-cltask="${i}" title="Feladat létrehozása a Google Tasks-ban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Feladat</button>
             </div>
             ${kv('Ajánló', r.ajanlo)}
             ${kv('Lakhely', r.lakhely)}
@@ -4451,6 +4465,66 @@ function openKiertekeloModal(idx, checkboxEl){
     });
 }
 
+// Feladat az ügyfélhez. Google Task lesz belőle (nem akcióterv – az a PG
+// kimenete), így ott van a jobb sáv "Feladatok" listájában és a telefonodon is.
+// A cím viszi az ügyfél nevét, a jegyzet a telefonszámot – a Google-ben is
+// tudni fogod, kiről van szó.
+function openClientTaskModal(idx){
+    const r = registry[idx];
+    if(!r) return;
+    if(typeof window.sfCreateTask !== 'function'){
+        alert('A Google Tasks kapcsolat még nem áll készen. Nyisd meg a PG Modult vagy a jobb oldali Feladatok dobozt, és csatlakoztasd.');
+        return;
+    }
+    const iso = d => { const x=new Date(); x.setDate(x.getDate()+d); return x.toISOString().substring(0,10); };
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-head">Feladat – ${esc(r.name || 'névtelen ügyfél')}</div>
+            <div class="modal-body">
+                <div><label for="ctText">Mi a teendő? <span class="req">*</span></label>
+                    <input id="ctText" type="text" value="${esc('Hívás – ' + (r.name || ''))}"></div>
+                <div><label for="ctDue">Határidő</label>
+                    <input id="ctDue" type="date" value="${esc(iso(1))}">
+                    <div class="ct-due">
+                        <button type="button" data-ctdue="0">Ma</button>
+                        <button type="button" data-ctdue="1" class="on">Holnap</button>
+                        <button type="button" data-ctdue="3">3 nap</button>
+                        <button type="button" data-ctdue="7">Jövő hét</button>
+                        <button type="button" data-ctdue="">Nincs</button>
+                    </div></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" id="ctCancel">Mégse</button>
+                <button class="btn primary" id="ctSave">Létrehozás</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    const dueEl = overlay.querySelector('#ctDue');
+    overlay.querySelectorAll('[data-ctdue]').forEach(b => b.addEventListener('click', () => {
+        overlay.querySelectorAll('[data-ctdue]').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        dueEl.value = b.dataset.ctdue === '' ? '' : iso(+b.dataset.ctdue);
+    }));
+    overlay.querySelector('#ctCancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
+    overlay.querySelector('#ctSave').addEventListener('click', async e => {
+        const text = overlay.querySelector('#ctText').value.trim();
+        if(!text){ alert('Írd be, mi a teendő.'); return; }
+        const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Létrehozás…';
+        const note = [r.name, r.phone, r.lakhely].filter(Boolean).join(' · ');
+        try {
+            await window.sfCreateTask(text, note, dueEl.value || '');
+            close();
+        } catch(err){
+            alert('Nem sikerült létrehozni a feladatot: ' + (err.message || err));
+            btn.disabled = false; btn.textContent = 'Létrehozás';
+        }
+    });
+}
+
 (function(){
     // Az eseménykezelők a három nézetet közösen tartalmazó konténerre kerülnek,
     // hogy a táblázat, a pipeline oldalpanel és a kétpaneles adatlap mezői
@@ -4521,6 +4595,8 @@ function openKiertekeloModal(idx, checkboxEl){
             if(r && r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
             registry.splice(idx,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return;
         }
+        const ctBtn = e.target.closest('[data-cltask]');
+        if(ctBtn){ openClientTaskModal(+ctBtn.dataset.cltask); return; }
         // "Mégis kell" a Kiértékelő fülön: visszaáll a normál adatlapra, és a
         // "Portálon fent" bepipálásakor újra feljön a kérdés.
         const ktUndo = e.target.closest('[data-ktundo]');
@@ -4832,6 +4908,7 @@ function ketCardDetailHtml(i){
                 ${tel ? `<a class="go" href="tel:${esc(tel)}" title="Hívás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>Hívás</a>
                 <a href="sms:${esc(tel)}" title="SMS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>SMS</a>`
                 : '<span class="rc-qa-none">Adj meg telefonszámot a gyorshíváshoz</span>'}
+                <button data-cltask="${i}" title="Feladat létrehozása a Google Tasks-ban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Feladat</button>
             </div>
             ${kv('Minőség', tob.minoseg ? tob.minoseg+' – '+ketorasQualityLabel(tob.minoseg) : '')}
             ${kv('Ajánló', r.ajanlo)}
@@ -4917,6 +4994,8 @@ function ketCardDetailHtml(i){
             registry[i].mt = false;
             persistExpanded(); ketorasExpandedIdx = null; renderRegistry(); renderKetorasList(); return;
         }
+        const ketTaskBtn = e.target.closest('[data-cltask]');
+        if(ketTaskBtn){ openClientTaskModal(+ketTaskBtn.dataset.cltask); return; }
         if(e.target.closest('#tobClose')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
         // Oldalpanel bezárása (pipeline nézet)
         if(e.target.closest('[data-ketdrawerclose]')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
@@ -6800,6 +6879,13 @@ window.sfOnViewSwitch = function(){
                             <a id="evLocMaps" class="ev-maps-link" href="${mapsUrl(ev && ev.location)}" target="_blank" rel="noopener"${(ev && ev.location) ? "" : " hidden"}>${calSvg("pin")} Megnyitás Google Maps-ben ↗</a>
                         </div>
                     </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("book")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="evNote">Jegyzet</label>
+                            <textarea id="evNote" class="ev-input" rows="3" placeholder="Amit tudni akarsz az alkalomról – a Google-naptárban is ez lesz a leírás.">${escM((ev && ev.description) || "")}</textarea>
+                        </div>
+                    </div>
                     <div class="ev-divider"></div>
                     ${meetFieldHtml}
                     <div class="ev-row">
@@ -6896,6 +6982,10 @@ window.sfOnViewSwitch = function(){
                     };
                 })();
             if (addMeetEl && addMeetEl.checked) patch.conferenceData = meetConferenceData();
+            // A jegyzet a Google-esemény leírása. Üresre törölve is kiküldjük,
+            // különben a törlés nem menne át (a hiányzó mezőt a Google nem bántja).
+            const noteEl = overlay.querySelector("#evNote");
+            if (noteEl) patch.description = noteEl.value.trim();
             // Az utazási idő az esemény saját adata (sfTravelMin). A private map
             // értéke csak szöveg lehet – a kikapcsolást üres értékkel jelöljük
             // (a null 400-as hibát adna), és csak akkor küldjük, ha van mit írni.
@@ -7076,6 +7166,10 @@ window.sfOnViewSwitch = function(){
                     <div class="ev-row">
                         <div class="ev-row-txt"><span class="t1">Egész napos</span><span class="t2">Időpont nélkül, a nap tetején</span></div>
                         <label class="ev-switch"><input type="checkbox" id="qcAllDay"${opts.allDay ? " checked" : ""}><span></span></label>
+                    </div>
+                    <div class="ev-row-field">
+                        <label class="lbl" for="qcNote">Jegyzet</label>
+                        <textarea id="qcNote" class="ev-input" rows="2" placeholder="Amit tudni akarsz az alkalomról – a Google-naptárban is ez lesz a leírás."></textarea>
                     </div>
                     <div class="ev-row-field" id="qcUnitWrap" hidden>
                         <label class="lbl" for="qcUnit">Hány egységre számítasz? (EH)</label>
@@ -7283,7 +7377,11 @@ window.sfOnViewSwitch = function(){
             // nem ügyfél-sor, ezért nem kap "Ügyfél:" leírást, extendedProperties-t,
             // és nem módosítja a registry eredményét (sfMarkResult).
             const isClientSrc = srcList === "money" || srcList === "career";
-            const description = isClientSrc ? "Ügyfél: " + title : undefined;
+            const note = (overlay.querySelector("#qcNote").value || "").trim();
+            const descParts = [];
+            if (isClientSrc) descParts.push("Ügyfél: " + title);
+            if (note) descParts.push(note);
+            const description = descParts.length ? descParts.join("\n\n") : undefined;
             const colorId = type.colorId;
             const recurrence = buildRecurrence(overlay);
             const srcRow = isClientSrc ? registry[srcIndex] : null;
@@ -8180,6 +8278,22 @@ window.sfOnViewSwitch = function(){
         if (document.getElementById("pgMount")) renderPG();
         if (document.getElementById("railFeladatokMount")) renderRailFeladatok();
     }
+
+    // Az ügyfél-adatlapról ("+ Feladat") indított Google Task. Az ügyfélkezelés a
+    // klasszikus scriptben él, a Tasks-kapcsolat itt – ezért ez a híd. Szándékosan
+    // csak Google Task lesz belőle, akcióterv nem: az a PG kimenete.
+    window.sfCreateTask = async function(title, notes, due){
+        const t = String(title || '').trim();
+        if(!t) throw new Error('Üres feladat.');
+        await ensurePGList(true);
+        const meta = { p:'Közepes', type:'szemelyes', done:false, note:'', created: new Date().toISOString().substring(0,10) };
+        const body = { title: t, notes: JSON.stringify(Object.assign(meta, notes ? { note: String(notes) } : {})) };
+        if(due) body.due = due + 'T00:00:00.000Z';
+        const created = await tasksFetch(`/lists/${pgListId}/tasks`, { method:'POST', body: JSON.stringify(body) }, true);
+        await loadPGTasks(true);
+        refreshPGViews();
+        return created;
+    };
 
     // ===================== FELADATOK (a jobb sáv kompakt Google Tasks widgetje) =====================
     // Ugyanazt a Google Tasks listát (pgListId/pgTasks) mutatja, mint a teljes
