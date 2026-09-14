@@ -1072,6 +1072,35 @@
         .karrier-miert-grid textarea { padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); line-height:1.55; resize:vertical; outline:none; background:var(--card); box-sizing:border-box; }
         .karrier-miert-grid textarea:focus { border-color:var(--blue); }
 
+        /* ===== JEGYZETEK / "ÚJ INFO" JELZÉS ===== */
+        .cli-dot { width:7px; height:7px; border-radius:50%; background:var(--blue); flex-shrink:0; display:inline-block; }
+        .reg-name.unread, .ket-name.unread { font-weight:800; color:var(--navy); }
+        .reg-name-cell .cli-dot { margin-right:2px; }
+        .ket-name .cli-dot { margin-right:6px; vertical-align:middle; }
+        .rc-tabs .cli-dot { margin-left:5px; }
+        /* Bal menü számláló – összecsukott sávban is látszik, csak kisebben. */
+        .nav-badge { margin-left:auto; min-width:19px; height:19px; padding:0 6px; border-radius:10px; background:var(--red); color:#fff; font-size:11px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav a.active .nav-badge { background:rgba(255,255,255,.28); }
+        @media (min-width:1001px){
+            .sidebar.collapsed .nav-badge { position:absolute; top:5px; right:5px; min-width:15px; height:15px; padding:0 3px; font-size:9.5px; margin-left:0; }
+            .sidebar.collapsed .nav a { position:relative; }
+        }
+        .cli-notes { display:flex; flex-direction:column; gap:9px; }
+        .cli-note-add { display:flex; gap:8px; align-items:flex-start; margin-bottom:4px; }
+        .cli-note-add textarea { flex:1 1 auto; min-width:0; padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); line-height:1.5; resize:vertical; outline:none; background:var(--card); box-sizing:border-box; }
+        .cli-note-add textarea:focus { border-color:var(--blue); }
+        .cli-note-btn { white-space:nowrap; align-self:stretch; }
+        .cli-note { border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--card); }
+        /* Olvasatlan jegyzet – nem csak szín: "új" címke is van rajta. */
+        .cli-note.fresh { border-color:#bcd3f5; background:var(--blue-light); }
+        .cli-note-head { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+        .cli-note-who { font-size:12px; font-weight:700; color:var(--navy); }
+        .cli-note-at { font-size:11px; color:var(--muted); }
+        .cli-note-new { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; background:var(--blue); color:#fff; padding:2px 7px; border-radius:20px; }
+        .cli-note-del { margin-left:auto; border:none; background:transparent; color:var(--muted); font-size:16px; line-height:1; padding:0 3px; cursor:pointer; opacity:.45; }
+        .cli-note-del:hover { color:var(--red); opacity:1; }
+        .cli-note p { margin:0; font-size:13px; color:var(--text); line-height:1.55; white-space:pre-wrap; }
+
         /* ===== CÉLOK OLDAL ===== */
         /* Állapotszínek a haladás-mérőhöz. A hármas átment a paletta-validátoron
            (CVD-elválás 17.4 protan, normál látás 24.1) – az amber alacsony kontrasztja
@@ -2516,7 +2545,9 @@ window.sfSetRegistry = function(list){
 };
 // Egy ügyfél-rekord Firestore-ba mentendő mezői (a lokális 'id' és '_localKey' nélkül).
 function regClientPayload(r){
-    const { id, _localKey, ...rest } = r;
+    // Az aláhúzással kezdődő mezők csak a felületnek kellenek (pl. _prevSeen a
+    // "melyik jegyzet volt új" kiemeléshez) – nem mennek ki a Firestore-ba.
+    const { id, _localKey, _prevSeen, ...rest } = r;
     return rest;
 }
 function persistReg(i){
@@ -3810,6 +3841,109 @@ function avatarColor(name){
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
 }
+// ===== JEGYZETEK ÉS "ÚJ INFO" JELZÉS =====
+// Az ügyfél-rekordon két mező tartja:
+//   jegyzetek: [ { id, text, at, byUid, byName } ]   – dátumos lista
+//   seen:      { <uid>: <ISO időpont> }              – ki mikor nézte meg
+// "Új info" = a legfrissebb jegyzet újabb, mint amikor ÉN utoljára megnyitottam.
+// A seen kulcsa mindig a bejelentkezett felhasználó (nem a megtekintett
+// munkatárs), különben vezetői "ránézésben" a munkatárs jelzését törölnénk.
+function cliMyUid(){ return (window.sfCurrentUser && window.sfCurrentUser.uid) || ''; }
+function cliMyName(){ const u = window.sfCurrentUser || {}; return u.name || u.email || ''; }
+function cliNotes(r){ return Array.isArray(r && r.jegyzetek) ? r.jegyzetek : []; }
+function cliLastNoteAt(r){
+    return cliNotes(r).reduce((m,n) => (n && n.at && n.at > m) ? n.at : m, '');
+}
+function cliHasUnread(r){
+    const uid = cliMyUid(); if(!uid) return false;
+    const last = cliLastNoteAt(r); if(!last) return false;
+    return last > (((r && r.seen) || {})[uid] || '');
+}
+function cliUnreadCount(list){ return (list || []).filter(cliHasUnread).length; }
+const cliDot = r => cliHasUnread(r) ? '<span class="cli-dot" title="Új jegyzet érkezett"></span>' : '';
+
+// Megnyitáskor olvasottá tesszük – csak ha tényleg van olvasatlan, hogy ne
+// írjunk feleslegesen a Firestore-ba minden kattintásnál.
+function cliMarkSeen(i){
+    const r = registry[i]; if(!r || !cliHasUnread(r)) return;
+    const uid = cliMyUid(); if(!uid) return;
+    // A korábbi időpontot megjegyezzük, különben a megnyitás pillanatában
+    // olvasottá válna minden, és sosem látnád, melyik jegyzet volt az új.
+    // Ez csak a memóriában él, a Firestore-ba nem megy ki.
+    if(r._prevSeen === undefined) r._prevSeen = (r.seen || {})[uid] || '';
+    r.seen = Object.assign({}, r.seen || {}, { [uid]: new Date().toISOString() });
+    // A seen egy map: {merge:true} mellett a többiek kulcsa érintetlen marad.
+    if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { seen: r.seen });
+    cliRefreshBadges();
+}
+function cliAddNote(i, text){
+    const r = registry[i]; const t = String(text || '').trim();
+    if(!r || !t) return false;
+    const now = new Date().toISOString();
+    const note = { id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+                   text: t, at: now, byUid: cliMyUid(), byName: cliMyName() };
+    r.jegyzetek = cliNotes(r).concat([note]);
+    // A saját jegyzetem nekem nem "új info".
+    r.seen = Object.assign({}, r.seen || {}, { [cliMyUid()]: now });
+    r._prevSeen = now;
+    if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { jegyzetek: r.jegyzetek, seen: r.seen });
+    return true;
+}
+function cliDeleteNote(i, noteId){
+    const r = registry[i]; if(!r) return;
+    r.jegyzetek = cliNotes(r).filter(n => n.id !== noteId);
+    if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { jegyzetek: r.jegyzetek });
+}
+function cliNoteDate(iso){
+    const d = new Date(iso); if(isNaN(d)) return '';
+    const p2 = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}. ${p2(d.getMonth()+1)}. ${p2(d.getDate())}. ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+// Jegyzet-lista + hozzáadás. A scope különbözteti meg a 10 perces és a 2 órás
+// füzet űrlapját, hogy a két nézet ne akadjon egymásba.
+function cliNotesHtml(i, scope){
+    const r = registry[i];
+    const uid = cliMyUid();
+    // A megnyitás előtti állapothoz mérünk, hogy az épp beérkezett jegyzet
+    // kiemelve maradjon addig, amíg nyitva van a kártya.
+    const seenAt = (r._prevSeen !== undefined ? r._prevSeen : ((r.seen || {})[uid] || ''));
+    const rows = cliNotes(r).slice().sort((a,b) => String(b.at||'').localeCompare(String(a.at||''))).map(n => {
+        const fresh = n.at && n.at > seenAt && n.byUid !== uid;
+        return `<div class="cli-note${fresh ? ' fresh' : ''}">
+            <div class="cli-note-head">
+                <span class="cli-note-who">${esc(n.byName || '—')}</span>
+                <span class="cli-note-at">${esc(cliNoteDate(n.at))}</span>
+                ${fresh ? '<span class="cli-note-new">új</span>' : ''}
+                <button class="cli-note-del" data-clidelnote="${esc(n.id)}" data-cliscope="${scope}" title="Törlés">×</button>
+            </div>
+            <p>${esc(n.text)}</p>
+        </div>`;
+    }).join('');
+    return `<div class="cli-notes">
+        <div class="cli-note-add">
+            <textarea data-clinote="${scope}" rows="2" placeholder="Új jegyzet – amit ideírsz, a kezelő és a felettese is látja, és jelzést kap róla."></textarea>
+            <button class="btn primary cli-note-btn" data-clinoteadd="${scope}" data-cliri="${i}" style="background:var(--blue);color:#fff;border-color:var(--blue);">Hozzáadás</button>
+        </div>
+        ${rows || '<div class="rc-pane-empty">Még nincs jegyzet.</div>'}
+    </div>`;
+}
+// A bal menü számlálói – anélkül látszik, hogy megnyitnád az oldalt.
+function cliRefreshBadges(){
+    const all = window.sfAllClients || [];
+    const mine = all.filter(c => !c.ownerUid || c.ownerUid === cliMyUid() || (window.sfVisibleUids && window.sfVisibleUids.has(c.ownerUid)));
+    const set = (page, n) => {
+        const link = document.querySelector(`.nav a[data-page="${page}"]`); if(!link) return;
+        let b = link.querySelector('.nav-badge');
+        if(!n){ if(b) b.remove(); return; }
+        if(!b){ b = document.createElement('span'); b.className = 'nav-badge'; link.appendChild(b); }
+        b.textContent = n > 99 ? '99+' : String(n);
+        b.title = `${n} helyen új jegyzet`;
+    };
+    set('ugyfelek', cliUnreadCount(mine.filter(c => !c.mt)));
+    set('ketoras',  cliUnreadCount(mine.filter(c =>  c.mt)));
+}
+window.sfRefreshCliBadges = cliRefreshBadges;
+
 const flagChip = (i,field,label,checked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}><span>${label}</span></label>`;
 let regExpandedIdx = null;   // a kinyitott / kiválasztott ügyfél indexe (mindhárom nézetben)
 // Nézetmód: 'tabla' (eredeti táblázat), 'pipeline' (állapot-oszlopok), 'adatlap' (kétpaneles)
@@ -3911,7 +4045,7 @@ function renderRegTable(matched){
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
                 <div class="reg-person-meta">
-                    <div class="reg-name-cell">${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
+                    <div class="reg-name-cell">${cliDot(r)}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
                     <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></div>
                 </div>
             </div>
@@ -3945,14 +4079,17 @@ function regCardDetailHtml(i){
     const histN = (r.kezeloHistory || []).length;
     const ktDone = r.kiertekelo && r.kiertekelo.status === 'elvegezve';
     const tel = String(r.phone || '').replace(/[^\d+]/g, '');
+    const noteN = cliNotes(r).length;
     const tabs = [
         ['adatok', 'Adatok', ''],
         ['celok', 'Elemzés / Célok', ''],
+        ['jegyzetek', 'Jegyzetek', noteN ? String(noteN) : '', cliHasUnread(r)],
         ['kiertekelo', 'Kiértékelő', ktDone ? '1' : ''],
         ['elozmenyek', 'Előzmények', histN ? String(histN) : ''],
     ];
     let pane;
     if(regDetailTab === 'celok') pane = rdCelokFields(r);
+    else if(regDetailTab === 'jegyzetek') pane = cliNotesHtml(i, 'reg');
     else if(regDetailTab === 'kiertekelo') pane = kiertekeloSummaryHtml(r.kiertekelo) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>';
     else if(regDetailTab === 'elozmenyek') pane = kezeloHistoryHtml(r.kezeloHistory) || '<div class="rc-pane-empty">Még nincs kezelő-váltás.</div>';
     else pane = rdAdatokFields(r, i);
@@ -3974,7 +4111,7 @@ function regCardDetailHtml(i){
         </div>
         <div class="rc-main">
             <div class="rc-tabs">
-                ${tabs.map(([key,label,badge]) => `<button data-rdtab="${key}"${regDetailTab===key?' class="on"':''}>${label}${badge?`<span class="b">${badge}</span>`:''}</button>`).join('')}
+                ${tabs.map(([key,label,badge,dot]) => `<button data-rdtab="${key}"${regDetailTab===key?' class="on"':''}>${label}${dot?'<span class="cli-dot"></span>':''}${badge?`<span class="b">${badge}</span>`:''}</button>`).join('')}
             </div>
             <div class="rc-pane">${pane}</div>
             <div class="rc-foot">
@@ -4228,17 +4365,29 @@ function openKiertekeloModal(idx, checkboxEl){
         const tabBtn = e.target.closest('[data-rdtab]');
         if(tabBtn){ regDetailTab = tabBtn.dataset.rdtab; renderRegistry(); return; }
         const nameBtn = e.target.closest('.reg-name[data-open]');
-        if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; renderRegistry(); return; }
+        if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
         // Szerkeszthető mezőre (input/select/checkbox/gomb) kattintva ne nyíljon/záruljon
         // a sor – csak a sor egyéb (nem szerkeszthető) részére kattintva.
         if(e.target.closest('input, select, textarea, label, button, a')) return;
         // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
         const pipeCard = e.target.closest('[data-pipe]');
-        if(pipeCard){ regExpandedIdx = +pipeCard.dataset.pipe; renderRegistry(); return; }
+        if(pipeCard){ regExpandedIdx = +pipeCard.dataset.pipe; cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
+        const noteAdd = e.target.closest('[data-clinoteadd]');
+        if(noteAdd){
+            const ta = document.querySelector(`[data-clinote="${noteAdd.dataset.clinoteadd}"]`);
+            if(ta && cliAddNote(+noteAdd.dataset.cliri, ta.value)){ ta.value=''; cliRefreshBadges(); renderRegistry(); }
+            return;
+        }
+        const noteDel = e.target.closest('[data-clidelnote]');
+        if(noteDel){
+            const host = noteDel.closest('[data-regdetail]');
+            if(host && confirm('Törlöd ezt a jegyzetet?')){ cliDeleteNote(+host.dataset.regdetail, noteDel.dataset.clidelnote); cliRefreshBadges(); renderRegistry(); }
+            return;
+        }
         // Kártyasor nyitása/zárása – a már kinyitott adatlapon belüli kattintás nem zárja be.
         if(e.target.closest('.rc-detail')) return;
         const row = e.target.closest('.rc[data-open]');
-        if(row){ const idx=+row.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; renderRegistry(); }
+        if(row){ const idx=+row.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); }
     });
     // --- Nézetváltó ---
     const viewTog = document.getElementById('regViewTog');
@@ -4465,7 +4614,7 @@ function renderKetorasRows(list){
                 <div class="reg-person">
                     <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
                     <div class="reg-person-meta">
-                        <div class="ket-name${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
+                        <div class="ket-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}">${cliDot(r)}${hasName?esc(r.name):'Nincs név megadva'}</div>
                         <div class="ket-sub">${esc(tob.modja||'nincs megadva, hogyan ismeri')}</div>
                     </div>
                 </div>
@@ -4488,14 +4637,17 @@ function ketCardDetailHtml(i){
     const ac = hasName ? avatarColor(r.name) : null;
     const tel = String(r.phone || '').replace(/[^\d+]/g, '');
     const nHiv = (tob.hivasok||[]).length, nIdo = (tob.idopontok||[]).length;
+    const noteN = cliNotes(r).length;
     const tabs = [
         ['adatok', 'Adatok', ''],
         ['hivasok', 'Telefonálás', nHiv ? String(nHiv) : ''],
         ['idopontok', 'Időpontok', nIdo ? String(nIdo) : ''],
+        ['jegyzetek', 'Jegyzetek', noteN ? String(noteN) : '', cliHasUnread(r)],
     ];
     let pane;
     if(ketDetailTab === 'hivasok') pane = ketLogFields(tob, 'hivasok');
     else if(ketDetailTab === 'idopontok') pane = ketLogFields(tob, 'idopontok');
+    else if(ketDetailTab === 'jegyzetek') pane = cliNotesHtml(i, 'ket');
     else pane = ketAdatokFields(r, tob);
     const kv = (label, val) => `<div class="rc-kv"><span>${label}</span><b>${esc(val || '—')}</b></div>`;
     return `<div class="rc-detail" data-tobdetail="${i}">
@@ -4515,7 +4667,7 @@ function ketCardDetailHtml(i){
         </div>
         <div class="rc-main">
             <div class="rc-tabs">
-                ${tabs.map(([key,label,badge]) => `<button data-kettab="${key}"${ketDetailTab===key?' class="on"':''}>${label}${badge?`<span class="b">${badge}</span>`:''}</button>`).join('')}
+                ${tabs.map(([key,label,badge,dot]) => `<button data-kettab="${key}"${ketDetailTab===key?' class="on"':''}>${label}${dot?'<span class="cli-dot"></span>':''}${badge?`<span class="b">${badge}</span>`:''}</button>`).join('')}
             </div>
             <div class="rc-pane">${pane}</div>
             <div class="rc-foot">
@@ -4604,9 +4756,21 @@ function ketCardDetailHtml(i){
         if(e.target.closest('.rc-detail')) return;
         // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
         const pipeCard = e.target.closest('[data-ketpipe]');
-        if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; renderKetorasList(); return; }
+        if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); return; }
+        const kNoteAdd = e.target.closest('[data-clinoteadd="ket"]');
+        if(kNoteAdd){
+            const ta = document.querySelector('[data-clinote="ket"]');
+            if(ta && cliAddNote(+kNoteAdd.dataset.cliri, ta.value)){ ta.value=''; cliRefreshBadges(); renderKetorasList(); }
+            return;
+        }
+        const kNoteDel = e.target.closest('[data-clidelnote][data-cliscope="ket"]');
+        if(kNoteDel){
+            const host = kNoteDel.closest('[data-tobdetail]');
+            if(host && confirm('Törlöd ezt a jegyzetet?')){ cliDeleteNote(+host.dataset.tobdetail, kNoteDel.dataset.clidelnote); cliRefreshBadges(); renderKetorasList(); }
+            return;
+        }
         const o = e.target.closest('[data-ketopen]');
-        if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; renderKetorasList(); }
+        if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; if(ketorasExpandedIdx!=null) cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); }
     });
     // --- Nézetváltó ---
     const ketTog = document.getElementById('ketorasViewTog');
@@ -4852,6 +5016,9 @@ window.sfOnViewSwitch = function(){
         const viewedUid = window.sfViewedUid || cu.uid;
         const visible = list.filter(c => c.ownerUid === viewedUid);
         if (typeof window.sfSetRegistry === "function") window.sfSetRegistry(visible);
+        // A bal menü "új jegyzet" számlálói a teljes (látható) listából dolgoznak,
+        // nem csak a most megnyitott munkatárséból.
+        if (typeof window.sfRefreshCliBadges === "function") window.sfRefreshCliBadges();
     }
     window.sfShowUgyfelek = function(){ loadAndDistributeClients(); };
     window.sfAddClient = function(data){
