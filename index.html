@@ -1072,6 +1072,22 @@
         .karrier-miert-grid textarea { padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); line-height:1.55; resize:vertical; outline:none; background:var(--card); box-sizing:border-box; }
         .karrier-miert-grid textarea:focus { border-color:var(--blue); }
 
+        /* Kiértékelő telefon – a vezető strukturált eredménye */
+        .kt-result { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+        .kt-result-title { font-size:11px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.05em; margin-bottom:9px; }
+        .kt-result-grid { display:grid; grid-template-columns:130px 1fr 130px; gap:10px; margin-bottom:10px; }
+        @media (max-width:620px){ .kt-result-grid { grid-template-columns:1fr; } }
+        .kt-result-grid label { display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+        .kt-inp { padding:8px 10px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); background:var(--card); outline:none; width:100%; box-sizing:border-box; }
+        .kt-inp:focus { border-color:var(--blue); }
+        .kt-fb-label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+        .kt-result-meta { font-size:11px; color:var(--muted); margin-top:7px; }
+        /* Az ügyfél adatlapján: a beküldött és az eredmény külön blokkban */
+        .kt-sum-lbl { font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:10px 0 6px; }
+        .kt-sum-lbl.res { color:var(--blue); }
+        .kt-sum-at { font-weight:600; color:var(--muted); text-transform:none; letter-spacing:0; }
+        .kt-summary-grid.res { background:var(--blue-light); border-radius:9px; padding:9px 11px; }
+
         /* ===== JEGYZETEK / "ÚJ INFO" JELZÉS ===== */
         .cli-dot { width:7px; height:7px; border-radius:50%; background:var(--blue); flex-shrink:0; display:inline-block; }
         .reg-name.unread, .ket-name.unread { font-weight:800; color:var(--navy); }
@@ -4209,19 +4225,37 @@ function regDrawerHtml(matched){
 function kiertekeloSummaryHtml(k){
     if(!k) return '';
     const isDone = k.status === 'elvegezve';
+    const er = k.eredmeny || {};
+    const hasEr = !!(er.pont || er.tema || er.osszeg);
+    // Két oldal, szándékosan külön: amit a munkatárs beküldött, és amit a
+    // vezető a hívásban kiderített. A kettő eltérhet – pont ez a hívás értelme.
     return `<div class="rd-sec">Kiértékelő telefon</div>
         <div class="kt-summary">
             <span class="kt-status-badge${isDone?' done':''}">${isDone?'Elvégezve':'Függő'}</span>
+            <div class="kt-sum-lbl">Amit beküldtél</div>
             <div class="kt-summary-grid">
                 <div><label>Tanácsadó</label><span>${esc(k.advisor||'—')}</span></div>
                 <div><label>Téma</label><span>${esc(k.topic||'—')}</span></div>
                 <div><label>Összeg</label><span>${esc(k.amount||'—')}</span></div>
             </div>
-            ${k.feedback ? `<div class="kt-feedback"><label>Vezetői visszajelzés</label><p>${esc(k.feedback)}</p></div>` : ''}
+            ${hasEr ? `<div class="kt-sum-lbl res">A vezető eredménye${er.at ? ` <span class="kt-sum-at">${esc(ktDateLabel(er.at))}${er.byName ? ' · ' + esc(er.byName) : ''}</span>` : ''}</div>
+            <div class="kt-summary-grid res">
+                <div><label>Értékelés</label><span>${esc(er.pont||'—')}</span></div>
+                <div><label>Téma</label><span>${esc(er.tema||'—')}</span></div>
+                <div><label>Összeg</label><span>${esc(er.osszeg||'—')}</span></div>
+            </div>` : ''}
+            ${k.feedback ? `<div class="kt-feedback"><label>Megjegyzés a vezetőtől</label><p>${esc(k.feedback)}</p></div>` : ''}
         </div>`;
 }
 // Egyszerű napló: ki mikor kitől kapta az ügyfelet (a Kezelő oszlop
 // átállításakor kerül bele egy bejegyzés – lásd a regTable 'change' kezelőjét).
+// A klasszikus scriptben deklarálva globális, így az ügyfél-adatlap (itt) és
+// a Kiértékelő telefon oldal (modul-script) is használni tudja.
+function ktDateLabel(iso){
+    const d = new Date(iso); if(isNaN(d)) return '';
+    const p2 = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}. ${p2(d.getMonth()+1)}. ${p2(d.getDate())}.`;
+}
 function fmtKezeloDate(iso){
     const d = new Date(iso); if(isNaN(d)) return '';
     const p2 = n => String(n).padStart(2,'0');
@@ -5107,6 +5141,7 @@ window.sfOnViewSwitch = function(){
         requests.sort((a,b) => (a.kiertekelo.status==="elvegezve"?1:0) - (b.kiertekelo.status==="elvegezve"?1:0));
         const rowsHtml = requests.map(c => {
             const k = c.kiertekelo;
+            const er = k.eredmeny || {};
             const isDone = k.status === "elvegezve";
             return `<div class="kt-row" data-cid="${c.id}">
                 <div class="kt-row-head">
@@ -5126,9 +5161,16 @@ window.sfOnViewSwitch = function(){
                     <div><label>Összeg</label><span>${escM(k.amount || "—")}</span></div>
                     ${k.other ? `<div class="kt-row-full"><label>Egyéb</label><span>${escM(k.other)}</span></div>` : ""}
                 </div>
-                <div class="kt-feedback-edit">
-                    <label>Visszajelzés a munkatársnak</label>
-                    <textarea class="kt-feedback-inp" data-kf="feedback" rows="2" placeholder="Írj visszajelzést…">${escM(k.feedback || "")}</textarea>
+                <div class="kt-result">
+                    <div class="kt-result-title">Kiértékelő telefon eredménye</div>
+                    <div class="kt-result-grid">
+                        <label>Értékelés<input class="kt-inp" data-kf="pont" value="${escM(er.pont || "")}" placeholder="pl. 10/9"></label>
+                        <label>Téma<input class="kt-inp" data-kf="tema" value="${escM(er.tema || "")}" placeholder="miről volt szó valójában"></label>
+                        <label>Összeg<input class="kt-inp" data-kf="osszeg" value="${escM(er.osszeg || "")}" placeholder="pl. 100e"></label>
+                    </div>
+                    <label class="kt-fb-label">Megjegyzés a munkatársnak</label>
+                    <textarea class="kt-feedback-inp" data-kf="feedback" rows="2" placeholder="Amit ezen felül tudnia kell…">${escM(k.feedback || "")}</textarea>
+                    ${er.at ? `<div class="kt-result-meta">Rögzítve: ${escM(ktDateLabel(er.at))}${er.byName ? " · " + escM(er.byName) : ""}</div>` : ""}
                     <button class="btn primary kt-save-btn">Mentés</button>
                 </div>
             </div>`;
@@ -5144,7 +5186,19 @@ window.sfOnViewSwitch = function(){
                 if (!client) return;
                 const status = rowEl.querySelector('[data-kf="status"]').value;
                 const feedback = rowEl.querySelector('[data-kf="feedback"]').value.trim();
-                client.kiertekelo = Object.assign({}, client.kiertekelo, { status, feedback });
+                const val = f => (rowEl.querySelector(`[data-kf="${f}"]`) || {}).value || '';
+                const pont = val('pont').trim(), tema = val('tema').trim(), osszeg = val('osszeg').trim();
+                // A vezető eredménye külön blokk: a munkatárs által beküldött
+                // Téma/Összeg megmarad, mellette látszik, mit derített ki a hívás.
+                const prev = (client.kiertekelo && client.kiertekelo.eredmeny) || {};
+                const filled = !!(pont || tema || osszeg);
+                const changed = pont !== (prev.pont||'') || tema !== (prev.tema||'') || osszeg !== (prev.osszeg||'');
+                const eredmeny = filled
+                    ? { pont, tema, osszeg,
+                        at: (changed || !prev.at) ? new Date().toISOString() : prev.at,
+                        byName: (window.sfCurrentUser && (window.sfCurrentUser.name || window.sfCurrentUser.email)) || '' }
+                    : {};
+                client.kiertekelo = Object.assign({}, client.kiertekelo, { status, feedback, eredmeny });
                 saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
                 try {
                     if (isConfigured) await saveClient(cid, { kiertekelo: client.kiertekelo });
@@ -8701,6 +8755,34 @@ window.sfOnViewSwitch = function(){
         if(mt) r.toborzas = { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
         return r;
     }
+    // A vezető kiértékelő-eredménye a Notionben kommentként él, mindig ezzel a
+    // fejléccel. Csak akkor bontjuk mezőkre, ha a fejléc tényleg ott van –
+    // szabad szövegből NEM találgatunk, az a jegyzetek közt marad.
+    //
+    //   Kiértékelő Telefon eredménye:
+    //   • 10/9
+    //   • Téma: Mindenről is (Pénzügyi védelem Önnek, Befektetés
+    //   • Összeg: 100e
+    const KT_RESULT_RE = /ki[eé]rt[eé]kel[őo]\s*telefon\s*eredm[eé]nye/i;
+    function parseKtResult(text){
+        const t = String(text || '');
+        if(!KT_RESULT_RE.test(t)) return null;
+        // A felsorolásjel többféle lehet (•, -, –, *), és a sor elején állhat szóköz.
+        const lines = t.split(/\r?\n/).map(l => l.replace(/^[\s•\-–*·]+/, '').trim()).filter(Boolean);
+        const out = { pont:'', tema:'', osszeg:'' };
+        for(const line of lines){
+            if(KT_RESULT_RE.test(line)) continue;
+            const m = line.match(/^t[eé]ma\s*:\s*(.+)$/i);
+            if(m && !out.tema){ out.tema = m[1].trim(); continue; }
+            const a = line.match(/^[öo]sszeg\s*:\s*(.+)$/i);
+            if(a && !out.osszeg){ out.osszeg = a[1].trim(); continue; }
+            // A pontszám az a sor, ami csak egy "x/y" alakú értékelés.
+            const p = line.match(/^(\d{1,2}\s*\/\s*\d{1,2})$/);
+            if(p && !out.pont){ out.pont = p[1].replace(/\s+/g,''); continue; }
+        }
+        return (out.pont || out.tema || out.osszeg) ? out : null;
+    }
+
     function renderAdmImport(cont){
         const me = window.sfCurrentUser || {};
         const emps = (window.sfEmployeesList || []);
