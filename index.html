@@ -466,6 +466,12 @@
         .ket-empty { background:var(--card); border-radius:12px; box-shadow:var(--shadow); padding:26px; text-align:center; color:var(--muted); font-size:13.5px; }
         .ket-detail { padding:16px 18px 20px; background:var(--bg); border:2px solid var(--blue); border-top:none; border-radius:0 0 10px 10px; margin:0 0 10px; }
         .ket-detail .modal-foot { padding:0; border:none; margin-top:14px; }
+        /* Felvételi folyamat állomásai – a kiválasztott kapja az állomás színét. */
+        .tob-status-picker { display:flex; gap:6px; flex-wrap:wrap; }
+        .tob-status-btn { border:1px solid var(--border); border-radius:999px; background:var(--card); padding:6px 13px;
+                          font-family:inherit; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
+        .tob-status-btn:hover { border-color:var(--sc); color:var(--sc); }
+        .tob-status-btn.on { border-color:var(--sc); background:color-mix(in srgb, var(--sc) 12%, #fff); color:var(--sc); }
         .tob-quality-picker { display:flex; gap:8px; }
         .tob-quality-picker label { flex:1; border:1px solid var(--border); border-radius:8px; padding:8px; text-align:center; cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); }
         .tob-quality-picker input { display:none; }
@@ -508,9 +514,23 @@
         .rc-line .c { text-align:center; }
         .rc-line .flaggroup { justify-content:center; }
         .rc-empty { background:var(--card); border-radius:12px; box-shadow:var(--shadow); padding:26px; text-align:center; color:var(--muted); font-size:13.5px; }
+        /* Csoportfejléc a lista nézetben (státusz / kezelő / minőség szerint).
+           Összecsukható – hosszú listánál így marad áttekinthető. */
+        .rc-group { display:flex; align-items:center; gap:9px; padding:13px 6px 4px; cursor:pointer; user-select:none; }
+        .rc-group:first-child { padding-top:2px; }
+        .rc-group .gdot { width:8px; height:8px; border-radius:50%; background:var(--gc,#94a3b8); flex:none; }
+        .rc-group .gnm { font-size:11.5px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.06em; }
+        .rc-group .gn { font-size:11px; font-weight:800; color:var(--muted); background:#eef1f5; border-radius:999px; padding:2px 9px; }
+        .rc-group .gchev { margin-left:8px; color:var(--muted); display:flex; transition:transform .15s; }
+        .rc-group .gchev svg { width:14px; height:14px; }
+        .rc-group.closed .gchev { transform:rotate(-90deg); }
+        .rc-group .gline { flex:1; height:1px; background:var(--border); }
+        .reg-groupsel { padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card);
+                        font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); outline:none; cursor:pointer; }
+        .reg-groupsel:focus { border-color:var(--blue); }
         /* A 2 órás füzet kártyasorai – kevesebb oszlop, saját képlet. */
         .kc-head, .kc-line { grid-template-columns:var(--kc-cols); }
-        #ketorasList { --kc-cols:300px 150px 1fr 54px 150px 168px 44px; min-width:1000px; }
+        #ketorasList { --kc-cols:280px 140px 1fr 54px 130px 176px 150px 44px; min-width:1180px; }
         #ketorasList .rc-head { padding:0 16px 9px; }
         .kc-txt { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .kc-muted { color:#b6c0ce; }
@@ -2236,6 +2256,12 @@
                   <button data-view="tabla" title="Táblázat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span>Táblázat</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
                 </div>
+                <select class="reg-groupsel" id="regGroupSel" title="Csoportosítás a táblázatban">
+                  <option value="">Csoportosítás: nincs</option>
+                  <option value="status">Státusz szerint</option>
+                  <option value="kezelo">Kezelő szerint</option>
+                  <option value="munkatars">Tanácsadó szerint</option>
+                </select>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
                 <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
@@ -2270,6 +2296,12 @@
                   <button data-view="lista" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Lista</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
                 </div>
+                <select class="reg-groupsel" id="ketGroupSel" title="Csoportosítás a listában">
+                  <option value="">Csoportosítás: nincs</option>
+                  <option value="status">Státusz szerint</option>
+                  <option value="minoseg">Minőség szerint</option>
+                  <option value="kezelo">Kezelő szerint</option>
+                </select>
                 <button class="btn primary" id="ketorasAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új jelölt</button>
               </div>
             </div>
@@ -4139,6 +4171,47 @@ function regMatched(){
     const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
     return registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && textMatch(r) && rowMatchesFilters(r));
 }
+// ===== CSOPORTOSÍTÁS A LISTA NÉZETEKBEN =====
+// A csoport kulcsa maga a megjelenített érték (státusz, kezelő neve, minőség),
+// így nem kell külön címke-táblát karbantartani. Az összecsukott csoportokat
+// kulcsonként jegyezzük meg, hogy újrarajzoláskor is csukva maradjanak.
+let regGroupBy = store.load('sf_reggroup', '');
+let ketGroupBy = store.load('sf_ketgroup', '');
+const regGroupClosed = {}, ketGroupClosed = {};
+const GROUP_CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
+function groupColorOf(mode, key){
+    if(mode === 'status'){
+        const c = REG_STATUS_COLOR[key];
+        return c ? STATUS_DOT[c] : (KET_PIPE_COLS.find(x => x.key === key) || {}).color || '#94a3b8';
+    }
+    if(mode === 'minoseg') return { A:'#16a34a', B:'#1f5fd0', C:'#d97706' }[key] || '#94a3b8';
+    return '#94a3b8';
+}
+// A csoportokat a megadott sorrend szerint rendezi (pl. státusz-lánc), a
+// felsorolásban nem szereplők a végére kerülnek, ábécé szerint.
+function groupedRows(list, keyOf, order, closedMap, mode, rowHtml){
+    const buckets = new Map();
+    list.forEach(o => {
+        const k = keyOf(o.r) || '';
+        if(!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k).push(o);
+    });
+    const keys = [...buckets.keys()].sort((a,b) => {
+        const ia = order.indexOf(a), ib = order.indexOf(b);
+        if(ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+        return a.localeCompare(b, 'hu');
+    });
+    return keys.map(k => {
+        const closed = !!closedMap[k];
+        return `<div class="rc-group${closed?' closed':''}" data-group="${esc(k)}">
+            <span class="gdot" style="--gc:${groupColorOf(mode, k)}"></span>
+            <span class="gnm">${esc(k || '— nincs megadva —')}</span>
+            <span class="gn">${buckets.get(k).length}</span>
+            <span class="gchev">${GROUP_CHEV}</span>
+            <span class="gline"></span>
+        </div>` + (closed ? '' : buckets.get(k).map(rowHtml).join(''));
+    }).join('');
+}
 // Melyik nézet aktív – a táblázat/pipeline konténerek ki-be kapcsolása.
 function renderRegistry(){
     const matched = regMatched();
@@ -4164,7 +4237,7 @@ function renderRegTable(matched){
         <div>Lakhely</div><div>Státusz</div><div class="c" title="Az ügyféltől kapott ajánlások száma">Ajánlás</div>
         <div class="c">Jelölők</div><div></div>
     </div>`;
-    const rows = matched.map(({r,i})=>{
+    const rowHtml = ({r,i})=>{
         const hasName = !!(r.name && r.name.trim());
         const open = i === regExpandedIdx;
         const ac = hasName ? avatarColor(r.name) : null;
@@ -4187,7 +4260,15 @@ function renderRegTable(matched){
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
         ${open ? regCardDetailHtml(i) : ''}</div>`;
-    }).join('') || `<div class="rc-empty">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</div>`;
+    };
+    const keyOf = regGroupBy === 'status'  ? (r => r.status || '')
+                : regGroupBy === 'kezelo'  ? (r => r.ownerName || '')
+                : regGroupBy === 'munkatars' ? (r => r.munkatars || '') : null;
+    const order = regGroupBy === 'status' ? REG_STATUS.flatMap(([,items]) => items) : [];
+    const rows = (keyOf
+        ? groupedRows(matched, keyOf, order, regGroupClosed, regGroupBy, rowHtml)
+        : matched.map(rowHtml).join(''))
+        || `<div class="rc-empty">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</div>`;
     host.innerHTML = head + `<div class="rc-body">${rows}</div>`;
     const foot=document.getElementById('regFoot');
     if(foot){
@@ -4587,6 +4668,11 @@ function openClientTaskModal(idx){
     if(resetBtn) resetBtn.addEventListener('click', ()=>{ regSearch=''; regFilters=[]; regChipsOpen=false; if(searchEl) searchEl.value=''; renderRegFilters(); renderRegistry(); });
     const fToggle=document.getElementById('regFToggle');
     if(fToggle) fToggle.addEventListener('click', ()=>{ regChipsOpen=!regChipsOpen; renderRegFilters(); });
+    const gSel=document.getElementById('regGroupSel');
+    if(gSel){
+        gSel.value = regGroupBy;
+        gSel.addEventListener('change', ()=>{ regGroupBy = gSel.value; store.save('sf_reggroup', regGroupBy); renderRegistry(); });
+    }
     renderRegFilters();
     tbl.addEventListener('click', e=>{
         const d=e.target.closest('[data-rdel]');
@@ -4595,6 +4681,8 @@ function openClientTaskModal(idx){
             if(r && r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
             registry.splice(idx,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return;
         }
+        const gh = e.target.closest('.rc-group');
+        if(gh){ const k = gh.dataset.group; regGroupClosed[k] = !regGroupClosed[k]; renderRegistry(); return; }
         const ctBtn = e.target.closest('[data-cltask]');
         if(ctBtn){ openClientTaskModal(+ctBtn.dataset.cltask); return; }
         // "Mégis kell" a Kiértékelő fülön: visszaáll a normál adatlapra, és a
@@ -4724,6 +4812,9 @@ function ketAdatokFields(r, tob){
             <div class="rd-field"><label>Lakhely</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
             <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
         </div>
+        <div class="rd-sec">Hol tart a folyamat</div>
+        <div class="tob-status-picker">${KET_PIPE_COLS.filter(c=>c.key).map(c =>
+            `<button type="button" class="tob-status-btn${tob.status===c.key?' on':''}" data-tobstatus="${esc(c.key)}" style="--sc:${c.color};">${esc(c.key)}</button>`).join('')}</div>
         <div class="rd-sec">Kapcsolat minősége</div>
         <div class="tob-quality-picker">
             <label><input type="radio" name="tobq" value="A" ${tob.minoseg==='A'?'checked':''}><span>A – Vezető</span></label>
@@ -4757,16 +4848,32 @@ function ketorasDetailHtml(i){
 // Nézetmód a 2 órás füzetben: 'lista' (eredeti), 'pipeline', 'adatlap'.
 let ketorasView = store.load('sf_ketview', 'lista');
 if(ketorasView !== 'lista' && ketorasView !== 'pipeline'){ ketorasView = 'lista'; store.save('sf_ketview', ketorasView); }
-// A kapcsolat minősége (A/B/C) adja az oszlopokat – ez a 2 órás füzet "státusza".
+// A felvételi folyamat állomásai. A pipeline ezek szerint rendez – a kapcsolat
+// minősége (A/B/C) ettől független jelzés, az a kártyán címkeként marad.
 const KET_PIPE_COLS = [
-    { key:'',  label:'Besorolatlan', color:'#94a3b8' },
-    { key:'A', label:'A – Vezető',   color:'#16a34a' },
-    { key:'B', label:'B – Munkatárs',color:'#1f5fd0' },
-    { key:'C', label:'C – Ügyfél',   color:'#d97706' },
+    { key:'',                    label:'Besorolatlan',  color:'#94a3b8', sel:'gray'   },
+    { key:'Kontaktus',           label:'Kontaktus',     color:'#16a34a', sel:'green'  },
+    { key:'Felvételi egyeztetve',label:'Egyeztetve',    color:'#2563eb', sel:'blue'   },
+    { key:'Felvételi 1',         label:'Felvételi 1',   color:'#d97706', sel:'amber'  },
+    { key:'Felvételi 2',         label:'Felvételi 2',   color:'#b45309', sel:'amber'  },
+    { key:'INFO',                label:'INFO',          color:'#7c3aed', sel:'purple' },
+    { key:'Belépett',            label:'Belépett',      color:'#0d9488', sel:'teal'   },
+    { key:'Elutasítva',          label:'Elutasítva',    color:'#dc2626', sel:'red'    },
 ];
+function ketStatus(r){
+    const q = (r.toborzas && r.toborzas.status) || '';
+    return KET_PIPE_COLS.some(c => c.key === q) ? q : '';
+}
 function ketMinoseg(r){
     const q = (r.toborzas && r.toborzas.minoseg) || '';
-    return KET_PIPE_COLS.some(c => c.key === q) ? q : '';
+    return ['A','B','C'].includes(q) ? q : '';
+}
+function ketStatusSelect(i, val){
+    const col = KET_PIPE_COLS.find(c => c.key === val);
+    const cls = (col && val) ? ' status-'+col.sel : '';
+    const opts = KET_PIPE_COLS.map(c =>
+        `<option value="${esc(c.key)}"${val===c.key?' selected':''}>${esc(c.key || 'Nincs státusz')}</option>`).join('');
+    return `<select class="status-sel${cls}" data-ketstatus="${i}">${opts}</select>`;
 }
 function ketLastCallTxt(r){
     const tob = r.toborzas || {};
@@ -4789,7 +4896,7 @@ function renderKetorasPipeline(list){
     const host = document.getElementById('ketorasPipeline');
     if(!host) return;
     const buckets = {}; KET_PIPE_COLS.forEach(c => buckets[c.key] = []);
-    list.forEach(o => buckets[ketMinoseg(o.r)].push(o));
+    list.forEach(o => buckets[ketStatus(o.r)].push(o));
     const board = KET_PIPE_COLS.map(c => `<div class="pipe-col" data-ketcol="${esc(c.key)}">
         <div class="pipe-head"><span class="pipe-dot" style="background:${c.color};"></span><span class="nm">${esc(c.label)}</span><span class="n">${buckets[c.key].length}</span></div>
         <div class="pipe-cards">${buckets[c.key].map(({r,i}) => {
@@ -4807,7 +4914,10 @@ function renderKetorasPipeline(list){
                     ${r.phone?`<div>${PIPE_IC.phone}${esc(r.phone)}</div>`:''}
                     <div>${PIPE_IC.clock}${esc(ketLastCallTxt(r))}</div>
                 </div>
-                <div class="pipe-foot"><span class="pipe-chip${r.karrierTp?' tp':''}">TP</span></div>
+                <div class="pipe-foot">
+                    <span class="pipe-chip${r.karrierTp?' tp':''}">TP</span>
+                    ${ketMinoseg(r) ? `<span class="pipe-chip on" title="Kapcsolat minősége: ${esc(ketorasQualityLabel(ketMinoseg(r)))}">${esc(ketMinoseg(r))}</span>` : ''}
+                </div>
             </div>`;
         }).join('') || '<div class="pipe-empty">Húzz ide kártyát</div>'}</div>
     </div>`).join('');
@@ -4850,9 +4960,9 @@ function renderKetorasRows(list){
     }
     const head = `<div class="rc-head kc-head">
         <div>Jelölt</div><div>Telefonszám</div><div>Ajánló személy</div><div class="c">TP</div>
-        <div>Utolsó hívás</div><div>Minőség</div><div></div>
+        <div>Utolsó hívás</div><div>Státusz</div><div>Minőség</div><div></div>
     </div>`;
-    const rows = list.map(({r,i})=>{
+    const rowHtml = ({r,i})=>{
         const hasName = !!(r.name && r.name.trim());
         const tob = r.toborzas || {};
         const open = i === ketorasExpandedIdx;
@@ -4871,11 +4981,20 @@ function renderKetorasRows(list){
                 <div class="kc-txt">${esc(r.ajanlo||'—')}</div>
                 <div class="c"><div class="flaggroup" title="Felhívandó – bekerül a Saját Karrierem listába">${flagChip(i,'karrierTp','TP',r.karrierTp)}</div></div>
                 <div class="kc-txt">${lastCall ? esc(lastCall.datum || 'dátum nélkül') : '<span class="kc-muted">még nem hívta</span>'}</div>
+                <div>${ketStatusSelect(i, tob.status||'')}</div>
                 <div>${ketQualitySelect(i, tob.minoseg||'')}</div>
                 <div class="reg-actions"><span class="reg-chev">${RC_CHEV_IC}</span></div>
             </div>
             ${open ? ketCardDetailHtml(i) : ''}</div>`;
-    }).join('');
+    };
+    const keyOf = ketGroupBy === 'status'  ? (r => ketStatus(r))
+                : ketGroupBy === 'minoseg' ? (r => ketMinoseg(r))
+                : ketGroupBy === 'kezelo'  ? (r => r.ownerName || '') : null;
+    const order = ketGroupBy === 'status' ? KET_PIPE_COLS.map(c => c.key)
+                : ketGroupBy === 'minoseg' ? ['A','B','C'] : [];
+    const rows = keyOf
+        ? groupedRows(list, keyOf, order, ketGroupClosed, ketGroupBy, rowHtml)
+        : list.map(rowHtml).join('');
     el.innerHTML = head + `<div class="rc-body">${rows}</div>`;
 }
 // Kinyitott kártya: bal oldalt állandó összefoglaló, jobb oldalt füles adatlap.
@@ -4910,6 +5029,7 @@ function ketCardDetailHtml(i){
                 : '<span class="rc-qa-none">Adj meg telefonszámot a gyorshíváshoz</span>'}
                 <button data-cltask="${i}" title="Feladat létrehozása a Google Tasks-ban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Feladat</button>
             </div>
+            ${kv('Státusz', tob.status)}
             ${kv('Minőség', tob.minoseg ? tob.minoseg+' – '+ketorasQualityLabel(tob.minoseg) : '')}
             ${kv('Ajánló', r.ajanlo)}
             ${kv('Lakhely', r.lakhely)}
@@ -4958,6 +5078,15 @@ function ketCardDetailHtml(i){
             store.save('sf_registry', registry); persistReg(idx); refreshMoneyCareer();
             return;
         }
+        // Státusz a soron (kártyás nézet).
+        if(t.dataset.ketstatus!==undefined){
+            const idx = +t.dataset.ketstatus;
+            const r = registry[idx];
+            r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+            r.toborzas.status = t.value;
+            store.save('sf_registry', registry); persistReg(idx); renderKetorasList();
+            return;
+        }
         // Minőség a soron (kártyás nézet) – nem a kinyitott adatlapról jön.
         if(t.dataset.ketq!==undefined){
             const idx = +t.dataset.ketq;
@@ -4994,6 +5123,16 @@ function ketCardDetailHtml(i){
             registry[i].mt = false;
             persistExpanded(); ketorasExpandedIdx = null; renderRegistry(); renderKetorasList(); return;
         }
+        const ketGh = e.target.closest('.rc-group');
+        if(ketGh){ const k = ketGh.dataset.group; ketGroupClosed[k] = !ketGroupClosed[k]; renderKetorasList(); return; }
+        const stBtn = e.target.closest('[data-tobstatus]');
+        if(stBtn && i!=null){
+            const r = registry[i];
+            r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+            // Ugyanarra kattintva le is vehető – így nem ragad be egy rossz állomás.
+            r.toborzas.status = r.toborzas.status === stBtn.dataset.tobstatus ? '' : stBtn.dataset.tobstatus;
+            persistExpanded(); renderKetorasList(); return;
+        }
         const ketTaskBtn = e.target.closest('[data-cltask]');
         if(ketTaskBtn){ openClientTaskModal(+ketTaskBtn.dataset.cltask); return; }
         if(e.target.closest('#tobClose')){ ketorasExpandedIdx = null; renderKetorasList(); return; }
@@ -5024,6 +5163,11 @@ function ketCardDetailHtml(i){
         const o = e.target.closest('[data-ketopen]');
         if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; if(ketorasExpandedIdx!=null) cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); }
     });
+    const ketGSel = document.getElementById('ketGroupSel');
+    if(ketGSel){
+        ketGSel.value = ketGroupBy;
+        ketGSel.addEventListener('change', ()=>{ ketGroupBy = ketGSel.value; store.save('sf_ketgroup', ketGroupBy); renderKetorasList(); });
+    }
     // --- Nézetváltó ---
     const ketTog = document.getElementById('ketorasViewTog');
     if(ketTog) ketTog.addEventListener('click', e=>{
@@ -5032,7 +5176,7 @@ function ketCardDetailHtml(i){
         ketorasView = b.dataset.view; store.save('sf_ketview', ketorasView);
         renderKetorasList();
     });
-    // --- Pipeline: húzással átállított kapcsolat-minőség ---
+    // --- Pipeline: húzással átállított felvételi státusz ---
     let ketDragIdx = null;
     if(list){
         list.addEventListener('dragstart', e=>{
@@ -5063,8 +5207,8 @@ function ketCardDetailHtml(i){
             const r = registry[ketDragIdx];
             if(r){
                 r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
-                if(r.toborzas.minoseg !== col.dataset.ketcol){
-                    r.toborzas.minoseg = col.dataset.ketcol;
+                if(ketStatus(r) !== col.dataset.ketcol){
+                    r.toborzas.status = col.dataset.ketcol;
                     store.save('sf_registry', registry); persistReg(ketDragIdx);
                 }
             }
