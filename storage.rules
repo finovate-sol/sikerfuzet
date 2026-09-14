@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// ============================================================================
+//  SIKERFÜZET – FIREBASE STORAGE SZABÁLYOK (célfal képek)
+//
+//  Ez a fájl a forrása az igazságnak, de a Storage NEM innen olvassa:
+//  a Firebase konzolban kell beilleszteni (Build → Storage → Rules → Publish).
+//  Ha még nincs Storage a projektben, egyszer engedélyezni kell:
+//  Build → Storage → Get started.
+//
+//  MIÉRT ENNYIRE EGYSZERŰ?
+//  A Storage szabályai NEM tudnak a Firestore-ból olvasni: nem látják sem az
+//  allowed_users allowlistát, sem a config/access felettes-térképet. Ezért itt
+//  nem lehet ugyanazt a jogosultsági logikát lemásolni, ami a firestore.rules-ban
+//  van. A döntés ezért tudatos:
+//
+//    • ÍRNI és TÖRÖLNI csak a saját mappájába tud valaki (celfal/{saját uid}/…).
+//    • OLVASNI bármelyik bejelentkezett felhasználó tud – így működik a vezetői
+//      "ránézés" is, anélkül hogy a felettes-láncot itt újra le kellene képezni.
+//
+//  A célfal motivációs kép (autó, ház, nyaralás), nem ügyféladat – ezt a
+//  kompromisszumot erre a tartalomra szabtuk. Ha ide valaha érzékeny tartalom
+//  kerülne, ez a szabály kevés lesz hozzá.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Célfal: celfal/{uid}/{fájlnév}
+    match /celfal/{userId}/{fileName} {
+      allow read: if request.auth != null;
+
+      // Feltöltés/felülírás: csak a gazdája, csak kép, legfeljebb 8 MB.
+      // (Az app amúgy is ~200 kB-ra méretezi a képet feltöltés előtt.)
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 8 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      // Törlésnél nincs request.resource, ezért kell külön sor – a fenti
+      // méret/típus feltétel önmagában minden törlést elutasítana.
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Minden más útvonal tiltva.
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

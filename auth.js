@@ -9,6 +9,9 @@ import {
 import {
     initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+    getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
 
 export { isConfigured };
@@ -294,7 +297,7 @@ export async function getEmployees(){
     } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
 }
 
-let app, auth, db;
+let app, auth, db, storage;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -307,8 +310,33 @@ if (isConfigured) {
     // long-pollingot használó módot kényszerítjük ki (kicsit nagyobb
     // késleltetés árán, de nem hasal el csendben az írás/olvasás).
     db = initializeFirestore(app, { experimentalForceLongPolling: true });
+    storage = getStorage(app);
 }
-export { auth, db };
+export { auth, db, storage };
+
+// ===================== CÉLFAL KÉPEK (Firebase Storage) =====================
+// A célfal képei nem férnének el a Firestore-ban (1 MB/dokumentum), ezért a
+// Storage-ba mennek: celfal/{uid}/{fájlnév}. A celok dokumentum csak a
+// letöltési URL-t és a tárolási útvonalat tárolja.
+//
+// FONTOS: a Storage szabályai NEM látják a Firestore-t, tehát ott nem tudjuk
+// leellenőrizni sem az allowlistát, sem a felettes-láncot. Ezért: írni csak a
+// saját mappájába tud valaki, olvasni bármelyik belépett felhasználó – így
+// működik a vezetői "ránézés" is. A célfal motivációs kép, nem ügyféladat.
+export async function uploadCelKep(uid, file){
+    if(!isConfigured || !storage) throw new Error("A Firebase nincs beállítva.");
+    if(!uid) throw new Error("Hiányzik a felhasználó azonosítója.");
+    const ext = (String(file.name||"kep").match(/\.([a-z0-9]{1,5})$/i) || [,"jpg"])[1].toLowerCase();
+    const path = `celfal/${uid}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const r = storageRef(storage, path);
+    await uploadBytes(r, file, { contentType: file.type || "image/jpeg" });
+    return { path, url: await getDownloadURL(r) };
+}
+export async function deleteCelKep(path){
+    if(!isConfigured || !storage || !path) return;
+    try { await deleteObject(storageRef(storage, path)); }
+    catch(e){ console.warn("A célfal-kép törlése sikertelen:", e); }
+}
 
 // --- Segéd: benne van-e az email az allowlistben? ---
 // FONTOS: egy átmeneti hálózati/kapcsolati hiba (pl. a Firestore streamelt

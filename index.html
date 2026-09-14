@@ -1183,6 +1183,27 @@
         .cl-vis h4 { font-size:11px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.06em; margin:0 0 6px; }
         .cl-vis p { margin:0; font-size:13.5px; color:var(--text); line-height:1.6; }
 
+        /* --- célfal --- */
+        .cl-wall { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+        .cl-wall-item { position:relative; margin:0; background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+                        box-shadow:var(--shadow); overflow:hidden; }
+        .cl-wall-item img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:#eef1f5; }
+        .cl-wall-item figcaption { padding:7px 9px; }
+        .cl-wall-item input { width:100%; border:1px solid transparent; border-radius:7px; padding:4px 6px; background:transparent;
+                              font-family:inherit; font-size:12.5px; font-weight:600; color:var(--text); outline:none; box-sizing:border-box; }
+        .cl-wall-item:hover input { border-color:#e4eaf2; background:#fbfcfe; }
+        .cl-wall-item input:focus { border-color:var(--blue); background:#fff; }
+        .cl-wall-del { position:absolute; top:7px; right:7px; width:26px; height:26px; border:none; border-radius:50%; cursor:pointer;
+                       background:rgba(15,32,60,.55); color:#fff; font-size:15px; line-height:26px; padding:0; opacity:0; transition:opacity .15s; }
+        .cl-wall-item:hover .cl-wall-del { opacity:1; }
+        .cl-wall-del:hover { background:var(--red); }
+        .cl-wall-add { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; min-height:150px; cursor:pointer;
+                       border:2px dashed var(--border); border-radius:var(--radius); color:var(--muted); font-size:12.5px; font-weight:700;
+                       background:var(--card); text-align:center; padding:12px; }
+        .cl-wall-add:hover { border-color:var(--blue); color:var(--blue); }
+        .cl-wall-add svg { width:22px; height:22px; }
+        .cl-wall-add.busy { opacity:.6; cursor:progress; }
+
         /* --- szűrő --- */
         .cl-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
         .cl-filter button { border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:12.5px; font-weight:600; font-family:inherit; padding:6px 13px; border-radius:20px; cursor:pointer; }
@@ -5302,7 +5323,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok } from "./auth.js?v=5";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep } from "./auth.js?v=6";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -8626,7 +8647,7 @@ window.sfOnViewSwitch = function(){
     };
 
     // ---- állapot ----
-    let clData = { vizio:{}, goals:[], life:{} };
+    let clData = { vizio:{}, goals:[], life:{}, celfal:[] };
     let clLive = null;
     let clFilter = 'mind';
     let clEditId = null;      // épp szerkesztett cél azonosítója ('uj' = új cél űrlap)
@@ -8894,6 +8915,20 @@ window.sfOnViewSwitch = function(){
             <textarea data-clvis="${k}" rows="3" placeholder="Hol tartok, mit csinálok, hogy élek?">${escM((clData.vizio||{})[k]||'')}</textarea>
         </div>`).join('')}</div>
 
+        <div class="cl-h3">Célfal<span class="n">amit magad előtt akarsz látni · ${clWall().length} kép</span></div>
+        <div class="cl-wall">
+            ${clWall().map(k => `<figure class="cl-wall-item">
+                <img src="${escM(k.url)}" alt="${escM(k.caption||'Célfal kép')}" loading="lazy">
+                <figcaption><input data-clwallcap="${escM(k.id)}" value="${escM(k.caption||'')}" placeholder="Mi ez? (pl. Porsche 2028)"></figcaption>
+                <button class="cl-wall-del" data-clwalldel="${escM(k.id)}" title="Kép törlése">×</button>
+            </figure>`).join('')}
+            <label class="cl-wall-add" id="clWallAdd">
+                <input type="file" accept="image/*" hidden id="clWallFile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg>
+                <span id="clWallAddLbl">Kép hozzáadása</span>
+            </label>
+        </div>
+
         <div class="cl-h3">Célok<span class="n">${clDateLabel(new Date().toISOString().substring(0,10))} · az év ${yearPct}%-a eltelt</span></div>
         <div class="cl-filter">
             ${fb('mind','Mind',goals.length)}${fb('csapat','Csapat',n('csapat'))}${fb('szemelyes','Személyes',n('szemelyes'))}${fb('magan','Magán',n('magan'))}
@@ -8907,6 +8942,62 @@ window.sfOnViewSwitch = function(){
             ${lifeRows}
             <p class="cl-life-foot">Negyedévente egyszer, 1–10-ig. Nem verseny – arra jó, hogy lásd, mi csúszik el, miközben a számok nőnek.</p>
         </div>`;
+    }
+
+    // ---- célfal ----
+    function clWall(){ return Array.isArray(clData.celfal) ? clData.celfal : []; }
+    // A böngészőben méretezzük át, mielőtt feltöltenénk: egy telefonos fotó
+    // 4-6 MB, így ~200 kB lesz belőle. Gyorsabb betölteni, és a tárhelyet sem
+    // eszi meg 20 kép.
+    function clShrinkImage(file, maxPx){
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+                // Ha már eleve kicsi és nem is HEIC/PNG-óriás, hagyjuk békén.
+                if(scale === 1 && file.size < 400*1024){ resolve(file); return; }
+                const c = document.createElement('canvas');
+                c.width = Math.round(img.width * scale);
+                c.height = Math.round(img.height * scale);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                c.toBlob(b => {
+                    if(!b){ resolve(file); return; }
+                    resolve(new File([b], (file.name||'kep').replace(/\.[^.]+$/,'') + '.jpg', { type:'image/jpeg' }));
+                }, 'image/jpeg', 0.82);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('A fájl nem kép, vagy nem olvasható.')); };
+            img.src = url;
+        });
+    }
+    async function clAddWallImage(file){
+        const uid = clUid();
+        if(!isConfigured || uid === 'local'){ alert('A képfeltöltéshez be kell lépni.'); return; }
+        const lbl = document.getElementById('clWallAddLbl');
+        const box = document.getElementById('clWallAdd');
+        if(box) box.classList.add('busy');
+        if(lbl) lbl.textContent = 'Feltöltés…';
+        try {
+            const small = await clShrinkImage(file, 1400);
+            const { path, url } = await uploadCelKep(uid, small);
+            clData.celfal = clWall().concat([{ id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), url, path, caption:'' }]);
+            clPersist(true);
+            clRender();
+        } catch(e){
+            alert('Nem sikerült feltölteni a képet: ' + (e.message || e)
+                + '\n\nHa most először próbálod: a Firebase konzolban engedélyezni kell a Storage-ot.');
+            if(box) box.classList.remove('busy');
+            if(lbl) lbl.textContent = 'Kép hozzáadása';
+        }
+    }
+    async function clDeleteWallImage(id){
+        const k = clWall().find(x => x.id === id);
+        if(!k || !confirm('Törlöd ezt a képet a célfalról?')) return;
+        clData.celfal = clWall().filter(x => x.id !== id);
+        clPersist(true);
+        clRender();
+        if(k.path) deleteCelKep(k.path);
     }
 
     // ---- mentés ----
@@ -8938,6 +9029,20 @@ window.sfOnViewSwitch = function(){
         const body = document.getElementById('celokBody'); if(!body) return;
         const q = sel => [...body.querySelectorAll(sel)];
 
+        const wf = document.getElementById('clWallFile');
+        if(wf) wf.addEventListener('change', e => {
+            const f = e.target.files && e.target.files[0];
+            if(f) clAddWallImage(f);
+            e.target.value = '';
+        });
+        q('[data-clwalldel]').forEach(b => b.addEventListener('click', e => {
+            e.preventDefault(); e.stopPropagation();
+            clDeleteWallImage(b.dataset.clwalldel);
+        }));
+        q('[data-clwallcap]').forEach(inp => inp.addEventListener('input', () => {
+            const k = clWall().find(x => x.id === inp.dataset.clwallcap);
+            if(k){ k.caption = inp.value; clPersist(); }
+        }));
         q('[data-clfilter]').forEach(b => b.addEventListener('click', () => { clFilter = b.dataset.clfilter; clEditId = null; clRender(); }));
         const nb = document.getElementById('clNew');
         if(nb) nb.addEventListener('click', () => {
@@ -9059,8 +9164,9 @@ window.sfOnViewSwitch = function(){
         ]);
         // Közben átválthattak másik munkatársra – az elavult válasz ne írja felül.
         if(clUid() !== uid) return;
-        clData = Object.assign({ vizio:{}, goals:[], life:{} }, remote || {});
+        clData = Object.assign({ vizio:{}, goals:[], life:{}, celfal:[] }, remote || {});
         clData.goals = Array.isArray(clData.goals) ? clData.goals : [];
+        clData.celfal = Array.isArray(clData.celfal) ? clData.celfal : [];
         clAkciok = akciok || [];
         clLoadedUid = uid;
         clEditId = null;
