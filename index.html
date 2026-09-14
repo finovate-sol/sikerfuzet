@@ -232,6 +232,7 @@
         .status-sel.status-gray { background-color:#eef1f5; color:#5b6472; border-color:#dde2e9; }
         .status-sel.status-amber { background-color:#fef3e2; color:#b45309; border-color:#f6dcae; }
         .status-sel.status-purple { background-color:#efeafe; color:#6d28d9; border-color:#dcd0fb; }
+        .status-sel.status-teal { background-color:#e2f5f2; color:#0f766e; border-color:#b8e6df; }
         /* Státusz "pill": a szín azonnal mutatja, hol tart az ügyfél. A színváltozatok
            specifikusabbak (2 osztály), ezért a színt ők döntik el, a formát ez. */
         .status-sel { width:100%; box-sizing:border-box; appearance:none; border:1px solid #dde2e9; border-radius:20px; padding:7px 28px 7px 12px; font-size:12px; font-weight:700; font-family:inherit; color:#5b6472; background-color:#eef1f5; outline:none; cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a90' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; background-size:13px; }
@@ -396,6 +397,10 @@
         .kt-summary { border:1px solid var(--border); border-radius:10px; padding:12px; }
         .kt-status-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; margin-bottom:8px; }
         .kt-status-badge.done { background:#d1fae5; color:#065f46; }
+        .kt-status-badge.skip { background:#eef1f5; color:#5b6472; }
+        .kt-skip-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .kt-skip-row .kt-status-badge { margin-bottom:0; }
+        .kt-skip-undo { background:none; border:none; padding:0; font-family:inherit; font-size:12.5px; color:var(--blue); cursor:pointer; text-decoration:underline; }
         .kt-summary-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px 14px; }
         @media (max-width:560px){ .kt-summary-grid { grid-template-columns:1fr; } }
         .kt-summary-grid label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:2px; }
@@ -844,6 +849,13 @@
            erősebb elválasztó vonal pedig a kategória-határt jelzi. */
         table.eves .ev-alt { background:rgba(31,95,208,.05); }
         table.eves th.ev-sh-e, table.eves td.ev-td-e, table.eves th.ev-grp { border-right:2px solid #ccd6e6; }
+        /* Eltérés a tervhez képest: az "Elért" mező mellett, apró jelzésként.
+           Nem külön oszlop – 7 kategória × 3 oszlop már olvashatatlanul széles. */
+        table.eves .ev-e-wrap { display:flex; align-items:center; justify-content:center; gap:4px; }
+        table.eves .ev-diff { font-size:10.5px; font-weight:800; min-width:24px; text-align:left; white-space:nowrap; }
+        table.eves .ev-diff.pos { color:var(--green); }
+        table.eves .ev-diff.warn { color:var(--amber); }
+        table.eves .ev-diff.neg { color:var(--red); }
 
         /* ===== KI LESZ A KÖVETKEZŐ ===== */
         .kov-meta { display:flex; gap:12px; flex-wrap:wrap; }
@@ -1545,9 +1557,13 @@
 
         /* ===== HETI NAPTÁR (valós Google Calendar) ===== */
         .wk-head { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
-        .wk-head .h { padding:10px 4px; text-align:center; font-size:12px; color:var(--muted); font-weight:600; }
-        .wk-head .h .num { display:block; font-size:16px; color:var(--text); font-weight:700; margin-top:2px; }
-        .wk-head .h.today .num { background:var(--blue); color:#fff; width:26px; height:26px; line-height:26px; border-radius:50%; margin:2px auto 0; }
+        /* A nap neve és száma egy sorban ("H 15") – így alacsonyabb a fejléc,
+           és több hely marad a rácsnak. */
+        .wk-head .h { padding:8px 4px; font-size:12px; color:var(--muted); font-weight:600;
+                      display:flex; align-items:center; justify-content:center; gap:5px; }
+        .wk-head .h .num { font-size:16px; color:var(--text); font-weight:700; }
+        .wk-head .h.today .num { background:var(--blue); color:#fff; min-width:26px; height:26px; line-height:26px;
+                                 border-radius:13px; padding:0 5px; text-align:center; box-sizing:border-box; }
         .wk-allday { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
         .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
         .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
@@ -1639,6 +1655,12 @@
         .modal-overlay { position:fixed; inset:0; background:rgba(10,37,71,.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
         .modal { background:#fff; border-radius:14px; width:100%; max-width:430px; box-shadow:0 20px 50px rgba(10,37,71,.35); overflow:hidden; }
         .modal-head { padding:18px 22px; border-bottom:1px solid var(--border); font-size:17px; font-weight:700; color:var(--navy); }
+        /* "Kiértékelő telefon szükséges?" – a nemleges válasz a kérdés mellett,
+           a bal felső sarokban, hogy ne a Mégse legyen az egyetlen kiút. */
+        .modal-head.with-no { display:flex; align-items:center; gap:12px; padding:14px 18px; }
+        .modal-no { flex:none; padding:7px 15px; border:1px solid var(--border); border-radius:999px; background:var(--card);
+                    font-family:inherit; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; }
+        .modal-no:hover { border-color:#f6c9c5; background:#fdeaea; color:#b42318; }
         .modal-body { padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
         .modal-body label { font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:5px; }
         .modal-body input, .modal-body select, .modal-body textarea { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--text); outline:none; background:#fff; box-sizing:border-box; }
@@ -2555,6 +2577,10 @@ window.sfSetRegistry = function(list){
     // (amelyeknek van _localKey-jük, de még nincs id-jük).
     const pending = registry.filter(r => r._localKey && !r.id);
     registry = (list || []).concat(pending);
+    // Régi státuszértékek átírása memóriában (Elemzés folyamatban → Elemzés,
+    // Lezárt → Lezárt – Ügyfél). Nem írunk vissza a Firestore-ba: a rekord a
+    // következő szerkesztésénél magától az új értékkel mentődik.
+    registry.forEach(r => { if(r) r.status = regStatusNorm(r.status); });
     store.save('sf_registry', registry);
     renderRegistry();
     refreshMoneyCareer();
@@ -2994,6 +3020,22 @@ const HAVI_ICONS = [
     '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3 3-5 6-5"/><path d="M18 8v6M15 11h6"/>'
 ];
 let haviCurWeek = 0;
+// A "Lezárt ÜF" oszlop (HAVI_METRICS 5.) magától számolható: hány ügyfelem
+// került "Lezárt – Ügyfél" státuszba az adott héten. A lezárás dátuma a
+// rekord lezartAt mezője, amit a státuszváltás tesz rá – ezért csak a
+// 2026-09 utáni lezárásokra van adat, a régiekre nincs mihez nyúlni.
+const HAVI_LEZART_IDX = 5;
+function haviLezartCount(weekStart){
+    const from = new Date(weekStart); from.setHours(0,0,0,0);
+    const to = new Date(from); to.setDate(to.getDate()+7);
+    const uid = (window.sfViewedUid) || (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
+    return registry.filter(r => {
+        if(!r || r.status !== 'Lezárt – Ügyfél' || !r.lezartAt) return false;
+        if(uid && r.ownerUid && r.ownerUid !== uid) return false;
+        const d = new Date(r.lezartAt);
+        return !isNaN(d) && d >= from && d < to;
+    }).length;
+}
 function haviCurWeekIndex(){
     const ft=firstTuesday(haviAnchor.getFullYear(), haviAnchor.getMonth());
     const today=new Date(); today.setHours(0,0,0,0);
@@ -3006,6 +3048,8 @@ function renderHaviBody(){
     document.getElementById('haviMonthLabel').textContent=`${haviAnchor.getFullYear()}. ${HU_MONTHS_FULL[haviAnchor.getMonth()]}`;
     const ranges=haviWeekRanges(haviAnchor);
     haviWeekCount = ranges.length;
+    const haviFt = firstTuesday(haviAnchor.getFullYear(), haviAnchor.getMonth());
+    const weekStartOf = w => { const d = new Date(haviFt); d.setDate(d.getDate()+w*7); return d; };
     const cwIdx = haviCurWeekIndex();
     haviCurWeek = cwIdx===null ? 0 : cwIdx;
 
@@ -3038,7 +3082,13 @@ function renderHaviBody(){
         </div>`;
         wk+=`<div class="havi-table-wrap"><table class="havi"><thead>${thRow}</thead><tbody>`
             +`<tr><td class="hlblcol">Cél</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(haviData.weeks[w].cel[i])}"></td>`).join('')+`</tr>`
-            +`<tr><td class="hlblcol">Van</td>`+HAVI_METRICS.map((m,i)=>`<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"></td>`).join('')+`</tr>`
+            +`<tr><td class="hlblcol">Van</td>`+HAVI_METRICS.map((m,i)=>{
+                // A lezárt ügyfelek számát nem írjuk felül, csak felkínáljuk:
+                // üres mezőben halványan ott a számolt érték, egy kattintás beírja.
+                const auto = i === HAVI_LEZART_IDX ? haviLezartCount(weekStartOf(w)) : 0;
+                const hint = auto ? ` placeholder="${auto}" title="Az ügyféllistád szerint ezen a héten ${auto} ügyfél lett lezárva – kattints a mezőbe és nyomj Entert a beírásához." data-hauto="${auto}"` : '';
+                return `<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(haviData.weeks[w].van[i])}"${hint}></td>`;
+            }).join('')+`</tr>`
             +`<tr class="hdiffrow"><td class="hlblcol">Diff +/-</td>`+HAVI_METRICS.map((m,i)=>`<td><span class="havi-diff" id="hdiff-${w}-${i}"></span></td>`).join('')+`</tr>`
             +`</tbody></table></div></div>`;
     }
@@ -3143,6 +3193,16 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(t.dataset.hw!==undefined){ haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm]=t.value; saveHavi(); recomputeHavi(); updateHaviEgysegCard(); renderPlan(); return; }
     if(t.dataset.cl!==undefined){ haviData.clients[+t.dataset.cl][t.dataset.clf]=t.value; saveHavi(); recomputeHaviClients(); return; }
 });
+// Üres "Lezárt ÜF" mezőben Enter → a számolt érték beírása. Szándékos, hogy
+// kézzel kell megerősíteni: a hét közben még változhat, és a füzet a tiéd.
+document.getElementById('haviBody').addEventListener('keydown', e=>{
+    const t=e.target;
+    if(e.key!=='Enter' || t.dataset.hauto===undefined || t.value.trim()!=='') return;
+    e.preventDefault();
+    t.value = t.dataset.hauto;
+    haviData.weeks[+t.dataset.hw][t.dataset.hrow][+t.dataset.hm] = t.value;
+    saveHavi(); recomputeHavi(); updateHaviEgysegCard(); renderPlan();
+});
 document.getElementById('haviBody').addEventListener('click', e=>{
     const formToggle=e.target.closest('[data-hform-toggle]');
     if(formToggle){ formToggle.closest('.havi-formcard').classList.toggle('collapsed'); return; }
@@ -3204,8 +3264,8 @@ function renderEvesBody(){
     const altCls = gi => gi%2 ? ' ev-alt' : '';
     let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map((g,gi)=>`<th colspan="2" class="ev-grp${altCls(gi)}" style="--gc:${g.color};"><span class="ev-grp-in"><span class="ev-grp-ic">${evIc(g.icon,g.color)}</span>${g.label}</span></th>`).join('') + `</tr>`;
     let h2 = `<tr>` + EVES_GROUPS.map((g,gi)=>`<th class="ev-sh ev-sh-t${altCls(gi)}" style="--gc:${g.color};">Terv</th><th class="ev-sh ev-sh-e${altCls(gi)}" style="--gc:${g.color};">Elért</th>`).join('') + `</tr>`;
-    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
-    const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span id="${id}-e"></span></td>`;
+    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><span class="ev-e-wrap"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"><span class="ev-diff" id="evd-${m}-${g}"></span></span></td>`;
+    const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span class="ev-e-wrap"><span id="${id}-e"></span><span class="ev-diff" id="${id}-d"></span></span></td>`;
     let rows='';
     EVES_QUARTERS.forEach((q,qi)=>{
         q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map((g,gi)=>cell(m,g.key,gi)).join('')+`</tr>`; });
@@ -3237,9 +3297,28 @@ async function refreshEvesFromCloud(){
         renderEvesBody();
     } catch(e){ console.warn('Éves terv frissítése a felhőből sikertelen:', e); }
 }
+// Teljesítés-szín: zöld a terv felett, sárga a 80%-án belül, piros az alatt.
+// Terv nélkül (0) nincs mihez viszonyítani – nincs se szín, se eltérés.
+function evesDiffClass(terv, elert){
+    if(!(terv>0)) return '';
+    const ratio = elert/terv;
+    return ratio>=1 ? 'pos' : ratio>=0.8 ? 'warn' : 'neg';
+}
+function evesSetDiff(el, terv, elert){
+    if(!el) return;
+    const cls = evesDiffClass(terv, elert);
+    const d = elert - terv;
+    el.className = 'ev-diff' + (cls ? ' '+cls : '');
+    el.textContent = (terv>0 || elert>0) ? (d>0?'+':d<0?'−':'±') + Math.abs(d) : '';
+}
 function recomputeEves(){
     EVES_GROUPS.forEach(g=>{
         let totT=0, totE=0;
+        // Havi eltérés: a tervhez képest mennyi jött össze abban a hónapban.
+        for(let m=0;m<12;m++){
+            const mt=haviNum(evesData.months[m][g.key].t), me=haviNum(evesData.months[m][g.key].e);
+            evesSetDiff(document.getElementById(`evd-${m}-${g.key}`), mt, me);
+        }
         EVES_QUARTERS.forEach((q,qi)=>{
             let qt=0, qe=0;
             q.forEach(m=>{ qt+=haviNum(evesData.months[m][g.key].t); qe+=haviNum(evesData.months[m][g.key].e); });
@@ -3248,21 +3327,20 @@ function recomputeEves(){
             const ee=document.getElementById(`evq-${qi}-${g.key}-e`);
             if(ee){
                 ee.textContent=qe;
-                // Negyedéves teljesítés jelzése: zöld, ha elérte/túlteljesítette a
-                // negyedéves tervet, sárga a terv 80%-án belül, piros az alatt.
-                // Terv nélkül (0) nincs mihez viszonyítani, nincs jelzés.
-                if(qt>0){
-                    const ratio=qe/qt;
-                    ee.style.color = ratio>=1 ? 'var(--green)' : ratio>=0.8 ? 'var(--amber)' : 'var(--red)';
-                    ee.style.fontWeight = '800';
-                } else {
-                    ee.style.color = '';
-                    ee.style.fontWeight = '';
-                }
+                const cls=evesDiffClass(qt,qe);
+                ee.style.color = cls==='pos' ? 'var(--green)' : cls==='warn' ? 'var(--amber)' : cls==='neg' ? 'var(--red)' : '';
+                ee.style.fontWeight = cls ? '800' : '';
             }
+            evesSetDiff(document.getElementById(`evq-${qi}-${g.key}-d`), qt, qe);
         });
         const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT;
-        const te=document.getElementById(`evtot-${g.key}-e`); if(te) te.textContent=totE;
+        const te=document.getElementById(`evtot-${g.key}-e`);
+        if(te){
+            te.textContent=totE;
+            const cls=evesDiffClass(totT,totE);
+            te.style.color = cls==='pos' ? 'var(--green)' : cls==='warn' ? 'var(--amber)' : cls==='neg' ? 'var(--red)' : '';
+        }
+        evesSetDiff(document.getElementById(`evtot-${g.key}-d`), totT, totE);
     });
 }
 document.getElementById('evesBody').addEventListener('input', e=>{
@@ -3751,17 +3829,38 @@ const REG_FIELDS = [
     {key:'ajanlasok', label:'Adott ajánlás', type:'text'},
 ];
 const REG_STATUS = [
-    ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés folyamatban','Tanácsadás']],
-    ['Lezárt', ['Lezárt','Inaktív']],
+    ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés','Tanácsadás']],
+    ['Lezárt', ['Lezárt – Ügyfél','Lezárt – Nem ügyfél','Inaktív']],
 ];
 const REG_STATUS_COLOR = {
     'Új':'gray', 'Telefonra Vár':'green', 'Időpont egyeztetve':'blue',
-    'Elemzés folyamatban':'amber', 'Tanácsadás':'purple', 'Lezárt':'red', 'Inaktív':'gray'
+    'Elemzés':'amber', 'Tanácsadás':'purple',
+    'Lezárt – Ügyfél':'teal', 'Lezárt – Nem ügyfél':'red', 'Inaktív':'gray'
 };
+// Régi (2026-09 előtti) státuszértékek. A sima "Lezárt"-ból nem derül ki, lett-e
+// ügyfél, ezért kiment a listából – a meglévő adatot a beszélgetés szerint
+// ügyfélnek vesszük. A normalizálás betöltéskor fut, így a következő mentéssel
+// magától átíródik; ez a tábla csak az átállás idejére kell.
+const REG_STATUS_LEGACY = { 'Elemzés folyamatban':'Elemzés', 'Lezárt':'Lezárt – Ügyfél' };
+function regStatusNorm(s){ const v = String(s||''); return REG_STATUS_LEGACY[v] || v; }
+const regIsClosed = s => String(s||'').indexOf('Lezárt') === 0;
+// Ügyféllé zárás időpontja. Ebből számolja a Havi terv a "Lezárt ÜF" sort –
+// enélkül nem tudnánk, melyik hétre esett a lezárás. Csak az "Ügyfél" ágat
+// bélyegezzük: a "Nem ügyfél" nem számít teljesítménynek.
+function regSetStatus(r, val){
+    if(!r) return;
+    const was = r.status;
+    r.status = val;
+    if(val === 'Lezárt – Ügyfél'){ if(!r.lezartAt) r.lezartAt = new Date().toISOString(); }
+    else if(was === 'Lezárt – Ügyfél') r.lezartAt = '';
+}
 function regStatusSelect(i, val){
     const cls = REG_STATUS_COLOR[val] ? ' status-'+REG_STATUS_COLOR[val] : '';
     let opts = `<option value="">—</option>`;
     REG_STATUS.forEach(([g,items])=>{ opts += `<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}"${val===s?' selected':''}>${esc(s)}</option>`).join('')+`</optgroup>`; });
+    // Ismeretlen (régi vagy kézzel írt) érték se vesszen el a legördülőből.
+    if(val && !REG_STATUS.some(([,items]) => items.includes(val)))
+        opts += `<option value="${esc(val)}" selected>${esc(val)}</option>`;
     return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status">${opts}</select>`;
 }
 function regValueControl(fieldKey){
@@ -4014,7 +4113,7 @@ function regDetailHtml(i){
             <div class="rd-sec"><span class="rd-sec-ic">${targetIc}</span>Elemzés / Célok</div>
             ${rdCelokFields(r)}
         </div>
-        ${kiertekeloSummaryHtml(r.kiertekelo)}
+        ${kiertekeloSummaryHtml(r.kiertekelo, i)}
         ${kezeloHistoryHtml(r.kezeloHistory)}
         <div class="modal-foot"><button class="btn primary" id="rdClose">Mentés</button></div>
     </div>`;
@@ -4106,7 +4205,7 @@ function regCardDetailHtml(i){
     let pane;
     if(regDetailTab === 'celok') pane = rdCelokFields(r);
     else if(regDetailTab === 'jegyzetek') pane = cliNotesHtml(i, 'reg');
-    else if(regDetailTab === 'kiertekelo') pane = kiertekeloSummaryHtml(r.kiertekelo) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>';
+    else if(regDetailTab === 'kiertekelo') pane = kiertekeloSummaryHtml(r.kiertekelo, i) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>';
     else if(regDetailTab === 'elozmenyek') pane = kezeloHistoryHtml(r.kezeloHistory) || '<div class="rc-pane-empty">Még nincs kezelő-váltás.</div>';
     else pane = rdAdatokFields(r, i);
     const kv = (label, val) => `<div class="rc-kv"><span>${label}</span><b>${esc(val || '—')}</b></div>`;
@@ -4142,11 +4241,17 @@ const REG_PIPE_COLS = [
     { key:'Új',                  label:'Új',            color:'#94a3b8' },
     { key:'Telefonra Vár',       label:'Telefonra vár', color:'#16a34a' },
     { key:'Időpont egyeztetve',  label:'Időpont',       color:'#2563eb' },
-    { key:'Elemzés folyamatban', label:'Elemzés',       color:'#d97706' },
+    { key:'Elemzés',             label:'Elemzés',       color:'#d97706' },
     { key:'Tanácsadás',          label:'Tanácsadás',    color:'#7c3aed' },
 ];
-const REG_PIPE_CLOSED = { key:'Lezárt', label:'Lezárt · Inaktív', color:'#dc2626' };
-const STATUS_DOT = { gray:'#94a3b8', green:'#16a34a', blue:'#2563eb', amber:'#d97706', purple:'#7c3aed', red:'#dc2626' };
+// A lezárt oldal: külön oszlop annak, akiből ügyfél lett, és annak, akiből nem.
+// A KPI-sáv csak a folyamatban lévő oszlopokat számolja, ezért maradnak külön.
+const REG_PIPE_CLOSED = [
+    { key:'Lezárt – Ügyfél',     label:'Ügyfél',        color:'#0d9488' },
+    { key:'Lezárt – Nem ügyfél', label:'Nem ügyfél',    color:'#dc2626' },
+    { key:'Inaktív',             label:'Inaktív',       color:'#94a3b8' },
+];
+const STATUS_DOT = { gray:'#94a3b8', green:'#16a34a', blue:'#2563eb', amber:'#d97706', purple:'#7c3aed', red:'#dc2626', teal:'#0d9488' };
 const PIPE_IC = {
     phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>',
     pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -4156,8 +4261,9 @@ const PIPE_IC = {
 function ajanlasNum(r){ const n = parseFloat(String(r && r.ajanlasok || '').replace(',','.')); return isNaN(n) || n <= 0 ? 0 : n; }
 // A státusz nélküli (frissen felvitt) ügyfél az "Új" oszlopba kerül.
 function regPipeCol(status){
-    if(status === 'Lezárt' || status === 'Inaktív') return 'Lezárt';
-    return REG_PIPE_COLS.some(c => c.key === status) ? status : 'Új';
+    const st = regStatusNorm(status);
+    if(REG_PIPE_CLOSED.some(c => c.key === st)) return st;
+    return REG_PIPE_COLS.some(c => c.key === st) ? st : 'Új';
 }
 function regPipeCardHtml(r, i){
     const hasName = !!(r.name && r.name.trim());
@@ -4186,7 +4292,7 @@ function regPipeCardHtml(r, i){
 function renderRegPipeline(matched){
     const host = document.getElementById('regPipeline');
     if(!host) return;
-    const cols = REG_PIPE_COLS.concat([REG_PIPE_CLOSED]);
+    const cols = REG_PIPE_COLS.concat(REG_PIPE_CLOSED);
     const buckets = {}; cols.forEach(c => buckets[c.key] = []);
     matched.forEach(o => buckets[regPipeCol(o.r.status)].push(o));
     const refTotal = matched.reduce((s,o)=>s+ajanlasNum(o.r), 0);
@@ -4222,8 +4328,15 @@ function regDrawerHtml(matched){
 
 // A vezető által a Kiértékelő telefon oldalon adott állapot/visszajelzés
 // megjelenítése az ügyfél adatlapján (a munkatársnál).
-function kiertekeloSummaryHtml(k){
+function kiertekeloSummaryHtml(k, i){
     if(!k) return '';
+    // "Nem szükséges": az ügyfél fent van a portálon, de kiértékelő telefon nem
+    // kell. Egy kattintással visszavonható, ezért nem véglegesítjük semmivel.
+    if(k.status === 'nem_kell') return `<div class="rd-sec">Kiértékelő telefon</div>
+        <div class="kt-summary kt-skip-row">
+            <span class="kt-status-badge skip">Nem szükséges</span>
+            <button class="kt-skip-undo" data-ktundo="${i == null ? '' : i}">Mégis kell</button>
+        </div>`;
     const isDone = k.status === 'elvegezve';
     const er = k.eredmeny || {};
     const hasEr = !!(er.pont || er.tema || er.osszeg);
@@ -4281,7 +4394,10 @@ function openKiertekeloModal(idx, checkboxEl){
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
         <div class="modal" role="dialog" aria-modal="true">
-            <div class="modal-head">Kiértékelő telefon szükséges?</div>
+            <div class="modal-head with-no">
+                <button type="button" class="modal-no" id="ktSkip" title="Nem kell kiértékelő telefon ehhez az ügyfélhez">Nem</button>
+                <span>Kiértékelő telefon szükséges?</span>
+            </div>
             <div class="modal-body">
                 <div><label for="ktName">Ügyfél név <span class="req">*</span></label><input id="ktName" type="text" value="${esc(k.name||r.name||'')}"></div>
                 <div><label for="ktContact">Elérhetőség <span class="req">*</span></label><input id="ktContact" type="text" value="${esc(k.contact||r.phone||'')}"></div>
@@ -4305,6 +4421,16 @@ function openKiertekeloModal(idx, checkboxEl){
     };
     const close = () => overlay.remove();
     overlay.querySelector('#ktCancel').addEventListener('click', () => { revertCheckbox(); close(); });
+    // "Nem": az ügyfél fent van a portálon, de kiértékelő telefon nem kell
+    // (már ügyfél, más vitte, stb.). A pipa marad, a kérés nem megy ki a
+    // vezetőnek, és az adatlapon egy kattintással visszavonható.
+    overlay.querySelector('#ktSkip').addEventListener('click', () => {
+        r.kiertekelo = { status: 'nem_kell', advisor:'', topic:'', amount:'', feedback:'' };
+        store.save('sf_registry', registry);
+        persistReg(idx);
+        close();
+        renderRegistry();
+    });
     overlay.addEventListener('click', e => { if(e.target===overlay){ revertCheckbox(); close(); } });
     overlay.querySelector('#ktSave').addEventListener('click', () => {
         const name = overlay.querySelector('#ktName').value.trim();
@@ -4375,7 +4501,11 @@ function openKiertekeloModal(idx, checkboxEl){
             }
             store.save('sf_registry', registry); renderRegistry(); persistReg(idx);
         }
-        else if(t.tagName==='SELECT'){ registry[idx][t.dataset.rf]=t.value; store.save('sf_registry', registry); renderRegistry(); persistReg(idx); }
+        else if(t.tagName==='SELECT'){
+            if(t.dataset.rf === 'status') regSetStatus(registry[idx], t.value);
+            else registry[idx][t.dataset.rf]=t.value;
+            store.save('sf_registry', registry); renderRegistry(); persistReg(idx);
+        }
     });
     const searchEl = document.getElementById('regSearch');
     if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
@@ -4390,6 +4520,15 @@ function openKiertekeloModal(idx, checkboxEl){
             const idx=+d.dataset.rdel, r=registry[idx];
             if(r && r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
             registry.splice(idx,1); store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); return;
+        }
+        // "Mégis kell" a Kiértékelő fülön: visszaáll a normál adatlapra, és a
+        // "Portálon fent" bepipálásakor újra feljön a kérdés.
+        const ktUndo = e.target.closest('[data-ktundo]');
+        if(ktUndo){
+            const idx = +ktUndo.dataset.ktundo;
+            const r = registry[idx];
+            if(r){ delete r.kiertekelo; r.portal = false; store.save('sf_registry', registry); persistReg(idx); renderRegistry(); }
+            return;
         }
         // "Kész" gomb a kinyitott adatlapon belül → csak összecsukja a sort.
         if(e.target.closest('#rdClose')){ regExpandedIdx = null; renderRegistry(); refreshMoneyCareer(); return; }
@@ -4460,10 +4599,10 @@ function openKiertekeloModal(idx, checkboxEl){
         e.preventDefault();
         const r = registry[dragIdx];
         const target = col.dataset.pipecol;
-        // A gyűjtő "Lezárt · Inaktív" oszlopba ejtve a Lezárt státuszt kapja,
-        // az Inaktív külön a státusz-választóból állítható.
+        // Az oszlop kulcsa maga a státusz – a lezárt oldalon is (Ügyfél /
+        // Nem ügyfél / Inaktív), ezért a húzás közvetlenül átállítja.
         if(r && regPipeCol(r.status) !== target){
-            r.status = target;
+            regSetStatus(r, target);
             store.save('sf_registry', registry); refreshMoneyCareer(); persistReg(dragIdx);
         }
         dragIdx = null;
@@ -5137,7 +5276,7 @@ window.sfOnViewSwitch = function(){
         body.innerHTML = '<div class="card pg-loading">Kiértékelő telefonok betöltése…</div>';
         const list = isConfigured ? await getClients() : store.load("sf_registry", []);
         window.sfAllClients = list;
-        const requests = list.filter(c => c.kiertekelo);
+        const requests = list.filter(c => c.kiertekelo && c.kiertekelo.status !== 'nem_kell');
         requests.sort((a,b) => (a.kiertekelo.status==="elvegezve"?1:0) - (b.kiertekelo.status==="elvegezve"?1:0));
         const rowsHtml = requests.map(c => {
             const k = c.kiertekelo;
@@ -7687,7 +7826,7 @@ window.sfOnViewSwitch = function(){
         const uid = pgOwnUid();
         const clients = (window.sfAllClients || []).filter(c => c.ownerUid === uid);
         const ugyfel = clients.filter(c => !c.mt), mtj = clients.filter(c => c.mt);
-        const aktiv = ugyfel.filter(c => c.status && c.status !== 'Lezárt' && c.status !== 'Elutasított').length;
+        const aktiv = ugyfel.filter(c => c.status && !regIsClosed(c.status) && c.status !== 'Inaktív').length;
         const nextWeek = pgWeekShift(pgCsendesWeek, 1);
         const pgThis = pgRecs.filter(r => r.type==='szemelyes' && r.leaderUid===uid && pgWeekOfDate(r.date)===pgCsendesWeek).length;
         const pgNext = pgRecs.filter(r => r.type==='szemelyes' && r.leaderUid===uid && pgWeekOfDate(r.date)===nextWeek).length;
@@ -8702,12 +8841,12 @@ window.sfOnViewSwitch = function(){
     // Az adat a böngészőből megy egyenesen a Firestore-ba – sehol nem tároljuk el.
     const NOTION_STATUS_MAP = {
         'Telefonra Vár': 'Telefonra Vár',
-        'Folyamatban': 'Elemzés folyamatban',
+        'Folyamatban': 'Elemzés',
         'Függő (Visszatérni)': 'Inaktív',
-        'Befejezve (Ügyfél)': 'Lezárt',
-        'Befejezve (MT)': 'Lezárt',
-        'Befejezve (Nem Ügyfél)': 'Lezárt',
-        'Befejezve (Nem MT)': 'Lezárt',
+        'Befejezve (Ügyfél)': 'Lezárt – Ügyfél',
+        'Befejezve (MT)': 'Lezárt – Ügyfél',
+        'Befejezve (Nem Ügyfél)': 'Lezárt – Nem ügyfél',
+        'Befejezve (Nem MT)': 'Lezárt – Nem ügyfél',
     };
     // RFC 4180 szerinti CSV: idézőjeles mezők, bennük vessző, sortörés és "" escape.
     function parseCsv(text){
@@ -8731,7 +8870,7 @@ window.sfOnViewSwitch = function(){
     const nameKey = v => String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
     // Egy Notion CSV sorból ügyfél-rekord. Ismeretlen oszlopokat figyelmen kívül hagy.
     function notionRowToClient(get){
-        const status = NOTION_STATUS_MAP[String(get('Status')||'').trim()] || '';
+        const status = regStatusNorm(NOTION_STATUS_MAP[String(get('Status')||'').trim()] || '');
         const mt = notionBool(get('MT'));
         const notes = [];
         if(get('E Időpontja')) notes.push('Elemzés időpontja: ' + get('E Időpontja'));
@@ -8796,7 +8935,7 @@ window.sfOnViewSwitch = function(){
         DET_KEYS.forEach(k => { if(s(det[k])) details[k] = s(det[k]); });
         const r = {
             name: s(src.name), phone: s(src.phone), ajanlo: s(src.ajanlo), lakhely: s(src.lakhely),
-            munkatars: s(src.munkatars), status: s(src.status),
+            munkatars: s(src.munkatars), status: regStatusNorm(s(src.status)),
             tp: b(src.tp), mt: b(src.mt), elemzes: b(src.elemzes), tanacsadas: b(src.tanacsadas),
             portal: b(src.portal), ajanlasok: s(src.ajanlasok),
             details, celok: {},
