@@ -3960,6 +3960,14 @@ const REG_QUICK_FLAGS = ['tp','elemzes','portal','tanacsadas'];
 const REG_FUNNEL_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg>';
 const regFieldOf = key => REG_FIELDS.find(x => x.key === key);
 let regChipsOpen = false;
+// A "Mező" sor élő szűrő: gépelés közben azonnal szűkíti a listát, nem kell
+// a "+ Hozzáad". Az csak rögzíti chipként, hogy egy másik mezőre is lehessen.
+let regLive = { field: 'name', value: '' };
+// A ténylegesen érvényes feltételek: a rögzített chipek + az éppen gépelt.
+function regActiveFilters(){
+    const v = (regLive.value || '').trim();
+    return v ? regFilters.concat([{ field: regLive.field, value: v, live: true }]) : regFilters;
+}
 function regFilterIdx(field, value){
     return regFilters.findIndex(f => f.field === field && String(f.value) === String(value));
 }
@@ -3971,7 +3979,7 @@ function regFilterToggle(field, value){
     renderRegFilters(); renderRegistry();
 }
 function regFilterClearAll(){
-    regFilters = []; regSearch = '';
+    regFilters = []; regSearch = ''; regLive.value = '';
     const s = document.getElementById('regSearch'); if(s) s.value = '';
     renderRegFilters(); renderRegistry();
 }
@@ -3987,11 +3995,15 @@ function regFilterLabel(f){
 function renderRegActive(){
     const host = document.getElementById('regActive'); if(!host) return;
     const q = (regSearch || '').trim();
-    host.hidden = !regFilters.length && !q;
+    const live = (regLive.value || '').trim();
+    host.hidden = !regFilters.length && !q && !live;
     if(host.hidden){ host.innerHTML = ''; return; }
     const chips = regFilters.map((f,i)=>`<span class="filter-chip">${esc(regFilterLabel(f))}<button data-fdel="${i}" title="Szűrő törlése">×</button></span>`).join('');
+    const liveChip = live ? `<span class="filter-chip">${esc(regFilterLabel({field:regLive.field, value:live}))}<button data-fldel="1" title="Szűrő törlése">×</button></span>` : '';
     const qChip = q ? `<span class="filter-chip">Keresés: <b>${esc(q)}</b><button data-fqdel="1" title="Keresés törlése">×</button></span>` : '';
-    host.innerHTML = `<span class="lbl">${REG_FUNNEL_IC}Aktív szűrő</span>${chips}${qChip}<button class="clr" data-fclear="1">Mindet törlöm</button>`;
+    host.innerHTML = `<span class="lbl">${REG_FUNNEL_IC}Aktív szűrő</span>${chips}${liveChip}${qChip}<button class="clr" data-fclear="1">Mindet törlöm</button>`;
+    const ld = host.querySelector('[data-fldel]');
+    if(ld) ld.addEventListener('click', ()=>{ regLive.value = ''; renderRegFilters(); renderRegistry(); });
     host.querySelectorAll('[data-fdel]').forEach(b => b.addEventListener('click', ()=>{
         regFilters.splice(+b.dataset.fdel, 1); renderRegFilters(); renderRegistry();
     }));
@@ -4005,13 +4017,14 @@ function renderRegActive(){
 }
 function renderRegFilters(){
     renderRegActive();
+    const nActive = regActiveFilters().length;
     const cntEl = document.getElementById('regFCount');
-    if(cntEl){ if(regFilters.length){ cntEl.textContent = regFilters.length; cntEl.hidden = false; } else cntEl.hidden = true; }
+    if(cntEl){ if(nActive){ cntEl.textContent = nActive; cntEl.hidden = false; } else cntEl.hidden = true; }
     const panel = document.getElementById('regFilterPanel');
     if(panel) panel.hidden = !regChipsOpen;
     // A tölcsér gomb akkor is kiemelt, ha a panel be van csukva, de szűr a lista.
     const tgl = document.getElementById('regFToggle');
-    if(tgl) tgl.classList.toggle('on', regChipsOpen || regFilters.length > 0);
+    if(tgl) tgl.classList.toggle('on', regChipsOpen || nActive > 0);
     const bar = document.getElementById('regFilterBar'); if(!bar) return;
     const statusChips = REG_STATUS.flatMap(([,items]) => items)
         .map(st => `<button class="fbtn${regFilterIdx('status',st)>=0?' on':''}" data-fq="status:${esc(st)}">${esc(st)}</button>`).join('');
@@ -4019,8 +4032,10 @@ function renderRegFilters(){
         const fld = regFieldOf(k);
         return `<button class="fbtn${regFilterIdx(k,'true')>=0?' on':''}" data-fq="${k}:true">${esc(fld?fld.label:k)}</button>`;
     }).join('');
-    const textOpts = REG_FIELDS.filter(f => f.type === 'text')
-        .map(f => `<option value="${f.key}">${f.label}</option>`).join('');
+    const textFields = REG_FIELDS.filter(f => f.type === 'text');
+    if(!textFields.some(f => f.key === regLive.field)) regLive.field = textFields[0].key;
+    const textOpts = textFields
+        .map(f => `<option value="${f.key}"${f.key===regLive.field?' selected':''}>${f.label}</option>`).join('');
     bar.innerHTML = `
         <div class="reg-fsec"><span class="lbl">Státusz</span><div class="chips">${statusChips}</div></div>
         <div class="reg-fsep"></div>
@@ -4028,8 +4043,8 @@ function renderRegFilters(){
         <div class="reg-fsep"></div>
         <div class="reg-fsec"><span class="lbl">Mező</span><div class="chips">
             <select id="regFField">${textOpts}</select>
-            <input id="regFVal" type="text" placeholder="érték">
-            <button class="btn" id="regFAdd">+ Hozzáad</button>
+            <input id="regFVal" type="text" placeholder="gépelj a szűréshez…" value="${esc(regLive.value)}" autocomplete="off">
+            <button class="btn" id="regFAdd" title="Rögzíti chipként, hogy egy másik mezőre is szűrhess">+ Hozzáad</button>
         </div></div>`;
     bar.querySelectorAll('[data-fq]').forEach(b => b.addEventListener('click', ()=>{
         const raw = b.dataset.fq, i = raw.indexOf(':');
@@ -4037,16 +4052,27 @@ function renderRegFilters(){
     }));
     const fieldSel = document.getElementById('regFField');
     const valEl = document.getElementById('regFVal');
-    const addIt = ()=>{ const v = (valEl.value||'').trim(); if(!v) return; valEl.value=''; regFilterToggle(fieldSel.value, v); };
-    document.getElementById('regFAdd').addEventListener('click', addIt);
-    valEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addIt(); } });
+    // Gépelés közben csak a listát és az aktív sávot rajzoljuk újra – a panelt
+    // nem, különben minden leütésnél elveszne a fókusz a mezőből.
+    valEl.addEventListener('input', ()=>{ regLive.value = valEl.value; renderRegActive(); renderRegistry(); });
+    fieldSel.addEventListener('change', ()=>{ regLive.field = fieldSel.value; renderRegActive(); renderRegistry(); });
+    // "+ Hozzáad": az élő feltétel chippé rögzül, a mező kiürül – így egy
+    // másik mezőre is tehető szűrő anélkül, hogy ez elveszne.
+    const pinIt = ()=>{
+        const v = (regLive.value||'').trim(); if(!v) return;
+        const field = regLive.field; regLive.value = '';
+        regFilterToggle(field, v);
+    };
+    document.getElementById('regFAdd').addEventListener('click', pinIt);
+    valEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); pinIt(); } });
+    if(regLive.value){ valEl.focus(); valEl.setSelectionRange(valEl.value.length, valEl.value.length); }
 }
 // Azonos mezőre tett feltételek VAGY kapcsolatban állnak (pl. két státusz),
 // a különböző mezők ÉS kapcsolatban – így a "Telefonra vár VAGY Elemzés"
 // is kilistázható, miközben a TP-szűrő továbbra is szűkít.
 function rowMatchesFilters(r){
     const byField = new Map();
-    regFilters.forEach(f => { if(!byField.has(f.field)) byField.set(f.field, []); byField.get(f.field).push(f); });
+    regActiveFilters().forEach(f => { if(!byField.has(f.field)) byField.set(f.field, []); byField.get(f.field).push(f); });
     for(const [field, list] of byField){
         const fld = regFieldOf(field); if(!fld) continue;
         const ok = list.some(f => {
@@ -4391,7 +4417,7 @@ function renderRegTable(matched){
     const rows = (keyOf
         ? groupedRows(matched, keyOf, order, regGroupClosed, regGroupBy, rowHtml)
         : matched.map(rowHtml).join(''))
-        || `<div class="rc-empty">${(q||regFilters.length)
+        || `<div class="rc-empty">${(q||regActiveFilters().length)
                 ? `Nincs találat a beállított szűrőkre.<div style="margin-top:11px;"><button class="btn" id="regClearFromEmpty">Szűrők és keresés törlése</button></div>`
                 : `Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.${cliEmptyWhy()?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}`}</div>`;
     host.innerHTML = head + `<div class="rc-body">${rows}</div>`;
