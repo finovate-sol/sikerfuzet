@@ -1406,6 +1406,17 @@
         .wk-task-dot.no::after { content:"✕"; position:absolute; inset:0; color:var(--red); font-size:8px; line-height:9px; text-align:center; font-weight:900; }
         .wk-task .wk-ev-head { gap:3px; opacity:.85; }
         .allday-ev.allday-task { background:#fff; color:var(--text); box-shadow:inset 0 0 0 1px #dbe3ee; }
+        /* Google Task a naptárban: szaggatott kerettel elüt a naptáreseménytől,
+           mert nem esemény – nem mozgatható, csak kipipálható. */
+        .allday-ev.allday-gtask { background:#f8fafc; color:#334155; border:1px dashed #b8c2d0; cursor:pointer; font-weight:600; }
+        .allday-ev.allday-gtask:hover { background:#eef2f7; border-color:var(--blue); }
+        .allday-ev.allday-gtask.done { color:#94a3b8; text-decoration:line-through; }
+        .allday-ev.allday-gtask b { font-weight:800; opacity:.75; }
+        .mev.mev-task { background:#f8fafc !important; color:#334155 !important; border:1px dashed #b8c2d0; cursor:pointer; }
+        .mev.mev-task.done { color:#94a3b8 !important; text-decoration:line-through; }
+        .ag-item.ag-task { cursor:pointer; }
+        .ag-item.ag-task.done .ag-title { text-decoration:line-through; color:var(--muted); }
+        .ag-tasklist { font-size:11px; color:var(--muted); }
 
         /* Ismétlődő esemény: hatókör-választó (csak ez / összes előfordulás). */
         .modal.rec-modal { max-width:440px; }
@@ -1858,7 +1869,25 @@
         .side-view table tbody td { padding:9px 10px; font-size:12.5px; }
         .side-view .phone { font-size:12px; }
         /* Jobb sáv "Feladatok" fül – kompakt Google Tasks widget */
-        .rf-add { display:flex; gap:6px; margin-bottom:8px; }
+        .rf-add { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+        /* Több Google Tasks lista esetén ide kerül a céllista választó. */
+        .rf-add select { flex:1 1 100%; padding:7px 9px; border:1px solid var(--border); border-radius:8px;
+                         font-size:12.5px; font-family:inherit; font-weight:600; color:var(--muted);
+                         background:var(--card); outline:none; cursor:pointer; min-width:0; }
+        .rf-add select:focus { border-color:var(--blue); }
+        /* Listánkénti csoport a Feladatok panelen. */
+        .rf-group { margin-bottom:12px; }
+        .rf-group:last-of-type { margin-bottom:6px; }
+        .rf-group-head { display:flex; align-items:center; gap:7px; padding:2px 2px 5px; }
+        .rf-group-nm { font-size:10.5px; font-weight:800; color:var(--navy); text-transform:uppercase;
+                       letter-spacing:.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .rf-group-n { font-size:10.5px; font-weight:800; color:var(--muted); background:#eef1f5;
+                      border-radius:999px; padding:1px 7px; flex:none; }
+        .rf-empty-sm { font-size:12px; padding:4px 2px; }
+        .rf-done-list { opacity:.7; }
+        /* Időponttal is megadott határidő – kiemelve, mert az a ritkább eset. */
+        .rf-due.timed { font-weight:800; color:var(--navy); }
+
         .rf-add input { flex:1; min-width:0; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); outline:none; }
         .rf-add input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .rf-add button { flex-shrink:0; width:36px; border-radius:8px; font-size:16px; font-weight:800; line-height:1; }
@@ -6496,11 +6525,33 @@ window.sfOnViewSwitch = function(){
         });
     }
 
-    function renderTimeEvents(cols, events){
+    // A naptárban megjelenő Google Task chipje. Az "egész nap" sorba kerül,
+    // mert a Tasks API a due mezőben csak dátumot garantál – ha mégis van
+    // időpont, az a chip elején látszik.
+    function gtaskChip(t){
+        const due = taskDue(t);
+        const done = taskIsDone(t);
+        const tm = taskTimeLabel(due);
+        const chip = document.createElement("div");
+        chip.className = "allday-ev allday-gtask" + (done ? " done" : "");
+        chip.dataset.gtask = t.id;
+        chip.title = (t.title || "(névtelen feladat)") + " · " + (t.listTitle || "Feladatok")
+            + (tm ? " · " + tm : "") + "\nKattints a kipipáláshoz";
+        chip.innerHTML = `<span class="wk-task-dot${done ? " done" : ""}" style="--c:#64748b"></span>`
+            + (tm ? `<b>${tm}</b> ` : "") + escM(t.title || "(névtelen feladat)");
+        return chip;
+    }
+    function renderTimeEvents(cols, events, tasks){
         const n = cols.length;
         const canvas = document.getElementById("wkCanvas");
         const alldayCells = document.querySelectorAll("#wkAllday .cell");
         const maxH = (END_H - START_H) * ROW;
+        // A Google Tasks a nap tetején, az egész napos események előtt.
+        (tasks || []).forEach(t => {
+            const due = taskDue(t); if(!due) return;
+            const idx = colIndexOf(cols, new Date(due.ymd + "T00:00:00"));
+            if(idx >= 0 && alldayCells[idx]) alldayCells[idx].appendChild(gtaskChip(t));
+        });
         const timed = [];
         events.forEach(ev => {
             const { clean, status } = parseValidation(ev.summary);
@@ -6927,6 +6978,16 @@ window.sfOnViewSwitch = function(){
     function wireGridClicks(){
         const grid = document.getElementById("calGrid");
         grid.addEventListener("click", async e => {
+            // Google Task a naptárban: kattintásra kipipálható / visszavehető.
+            const gt = e.target.closest("[data-gtask]");
+            if (gt){
+                const t = gtTasks.find(x => x.id === gt.dataset.gtask);
+                if(!t) return;
+                gt.style.opacity = ".5";
+                try { await taskSetDone(t, !taskIsDone(t)); refreshPGViews(); refreshCalTaskChips(); }
+                catch(err){ gt.style.opacity = ""; alert("Nem sikerült frissíteni a feladatot: " + (err.message || err)); }
+                return;
+            }
             const host = e.target.closest("[data-event-id]");
             if (!host || !host.dataset.eventId) return;
             const id = host.dataset.eventId;
@@ -7106,15 +7167,22 @@ window.sfOnViewSwitch = function(){
     };
 
     // ===== HÓNAP nézet =====
-    function renderMonth(grid, now, events){
+    function renderMonth(grid, now, events, tasks){
         const anchorMonth = viewAnchor.getMonth();
         const first = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
         const gridStart = startOfWeek(first);
         const byDay = {};
+        const dayKey = d => d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         events.forEach(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
-            const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
+            const key = dayKey(ds);
             (byDay[key] = byDay[key] || []).push({ ev, ds });
+        });
+        (tasks || []).forEach(t => {
+            const due = taskDue(t); if(!due) return;
+            const ds = due.timed ? due.d : new Date(due.ymd + "T00:00:00");
+            const key = dayKey(new Date(due.ymd + "T00:00:00"));
+            (byDay[key] = byDay[key] || []).push({ task: t, ds });
         });
         let cellsHtml = "";
         for (let i=0;i<42;i++){
@@ -7129,7 +7197,13 @@ window.sfOnViewSwitch = function(){
             }
             const other = d.getMonth() !== anchorMonth ? " other" : "";
             const today = sameDay(d, now) ? " today" : "";
-            let evs = list.slice(0,3).map(({ev,ds}) => {
+            let evs = list.slice(0,3).map(({ev,task,ds}) => {
+                if (task){
+                    const due = taskDue(task), tm = taskTimeLabel(due);
+                    return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
+                        + `<span class="wk-task-dot${taskIsDone(task) ? " done" : ""}" style="--c:#64748b"></span>`
+                        + (tm ? `<b>${tm}</b> ` : "") + escM(task.title || "(névtelen feladat)") + `</span>`;
+                }
                 const { clean, status } = parseValidation(ev.summary);
                 const hex = eventColorHex(ev, clean);
                 const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
@@ -7149,16 +7223,29 @@ window.sfOnViewSwitch = function(){
 
     // ===== Listás (agenda) nézet – a nézetváltóból a "Napló" kikerült,
     // ezt a megjelenítést már csak az "Ügyfelek" nézet használja. =====
-    function renderAgenda(grid, now, events, emptyMsg){
+    function renderAgenda(grid, now, events, emptyMsg, tasks){
         const items = events.map(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
             return { ev, ds, allDay: !ev.start.dateTime };
-        }).sort((a,b)=>a.ds-b.ds);
+        }).concat((tasks || []).map(t => {
+            const due = taskDue(t);
+            return { task: t, ds: due.timed ? due.d : new Date(due.ymd + "T00:00:00"), allDay: !due.timed };
+        })).sort((a,b)=>a.ds-b.ds);
         if (!items.length){ grid.innerHTML = `<div class="ag-empty">${emptyMsg || "Nincs esemény ezen a héten."}</div>`; return; }
         let html = '<div class="ag-list">', curKey = "";
-        items.forEach(({ev,ds,allDay}) => {
+        items.forEach(({ev,task,ds,allDay}) => {
             const key = ds.getFullYear()+"-"+ds.getMonth()+"-"+ds.getDate();
             if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
+            if (task){
+                const done = taskIsDone(task);
+                html += `<div class="ag-item ag-task${done ? " done" : ""}" data-gtask="${task.id}" title="Kattints a kipipáláshoz">
+                    <span class="ag-time">${allDay ? "feladat" : pad2(ds.getHours())+":"+pad2(ds.getMinutes())}</span>
+                    <span class="wk-task-dot${done ? " done" : ""}" style="--c:#64748b"></span>
+                    <span><span class="ag-title">${escM(task.title || "(névtelen feladat)")}</span><br><span class="ag-tasklist">${escM(task.listTitle || "Feladatok")}</span></span>
+                    <span></span>
+                </div>`;
+                return;
+            }
             const { clean, status } = parseValidation(ev.summary);
             const hex = eventColorHex(ev, clean);
             const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
@@ -7946,17 +8033,29 @@ window.sfOnViewSwitch = function(){
         else currentColumns = [];
 
         try {
-            const events = await fetchEvents(token, rangeStart, rangeEnd);
+            // A Google Tasks NEM jön vissza a Calendar API-ból, ezért külön
+            // töltjük (a saját naptárnál; más munkatárs naptárát nézve a
+            // feladatai privátak, azokat nem lehet lekérdezni).
+            const ownCal = activeCalendarId() === "primary";
+            const [events, tasks] = await Promise.all([
+                fetchEvents(token, rangeStart, rangeEnd),
+                ownCal ? tasksForCalendar() : Promise.resolve([]),
+            ]);
             if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
             eventsById = {};
             events.forEach(ev => { if (ev.id) eventsById[ev.id] = ev; });
-            if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events);
-            else if (viewMode === "month") renderMonth(grid, now, events);
+            const inRange = tasks.filter(t => {
+                const due = taskDue(t); if(!due) return false;
+                const d = new Date(due.ymd + "T00:00:00");
+                return d >= rangeStart && d < rangeEnd;
+            });
+            if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events, inRange);
+            else if (viewMode === "month") renderMonth(grid, now, events, inRange);
             else if (viewMode === "clients"){
                 const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
-                renderAgenda(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")), "Nincs ügyfél-időpont ezen a héten.");
+                renderAgenda(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")), "Nincs ügyfél-időpont ezen a héten.", []);
             }
-            else renderAgenda(grid, now, events);
+            else renderAgenda(grid, now, events, null, inRange);
         } catch (e){
             if (seq !== calRenderSeq) return;
             const viewingOther = activeCalendarId() !== "primary";
@@ -8012,12 +8111,104 @@ window.sfOnViewSwitch = function(){
     async function loadPGTasks(interactive){
         await ensurePGList(interactive);
         const data = await tasksFetch(`/lists/${pgListId}/tasks?showCompleted=true&showHidden=true&maxResults=100`, { method:"GET" }, interactive);
-        pgTasks = (data.items || []).filter(t => !t.deleted).sort((a,b) => {
-            const ca = a.status === "completed", cb = b.status === "completed";
-            if(ca !== cb) return ca ? 1 : -1;
-            return String(a.position || "").localeCompare(String(b.position || ""));
-        });
+        pgTasks = (data.items || []).filter(t => !t.deleted)
+            .map(t => Object.assign({}, t, { listId: pgListId, listTitle: PG_LIST_TITLE }))
+            .sort(pgTaskOrder);
         return pgTasks;
+    }
+
+    // ===== ÖSSZES GOOGLE TASKS LISTA =====
+    // A PG Modul csak a saját listáját kezeli. A Feladatok panel és a naptár
+    // viszont MINDEN listát mutat, mert a felhasználó máshol is vezet feladatot.
+    let gtLists = [], gtTasks = [], gtLoadedAt = 0;
+    async function loadAllTasks(interactive){
+        const data = await tasksFetch("/users/@me/lists?maxResults=100", { method:"GET" }, interactive);
+        gtLists = (data.items || []).map(l => ({ id: l.id, title: l.title || "Feladatok" }));
+        // Ha a PG lista már létezik, innen is megvan az id-je – nem kell külön
+        // lekérdezés, és véletlenül sem hozunk létre újat.
+        const pg = gtLists.find(l => l.title === PG_LIST_TITLE);
+        if(pg) pgListId = pg.id;
+        const per = await Promise.all(gtLists.map(async l => {
+            try {
+                const d = await tasksFetch(`/lists/${l.id}/tasks?showCompleted=true&showHidden=true&maxResults=100`, { method:"GET" }, false);
+                return (d.items || []).filter(t => !t.deleted)
+                    .map(t => Object.assign({}, t, { listId: l.id, listTitle: l.title || "Feladatok" }));
+            } catch(e){ return []; }   // egy lista hibája ne vigye el a többit
+        }));
+        gtTasks = per.flat();
+        gtLoadedAt = Date.now();
+        // A PG Modul a saját listájával dolgozik tovább, ugyanabból a töltésből.
+        pgTasks = gtTasks.filter(t => t.listId === pgListId).sort(pgTaskOrder);
+        return gtTasks;
+    }
+    function pgTaskOrder(a, b){
+        const ca = taskIsDone(a), cb = taskIsDone(b);
+        if(ca !== cb) return ca ? 1 : -1;
+        return String(a.position || "").localeCompare(String(b.position || ""));
+    }
+    // A PG-lista feladatainál a "kész" a notes-ban tárolt metaadatban van (ez a
+    // PG Modul régi megoldása), minden más listánál a Tasks API status mezőjében.
+    function taskIsDone(t){
+        return t.status === "completed" || (t.listId && t.listId === pgListId && !!pgMeta(t).done);
+    }
+    // A Google Tasks API a "due" mezőben csak a DÁTUMOT garantálja: a legtöbb
+    // feladatnál 00:00Z-re vágja az időt. Ha mégis van benne óra/perc, kiírjuk.
+    function taskDue(t){
+        if(!t || !t.due) return null;
+        const d = new Date(t.due);
+        if(isNaN(d.getTime())) return null;
+        const timed = !(d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0);
+        return { ymd: String(t.due).substring(0,10), timed, d };
+    }
+    const taskTimeLabel = due => due && due.timed ? pad2(due.d.getHours()) + ":" + pad2(due.d.getMinutes()) : "";
+    function taskDueLabel(t){
+        const due = taskDue(t); if(!due) return "";
+        const lbl = due.ymd.slice(5).split("-").reverse().join(".") + ".";
+        const tm = taskTimeLabel(due);
+        return tm ? lbl + " " + tm : lbl;
+    }
+    function taskSortKey(a, b){
+        const da = taskDue(a), db = taskDue(b);
+        if(!!da !== !!db) return da ? -1 : 1;              // határidős előre
+        if(da && db && +da.d !== +db.d) return da.d - db.d;
+        return String(a.position || "").localeCompare(String(b.position || ""));
+    }
+    async function taskSetDone(t, done){
+        if(t.listId && t.listId === pgListId){
+            // A PG Modul a notes-ban tartja a saját metaadatát (típus, prioritás),
+            // ezért itt maradunk annál – különben elvesznének a PG mezők.
+            const meta = pgMeta(t); meta.done = done;
+            await tasksFetch(`/lists/${t.listId}/tasks/${t.id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
+            t.notes = JSON.stringify(meta);
+            const p2 = pgTasks.find(x => x.id === t.id); if(p2) p2.notes = t.notes;
+        } else {
+            // Idegen listán a notes a felhasználó saját jegyzete – SOHA nem írjuk
+            // felül; a Tasks API saját status mezőjét használjuk.
+            await tasksFetch(`/lists/${t.listId}/tasks/${t.id}`, { method:"PATCH",
+                body: JSON.stringify(done ? { status:"completed" } : { status:"needsAction", completed: null }) }, true);
+            t.status = done ? "completed" : "needsAction";
+        }
+    }
+    // A naptár és a Feladatok panel közös, csendes betöltése: ha nincs Tasks
+    // jogosultság, üres listát adunk – a naptár ettől még működjön.
+    // Pipálás után elég a chipek állapotát átírni – nem kell újratölteni az
+    // egész naptárat (az visszaugratná a görgetést és újra lekérné a heti
+    // eseményeket is).
+    function refreshCalTaskChips(){
+        document.querySelectorAll("[data-gtask]").forEach(el => {
+            const t = gtTasks.find(x => x.id === el.dataset.gtask); if(!t) return;
+            const done = taskIsDone(t);
+            el.classList.toggle("done", done);
+            const dot = el.querySelector(".wk-task-dot");
+            if(dot) dot.classList.toggle("done", done);
+            el.style.opacity = "";
+        });
+    }
+    async function tasksForCalendar(){
+        try {
+            if(!gtLoadedAt || Date.now() - gtLoadedAt > 60000) await loadAllTasks(false);
+            return gtTasks;
+        } catch(e){ return []; }
     }
 
     const PG_PRIO_CLASS = { 'Alacsony': 'low', 'Közepes': 'mid', 'Magas': 'high' };
@@ -8610,7 +8801,7 @@ window.sfOnViewSwitch = function(){
             const t = await tasksFetch(`/lists/${pgListId}/tasks`, { method:'POST', body: JSON.stringify(body) }, true);
             a.taskId = t.id;
             if(isConfigured) await saveAkcio(id, { taskId: t.id, updated: new Date().toISOString() });
-            await loadPGTasks(true);
+            await loadAllTasks(true);
             renderPG();
             if(document.getElementById('railFeladatokMount')) renderRailFeladatok();
         } catch(e){ alert('Nem sikerült kitenni a Google Tasks-ba: ' + (e.message || e)); }
@@ -8754,7 +8945,7 @@ window.sfOnViewSwitch = function(){
         const body = { title: t, notes: JSON.stringify(Object.assign(meta, notes ? { note: String(notes) } : {})) };
         if(due) body.due = due + 'T00:00:00.000Z';
         const created = await tasksFetch(`/lists/${pgListId}/tasks`, { method:'POST', body: JSON.stringify(body) }, true);
-        await loadPGTasks(true);
+        await loadAllTasks(true);
         refreshPGViews();
         return created;
     };
@@ -8765,31 +8956,50 @@ window.sfOnViewSwitch = function(){
     // a típus/prioritás/jegyzet finomhangolásához a PG Modul a hivatkozott hely.
     let railFeladatokDoneOpen = false;
 
+    // Melyik listába kerül az új feladat (a PG lista az alapértelmezett).
+    let rfAddListId = "";
+
     function railTaskRow(t){
-        const meta = pgMeta(t);
-        const due = t.due ? t.due.substring(0,10) : "";
+        const done = taskIsDone(t);
+        const due = taskDue(t);
         const today = new Date().toISOString().substring(0,10);
-        const overdue = due && due < today && !meta.done;
-        const dueLabel = due ? due.slice(5).split("-").reverse().join(".") + "." : "";
-        return `<div class="rf-row${meta.done ? " done" : ""}" draggable="true" data-name="${escM(t.title || "(névtelen feladat)")}" title="Húzd a naptárba">
-            <label class="rf-check"><input type="checkbox" data-rftoggle="${t.id}"${meta.done ? " checked" : ""}></label>
+        const overdue = due && due.ymd < today && !done;
+        const dueLabel = taskDueLabel(t);
+        return `<div class="rf-row${done ? " done" : ""}" draggable="true" data-name="${escM(t.title || "(névtelen feladat)")}" title="Húzd a naptárba">
+            <label class="rf-check"><input type="checkbox" data-rftoggle="${t.id}"${done ? " checked" : ""}></label>
             <span class="rf-title">${escM(t.title || "(névtelen feladat)")}</span>
-            ${dueLabel ? `<span class="rf-due${overdue ? " overdue" : ""}">${dueLabel}</span>` : ""}
+            ${dueLabel ? `<span class="rf-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${dueLabel}</span>` : ""}
             <button class="rf-del" data-rfdel="${t.id}" title="Törlés">×</button>
         </div>`;
     }
 
     function renderRailFeladatok(){
         const m = document.getElementById("railFeladatokMount"); if(!m) return;
-        const open = pgTasks.filter(t => !pgMeta(t).done);
-        const done = pgTasks.filter(t => pgMeta(t).done);
+        // Listánként csoportosítva, a Google Tasks listasorrendjében. Egy
+        // listán belül a határidősek elöl, időrendben.
+        if(!gtLists.length && pgTasks.length && pgListId) gtLists = [{ id: pgListId, title: PG_LIST_TITLE }];
+        const groups = gtLists.map(l => ({
+            list: l,
+            open: gtTasks.filter(t => t.listId === l.id && !taskIsDone(t)).sort(taskSortKey),
+            done: gtTasks.filter(t => t.listId === l.id && taskIsDone(t)).sort(taskSortKey),
+        })).filter(g => g.open.length || g.done.length);
+        const doneN = groups.reduce((n, g) => n + g.done.length, 0);
+        if(!rfAddListId || !gtLists.some(l => l.id === rfAddListId))
+            rfAddListId = pgListId || (gtLists[0] && gtLists[0].id) || "";
+        const listOpts = gtLists.map(l => `<option value="${escM(l.id)}"${l.id === rfAddListId ? " selected" : ""}>${escM(l.title)}</option>`).join("");
+        const groupsHtml = groups.map(g => `
+            <div class="rf-group">
+                <div class="rf-group-head"><span class="rf-group-nm">${escM(g.list.title)}</span><span class="rf-group-n">${g.open.length}</span></div>
+                <div class="rf-list">${g.open.length ? g.open.map(railTaskRow).join("") : `<div class="rf-empty rf-empty-sm">Nincs aktív feladat.</div>`}</div>
+                ${railFeladatokDoneOpen && g.done.length ? `<div class="rf-list rf-done-list">${g.done.map(railTaskRow).join("")}</div>` : ""}
+            </div>`).join("");
         m.innerHTML = `
-            <div class="rf-add"><input type="text" id="rfInput" placeholder="Új feladat…" maxlength="500"><button class="btn primary" id="rfAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+</button></div>
-            <div class="rf-list">${open.length ? open.map(railTaskRow).join("") : `<div class="rf-empty">Nincs aktív feladat.</div>`}</div>
-            ${done.length ? `
-                <button class="rf-donetoggle" id="rfDoneToggle">${railFeladatokDoneOpen ? "▾" : "▸"} ${done.length} kész feladat</button>
-                ${railFeladatokDoneOpen ? `<div class="rf-list">${done.map(railTaskRow).join("")}</div>` : ""}
-            ` : ""}
+            <div class="rf-add">
+                ${gtLists.length > 1 ? `<select id="rfList" title="Melyik listába kerüljön">${listOpts}</select>` : ""}
+                <input type="text" id="rfInput" placeholder="Új feladat…" maxlength="500"><button class="btn primary" id="rfAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+</button>
+            </div>
+            ${groupsHtml || `<div class="rf-empty">Nincs feladat egyik listán sem.</div>`}
+            ${doneN ? `<button class="rf-donetoggle" id="rfDoneToggle">${railFeladatokDoneOpen ? "▾" : "▸"} ${doneN} kész feladat</button>` : ""}
             <a class="link rf-more" href="#" id="rfOpenFull">Összes megnyitása a PG Modulban →</a>`;
         wireRailFeladatok();
     }
@@ -8812,10 +9022,16 @@ window.sfOnViewSwitch = function(){
             if (!inp || pgBusy) return;
             const title = inp.value.trim(); if (!title) return;
             const meta = { p: "Alacsony", type: "szemelyes", done: false, note: "", created: new Date().toISOString().substring(0,10) };
+            const sel = document.getElementById("rfList");
+            const listId = (sel && sel.value) || rfAddListId || pgListId || (await ensurePGList(true));
+            if (sel && sel.value) rfAddListId = sel.value;
             pgBusy = true; inp.disabled = true;
             try {
-                await tasksFetch(`/lists/${pgListId}/tasks`, { method:"POST", body: JSON.stringify({ title, notes: JSON.stringify(meta) }) }, true);
-                await loadPGTasks(true); refreshPGViews();
+                // A PG metaadat (típus/prioritás) csak a PG listán értelmes –
+                // idegen listán a notes a felhasználóé, üresen hagyjuk.
+                const body = listId === pgListId ? { title, notes: JSON.stringify(meta) } : { title };
+                await tasksFetch(`/lists/${listId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
+                await loadAllTasks(true); refreshPGViews();
                 const ni = document.getElementById("rfInput"); if (ni){ ni.value = ""; ni.focus(); }
             }
             catch(e){ alert("Nem sikerült hozzáadni: " + (e.message || e)); inp.disabled = false; }
@@ -8859,7 +9075,7 @@ window.sfOnViewSwitch = function(){
         }
         if (!isConfigured){ renderRailFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
         m.innerHTML = `<div class="rf-empty">Betöltés…</div>`;
-        try { await loadPGTasks(false); renderRailFeladatok(); }
+        try { await loadAllTasks(false); renderRailFeladatok(); }
         catch(e){
             renderRailFeladatokConnect((e.status === 401 || e.status === 403)
                 ? "A feladatok eléréséhez engedélyezned kell a Google Tasks hozzáférést."
@@ -8867,18 +9083,28 @@ window.sfOnViewSwitch = function(){
         }
     };
 
+    // A feladat a SAJÁT listájában módosul – a Feladatok panel több listát mutat.
+    function taskById(id){
+        return gtTasks.find(x => x.id === id) || pgTasks.find(x => x.id === id) || null;
+    }
     async function pgToggle(id, checked){
-        const t = pgTasks.find(x => x.id === id); if(!t) return;
-        const meta = pgMeta(t); meta.done = checked;
-        try {
-            await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"PATCH", body: JSON.stringify({ notes: JSON.stringify(meta) }) }, true);
-            t.notes = JSON.stringify(meta); refreshPGViews();
-        }
+        const t = taskById(id); if(!t) return;
+        if(!t.listId) t.listId = pgListId;
+        try { await taskSetDone(t, checked); refreshPGViews(); refreshCalTaskChips(); }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
     }
 
     async function pgDelete(id){
-        try { await tasksFetch(`/lists/${pgListId}/tasks/${id}`, { method:"DELETE" }, true); await loadPGTasks(true); refreshPGViews(); }
+        const t = taskById(id);
+        const listId = (t && t.listId) || pgListId;
+        // Idegen (nem a PG Modul által kezelt) listán rákérdezünk: az a lista
+        // nem az appban készült, ott a törlés váratlan lenne.
+        if(t && listId !== pgListId && !confirm(`Törlöd ezt a feladatot a(z) „${t.listTitle}” listáról?\n\n${t.title || ""}`)) return;
+        try {
+            await tasksFetch(`/lists/${listId}/tasks/${id}`, { method:"DELETE" }, true);
+            await loadAllTasks(true); refreshPGViews();
+            document.querySelectorAll(`[data-gtask="${id}"]`).forEach(el => el.remove());
+        }
         catch(e){ alert("Nem sikerült törölni: " + (e.message || e)); }
     }
 
