@@ -1829,6 +1829,19 @@
         tbody tr:last-child td { border-bottom:none; }
         tbody tr:hover { background:#fafbfd; }
         .phone { font-variant-numeric: tabular-nums; color:var(--muted); white-space:nowrap; }
+        /* A 3-2-1 táblák 10 sor után görgethetők, hogy egy hosszú TP-lista se
+           nyomja le az alatta lévő kártyákat. A pontos magasságot JS méri a
+           11. sor tetejéből (a sormagasság nézetenként más); ez a max-height
+           csak tartalék arra az esetre, ha a panel épp rejtve van. */
+        .tbl-scroll { max-height:460px; overflow-y:auto; overscroll-behavior:contain; border-radius:0 0 10px 10px; }
+        /* A fejléc a görgetésnél is a helyén marad – enélkül elveszne, melyik
+           oszlop micsoda. Kell a tömör háttér, különben átlátszik a sor. */
+        /* border-collapse mellett a sticky fejléc saját kerete nem rajzolódik
+           ki, ezért az elválasztó vonal belső árnyékkal készül. */
+        .tbl-scroll thead th { position:sticky; top:0; z-index:1; background:var(--card); box-shadow:inset 0 -1px 0 var(--border); }
+        .tbl-scroll::-webkit-scrollbar { width:8px; }
+        .tbl-scroll::-webkit-scrollbar-thumb { background:#d4dbe6; border-radius:4px; }
+        .tbl-scroll::-webkit-scrollbar-thumb:hover { background:#bcc7d6; }
         /* A jobb oldali sávban (PÉNZEM/KARRIEREM) kompaktabb tábla kell a keskenyebb helyhez */
         .side-view table thead th { padding:8px 10px; font-size:10px; }
         .side-view table tbody td { padding:9px 10px; font-size:12.5px; }
@@ -2171,10 +2184,12 @@
                             <span class="tag money">3 - 2 - 1</span>
                             <h2>Saját PÉNZEM</h2>
                         </div>
-                        <table>
-                            <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
-                            <tbody id="moneyTable"></tbody>
-                        </table>
+                        <div class="tbl-scroll">
+                            <table>
+                                <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
+                                <tbody id="moneyTable"></tbody>
+                            </table>
+                        </div>
                     </section>
 
                     <!-- KARRIEREM -->
@@ -2183,10 +2198,12 @@
                             <span class="tag career">3 - 2 - 1</span>
                             <h2>Saját KARRIEREM</h2>
                         </div>
-                        <table>
-                            <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
-                            <tbody id="careerTable"></tbody>
-                        </table>
+                        <div class="tbl-scroll">
+                            <table>
+                                <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
+                                <tbody id="careerTable"></tbody>
+                            </table>
+                        </div>
                     </section>
 
                     <!-- STATISZTIKÁK -->
@@ -2786,6 +2803,19 @@ function resSelect(i, r){
     </select>`;
 }
 
+// A 3-2-1 táblák 10 sor után görgethetők. A magasságot a 11. sor tetejéből
+// mérjük, mert a cellamagasság az oldalsávban és széles nézetben is más.
+const TBL_MAX_ROWS = 10;
+function capTableRows(tb){
+    const wrap = tb && tb.closest('.tbl-scroll'); if(!wrap) return;
+    const rows = tb.rows;
+    if(rows.length <= TBL_MAX_ROWS){ wrap.style.maxHeight = ''; return; }
+    const h = rows[TBL_MAX_ROWS].getBoundingClientRect().top - rows[0].getBoundingClientRect().top;
+    // Rejtett panelnél minden méret 0 – ilyenkor marad a CSS-beli tartalék.
+    if(h <= 0){ wrap.style.maxHeight = ''; return; }
+    const head = wrap.querySelector('thead');
+    wrap.style.maxHeight = Math.round((head ? head.getBoundingClientRect().height : 0) + h) + 'px';
+}
 // ===== RENDER: PÉNZEM (a nyilvántartó TP jelöléséből) =====
 function renderMoney(){
     const tb = document.getElementById('moneyTable'); if(!tb) return;
@@ -2795,6 +2825,7 @@ function renderMoney(){
         <td class="phone">${esc(r.phone)}</td>
         <td style="text-align:center;"><span class="res-cyc" data-resmoney="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resPenz||'pending')}</span></td>
     </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs TP-vel jelölt ügyfél.</td></tr>`;
+    capTableRows(tb);
 }
 // ===== RENDER: KARRIEREM (a 2 órás füzet TP jelöléséből) =====
 function renderCareer(){
@@ -2805,6 +2836,7 @@ function renderCareer(){
         <td class="phone">${esc(r.phone)}</td>
         <td style="text-align:center;"><span class="res-cyc" data-rescareer="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resKarrier||'pending')}</span></td>
     </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs TP-vel jelölt karrier-jelölt.</td></tr>`;
+    capTableRows(tb);
 }
 function cycleRes(v){ return v==='pending'?'ok':(v==='ok'?'no':'pending'); }
 // ===== RENDER: INFO RÉSZTVEVŐK =====
@@ -2961,7 +2993,7 @@ window.sfApplyResultFromEvent = function(ev, result){
 // Egy már aktív rail-fülre újra kattintva a jobb oldali panel össze-/
 // kinyílik, a naptár pedig kitölti a felszabaduló helyet.
 const SF_SIDE_VIEWS = {
-    sikerfuzet: { view: 'sideViewSikerfuzet', btn: 'railBtnSikerfuzet' },
+    sikerfuzet: { view: 'sideViewSikerfuzet', btn: 'railBtnSikerfuzet', onShow: () => refreshMoneyCareer() },
     info:       { view: 'sideViewInfo',       btn: 'railBtnInfo' },
     feladatok:  { view: 'sideViewFeladatok',  btn: 'railBtnFeladatok', onShow: () => { if (typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok(); } },
 };
