@@ -1822,6 +1822,17 @@
         .plan-week-switch button.active { background:#fff; color:var(--navy); box-shadow:0 1px 4px rgba(0,0,0,.08); }
         @media (max-width:1000px){ .plan-week-switch { margin-left:0 !important; } }
         .plan-grid { display:grid; grid-template-columns: repeat(8, 1fr); gap:12px; }
+        /* A Heti tervezés a jobb oldali sávban áll: ott nyolc oszlop nem fér ki,
+           ezért a dobozok több sorba rendeződnek, a fejléc pedig tördelhető. */
+        .side-view .card-head { flex-wrap:wrap; row-gap:8px; }
+        .side-view .card-head .hint-sm { display:none; }
+        .side-view .plan-week-switch { margin-left:0 !important; }
+        .side-view .plan-week-switch button { padding:5px 10px; font-size:12px; }
+        .side-view .week-range { font-size:11.5px; }
+        .side-view .plan-grid { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap:9px; }
+        .side-view .plan-box { padding:9px 6px; gap:4px; }
+        .side-view .plan-box .label { font-size:10.5px; }
+        .side-view .plan-nums .van { font-size:17px; }
         @media (max-width:1000px){ .plan-grid { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); } }
         .plan-box { border:1px solid var(--border); border-radius:10px; padding:12px 10px; text-align:center; background:#fbfcfe; display:flex; flex-direction:column; align-items:center; gap:5px; }
         .plan-ic { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -2222,23 +2233,6 @@
                     <div class="cal-grid" id="calGrid"></div>
                 </section>
 
-                <!-- HETI TERVEZÉS (a naptár alatt) -->
-                <section class="card">
-                    <div class="card-head">
-                        <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
-                        <h2>Heti tervezés <span class="hint-sm" style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
-                        <div class="plan-week-switch" id="planWeekSwitch" style="margin-left:12px;">
-                            <button type="button" data-off="0">Aktuális hét</button>
-                            <button type="button" data-off="1">Következő hét</button>
-                        </div>
-                        <span class="week-range" id="planWeekRange" style="margin-left:auto;"></span>
-                        <span class="collapse-btn" data-collapse="plan" title="Össze-/kinyitás" style="margin-left:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
-                    </div>
-                    <div class="card-body">
-                        <div class="plan-grid" id="planGrid"></div>
-                    </div>
-                </section>
-
             </div><!-- /col-main -->
 
             <!-- ===== RIGHT COLUMN ===== -->
@@ -2307,6 +2301,23 @@
                                 <div class="stat"><div class="stat-label">SZ</div><div class="stat-num">–</div></div>
                                 <div class="stat"><div class="stat-label">F</div><div class="stat-num">–</div></div>
                             </div>
+                        </div>
+                    </section>
+
+                    <!-- HETI TERVEZÉS (a Havi terv aktuális heti cél/Van értékei) -->
+                    <section class="card">
+                        <div class="card-head">
+                            <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
+                            <h2>Heti tervezés <span class="hint-sm" style="font-weight:400;font-size:12px;color:var(--muted);">(cél / Van — heti teljesítés)</span></h2>
+                            <div class="plan-week-switch" id="planWeekSwitch" style="margin-left:12px;">
+                                <button type="button" data-off="0">Aktuális hét</button>
+                                <button type="button" data-off="1">Következő hét</button>
+                            </div>
+                            <span class="week-range" id="planWeekRange" style="margin-left:auto;"></span>
+                            <span class="collapse-btn" data-collapse="plan" title="Össze-/kinyitás" style="margin-left:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
+                        </div>
+                        <div class="card-body">
+                            <div class="plan-grid" id="planGrid"></div>
                         </div>
                     </section>
                 </div>
@@ -6311,8 +6322,10 @@ window.sfOnViewSwitch = function(){
     // a heti terv essen a képernyő aljára (22px = a .col-main oszlopköz).
     let lastPlanH = -1;
     function planCardHeight(){
+        // A Heti tervezés a jobb oldali sávba került, tehát már nem veszi el a
+        // naptár helyét: csak akkor számolunk vele, ha a fő hasábban állna.
         const card = document.getElementById("planGrid")?.closest(".card");
-        return card ? card.getBoundingClientRect().height + 22 : 0;
+        return (card && card.closest(".col-main")) ? card.getBoundingClientRect().height + 22 : 0;
     }
 
     function computeRow(grid){
