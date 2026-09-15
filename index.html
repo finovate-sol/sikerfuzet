@@ -255,7 +255,7 @@
         .reg-bar .timer-ic svg { width:14px; height:14px; }
         .reg-bar .timer-lbl { font-size:11px; }
         .reg-bar .timer-badge { font-size:10px; padding:3px 8px; }
-        .reg-build-wrap { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .reg-build-wrap { display:flex; flex-direction:column; gap:11px; }
         .reg-build-wrap select, .reg-build-wrap input {
             padding:8px 10px; border:1px solid var(--border); border-radius:8px;
             font-size:13px; font-family:inherit; color:var(--text); background:var(--card);
@@ -269,7 +269,25 @@
         .reg-filterpanel { display:flex; flex-direction:column; gap:10px; padding:12px 16px; margin-bottom:14px; }
         /* A display:flex felülírná a hidden attribútumot, ezért külön vissza kell venni. */
         .reg-filterpanel[hidden] { display:none; }
-        .reg-filterpanel .reg-chips-row { margin-bottom:0; }
+        /* Egy szűrő-szekció: bal oldalt a címke, jobbra a kapcsolható chipek. */
+        .reg-fsec { display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+        .reg-fsec > .lbl { font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; padding-top:8px; min-width:62px; }
+        .reg-fsec .chips { display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:0; align-items:center; }
+        .reg-fsep { height:1px; background:var(--border); }
+        .fbtn { border:1px solid var(--border); background:var(--card); border-radius:999px; padding:6px 12px;
+                font-size:12.5px; font-weight:600; font-family:inherit; color:var(--navy); cursor:pointer; white-space:nowrap; }
+        .fbtn:hover { border-color:var(--blue); background:var(--blue-light); }
+        .fbtn.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        /* Az aktív szűrők sávja a panelen KÍVÜL van, és mindig látszik: egy
+           bekapcsva felejtett szűrő különben csak üres listának látszana. */
+        .reg-active { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+                      background:#fff8e6; border:1px solid #f0dca8; border-radius:11px; padding:9px 12px; }
+        .reg-active[hidden] { display:none; }
+        .reg-active > .lbl { font-size:12px; font-weight:800; color:#8a6b12; display:inline-flex; align-items:center; gap:6px; }
+        .reg-active > .lbl svg { width:14px; height:14px; }
+        .reg-active .clr { margin-left:auto; border:1px solid #e3cf95; background:#fff; border-radius:8px;
+                           padding:5px 11px; font-size:12px; font-weight:700; font-family:inherit; color:#8a6b12; cursor:pointer; }
+        .reg-active .clr:hover { background:#fdf3d8; }
         /* A szűrőpanel a "Kit ismerhetek?" segédlet fölött, egymás alatt. */
         .reg-subrow { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
         .reg-subrow > #regFilterPanel { margin-bottom:0; }
@@ -532,6 +550,26 @@
         .kc-head, .kc-line { grid-template-columns:var(--kc-cols); }
         #ketorasList { --kc-cols:280px 140px 1fr 54px 130px 176px 150px 44px; min-width:1180px; }
         #ketorasList .rc-head { padding:0 16px 9px; }
+        /* ===== MOBIL KÁRTYASOR =====
+           Keskeny kijelzőn az oszlopok nem férnek ki, és az oldalra görgetés
+           használhatatlan. Összecsukott állapotban ezért csak a név (ügyfél /
+           MT-jelölt) látszik, minden más a lenyitott adatlapon szerkeszthető. */
+        @media (max-width:820px){
+            .rc-wrap { overflow-x:visible; padding-bottom:0; }
+            .rc-rows, #ketorasList { min-width:0; }
+            .rc-head { display:none; }
+            .rc-line, .rc-line.kc-line { display:flex; align-items:center; gap:10px; padding:13px 14px; }
+            .rc-line > div { display:none; }
+            .rc-line > .reg-person { display:flex; flex:1 1 auto; min-width:0; }
+            .rc-line > .reg-actions { display:flex; flex:none; margin-left:auto; }
+            /* A Kezelő/Tanácsadó alsor vezérlői a lenyitott adatlapon vannak. */
+            .rc .reg-person-sub { display:none; }
+            .rc .reg-name, .rc .ket-name { font-size:14px; }
+            /* Törlés csak nyitott kártyán: a láthatatlan (opacity:0) ikon
+               érintőképernyőn is kattintható lenne, és nincs megerősítés. */
+            .rc .reg-actions .reg-ico-del { display:none; }
+            .rc.open .reg-actions .reg-ico-del { display:inline-flex; opacity:1; }
+        }
         .kc-txt { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .kc-muted { color:#b6c0ce; }
         /* Mezők: nyugalomban láthatatlanok, a soron áthaladva egyértelműen szerkeszthetők. */
@@ -2287,9 +2325,9 @@
               </div>
             </div>
             <div class="reg-subrow">
+              <div class="reg-active" id="regActive" hidden></div>
               <div class="card reg-filterpanel" id="regFilterPanel" hidden>
                 <div class="reg-build-wrap" id="regFilterBar"></div>
-                <div class="reg-chips-row" id="regChips"></div>
               </div>
               <div id="regGuideSlot"></div>
             </div>
@@ -3915,54 +3953,110 @@ function regStatusSelect(i, val){
         opts += `<option value="${esc(val)}" selected>${esc(val)}</option>`;
     return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status">${opts}</select>`;
 }
-function regValueControl(fieldKey){
-    const fld = REG_FIELDS.find(x=>x.key===fieldKey) || REG_FIELDS[0];
-    if(fld.type==='bool') return `<select id="regFVal"><option value="true">Igen</option><option value="false">Nem</option></select>`;
-    if(fld.type==='status'){ let o=`<option value="">—</option>`; REG_STATUS.forEach(([g,items])=>{ o+=`<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')+`</optgroup>`; }); return `<select id="regFVal">${o}</select>`; }
-    return `<input id="regFVal" type="text" placeholder="érték">`;
-}
+// ===== SZŰRŐK =====
+// A leggyakoribb szűrők (státusz, jelölők) egy kattintással kapcsolhatók a
+// panelen; a szabad szöveges mezők maradnak a mező+érték építőben.
+const REG_QUICK_FLAGS = ['tp','elemzes','portal','tanacsadas'];
+const REG_FUNNEL_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg>';
+const regFieldOf = key => REG_FIELDS.find(x => x.key === key);
 let regChipsOpen = false;
-function renderRegFilters(){
-    const bar=document.getElementById('regFilterBar'); if(!bar) return;
-    const fieldOpts=REG_FIELDS.map(f=>`<option value="${f.key}">${f.label}</option>`).join('');
-    bar.innerHTML = `<span style="font-size:12px;color:var(--muted);font-weight:600;">Szűrő:</span>
-        <select id="regFField">${fieldOpts}</select>
-        <span id="regFValWrap">${regValueControl(REG_FIELDS[0].key)}</span>
-        <button class="btn" id="regFAdd">+ Hozzáad</button>`;
-    const fieldSel=document.getElementById('regFField');
-    fieldSel.addEventListener('change', ()=>{ document.getElementById('regFValWrap').innerHTML=regValueControl(fieldSel.value); });
-    document.getElementById('regFAdd').addEventListener('click', ()=>{
-        const field=fieldSel.value, valEl=document.getElementById('regFVal'), value=valEl.value;
-        if(value==='') return;
-        regFilters.push({field, value}); regChipsOpen=true; renderRegFilters(); renderRegistry();
+function regFilterIdx(field, value){
+    return regFilters.findIndex(f => f.field === field && String(f.value) === String(value));
+}
+// Ugyanarra a chipre kattintva le is vehető a szűrő – nem ragadhat be egy
+// véletlenül bekapcsolt feltétel.
+function regFilterToggle(field, value){
+    const i = regFilterIdx(field, value);
+    if(i >= 0) regFilters.splice(i, 1); else regFilters.push({ field, value });
+    renderRegFilters(); renderRegistry();
+}
+function regFilterClearAll(){
+    regFilters = []; regSearch = '';
+    const s = document.getElementById('regSearch'); if(s) s.value = '';
+    renderRegFilters(); renderRegistry();
+}
+// Emberi olvasatú chipfelirat.
+function regFilterLabel(f){
+    const fld = regFieldOf(f.field);
+    if(!fld) return `${f.field}: ${f.value}`;
+    if(fld.type === 'status') return `Státusz: ${f.value}`;
+    if(fld.type === 'bool') return (f.value === true || f.value === 'true') ? fld.label : `${fld.label}: nem`;
+    return `${fld.label}: ${f.value}`;
+}
+// Az aktív szűrők sávja: a panelen kívül, mindig látható, egy gombbal üríthető.
+function renderRegActive(){
+    const host = document.getElementById('regActive'); if(!host) return;
+    const q = (regSearch || '').trim();
+    host.hidden = !regFilters.length && !q;
+    if(host.hidden){ host.innerHTML = ''; return; }
+    const chips = regFilters.map((f,i)=>`<span class="filter-chip">${esc(regFilterLabel(f))}<button data-fdel="${i}" title="Szűrő törlése">×</button></span>`).join('');
+    const qChip = q ? `<span class="filter-chip">Keresés: <b>${esc(q)}</b><button data-fqdel="1" title="Keresés törlése">×</button></span>` : '';
+    host.innerHTML = `<span class="lbl">${REG_FUNNEL_IC}Aktív szűrő</span>${chips}${qChip}<button class="clr" data-fclear="1">Mindet törlöm</button>`;
+    host.querySelectorAll('[data-fdel]').forEach(b => b.addEventListener('click', ()=>{
+        regFilters.splice(+b.dataset.fdel, 1); renderRegFilters(); renderRegistry();
+    }));
+    const qd = host.querySelector('[data-fqdel]');
+    if(qd) qd.addEventListener('click', ()=>{
+        regSearch = ''; const se = document.getElementById('regSearch'); if(se) se.value = '';
+        renderRegFilters(); renderRegistry();
     });
-    // Aktív szűrő-chipek + számláló
-    const cntEl=document.getElementById('regFCount');
-    if(cntEl){ if(regFilters.length){ cntEl.textContent=regFilters.length; cntEl.hidden=false; } else cntEl.hidden=true; }
-    const chipsRow=document.getElementById('regChips');
-    if(chipsRow){
-        const chips=regFilters.map((f,i)=>{
-            const fld=REG_FIELDS.find(x=>x.key===f.field);
-            const val=fld&&fld.type==='bool' ? ((f.value===true||f.value==='true')?'Igen':'Nem') : f.value;
-            return `<span class="filter-chip">${fld?fld.label:f.field}: <b>${esc(val)}</b><button data-fdel="${i}" title="Törlés">×</button></span>`;
-        }).join('');
-        chipsRow.innerHTML = chips || `<span style="font-size:13px;color:var(--muted);">Nincs aktív szűrő.</span>`;
-        chipsRow.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', ()=>{ regFilters.splice(+b.dataset.fdel,1); renderRegFilters(); renderRegistry(); }));
-    }
-    // A szűrőépítő és a chipek egy panelben, a "Szűrők" gomb mögött – így a
-    // felső eszköztár egysoros marad.
+    const cl = host.querySelector('[data-fclear]');
+    if(cl) cl.addEventListener('click', regFilterClearAll);
+}
+function renderRegFilters(){
+    renderRegActive();
+    const cntEl = document.getElementById('regFCount');
+    if(cntEl){ if(regFilters.length){ cntEl.textContent = regFilters.length; cntEl.hidden = false; } else cntEl.hidden = true; }
     const panel = document.getElementById('regFilterPanel');
     if(panel) panel.hidden = !regChipsOpen;
+    // A tölcsér gomb akkor is kiemelt, ha a panel be van csukva, de szűr a lista.
     const tgl = document.getElementById('regFToggle');
-    if(tgl) tgl.classList.toggle('on', regChipsOpen);
+    if(tgl) tgl.classList.toggle('on', regChipsOpen || regFilters.length > 0);
+    const bar = document.getElementById('regFilterBar'); if(!bar) return;
+    const statusChips = REG_STATUS.flatMap(([,items]) => items)
+        .map(st => `<button class="fbtn${regFilterIdx('status',st)>=0?' on':''}" data-fq="status:${esc(st)}">${esc(st)}</button>`).join('');
+    const flagChips = REG_QUICK_FLAGS.map(k => {
+        const fld = regFieldOf(k);
+        return `<button class="fbtn${regFilterIdx(k,'true')>=0?' on':''}" data-fq="${k}:true">${esc(fld?fld.label:k)}</button>`;
+    }).join('');
+    const textOpts = REG_FIELDS.filter(f => f.type === 'text')
+        .map(f => `<option value="${f.key}">${f.label}</option>`).join('');
+    bar.innerHTML = `
+        <div class="reg-fsec"><span class="lbl">Státusz</span><div class="chips">${statusChips}</div></div>
+        <div class="reg-fsep"></div>
+        <div class="reg-fsec"><span class="lbl">Jelölő</span><div class="chips">${flagChips}</div></div>
+        <div class="reg-fsep"></div>
+        <div class="reg-fsec"><span class="lbl">Mező</span><div class="chips">
+            <select id="regFField">${textOpts}</select>
+            <input id="regFVal" type="text" placeholder="érték">
+            <button class="btn" id="regFAdd">+ Hozzáad</button>
+        </div></div>`;
+    bar.querySelectorAll('[data-fq]').forEach(b => b.addEventListener('click', ()=>{
+        const raw = b.dataset.fq, i = raw.indexOf(':');
+        regFilterToggle(raw.slice(0,i), raw.slice(i+1));
+    }));
+    const fieldSel = document.getElementById('regFField');
+    const valEl = document.getElementById('regFVal');
+    const addIt = ()=>{ const v = (valEl.value||'').trim(); if(!v) return; valEl.value=''; regFilterToggle(fieldSel.value, v); };
+    document.getElementById('regFAdd').addEventListener('click', addIt);
+    valEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addIt(); } });
 }
+// Azonos mezőre tett feltételek VAGY kapcsolatban állnak (pl. két státusz),
+// a különböző mezők ÉS kapcsolatban – így a "Telefonra vár VAGY Elemzés"
+// is kilistázható, miközben a TP-szűrő továbbra is szűkít.
 function rowMatchesFilters(r){
-    return regFilters.every(f=>{
-        const fld=REG_FIELDS.find(x=>x.key===f.field); if(!fld) return true;
-        if(fld.type==='bool') return (!!r[f.field]) === (f.value===true||f.value==='true');
-        if(fld.type==='status') return (r.status||'')===f.value;
-        return String(r[f.field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
-    });
+    const byField = new Map();
+    regFilters.forEach(f => { if(!byField.has(f.field)) byField.set(f.field, []); byField.get(f.field).push(f); });
+    for(const [field, list] of byField){
+        const fld = regFieldOf(field); if(!fld) continue;
+        const ok = list.some(f => {
+            if(fld.type === 'bool') return (!!r[field]) === (f.value === true || f.value === 'true');
+            if(fld.type === 'status') return (r.status||'') === f.value;
+            return String(r[field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
+        });
+        if(!ok) return false;
+    }
+    return true;
 }
 // A "Kezelő" oszlop dönti el, kinek az ügyfele – ez alapján szűrődik a lista
 // (nem vezetőnek csak a saját kezelt ügyfelei jelennek meg). Nem vezető
@@ -4297,8 +4391,12 @@ function renderRegTable(matched){
     const rows = (keyOf
         ? groupedRows(matched, keyOf, order, regGroupClosed, regGroupBy, rowHtml)
         : matched.map(rowHtml).join(''))
-        || `<div class="rc-empty">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}${(!q && !regFilters.length && cliEmptyWhy())?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}</div>`;
+        || `<div class="rc-empty">${(q||regFilters.length)
+                ? `Nincs találat a beállított szűrőkre.<div style="margin-top:11px;"><button class="btn" id="regClearFromEmpty">Szűrők és keresés törlése</button></div>`
+                : `Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.${cliEmptyWhy()?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}`}</div>`;
     host.innerHTML = head + `<div class="rc-body">${rows}</div>`;
+    const clrEmpty = document.getElementById('regClearFromEmpty');
+    if(clrEmpty) clrEmpty.addEventListener('click', regFilterClearAll);
     const foot=document.getElementById('regFoot');
     if(foot){
         const n=matched.length;
@@ -4692,9 +4790,10 @@ function openClientTaskModal(idx){
         }
     });
     const searchEl = document.getElementById('regSearch');
-    if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegistry(); });
+    // A keresés is megjelenik az aktív szűrők sávjában, ezért az is újrarajzol.
+    if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegActive(); renderRegistry(); });
     const resetBtn=document.getElementById('regReset');
-    if(resetBtn) resetBtn.addEventListener('click', ()=>{ regSearch=''; regFilters=[]; regChipsOpen=false; if(searchEl) searchEl.value=''; renderRegFilters(); renderRegistry(); });
+    if(resetBtn) resetBtn.addEventListener('click', ()=>{ regChipsOpen=false; regFilterClearAll(); });
     const fToggle=document.getElementById('regFToggle');
     if(fToggle) fToggle.addEventListener('click', ()=>{ regChipsOpen=!regChipsOpen; renderRegFilters(); });
     const gSel=document.getElementById('regGroupSel');
