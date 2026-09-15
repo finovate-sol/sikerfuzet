@@ -1700,7 +1700,10 @@
                                  border-radius:13px; padding:0 5px; text-align:center; box-sizing:border-box; }
         .wk-allday { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
         .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
-        .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; }
+        .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; min-width:0; }
+        /* A chip soha ne legyen szélesebb a cellájánál – ami nem fér ki, az
+           "…"-tal záródik (a teljes szöveg a tooltipben marad). */
+        .wk-allday .cell > .allday-ev { max-width:100%; min-width:0; }
         /* Az időzített naptár-rácsból ide húzott esemény célpontja – ugyanaz a
            kékes kiemelés, mint az időzített rács saját drop-jelzőjén. */
         .wk-allday .cell.allday-drop-target { background:var(--blue-light); }
@@ -6325,7 +6328,11 @@ window.sfOnViewSwitch = function(){
     function renderTimeShell(grid, cols, now, pass){
         ROW = computeRow(grid);
         const n = cols.length;
-        const tmpl = `52px repeat(${n},1fr)`;
+        // minmax(0,1fr) és nem 1fr: az "1fr" alsó határa min-content, így egyetlen
+        // hosszú, nem törhető chip-felirat szétfeszítené az egész napos sor
+        // oszlopait (a chipek kilógtak a szomszéd napra). Nullára engedve a
+        // chip a cellában marad, és a felirat "…"-tal záródik.
+        const tmpl = `52px repeat(${n},minmax(0,1fr))`;
         const head = ['<div class="h"></div>'];
         cols.forEach(d => head.push(`<div class="h${sameDay(d,now)?' today':''}">${huDow(d)}<span class="num">${d.getDate()}</span></div>`));
         const hoursCount = END_H - START_H;
@@ -6535,8 +6542,9 @@ window.sfOnViewSwitch = function(){
         const chip = document.createElement("div");
         chip.className = "allday-ev allday-gtask" + (done ? " done" : "");
         chip.dataset.gtask = t.id;
+        chip.draggable = true;
         chip.title = (t.title || "(névtelen feladat)") + " · " + (t.listTitle || "Feladatok")
-            + (tm ? " · " + tm : "") + "\nKattints a kipipáláshoz";
+            + (tm ? " · " + tm : "") + "\nKattints a kipipáláshoz, vagy húzd a naptárba időpontot adni neki";
         chip.innerHTML = `<span class="wk-task-dot${done ? " done" : ""}" style="--c:#64748b"></span>`
             + (tm ? `<b>${tm}</b> ` : "") + escM(t.title || "(névtelen feladat)");
         return chip;
@@ -6906,6 +6914,19 @@ window.sfOnViewSwitch = function(){
         // az időzített blokkoknál – a #wkCanvas drop-kezelője adja a
         // ledobás helye szerinti időpontot.
         row.addEventListener("dragstart", e => {
+            // Google Task lehúzása a rácsba: ez NEM áthelyezés (a feladat a
+            // listán marad), hanem új naptáresemény a ledobott időpontra –
+            // ugyanaz, mint a Feladatok panelről húzva.
+            const gt = e.target.closest("[data-gtask]");
+            if (gt){
+                const t = gtTasks.find(x => x.id === gt.dataset.gtask);
+                draggingEvent = null;
+                e.dataTransfer.effectAllowed = "copy";
+                e.dataTransfer.setData("text/plain", JSON.stringify({
+                    name: (t && t.title) || gt.textContent.trim(), list: "task" }));
+                gt.classList.add("dragging");
+                return;
+            }
             const chip = e.target.closest(".allday-ev[draggable]");
             if (!chip || !chip.dataset.eventId) return;
             draggingEvent = { id: chip.dataset.eventId, durationMin: chip.classList.contains("allday-task") ? 15 : 60 };
@@ -6917,6 +6938,12 @@ window.sfOnViewSwitch = function(){
             const chip = e.target.closest(".allday-ev");
             if (chip) chip.classList.remove("dragging");
             draggingEvent = null;
+        });
+        // A naptárbeli feladat-chipre kattintás kipipál – a húzás viszont nem
+        // számít kattintásnak, ezért a dragstart után elnyeljük a click-et.
+        row.addEventListener("drag", e => {
+            const gt = e.target.closest("[data-gtask]");
+            if (gt) gt.dataset.dragged = "1";
         });
     }
 
@@ -6981,6 +7008,7 @@ window.sfOnViewSwitch = function(){
             // Google Task a naptárban: kattintásra kipipálható / visszavehető.
             const gt = e.target.closest("[data-gtask]");
             if (gt){
+                if (gt.dataset.dragged){ delete gt.dataset.dragged; return; }
                 const t = gtTasks.find(x => x.id === gt.dataset.gtask);
                 if(!t) return;
                 gt.style.opacity = ".5";
