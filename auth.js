@@ -115,8 +115,15 @@ export async function getClients(){
     if(!isConfigured || !db) return [];
     try {
         const snap = await getDocs(collection(db, "clients"));
+        window.sfClientsError = "";
         return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-    } catch(e){ console.warn("Ügyféllista olvasása sikertelen:", e); return []; }
+    } catch(e){
+        // A hibát ki is írjuk a felületre: enélkül a sikertelen olvasás pont
+        // úgy néz ki, mintha nem lenne egy ügyfél sem.
+        window.sfClientsError = String((e && e.message) || e);
+        console.warn("Ügyféllista olvasása sikertelen:", e);
+        return [];
+    }
 }
 export async function addClient(data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");

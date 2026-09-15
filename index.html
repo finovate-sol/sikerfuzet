@@ -4035,6 +4035,20 @@ function cliHasUnread(r){
     return last > (((r && r.seen) || {})[uid] || '');
 }
 function cliUnreadCount(list){ return (list || []).filter(cliHasUnread).length; }
+// Üres lista esetén megmondjuk, MIÉRT üres: hibára futott az olvasás, vagy
+// betöltött ugyan a lista, csak ebben a nézetben (kezelőnél) nincs senki.
+function cliEmptyWhy(){
+    if(window.sfClientsError) return `Az ügyféllista betöltése hibára futott: ${esc(window.sfClientsError)} — frissítsd az oldalt, és ha marad, a Firestore szabályok kellenek.`;
+    const all = (window.sfAllClients || []).length;
+    if(!all) return '';
+    const viewed = window.sfViewedUid || cliMyUid();
+    const own = cliMyUid();
+    const who = (viewed && viewed !== own)
+        ? ((window.sfViewAsEmployees || []).find(e => e.uid === viewed) || {})
+        : null;
+    const nev = who ? (who.name || who.email || 'a munkatárs') : 'nálad';
+    return `A rendszerben ${all} ügyfél van, de ${who ? nev + ' nézetében' : nev} egy sem — a „Kezelő" oszlopban máshoz tartoznak.`;
+}
 const cliDot = r => cliHasUnread(r) ? '<span class="cli-dot" title="Új jegyzet érkezett"></span>' : '';
 
 // Megnyitáskor olvasottá tesszük – csak ha tényleg van olvasatlan, hogy ne
@@ -4283,7 +4297,7 @@ function renderRegTable(matched){
     const rows = (keyOf
         ? groupedRows(matched, keyOf, order, regGroupClosed, regGroupBy, rowHtml)
         : matched.map(rowHtml).join(''))
-        || `<div class="rc-empty">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}</div>`;
+        || `<div class="rc-empty">${(q||regFilters.length)?'Nincs találat.':'Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.'}${(!q && !regFilters.length && cliEmptyWhy())?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}</div>`;
     host.innerHTML = head + `<div class="rc-body">${rows}</div>`;
     const foot=document.getElementById('regFoot');
     if(foot){
@@ -4970,7 +4984,7 @@ function renderKetorasRows(list){
     const el = document.getElementById('ketorasList');
     if(!el) return;
     if(!list.length){
-        el.innerHTML = `<div class="ket-empty">Még nincs munkatárs-jelölt. Adj hozzá egyet a „+ Új jelölt” gombbal, vagy jelölj meg egy meglévő kapcsolatot a fenti keresővel.</div>`;
+        el.innerHTML = `<div class="ket-empty">Még nincs munkatárs-jelölt. Adj hozzá egyet a „+ Új jelölt” gombbal, vagy jelölj meg egy meglévő kapcsolatot a fenti keresővel.${cliEmptyWhy()?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}</div>`;
         return;
     }
     const head = `<div class="rc-head kc-head">
@@ -5317,7 +5331,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep } from "./auth.js?v=6";
+    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep } from "./auth.js?v=7";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
