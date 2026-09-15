@@ -4021,8 +4021,16 @@ function cliNotes(r){ return Array.isArray(r && r.jegyzetek) ? r.jegyzetek : [];
 function cliLastNoteAt(r){
     return cliNotes(r).reduce((m,n) => (n && n.at && n.at > m) ? n.at : m, '');
 }
+// "Új info" csak a SAJÁT ügyfeleimnél. Vezetőként a ránézésben a munkatárs
+// ügyfeleit is látom, de azok jegyzetei nem az én olvasatlanjaim – különben
+// egy átvett (importált) lista az első megnyitáskor teljes egészében jelezne.
+function cliIsMine(r){
+    const uid = cliMyUid(); if(!uid) return false;
+    return !r || !r.ownerUid || r.ownerUid === uid;
+}
 function cliHasUnread(r){
     const uid = cliMyUid(); if(!uid) return false;
+    if(!cliIsMine(r)) return false;
     const last = cliLastNoteAt(r); if(!last) return false;
     return last > (((r && r.seen) || {})[uid] || '');
 }
@@ -4097,7 +4105,7 @@ function cliNotesHtml(i, scope){
 // A bal menü számlálói – anélkül látszik, hogy megnyitnád az oldalt.
 function cliRefreshBadges(){
     const all = window.sfAllClients || [];
-    const mine = all.filter(c => !c.ownerUid || c.ownerUid === cliMyUid() || (window.sfVisibleUids && window.sfVisibleUids.has(c.ownerUid)));
+    const mine = all.filter(cliIsMine);
     const set = (page, n) => {
         const link = document.querySelector(`.nav a[data-page="${page}"]`); if(!link) return;
         let b = link.querySelector('.nav-badge');
