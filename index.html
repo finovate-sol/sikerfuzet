@@ -1752,6 +1752,10 @@
         .wk-ev-loc > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .wk-ev-loc .wk-ev-svg { width:10px; height:10px; }
         .wk-ev-meet, .ag-meet { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:inherit; opacity:.9; margin-top:2px; text-decoration:none; }
+        /* A heti rácsban az idő mellett áll, ezért nincs felső margója, és
+           kap egy kis kattintási felületet a keskeny blokkban is. */
+        .wk-ev-head .wk-ev-meet { margin-top:0; padding:0 2px; opacity:1; flex-shrink:0; }
+        .wk-ev-head .wk-ev-meet:hover { opacity:.75; }
         .wk-ev-meet:hover, .ag-meet:hover { text-decoration:underline; }
         .wk-ev-meet svg, .ag-meet svg { width:11px; height:11px; }
         .ag-meet { margin-top:2px; margin-left:0; font-size:11px; }
@@ -2727,6 +2731,10 @@ window.sfSetRegistry = function(list){
     // Lezárt → Lezárt – Ügyfél). Nem írunk vissza a Firestore-ba: a rekord a
     // következő szerkesztésénél magától az új értékkel mentődik.
     registry.forEach(r => { if(r) r.status = regStatusNorm(r.status); });
+    // A "Település" (adatlap) és a "Lakhely" (lista) ugyanaz az adat, egy
+    // mezőben: ami eddig csak a details.telepules-ben volt, átkerül a
+    // lakhely-be. A régi kulcsot meghagyjuk, amíg a rekord újra nem mentődik.
+    registry.forEach(r => { if(r && r.details && r.details.telepules && !String(r.lakhely||'').trim()) r.lakhely = r.details.telepules; });
     store.save('sf_registry', registry);
     renderRegistry();
     refreshMoneyCareer();
@@ -3968,7 +3976,7 @@ const REG_FIELDS = [
     {key:'munkatars', label:'Munkatárs', type:'text'},
     {key:'ajanlo', label:'Ajánló személy', type:'text'},
     {key:'phone', label:'Telefonszám', type:'text'},
-    {key:'lakhely', label:'Lakhely', type:'text'},
+    {key:'lakhely', label:'Település', type:'text'},
     {key:'status', label:'Státusz', type:'status'},
     {key:'tp', label:'TP', type:'bool'},
     {key:'mt', label:'MT', type:'bool'},
@@ -4347,7 +4355,7 @@ function rdAdatokFields(r, i){
     return `<div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
             ${f('eletkor','Életkor')}
-            ${f('telepules','Település')}
+            <div class="rd-field"><label>Település</label><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely||'')}" placeholder="település"></div>
             ${f('miert','Miért gondolt rá')}
             ${fSel('lakas','Lakáshelyzet / Családi állapot', ['Egyedülálló','Párkapcsolatban él','Élettársi kapcsolatban él','Házas','Elvált','Özvegy'])}
             ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
@@ -4481,7 +4489,7 @@ function renderRegTable(matched){
     const q=(regSearch||'').trim().toLowerCase();
     const head = `<div class="rc-head">
         <div>Résztvevő</div><div>Ajánló személy</div><div>Telefonszám</div><div class="c">TP</div>
-        <div>Lakhely</div><div>Státusz</div><div class="c" title="Az ügyféltől kapott ajánlások száma">Ajánlás</div>
+        <div>Település</div><div>Státusz</div><div class="c" title="Az ügyféltől kapott ajánlások száma">Ajánlás</div>
         <div class="c">Jelölők</div><div></div>
     </div>`;
     const rowHtml = ({r,i})=>{
@@ -4500,7 +4508,7 @@ function renderRegTable(matched){
             <div><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="ajánló"></div>
             <div><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="telefonszám"></div>
             <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp)}</div></div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="lakhely"></div>
+            <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="település"></div>
             <div>${regStatusSelect(i, r.status)}</div>
             <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"></div>
             <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes)}${flagChip(i,'portal','PF',r.portal)}${flagChip(i,'tanacsadas','TA',r.tanacsadas)}</div></div>
@@ -4568,7 +4576,7 @@ function regCardDetailHtml(i){
                 <button data-cltask="${i}" title="Feladat létrehozása a Google Tasks-ban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Feladat</button>
             </div>
             ${kv('Ajánló', r.ajanlo)}
-            ${kv('Lakhely', r.lakhely)}
+            ${kv('Település', r.lakhely)}
             ${kv('Tanácsadó', r.munkatars)}
             ${kv('Kezelő', r.ownerName)}
         </div>
@@ -5064,7 +5072,7 @@ function ketAdatokFields(r, tob){
     return `<div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
             <div class="rd-field"><label>Telefonszám</label><input data-tobphone value="${esc(r.phone)}"></div>
-            <div class="rd-field"><label>Lakhely</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
+            <div class="rd-field"><label>Település</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
             <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
         </div>
         <div class="rd-sec">Hol tart a folyamat</div>
@@ -5287,7 +5295,7 @@ function ketCardDetailHtml(i){
             ${kv('Státusz', tob.status)}
             ${kv('Minőség', tob.minoseg ? tob.minoseg+' – '+ketorasQualityLabel(tob.minoseg) : '')}
             ${kv('Ajánló', r.ajanlo)}
-            ${kv('Lakhely', r.lakhely)}
+            ${kv('Település', r.lakhely)}
             ${kv('Hívási kísérlet', String(nHiv))}
         </div>
         <div class="rc-main">
@@ -6595,7 +6603,15 @@ window.sfOnViewSwitch = function(){
                 : "";
             const label = isTask ? (t.clean || "(névtelen)") : statusTitle(t.clean, t.status);
             const titleHtml = `<span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>`;
-            const timeLocHtml = `${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b></span>` : ""}
+            // Google Meet: az időpont mellé kerül egy kattintható ikon, mert a
+            // blokk magassága ritkán enged meg még egy teljes sort. A kattintást
+            // a naptár kattintáskezelője átengedi (.wk-ev-meet), így az esemény
+            // szerkesztője helyett egyből a hívás nyílik.
+            const wkMeetUrl = getMeetLink(t.ev);
+            const wkMeetHtml = wkMeetUrl
+                ? `<a class="wk-ev-meet" draggable="false" href="${escM(wkMeetUrl)}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")}</a>`
+                : "";
+            const timeLocHtml = `${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b>${wkMeetHtml}</span>` : ""}
                 ${showLoc ? `<span class="wk-ev-loc">${calSvg("pin")}<span>${escM(locText)}</span></span>` : ""}`;
             div.innerHTML = mode === "split"
                 // "Kétszínű sáv": a cím és az időpont/helyszín külön, saját hátterű
@@ -6607,7 +6623,8 @@ window.sfOnViewSwitch = function(){
                 : `<span class="wk-ev-del" title="Törlés">×</span>
                     ${titleHtml}
                     ${timeLocHtml}`;
-            div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "");
+            div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "")
+                + (wkMeetUrl ? "\nGoogle Meet: " + wkMeetUrl : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
             // sáv – ugyanolyan széles, mint maga az esemény, és ugyanarra kattint.
             const travelMin = parseInt((((t.ev.extendedProperties || {}).private || {}).sfTravelMin), 10) || 0;
@@ -9478,7 +9495,7 @@ window.sfOnViewSwitch = function(){
             name: String(get('Név')||'').trim(),
             phone: String(get('Telefonszám')||'').trim(),
             ajanlo: String(get('Ajánló Személy')||'').trim(),
-            lakhely: String(get('Lakhely')||'').trim(),
+            lakhely: String(get('Lakhely') || get('Település') || '').trim(),
             munkatars: String(get('Munkatárs')||'').trim(),
             status, tp: notionBool(get('TP')), mt,
             ajanlasok: (() => { const n = parseFloat(String(get('Ajánlás')||'').replace(',','.')); return isNaN(n) || n <= 0 ? '' : String(n); })(),
@@ -9551,6 +9568,9 @@ window.sfOnViewSwitch = function(){
             details, celok: {},
             kezeloNev: s(src.kezeloNev),
         };
+        // A "Település" és a "Lakhely" ugyanaz az adat – egy mezőbe kerül.
+        if(!r.lakhely && details.telepules) r.lakhely = details.telepules;
+        delete details.telepules;
         const cel = (src.celok && typeof src.celok === 'object') ? src.celok : {};
         ['rovid','kozep','hosszu'].forEach(k => { if(s(cel[k])) r.celok[k] = s(cel[k]); });
 
@@ -9639,7 +9659,7 @@ window.sfOnViewSwitch = function(){
                 </div>
                 ${pending.length ? `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;">
                     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                    <thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Név</th><th style="text-align:left;padding:7px 8px;">Telefon</th><th style="text-align:left;padding:7px 8px;">Lakhely</th><th style="text-align:left;padding:7px 8px;">Státusz</th><th style="text-align:left;padding:7px 8px;">Jegyzet</th><th style="text-align:left;padding:7px 8px;">Hová</th></tr></thead>
+                    <thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Név</th><th style="text-align:left;padding:7px 8px;">Telefon</th><th style="text-align:left;padding:7px 8px;">Település</th><th style="text-align:left;padding:7px 8px;">Státusz</th><th style="text-align:left;padding:7px 8px;">Jegyzet</th><th style="text-align:left;padding:7px 8px;">Hová</th></tr></thead>
                     <tbody>${sample}</tbody></table>
                 </div>
                 <div style="color:var(--muted);font-size:12px;margin-bottom:12px;">${pending.length > 8 ? `…és további ${pending.length-8} sor.` : ''}</div>
