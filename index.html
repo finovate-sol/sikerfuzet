@@ -882,13 +882,11 @@
            erősebb elválasztó vonal pedig a kategória-határt jelzi. */
         table.eves .ev-alt { background:rgba(31,95,208,.05); }
         table.eves th.ev-sh-e, table.eves td.ev-td-e, table.eves th.ev-grp { border-right:2px solid #ccd6e6; }
-        /* Eltérés a tervhez képest: az "Elért" mező mellett, apró jelzésként.
-           Nem külön oszlop – 7 kategória × 3 oszlop már olvashatatlanul széles. */
-        table.eves .ev-e-wrap { display:flex; align-items:center; justify-content:center; gap:4px; }
-        table.eves .ev-diff { font-size:10.5px; font-weight:800; min-width:24px; text-align:left; white-space:nowrap; }
-        table.eves .ev-diff.pos { color:var(--green); }
-        table.eves .ev-diff.warn { color:var(--amber); }
-        table.eves .ev-diff.neg { color:var(--red); }
+        /* Teljesítés jelzése: nem külön eltérés-oszlop (7 kategória × 3 oszlop már
+           olvashatatlanul széles lenne), hanem maga az "Elért" érték színeződik. */
+        table.eves .ev-val.pos { color:var(--green); font-weight:800; }
+        table.eves .ev-val.warn { color:var(--amber); font-weight:800; }
+        table.eves .ev-val.neg { color:var(--red); font-weight:800; }
 
         /* ===== KI LESZ A KÖVETKEZŐ ===== */
         .kov-meta { display:flex; gap:12px; flex-wrap:wrap; }
@@ -3330,8 +3328,8 @@ function renderEvesBody(){
     const altCls = gi => gi%2 ? ' ev-alt' : '';
     let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map((g,gi)=>`<th colspan="2" class="ev-grp${altCls(gi)}" style="--gc:${g.color};"><span class="ev-grp-in"><span class="ev-grp-ic">${evIc(g.icon,g.color)}</span>${g.label}</span></th>`).join('') + `</tr>`;
     let h2 = `<tr>` + EVES_GROUPS.map((g,gi)=>`<th class="ev-sh ev-sh-t${altCls(gi)}" style="--gc:${g.color};">Terv</th><th class="ev-sh ev-sh-e${altCls(gi)}" style="--gc:${g.color};">Elért</th>`).join('') + `</tr>`;
-    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><span class="ev-e-wrap"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"><span class="ev-diff" id="evd-${m}-${g}"></span></span></td>`;
-    const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span class="ev-e-wrap"><span id="${id}-e"></span><span class="ev-diff" id="${id}-d"></span></span></td>`;
+    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><input type="text" inputmode="numeric" class="ev-val" id="eve-${m}-${g}" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
+    const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span class="ev-val" id="${id}-e"></span></td>`;
     let rows='';
     EVES_QUARTERS.forEach((q,qi)=>{
         q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map((g,gi)=>cell(m,g.key,gi)).join('')+`</tr>`; });
@@ -3370,12 +3368,11 @@ function evesDiffClass(terv, elert){
     const ratio = elert/terv;
     return ratio>=1 ? 'pos' : ratio>=0.8 ? 'warn' : 'neg';
 }
+// Csak a színt állítjuk az "Elért" mezőn – külön eltérés-érték nem jelenik meg.
 function evesSetDiff(el, terv, elert){
     if(!el) return;
     const cls = evesDiffClass(terv, elert);
-    const d = elert - terv;
-    el.className = 'ev-diff' + (cls ? ' '+cls : '');
-    el.textContent = (terv>0 || elert>0) ? (d>0?'+':d<0?'−':'±') + Math.abs(d) : '';
+    el.className = 'ev-val' + (cls ? ' '+cls : '');
 }
 function recomputeEves(){
     EVES_GROUPS.forEach(g=>{
@@ -3383,7 +3380,7 @@ function recomputeEves(){
         // Havi eltérés: a tervhez képest mennyi jött össze abban a hónapban.
         for(let m=0;m<12;m++){
             const mt=haviNum(evesData.months[m][g.key].t), me=haviNum(evesData.months[m][g.key].e);
-            evesSetDiff(document.getElementById(`evd-${m}-${g.key}`), mt, me);
+            evesSetDiff(document.getElementById(`eve-${m}-${g.key}`), mt, me);
         }
         EVES_QUARTERS.forEach((q,qi)=>{
             let qt=0, qe=0;
@@ -3391,22 +3388,11 @@ function recomputeEves(){
             totT+=qt; totE+=qe;
             const et=document.getElementById(`evq-${qi}-${g.key}-t`); if(et) et.textContent=qt;
             const ee=document.getElementById(`evq-${qi}-${g.key}-e`);
-            if(ee){
-                ee.textContent=qe;
-                const cls=evesDiffClass(qt,qe);
-                ee.style.color = cls==='pos' ? 'var(--green)' : cls==='warn' ? 'var(--amber)' : cls==='neg' ? 'var(--red)' : '';
-                ee.style.fontWeight = cls ? '800' : '';
-            }
-            evesSetDiff(document.getElementById(`evq-${qi}-${g.key}-d`), qt, qe);
+            if(ee){ ee.textContent=qe; evesSetDiff(ee, qt, qe); }
         });
         const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT;
         const te=document.getElementById(`evtot-${g.key}-e`);
-        if(te){
-            te.textContent=totE;
-            const cls=evesDiffClass(totT,totE);
-            te.style.color = cls==='pos' ? 'var(--green)' : cls==='warn' ? 'var(--amber)' : cls==='neg' ? 'var(--red)' : '';
-        }
-        evesSetDiff(document.getElementById(`evtot-${g.key}-d`), totT, totE);
+        if(te){ te.textContent=totE; evesSetDiff(te, totT, totE); }
     });
 }
 document.getElementById('evesBody').addEventListener('input', e=>{
