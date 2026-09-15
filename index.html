@@ -6345,6 +6345,23 @@ window.sfOnViewSwitch = function(){
         return Math.max(22, avail / (VIEW_END_H - VIEW_START_H));
     }
 
+    // Az "egész nap" sor csak az események és a feladatok kirajzolása után
+    // nyeri el a végleges magasságát (üresen számoltuk az óra-magasságot).
+    // Utána a rács alját visszahúzzuk a képernyő aljáig – enélkül a naptár
+    // annyival lóg túl rajta, amennyivel az egész napos sor megnőtt. A rács
+    // belül görgethető, tehát nem vész el óra, csak kevesebb látszik egyszerre.
+    function fitTimeGridBottom(){
+        const wk = document.querySelector("#calGrid .wk-grid");
+        if (!wk) return;
+        const content = document.querySelector(".content");
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const ideal = (VIEW_END_H - VIEW_START_H) * ROW;
+        const fits = window.innerHeight - wk.getBoundingClientRect().top - padB;
+        // Csak zsugorítunk: az "ideal" fölé sosem megyünk (görgetett oldalnál a
+        // mért hely félrevezető lenne).
+        wk.style.height = Math.max(240, Math.min(ideal, fits)) + "px";
+    }
+
     function renderTimeShell(grid, cols, now, pass){
         ROW = computeRow(grid);
         const n = cols.length;
@@ -8097,7 +8114,7 @@ window.sfOnViewSwitch = function(){
                 const d = new Date(due.ymd + "T00:00:00");
                 return d >= rangeStart && d < rangeEnd;
             });
-            if (viewMode === "day" || viewMode === "week") renderTimeEvents(cols, events, inRange);
+            if (viewMode === "day" || viewMode === "week"){ renderTimeEvents(cols, events, inRange); fitTimeGridBottom(); }
             else if (viewMode === "month") renderMonth(grid, now, events, inRange);
             else if (viewMode === "clients"){
                 const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
