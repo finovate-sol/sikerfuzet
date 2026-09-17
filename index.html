@@ -5747,7 +5747,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep } from "./auth.js?v=7";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep } from "./auth.js?v=8";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -8290,7 +8290,16 @@ window.sfOnViewSwitch = function(){
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         }
 
-        const token = getCalendarToken();
+        // Nincs token → előbb NÉMÁN próbálunk szerezni egyet (ha a fiók a jogot
+        // már megadta), és csak utána kérjük gombnyomással.
+        let token = getCalendarToken();
+        if (!token && hasAutoConnect()){
+            if (grid && !grid.dataset.autoTried){
+                grid.innerHTML = `<div class="cal-connect"><p>Csatlakozás a Google Naptárhoz…</p></div>`;
+            }
+            token = await silentCalendarToken();
+            if (seq !== calRenderSeq) return;
+        }
         if (!token){ currentColumns = cols || []; showConnect(grid); return; }
 
         updateStats(token);
@@ -8332,6 +8341,11 @@ window.sfOnViewSwitch = function(){
                 showConnect(grid, "Ez a munkatárs (" + escM(emp ? (emp.name || emp.email) : "") + ") még nem osztotta meg a Google Naptárát a te fiókoddal, vagy nincs hozzá jogosultságod.");
             } else if (e.status === 401 || e.status === 403){
                 try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
+                // Lejárt token: előbb csendben kérünk újat – a Google-ban élő
+                // munkamenet mellett ez ablak nélkül megy.
+                const fresh = hasAutoConnect() ? await silentCalendarToken() : null;
+                if (seq !== calRenderSeq) return;
+                if (fresh){ initCalendar(); return; }
                 showConnect(grid, "A naptár hozzáférés lejárt vagy hiányzik.");
             } else {
                 showConnect(grid, "A naptár betöltése nem sikerült: " + escM(e.message || e));
@@ -8349,6 +8363,7 @@ window.sfOnViewSwitch = function(){
     // interactive=true  → hiányzó/lejárt jog esetén felkéri a Tasks jogot (gombnyomásra).
     async function tasksFetch(path, opts, interactive){
         let token = getCalendarToken();
+        if(!token && hasAutoConnect()) token = await silentCalendarToken();
         if(!token){
             if(!interactive){ const e = new Error("Nincs Google hozzáférés."); e.status = 401; throw e; }
             token = await connectTasks();
@@ -8358,9 +8373,14 @@ window.sfOnViewSwitch = function(){
             headers: Object.assign({ Authorization: "Bearer " + tok, "Content-Type": "application/json" }, (opts && opts.headers) || {})
         }));
         let res = await doIt(token);
-        if((res.status === 401 || res.status === 403) && interactive){
-            const t = await connectTasks();
-            if(t) res = await doIt(t);
+        if(res.status === 401 || res.status === 403){
+            // Előbb néma frissítés; csak ha az sem megy, kérünk engedélyt gombbal.
+            const quiet = hasAutoConnect() ? await silentCalendarToken() : null;
+            if(quiet) res = await doIt(quiet);
+            else if(interactive){
+                const t = await connectTasks();
+                if(t) res = await doIt(t);
+            }
         }
         if(!res.ok){ const e = new Error("Google Tasks hiba (" + res.status + ")"); e.status = res.status; throw e; }
         if(res.status === 204) return null;

@@ -12,7 +12,7 @@ import {
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
-import { firebaseConfig, isConfigured } from "./firebase-config.js";
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js";
 
 export { isConfigured };
 
@@ -439,6 +439,56 @@ async function ensureEmployeeProfile(user, attempt) {
 // --- A session-re eltárolt Google naptár access token ---
 export function getCalendarToken() {
     try { return sessionStorage.getItem("sf_gcal_token"); } catch (e) { return null; }
+}
+
+// --- NÉMA (automatikus) csatlakozás a Google-hoz ---------------------------
+// A Firebase popupos bejelentkezése felhasználói kattintást igényel, ezért
+// azzal nem lehet automatikusan tokent szerezni; a hozzáférés ráadásul kb. egy
+// óra után lejár. A Google Identity Services token-kliense viszont prompt:""
+// mellett ablak nélkül ad új tokent, HA a fiók a jogot már egyszer megadta.
+// Ha nincs beállítva googleClientId (vagy bármi hibára fut), null jön vissza –
+// ilyenkor marad a régi, gombos csatlakozás.
+let gisReady = null;
+function loadGis() {
+    if (gisReady) return gisReady;
+    gisReady = new Promise((resolve, reject) => {
+        if (window.google && window.google.accounts && window.google.accounts.oauth2) return resolve();
+        const sc = document.createElement("script");
+        sc.src = "https://accounts.google.com/gsi/client";
+        sc.async = true; sc.defer = true;
+        sc.onload = () => resolve();
+        sc.onerror = () => reject(new Error("A Google Identity Services nem tölthető be."));
+        document.head.appendChild(sc);
+    });
+    return gisReady;
+}
+export function hasAutoConnect() { return !!googleClientId; }
+export async function silentCalendarToken() {
+    if (!googleClientId) return null;
+    try { await loadGis(); } catch (e) { return null; }
+    const user = auth && auth.currentUser;
+    return new Promise(resolve => {
+        let done = false;
+        const finish = tok => { if (done) return; done = true; resolve(tok || null); };
+        // Ha a Google se nem válaszol, se nem hibázik, ne akadjon meg az app.
+        setTimeout(() => finish(null), 8000);
+        try {
+            const client = window.google.accounts.oauth2.initTokenClient({
+                client_id: googleClientId,
+                scope: CALENDAR_SCOPE + " " + TASKS_SCOPE,
+                prompt: "",                       // néma: csak már megadott jognál
+                login_hint: (user && user.email) || "",
+                callback: resp => {
+                    if (resp && resp.access_token) {
+                        try { sessionStorage.setItem("sf_gcal_token", resp.access_token); } catch (e) {}
+                        finish(resp.access_token);
+                    } else finish(null);
+                },
+                error_callback: () => finish(null)
+            });
+            client.requestAccessToken();
+        } catch (e) { finish(null); }
+    });
 }
 
 // --- Naptár újra-összekötése (friss access token kérése popup-pal) ---
