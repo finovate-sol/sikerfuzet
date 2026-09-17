@@ -12,7 +12,10 @@ import {
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js";
+// A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
+// (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
+// gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=9";
 
 export { isConfigured };
 
