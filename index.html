@@ -598,6 +598,17 @@
         .adm-cal-row-id { font-size:11.5px; color:var(--muted); word-break:break-all; }
         .adm-cal-row .btn { margin-left:auto; flex:none; }
         .adm-cal-pick { display:flex; gap:8px; flex-wrap:wrap; }
+        /* Oldal-engedélyek chipjei a Hozzáférés fülön. */
+        .adm-role-pages { grid-column:1 / -1; padding-top:4px; }
+        .adm-role-pages-lbl { font-size:10.5px; font-weight:800; color:var(--muted);
+                              text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+        .adm-page-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        .adm-page-chip { border:1px solid var(--border); background:#fff; border-radius:999px;
+                         padding:5px 11px; font-size:12px; font-weight:600; font-family:inherit;
+                         color:#94a3b8; cursor:pointer; text-decoration:line-through; }
+        .adm-page-chip.on { background:var(--blue-light); border-color:#c5d9f7; color:var(--blue); text-decoration:none; }
+        .adm-page-chip:hover { border-color:var(--blue); }
+        .adm-page-chip:disabled { opacity:.5; cursor:default; }
         .reg-groupsel { padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card);
                         font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); outline:none; cursor:pointer; }
         .reg-groupsel:focus { border-color:var(--blue); }
@@ -3190,6 +3201,7 @@ renderMoney(); renderCareer(); renderInfo();
             return;
         }
         const p = a.dataset.page;
+        if(window.sfBlockedPages && window.sfBlockedPages.has(p)) return;
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
@@ -3216,6 +3228,41 @@ renderMoney(); renderCareer(); renderInfo();
         if(mbt) mbt.textContent = a.textContent.trim() || 'Sikerfüzet';
     }));
 })();
+
+// ===== OLDAL-HOZZÁFÉRÉS (Admin → Hozzáférés) =====
+// A menüpontok munkatársanként ki-be kapcsolhatók. Csak a TILTOTT oldalakat
+// tároljuk (alapból minden látszik), és az adminra sosem vonatkozik –
+// különben ki tudná zárni magát a beállításból.
+const SF_PAGES = [
+    ['havi','Havi Terv'], ['eves','Éves Terv'], ['kovetkezo','Ki lesz a következő'],
+    ['ugyfelek','10 perces füzet'], ['ketoras','2 órás füzet'], ['pg','PG Modul'],
+    ['struktura','Struktúra'], ['penzugyek','Pénzügyek'], ['celok','Célok'],
+];
+window.sfBlockedPages = new Set();
+window.sfPageAccessMap = null;
+window.sfApplyPageAccess = function(map){
+    // A térkép és az admin-jelző két külön betöltésből érkezik, versenyben –
+    // ezért megjegyezzük az utoljára kapott térképet, és mindkét ág újra hívja.
+    if(map !== undefined) window.sfPageAccessMap = map;
+    const m = window.sfPageAccessMap;
+    const uid = (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
+    const blocked = new Set((!window.sfIsAdmin && uid && m && m[uid]) || []);
+    window.sfBlockedPages = blocked;
+    document.querySelectorAll('.nav a[data-page]').forEach(a => {
+        const pg = a.dataset.page;
+        if(pg === 'home' || pg === 'admin') return;
+        // A Kiértékelő telefon saját jogosultságot is néz (navKiertekelo),
+        // azt nem írjuk felül – csak tiltani tudjuk.
+        if(blocked.has(pg)) a.hidden = true;
+        else if(a.id !== 'navKiertekelo') a.hidden = false;
+    });
+    // Ha épp egy most letiltott oldalon állunk, visszaviszünk a kezdőoldalra.
+    const cur = document.querySelector('.nav a[data-page].active');
+    if(cur && blocked.has(cur.dataset.page)){
+        const home = document.querySelector('.nav a[data-page="home"]');
+        if(home) home.click();
+    }
+};
 
 // ===== MOBIL MENÜ (hamburger + kicsúszó sidebar) =====
 (function(){
@@ -5741,6 +5788,7 @@ window.sfOnViewSwitch = function(){
             // naptár-renderelés UTÁN érkezik meg – ezért itt is feltöltjük.
             renderCalPicker();
             if (calOwnId) initCalendar();
+            if (typeof window.sfApplyPageAccess === "function") window.sfApplyPageAccess(cfg && cfg.pageAccess);
             window.sfRankRates = (cfg && cfg.ranks) || DEFAULT_RANKS;
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
@@ -5758,6 +5806,7 @@ window.sfOnViewSwitch = function(){
         getAccessMap().then(async accessMap => {
             window.sfAccessMap = accessMap;
             window.sfIsAdmin = isAdmin(user);
+            if (typeof window.sfApplyPageAccess === "function") window.sfApplyPageAccess();
             const leader = isLeaderByAccess(user, accessMap);
             window.sfIsLeader = leader;
             window.sfVisibleUids = leader ? getSubordinateUids(user.uid, accessMap) : new Set();
@@ -10411,10 +10460,17 @@ window.sfOnViewSwitch = function(){
         const loggedInEmails = new Set(employees.map(e => String(e.email||'').toLowerCase()));
         const pendingEmails = (allowedEmails||[]).filter(email => !loggedInEmails.has(String(email||'').toLowerCase()))
             .sort((a,b)=>String(a).localeCompare(String(b),'hu'));
+        // Oldal-hozzáférés: csak a TILTOTT oldalakat tároljuk, így egy új oldal
+        // alapból mindenkinek látszik, és a régi beállítások sem avulnak el.
+        const pageAccess = (currentConfig && currentConfig.pageAccess) || {};
         const rowsHtml = employees.map(emp=>{
             const mgrUid = accessMap[emp.uid] || '';
             const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid)
                 .map(e2 => `<option value="${e2.uid}"${e2.uid===mgrUid?' selected':''}>${escM(e2.name||e2.email)}</option>`).join('');
+            const blocked = new Set(pageAccess[emp.uid] || []);
+            const pageChips = SF_PAGES.map(([key,label]) =>
+                `<button type="button" class="adm-page-chip${blocked.has(key)?'':' on'}" data-pguid="${emp.uid}" data-pgkey="${key}"
+                    title="${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`).join('');
             return `<div class="adm-role-row" data-uid="${emp.uid}">
                 <div class="adm-role-name">
                     <div>${escM(emp.name||'(névtelen)')}</div>
@@ -10424,6 +10480,10 @@ window.sfOnViewSwitch = function(){
                     <option value="">— nincs felettese —</option>
                     ${mgrOpts}
                 </select>
+                <div class="adm-role-pages">
+                    <div class="adm-role-pages-lbl">Látható oldalak</div>
+                    <div class="adm-page-chips">${pageChips}</div>
+                </div>
             </div>`;
         }).join('');
         const pendingHtml = pendingEmails.map(email => `<div class="adm-role-row adm-role-pending">
@@ -10457,6 +10517,28 @@ window.sfOnViewSwitch = function(){
                 catch(e){ alert('Hiba: '+(e.message||e)); }
             });
         });
+        // Oldalak ki-be kapcsolása munkatársanként.
+        cont.querySelectorAll('[data-pgkey]').forEach(chip => chip.addEventListener('click', async () => {
+            const uid = chip.dataset.pguid, key = chip.dataset.pgkey;
+            const cur = (currentConfig && currentConfig.pageAccess) || {};
+            const blocked = new Set(cur[uid] || []);
+            const willBlock = chip.classList.contains('on');
+            if (willBlock) blocked.add(key); else blocked.delete(key);
+            const next = Object.assign({}, cur);
+            if (blocked.size) next[uid] = [...blocked]; else delete next[uid];
+            chip.disabled = true;
+            try {
+                await saveAppConfig({ pageAccess: next });
+                currentConfig = Object.assign({}, currentConfig, { pageAccess: next });
+                window._admCfg = currentConfig;
+                chip.classList.toggle('on', !willBlock);
+                chip.title = willBlock ? 'Letiltva – kattints az engedélyezéshez' : 'Engedélyezve – kattints a letiltáshoz';
+                // Ha épp magamról van szó, a menü azonnal kövesse.
+                if (typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess(next);
+            }
+            catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); }
+            chip.disabled = false;
+        }));
     }
 
     function renderAdmDates(cont){
