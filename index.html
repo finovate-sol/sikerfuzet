@@ -2686,6 +2686,7 @@
               <div class="seg" id="pzYearSeg"></div>
               <div class="reg-tools">
                 <label class="pz-kezdo">Évnyitó vagyon<input type="text" inputmode="numeric" id="pzKezdo" placeholder="0"></label>
+                <button class="btn" id="pzImportBtn" title="Egy év adatainak beolvasása JSON-ból">Import</button>
               </div>
             </div>
             <div class="pz-kpis" id="pzKpis"></div>
@@ -3723,7 +3724,18 @@ document.getElementById('evesToday').addEventListener('click', ()=>{ evesAnchor=
 // Minden más ebből számolódik – a megmaradt, a vagyon, az éves összesítés és
 // az 5 éves terv is. Így nem tud elcsúszni egymástól a három szint.
 const PZ_MONTHS = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
-const PZ_FIELDS = ['bevT','bev','koltT','kolt','felT','fel'];
+// A bevétel Főállás és OVB bontásban él; az "összes bevétel" ezek összege.
+// A régi adatokban még egyetlen bevT/bev szerepelt – azt nem találgatjuk szét
+// a két sorra, hanem összegként megtartjuk (lásd pzBev/pzBevT).
+const PZ_FIELDS = ['bevFoT','bevFo','bevOvbT','bevOvb','koltT','kolt','felT','fel'];
+function pzBevT(m){
+    if(m.bevFoT != null || m.bevOvbT != null) return (m.bevFoT||0) + (m.bevOvbT||0);
+    return m.bevT != null ? m.bevT : null;
+}
+function pzBev(m){
+    if(m.bevFo != null || m.bevOvb != null) return (m.bevFo||0) + (m.bevOvb||0);
+    return m.bev != null ? m.bev : null;
+}
 let pzYear = new Date().getFullYear();
 let pzData = { kezdo:{}, months:{} };
 const pzKey = () => 'sf_penzugyek_' + (window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || 'local');
@@ -3763,11 +3775,12 @@ function pzRows(year){
     const arr = pzMonths(year);
     let vT = pzKezdo(year), vE = pzKezdo(year);
     return arr.map((m,i) => {
-        const megmaradt = (m.bev != null && m.kolt != null) ? m.bev - m.kolt : null;
+        const bev = pzBev(m), bevT = pzBevT(m);
+        const megmaradt = (bev != null && m.kolt != null) ? bev - m.kolt : null;
         vT += (m.felT || 0); vE += (m.fel || 0);
         // Többet tett félre, mint amennyi maradt – elírás vagy megtakarításhoz nyúlt.
         const tulkoltes = (megmaradt != null && m.fel != null && m.fel > megmaradt);
-        return { ...m, i, megmaradt, vagyonT:vT, vagyon:vE, tulkoltes };
+        return { ...m, i, bev, bevT, megmaradt, vagyonT:vT, vagyon:vE, tulkoltes };
     });
 }
 
@@ -3789,14 +3802,17 @@ function renderPenzugyek(){
     // --- havi tábla ---
     const cell = (r, f, plan) => `<td${plan?' class="pair"':''}><input type="text" inputmode="numeric" class="${plan?'plan':''}" data-pz="${f}" data-pzm="${r.i}" value="${r[f]!=null?esc(pzFt(r[f])):''}" placeholder="—"></td>`;
     tab.innerHTML = `<thead>
-        <tr class="g"><th></th><th colspan="2">Bevétel</th><th colspan="2">Költség</th><th></th><th colspan="2">Félretett</th><th></th></tr>
-        <tr><th class="l">Hónap</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Megmaradt</th><th>Terv</th><th>Tény</th><th>Vagyon</th></tr>
+        <tr class="g"><th></th><th colspan="2">Főállás bevétel</th><th colspan="2">OVB bevétel</th><th colspan="2">Összes bevétel</th><th colspan="2">Költség</th><th></th><th colspan="2">Félretett</th><th></th></tr>
+        <tr><th class="l">Hónap</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Megmaradt</th><th>Terv</th><th>Tény</th><th>Vagyon</th></tr>
     </thead><tbody>${rows.map(r => {
         const ar = (r.felT && r.fel != null) ? r.fel / r.felT : null;
         const pill = ar == null ? '' : ar >= 1 ? 'ok' : ar >= 0.8 ? 'warn' : 'bad';
         return `<tr${r.i===curIdx?' class="now"':''}>
             <td class="l">${PZ_MONTHS[r.i]}</td>
-            ${cell(r,'bevT',true)}${cell(r,'bev',true)}
+            ${cell(r,'bevFoT',true)}${cell(r,'bevFo',true)}
+            ${cell(r,'bevOvbT',true)}${cell(r,'bevOvb',true)}
+            <td class="pair calc${r.bevT==null?' empty':''}">${pzFt(r.bevT)}</td>
+            <td class="pair calc${r.bev==null?' empty':''}">${pzFt(r.bev)}</td>
             ${cell(r,'koltT')}${cell(r,'kolt')}
             <td class="pair calc${r.megmaradt==null?' empty':''}">${pzFt(r.megmaradt)}</td>
             ${cell(r,'felT')}
@@ -3806,6 +3822,8 @@ function renderPenzugyek(){
     }).join('')}</tbody>
     <tfoot><tr>
         <td class="l">Összesen</td>
+        <td class="pair">${pzFt(pzSum(rows,'bevFoT'))}</td><td class="pair">${pzFt(pzSum(rows,'bevFo'))}</td>
+        <td class="pair">${pzFt(pzSum(rows,'bevOvbT'))}</td><td class="pair">${pzFt(pzSum(rows,'bevOvb'))}</td>
         <td class="pair">${pzFt(pzSum(rows,'bevT'))}</td><td class="pair">${pzFt(pzSum(rows,'bev'))}</td>
         <td>${pzFt(pzSum(rows,'koltT'))}</td><td>${pzFt(pzSum(rows,'kolt'))}</td>
         <td class="pair">${pzFt(pzSum(rows,'megmaradt'))}</td>
@@ -3929,7 +3947,12 @@ window.sfShowPenzugyek = function(){
         if(t.dataset.pz === undefined) return;
         const m = pzMonths(pzYear)[+t.dataset.pzm];
         const v = pzNum(t.value);
-        if(v == null) delete m[t.dataset.pz]; else m[t.dataset.pz] = v;
+        const f = t.dataset.pz;
+        if(v == null) delete m[f]; else m[f] = v;
+        // Ha a bontást kezdi el tölteni, a régi összevont érték törlődik –
+        // különben az összeg és a korábbi szám egymás mellett élne tovább.
+        if(f === 'bevFoT' || f === 'bevOvbT') delete m.bevT;
+        if(f === 'bevFo'  || f === 'bevOvb')  delete m.bev;
         savePenzugyekData();
         const rows = pzRows(pzYear); renderPzKpis(rows); renderPzChart(rows); renderPzFive();
     });
@@ -3940,8 +3963,65 @@ window.sfShowPenzugyek = function(){
         const y = e.target.closest('[data-pzyear]');
         if(y){ pzYear = +y.dataset.pzyear; renderPenzugyek(); return; }
         if(e.target.closest('#pzChartToggle')) document.getElementById('pzChartPanel').classList.toggle('open');
+        if(e.target.closest('#pzImportBtn')) pzOpenImport();
     });
 })();
+
+// ===== PÉNZÜGYEK IMPORT =====
+// Egy teljes év beolvasása JSON-ból. A pénzügyi adat személyes: a böngésződből
+// megy egyenesen a saját Firestore-odba, sehol máshol nem tároljuk.
+// Alak: { "kezdo": { "2025": 4000000 }, "months": { "2025": [ {…}×12 ] } }
+function pzOpenImport(){
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal" style="max-width:640px;">
+        <div class="modal-head"><h3>Pénzügyek import</h3><button class="modal-x" data-pzimpclose>&times;</button></div>
+        <div class="modal-body">
+            <p style="color:var(--muted);font-size:13px;margin:0 0 10px;">
+                Illeszd be az év adatait tartalmazó JSON-t. A meglévő évek érintetlenül maradnak –
+                csak a fájlban szereplő év(ek) íródnak felül.</p>
+            <textarea id="pzImpTxt" rows="9" placeholder='{ "kezdo": { "2025": 4000000 }, "months": { "2025": [ … ] } }'
+                style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:9px;font-family:ui-monospace,Menlo,monospace;font-size:12px;"></textarea>
+            <div id="pzImpMsg" style="font-size:13px;margin-top:9px;"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" data-pzimpclose>Mégse</button>
+            <button class="btn primary" id="pzImpGo" style="background:var(--blue);color:#fff;border-color:var(--blue);">Beolvasás</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelectorAll('[data-pzimpclose]').forEach(b => b.addEventListener('click', close));
+    ov.addEventListener('click', e => { if(e.target === ov) close(); });
+    ov.querySelector('#pzImpGo').addEventListener('click', () => {
+        const msg = ov.querySelector('#pzImpMsg');
+        let obj;
+        try { obj = JSON.parse(ov.querySelector('#pzImpTxt').value); }
+        catch(err){ msg.innerHTML = `<span style="color:var(--red);">Nem érvényes JSON: ${esc(err.message)}</span>`; return; }
+        const months = (obj && obj.months) || {};
+        const years = Object.keys(months);
+        if(!years.length){ msg.innerHTML = '<span style="color:var(--red);">Nincs "months" adat a fájlban.</span>'; return; }
+        let n = 0;
+        years.forEach(y => {
+            const src = Array.isArray(months[y]) ? months[y] : [];
+            const arr = PZ_MONTHS.map((_, i) => {
+                const m = src[i] && typeof src[i] === 'object' ? src[i] : {};
+                const out = {};
+                // Csak az ismert mezőket vesszük át, számmá alakítva.
+                PZ_FIELDS.forEach(f => { const v = pzNum(m[f]); if(v != null){ out[f] = v; n++; } });
+                return out;
+            });
+            pzData.months[String(y)] = arr;
+            const k = pzNum((obj.kezdo || {})[y]);
+            if(k != null) pzData.kezdo[String(y)] = k;
+        });
+        savePenzugyekData();
+        pzYear = +years[0] || pzYear;
+        renderPenzugyek();
+        msg.innerHTML = `<span style="color:var(--green);">Kész: ${esc(years.join(', '))} – ${n} érték beolvasva.</span>`;
+        setTimeout(close, 1200);
+    });
+}
 
 // ===== KI LESZ A KÖVETKEZŐ =====
 const ELO_COLS = [100,200,300,400,500,600,700,800,900,1000,1100,1200,1300];
