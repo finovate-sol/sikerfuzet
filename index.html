@@ -3250,8 +3250,14 @@ window.sfApplyPageAccess = function(map){
     // ezért megjegyezzük az utoljára kapott térképet, és mindkét ág újra hívja.
     if(map !== undefined) window.sfPageAccessMap = map;
     const m = window.sfPageAccessMap;
-    const uid = (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
-    const blocked = new Set((!window.sfIsAdmin && uid && m && m[uid]) || []);
+    const own = (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
+    const viewed = window.sfViewedUid || own;
+    const isOther = !!own && viewed !== own;
+    // Saját nézetben az adminra nem vonatkozik a tiltás (különben kizárná
+    // magát a beállításból). RÁNÉZÉSBEN viszont azt mutatjuk, amit a
+    // munkatárs lát – így ellenőrizhető is, hogy mit kapcsoltál ki nála.
+    const applyTo = isOther ? viewed : (window.sfIsAdmin ? '' : own);
+    const blocked = new Set((applyTo && m && m[applyTo]) || []);
     window.sfBlockedPages = blocked;
     document.querySelectorAll('.nav a[data-page]').forEach(a => {
         const pg = a.dataset.page;
@@ -5747,6 +5753,8 @@ window.sfOnViewSwitch = function(){
     if(rf && !rf.hidden && typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok();
     updateHaviEgysegCard();
     renderPlan();
+    // A ránézés a munkatárs menüjét is mutassa (az ő letiltott oldalai nélkül).
+    if(typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess();
 };
 </script>
 
