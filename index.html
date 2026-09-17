@@ -390,6 +390,10 @@
         .ev-row-txt { flex:1; min-width:0; }
         .ev-row-txt .t1 { display:block; font-size:13.5px; font-weight:700; color:var(--text); }
         .ev-row-txt .t2 { display:block; font-size:11.5px; color:var(--muted); margin-top:1px; }
+        /* Meghívottak válasza az esemény szerkesztőjében. */
+        .ev-guests { display:flex; flex-direction:column; gap:4px; margin-top:7px; }
+        .ev-guest { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); }
+        .ev-guest .dot { width:7px; height:7px; border-radius:50%; flex:none; }
         .ev-meet-link { color:var(--blue) !important; font-weight:700 !important; text-decoration:none; }
         .ev-meet-link:hover { text-decoration:underline; }
         .ev-maps-link { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; color:var(--blue); text-decoration:none; }
@@ -6314,6 +6318,7 @@ window.sfOnViewSwitch = function(){
         check:   '<path d="m5 13 4 4L19 7"/>',
         x:       '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
         video:   '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+        users:   '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         pin:     '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
         trash:   '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/>',
         repeat:  '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
@@ -7434,8 +7439,10 @@ window.sfOnViewSwitch = function(){
 
     async function updateCalendarEvent(id, patch){
         let token = getCalendarToken();
+        // Ha a meghívotti lista is változik, a Google küldjön értesítőt.
+        const sendQ = patch && patch.attendees ? "&sendUpdates=all" : "";
         const doPatch = tok => fetch(
-            "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events/" + encodeURIComponent(id) + "?conferenceDataVersion=1",
+            "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events/" + encodeURIComponent(id) + "?conferenceDataVersion=1" + sendQ,
             { method: "PATCH", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify(patch) }
         );
         let res = await doPatch(token);
@@ -7526,6 +7533,14 @@ window.sfOnViewSwitch = function(){
                             <label class="lbl" for="evLocEdit">Helyszín</label>
                             <input id="evLocEdit" class="ev-input" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín">
                             <a id="evLocMaps" class="ev-maps-link" href="${mapsUrl(ev && ev.location)}" target="_blank" rel="noopener"${(ev && ev.location) ? "" : " hidden"}>${calSvg("pin")} Megnyitás Google Maps-ben ↗</a>
+                        </div>
+                    </div>
+                    <div class="ev-row">
+                        <span class="ev-row-ic">${calSvg("users")}</span>
+                        <div class="ev-row-field">
+                            <label class="lbl" for="evGuests">Meghívottak</label>
+                            <input id="evGuests" class="ev-input" value="${escM(attendeesToText(ev))}" placeholder="e-mail címek vesszővel elválasztva">
+                            ${attendeeStateHtml(ev)}
                         </div>
                     </div>
                     <div class="ev-row">
@@ -7635,6 +7650,18 @@ window.sfOnViewSwitch = function(){
             // különben a törlés nem menne át (a hiányzó mezőt a Google nem bántja).
             const noteEl = overlay.querySelector("#evNote");
             if (noteEl) patch.description = noteEl.value.trim();
+            // Meghívottak. A listát mindig teljes egészében küldjük (a Google a
+            // hiányzókat leveszi az eseményről), a meglévő válaszokat viszont
+            // megőrizzük – enélkül mindenkinek újra kimenne a kérdés.
+            const guestEl = overlay.querySelector("#evGuests");
+            if (guestEl){
+                const prev = {};
+                ((ev && ev.attendees) || []).forEach(a => { if(a.email) prev[a.email.toLowerCase()] = a; });
+                patch.attendees = parseAttendees(guestEl.value).map(email => {
+                    const old = prev[email.toLowerCase()];
+                    return old ? { email, responseStatus: old.responseStatus } : { email };
+                });
+            }
             // Az utazási idő az esemény saját adata (sfTravelMin). A private map
             // értéke csak szöveg lehet – a kikapcsolást üres értékkel jelöljük
             // (a null 400-as hibát adna), és csak akkor küldjük, ha van mit írni.
@@ -7704,7 +7731,28 @@ window.sfOnViewSwitch = function(){
         return true;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay }){
+    // Meghívottak: vesszővel, pontosvesszővel vagy szóközzel elválasztott
+    // e-mail címek. Csak a valódi címeket küldjük ki – egy elgépelt szó miatt a
+    // Google az egész mentést visszautasítaná.
+    function parseAttendees(raw){
+        return String(raw || "").split(/[,;\s]+/).map(x => x.trim())
+            .filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    }
+    const attendeesToText = ev => ((ev && ev.attendees) || [])
+        .filter(a => !a.self && !a.resource).map(a => a.email).join(", ");
+    // A résztvevők válasza (elfogadta / elutasította) a szerkesztőben látszik.
+    const ATT_STATE = { accepted:["Elfogadta","#16a34a"], declined:["Elutasította","#dc2626"],
+                        tentative:["Talán","#d97706"], needsAction:["Nem válaszolt","#94a3b8"] };
+    function attendeeStateHtml(ev){
+        const list = ((ev && ev.attendees) || []).filter(a => !a.self && !a.resource);
+        if (!list.length) return "";
+        return `<div class="ev-guests">` + list.map(a => {
+            const st = ATT_STATE[a.responseStatus] || ATT_STATE.needsAction;
+            return `<span class="ev-guest"><span class="dot" style="background:${st[1]}"></span>${escM(a.email)} · ${st[0]}</span>`;
+        }).join("") + `</div>`;
+    }
+
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay, attendees }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const body = { summary };
@@ -7724,9 +7772,14 @@ window.sfOnViewSwitch = function(){
         if (addMeet) body.conferenceData = meetConferenceData();
         if (recurrence && recurrence.length) body.recurrence = recurrence;
         if (extendedProperties) body.extendedProperties = extendedProperties;
+        const att = parseAttendees(attendees);
+        if (att.length) body.attendees = att.map(email => ({ email }));
+        // sendUpdates=all: a meghívottak meg is kapják az értesítőt, különben
+        // csak felkerülnének az eseményre, de nem tudnának róla.
+        const sendQ = att.length ? "&sendUpdates=all" : "";
 
         async function doInsert(tok){
-            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1", {
+            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1" + sendQ, {
                 method: "POST",
                 headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
                 body: JSON.stringify(body)
@@ -7819,6 +7872,10 @@ window.sfOnViewSwitch = function(){
                     <div class="ev-row-field">
                         <label class="lbl" for="qcNote">Jegyzet</label>
                         <textarea id="qcNote" class="ev-input" rows="2" placeholder="Amit tudni akarsz az alkalomról – a Google-naptárban is ez lesz a leírás."></textarea>
+                    </div>
+                    <div class="ev-row-field">
+                        <label class="lbl" for="qcGuests">Meghívottak</label>
+                        <input id="qcGuests" class="ev-input" placeholder="e-mail címek vesszővel elválasztva">
                     </div>
                     <div class="ev-row-field" id="qcUnitWrap" hidden>
                         <label class="lbl" for="qcUnit">Hány egységre számítasz? (EH)</label>
@@ -8049,7 +8106,8 @@ window.sfOnViewSwitch = function(){
             const extendedProperties = Object.keys(priv).length ? { private: priv } : undefined;
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay });
+                const guests = (overlay.querySelector("#qcGuests") || {}).value || "";
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay, attendees: guests });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
