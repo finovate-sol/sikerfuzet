@@ -584,6 +584,20 @@
         .rc-group .gchev svg { width:14px; height:14px; }
         .rc-group.closed .gchev { transform:rotate(-90deg); }
         .rc-group .gline { flex:1; height:1px; background:var(--border); }
+        /* Naptárválasztó az eszköztárban (saját / közös naptárak). */
+        .cal-picker { padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card);
+                      font-family:inherit; font-size:12.5px; font-weight:700; color:var(--navy); outline:none;
+                      cursor:pointer; max-width:190px; }
+        .cal-picker:focus { border-color:var(--blue); }
+        .cal-picker[hidden] { display:none; }
+        /* Admin → Naptár: a közös naptárak listája. */
+        .adm-cal-list { display:flex; flex-direction:column; gap:8px; }
+        .adm-cal-row { display:flex; align-items:center; gap:12px; border:1px solid var(--border);
+                       border-radius:10px; padding:10px 12px; }
+        .adm-cal-row-nm { font-size:13.5px; font-weight:700; color:var(--navy); }
+        .adm-cal-row-id { font-size:11.5px; color:var(--muted); word-break:break-all; }
+        .adm-cal-row .btn { margin-left:auto; flex:none; }
+        .adm-cal-pick { display:flex; gap:8px; flex-wrap:wrap; }
         .reg-groupsel { padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card);
                         font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); outline:none; cursor:pointer; }
         .reg-groupsel:focus { border-color:var(--blue); }
@@ -2227,6 +2241,7 @@
                 <section class="card">
                     <div class="cal-toolbar">
                         <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Naptár</h2>
+                        <select class="cal-picker" id="calPicker" title="Melyik naptárat nézed és szerkeszted" hidden></select>
                         <button class="btn primary cal-add-btn" id="calAddEvent"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Esemény</button>
                         <button class="btn" id="calToday">Ma</button>
                         <button class="btn icon-btn" id="calPrev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -5722,6 +5737,10 @@ window.sfOnViewSwitch = function(){
         getAppConfig().then(cfg => {
             currentConfig = cfg || {};
             window._admCfg = currentConfig;
+            // A közös naptárak listája innen jön, a config viszont az első
+            // naptár-renderelés UTÁN érkezik meg – ezért itt is feltöltjük.
+            renderCalPicker();
+            if (calOwnId) initCalendar();
             window.sfRankRates = (cfg && cfg.ranks) || DEFAULT_RANKS;
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
@@ -6495,10 +6514,15 @@ window.sfOnViewSwitch = function(){
     // valóban megosztotta Google Naptárát a vezető fiókjával, ugyanazzal a
     // tokennel az ő naptárát (email-cím mint calendarId) is le lehet kérdezni –
     // ha nincs megosztás, a Google API 403/404-et ad, ezt a hívó kezeli.
+    // A saját nézetben a felül kiválasztott naptár (pl. a közös "Csapat"
+    // naptár) az aktív: onnan olvasunk, és oda is írunk – így a közös
+    // események ugyanúgy szerkeszthetők és meghívhatók rájuk emberek.
+    let calOwnId = "";
+    try { calOwnId = localStorage.getItem("sf_cal_id") || ""; } catch(e){}
     function activeCalendarId(){
         const own = window.sfCurrentUser && window.sfCurrentUser.uid;
         const viewed = window.sfViewedUid;
-        if (!viewed || viewed === own) return "primary";
+        if (!viewed || viewed === own) return calOwnId ? encodeURIComponent(calOwnId) : "primary";
         const emp = (window.sfViewAsEmployees || []).find(e => e.uid === viewed);
         return emp && emp.email ? encodeURIComponent(emp.email) : "primary";
     }
@@ -8135,6 +8159,32 @@ window.sfOnViewSwitch = function(){
     // Ha egy újabb renderelés indul (pl. megjött a config, ablak-átméretezés),
     // a korábbi, még függőben lévő lekérés eredményét el kell dobni – különben
     // ugyanazok az események kétszer kerülnek ki a vászonra.
+    // A közös naptárakat az admin veszi fel (Admin → Naptár), és mindenki
+    // ugyanazt a listát kapja az app-configból.
+    const sharedCalendars = () => ((currentConfig && currentConfig.sharedCalendars) || [])
+        .filter(c => c && c.id).map(c => ({ id: String(c.id), name: String(c.name || c.id) }));
+    function renderCalPicker(){
+        const sel = document.getElementById("calPicker"); if (!sel) return;
+        const list = sharedCalendars();
+        const own = window.sfCurrentUser && window.sfCurrentUser.uid;
+        const viewingOther = window.sfViewedUid && window.sfViewedUid !== own;
+        // Másik munkatárs nézetében nincs mit választani – az ő naptárát nézzük.
+        if (!list.length || viewingOther){ sel.hidden = true; return; }
+        // Ha a mentett választás már nincs a listán, visszaesünk a sajátra.
+        if (calOwnId && !list.some(c => c.id === calOwnId)) calOwnId = "";
+        sel.innerHTML = `<option value="">Saját naptár</option>`
+            + list.map(c => `<option value="${escM(c.id)}"${c.id === calOwnId ? " selected" : ""}>${escM(c.name)}</option>`).join("");
+        sel.value = calOwnId;
+        sel.hidden = false;
+        if (!sel.dataset.wired){
+            sel.dataset.wired = "1";
+            sel.addEventListener("change", () => {
+                calOwnId = sel.value || "";
+                try { localStorage.setItem("sf_cal_id", calOwnId); } catch(e){}
+                initCalendar();
+            });
+        }
+    }
     let calRenderSeq = 0;
 
     async function initCalendar(){
@@ -8168,6 +8218,7 @@ window.sfOnViewSwitch = function(){
                 }).observe(planCard);
             }
         }
+        renderCalPicker();
         const now = new Date();
         const dateLabel = document.querySelector(".cal-date");
 
@@ -10199,8 +10250,84 @@ window.sfOnViewSwitch = function(){
             return `<div class="adm-cal-ev" style="${css}"><b>${title}</b><span${timeCss}>${time}</span></div>`;
         }).join("");
     }
+    // Az admin által felvett közös naptárak. A Google Calendar API-ból a
+    // naptárlista lekérése külön jogot kíván (a bejelentkezés csak az
+    // esemény-jogot kéri), ezért ha az nem megy, kézzel is megadható az
+    // azonosító – a Google Naptárban: adott naptár beállításai → "Naptár
+    // integrálása" → Naptár azonosítója.
+    async function fetchCalendarList(){
+        const token = getCalendarToken();
+        if (!token) throw new Error("Nincs Google hozzáférés.");
+        const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=writer&maxResults=250",
+            { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) throw await apiError(res, "Naptárlista hiba");
+        const data = await res.json();
+        return (data.items || []).filter(c => !c.primary).map(c => ({ id: c.id, name: c.summaryOverride || c.summary || c.id }));
+    }
+    async function saveSharedCalendars(list){
+        await saveAppConfig({ sharedCalendars: list });
+        currentConfig = Object.assign({}, currentConfig, { sharedCalendars: list });
+        window._admCfg = currentConfig;
+        renderCalPicker();
+        initCalendar();
+    }
+    function renderAdmSharedCals(host){
+        const list = sharedCalendars();
+        host.innerHTML = `
+            <div class="adm-section-title">Közös naptárak</div>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">
+                Az itt felvett naptárak mindenkinél megjelennek a naptár tetején lévő választóban.
+                Átváltva onnan olvassa és oda is írja az eseményeket – tehát a közös eseményeket
+                itt lehet szerkeszteni és meghívni rájuk másokat.</p>
+            <div class="adm-cal-list">${list.length ? list.map((c,i) => `
+                <div class="adm-cal-row">
+                    <div><div class="adm-cal-row-nm">${escM(c.name)}</div><div class="adm-cal-row-id">${escM(c.id)}</div></div>
+                    <button class="btn" data-calrm="${i}">Törlés</button>
+                </div>`).join("") : `<div style="color:var(--muted);font-size:13px;">Még nincs közös naptár felvéve.</div>`}</div>
+            <div class="adm-add-row" style="margin-top:12px;">
+                <input id="admCalName" type="text" placeholder="Megjelenő név (pl. Csapat)" autocomplete="off" style="max-width:200px;">
+                <input id="admCalId" type="text" placeholder="Naptár azonosítója (…@group.calendar.google.com)" autocomplete="off">
+                <button class="btn primary" id="admCalAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">Hozzáadás</button>
+            </div>
+            <button class="btn" id="admCalLoad" style="margin-top:10px;">Naptáraim betöltése a Google-ból</button>
+            <div id="admCalPick" style="margin-top:10px;"></div>`;
+        host.querySelectorAll("[data-calrm]").forEach(b => b.addEventListener("click", async () => {
+            const next = list.slice(); next.splice(+b.dataset.calrm, 1);
+            try { await saveSharedCalendars(next); renderAdmSharedCals(host); }
+            catch(e){ alert("Nem sikerült menteni: " + (e.message || e)); }
+        }));
+        const add = async (id, name) => {
+            id = String(id || "").trim(); name = String(name || "").trim() || id;
+            if (!id) return;
+            if (list.some(c => c.id === id)){ alert("Ez a naptár már szerepel a listán."); return; }
+            try { await saveSharedCalendars(list.concat([{ id, name }])); renderAdmSharedCals(host); }
+            catch(e){ alert("Nem sikerült menteni: " + (e.message || e)); }
+        };
+        host.querySelector("#admCalAdd").addEventListener("click", () =>
+            add(host.querySelector("#admCalId").value, host.querySelector("#admCalName").value));
+        const loadBtn = host.querySelector("#admCalLoad");
+        loadBtn.addEventListener("click", async () => {
+            const pick = host.querySelector("#admCalPick");
+            loadBtn.disabled = true; pick.innerHTML = '<span style="color:var(--muted);font-size:13px;">Betöltés…</span>';
+            try {
+                const cals = await fetchCalendarList();
+                pick.innerHTML = cals.length
+                    ? `<div class="adm-cal-pick">` + cals.map(c =>
+                        `<button class="btn" data-caladd="${escM(c.id)}" data-calnm="${escM(c.name)}">+ ${escM(c.name)}</button>`).join("") + `</div>`
+                    : '<span style="color:var(--muted);font-size:13px;">Nincs másik írható naptárad.</span>';
+                pick.querySelectorAll("[data-caladd]").forEach(b =>
+                    b.addEventListener("click", () => add(b.dataset.caladd, b.dataset.calnm)));
+            } catch(e){
+                pick.innerHTML = `<span style="color:var(--muted);font-size:13px;">A naptárlista nem kérhető le (${escM(e.message || e)}).
+                    Írd be kézzel az azonosítót: Google Naptár → az adott naptár beállításai → „Naptár integrálása" → Naptár azonosítója.</span>`;
+            }
+            loadBtn.disabled = false;
+        });
+    }
+
     function renderAdmCalendar(cont){
-        cont.innerHTML = `<div class="card"><div class="card-body">
+        cont.innerHTML = `<div class="card"><div class="card-body" id="admSharedCals"></div></div>
+            <div class="card"><div class="card-body">
             <div class="adm-section-title">Naptár megjelenés</div>
             <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Az esemény-blokkok stílusa a heti és napi naptár-nézetben. A beállítás mindenkire érvényes, és azonnal életbe lép.</p>
             <div class="adm-cal-opts">${CAL_STYLES.map(o=>`
@@ -10210,6 +10337,7 @@ window.sfOnViewSwitch = function(){
                     <div class="adm-cal-desc">${o.desc}</div>
                 </button>`).join('')}</div>
         </div></div>`;
+        renderAdmSharedCals(cont.querySelector("#admSharedCals"));
         cont.querySelectorAll('[data-calstyle]').forEach(b => b.addEventListener('click', async () => {
             const val = b.dataset.calstyle;
             if (val === calStyle) return;
