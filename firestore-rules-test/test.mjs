@@ -136,7 +136,29 @@ await T('a vezető törölheti', deleteDoc(doc(adam,'pg_akcio','ak1')), 'ok');
 await T('saját akcióterv felvétele (Csendes PG)', setDoc(doc(zsolt,'pg_akcio','ak9'),{mtUid:ZSOLT,leaderUid:ZSOLT,text:'sajat'}), 'ok');
 await T('más nevében nem adható ki akcióterv', setDoc(doc(zsolt,'pg_akcio','ak8'),{mtUid:ADAM,leaderUid:ADAM,text:'hamis'}), 'fail');
 
-// ---------- 7. ismeretlen kollekció ----------
+// ---------- 7. Közös naptárak és oldal-tiltás (config/app) ----------
+// Mindkettő az app-configban él, és az egész csapat olvassa: ha a munkatárs
+// nem tudná olvasni, nem kapná meg sem a közös naptárak listáját, sem a saját
+// oldal-korlátait. Írni viszont csak az admin írhatja.
+await T('közös naptár: az admin mentheti',
+    updateDoc(doc(mark,'config','app'), { sharedCalendars:[{id:'team@group.calendar.google.com',name:'Csapat'}] }), 'ok');
+await T('közös naptár: vezető NEM mentheti',
+    updateDoc(doc(adam,'config','app'), { sharedCalendars:[{id:'x',name:'x'}] }), 'fail');
+await T('oldal-tiltás: az admin mentheti',
+    updateDoc(doc(mark,'config','app'), { pageAccess:{ [ZSOLT]:['pg','struktura'] } }), 'ok');
+await T('oldal-tiltás: a munkatárs NEM írhatja felül magának',
+    updateDoc(doc(zsolt,'config','app'), { pageAccess:{} }), 'fail');
+await T('app-config: a munkatárs olvassa', getDoc(doc(zsolt,'config','app')), 'ok');
+
+// ---------- 8. Kiértékelő telefon mentése ----------
+// A vezető a beosztott ügyfelére menti az eredményt – részleges update, tehát
+// az ownerUid a meglévő dokumentumból marad (ezt a clients-szabály elfogadja).
+await T('kiértékelő: a felettes rámentheti a beosztott ügyfelére',
+    updateDoc(doc(adam,'clients','c1'), { kiertekelo:{ status:'elvegezve', feedback:'ok' } }), 'ok');
+await T('kiértékelő: idegen nem mentheti',
+    updateDoc(doc(other,'clients','c1'), { kiertekelo:{ status:'elvegezve' } }), 'fail');
+
+// ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 
 await env.cleanup();
