@@ -620,9 +620,19 @@
         .adm-page-chip.on { background:var(--blue-light); border-color:#c5d9f7; color:var(--blue); text-decoration:none; }
         .adm-page-chip:hover { border-color:var(--blue); }
         .adm-page-chip:disabled { opacity:.5; cursor:default; }
-        .reg-groupsel { padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card);
-                        font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); outline:none; cursor:pointer; }
-        .reg-groupsel:focus { border-color:var(--blue); }
+        /* A csoportosítás ugyanabba a gombcsaládba tartozik, mint a mellette lévő
+           Szűrők/visszaállítás: azonos keret, magasság, betű – a natív select
+           csak a kereten BELÜL él, saját szegély és rendszerarculat nélkül. */
+        .reg-groupwrap { display:inline-flex; align-items:center; gap:7px; padding:7px 11px;
+                         border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; }
+        .reg-groupwrap:hover { background:var(--bg); }
+        .reg-groupwrap:focus-within { border-color:var(--blue); box-shadow:0 0 0 2px rgba(31,95,208,.12); }
+        .reg-groupwrap .rg-ic { width:15px; height:15px; color:var(--muted); flex:none; }
+        .reg-groupsel { border:none; background:transparent; padding:0 17px 0 0; margin:0;
+                        font-family:inherit; font-size:13px; font-weight:600; color:var(--text);
+                        outline:none; cursor:pointer; appearance:none; -webkit-appearance:none;
+                        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a90' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+                        background-repeat:no-repeat; background-position:right center; background-size:12px; }
         /* A 2 órás füzet kártyasorai – kevesebb oszlop, saját képlet. */
         .kc-head, .kc-line { grid-template-columns:var(--kc-cols); }
         #ketorasList { --kc-cols:280px 140px 1fr 54px 130px 176px 150px 44px; min-width:1180px; }
@@ -2132,13 +2142,14 @@
             .reg-tools { flex-wrap:wrap; width:100%; margin-left:0; row-gap:8px; }
             /* A 10 percesnél a tölcsér és a visszaállítás gomb is elfér mellette,
                ezért ott pár pixelen múlik a "Csoportosítás: nincs" felirat. */
-            .reg-tools .reg-groupsel { flex:1 1 130px; min-width:0; font-size:12px; padding:7px 8px 7px 9px; }
+            .reg-tools .reg-groupwrap { flex:1 1 130px; min-width:0; }
+            .reg-tools .reg-groupsel { flex:1; min-width:0; font-size:12.5px; }
             /* Az elsődleges gomb saját, teljes szélességű sorba kerül: biztosan
                kifér, és kényelmesen nyomható marad. */
             .reg-tools .btn.primary { flex:1 1 100%; justify-content:center; }
             /* Az ikonra fogyott nézetváltó/szűrő gombok kapjanak érintésnyi felületet. */
             .reg-bar .viewtog button { padding:9px 12px; }
-            .reg-tools .btn { min-height:36px; }
+            .reg-tools .btn, .reg-tools .reg-groupwrap { min-height:36px; box-sizing:border-box; }
         }
 
         @media (max-width: 560px){
@@ -2516,12 +2527,14 @@
                   <button data-view="tabla" title="Táblázat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span>Táblázat</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
                 </div>
-                <select class="reg-groupsel" id="regGroupSel" title="Csoportosítás a táblázatban">
-                  <option value="">Csoportosítás: nincs</option>
-                  <option value="status">Státusz szerint</option>
-                  <option value="kezelo">Kezelő szerint</option>
-                  <option value="munkatars">Tanácsadó szerint</option>
-                </select>
+                <label class="reg-groupwrap" title="Csoportosítás a táblázatban"><svg class="rg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+                  <select class="reg-groupsel" id="regGroupSel">
+                    <option value="">Nincs csoport</option>
+                    <option value="status">Státusz</option>
+                    <option value="kezelo">Kezelő</option>
+                    <option value="munkatars">Tanácsadó</option>
+                  </select>
+                </label>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
                 <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
@@ -2557,12 +2570,14 @@
                   <button data-view="lista" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Lista</span></button>
                   <button data-view="pipeline" title="Pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="8" rx="1"/></svg><span>Pipeline</span></button>
                 </div>
-                <select class="reg-groupsel" id="ketGroupSel" title="Csoportosítás a listában">
-                  <option value="">Csoportosítás: nincs</option>
-                  <option value="status">Státusz szerint</option>
-                  <option value="minoseg">Minőség szerint</option>
-                  <option value="kezelo">Kezelő szerint</option>
-                </select>
+                <label class="reg-groupwrap" title="Csoportosítás a listában"><svg class="rg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+                  <select class="reg-groupsel" id="ketGroupSel">
+                    <option value="">Nincs csoport</option>
+                    <option value="status">Státusz</option>
+                    <option value="minoseg">Minőség</option>
+                    <option value="kezelo">Kezelő</option>
+                  </select>
+                </label>
                 <button class="btn primary" id="ketorasAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új jelölt</button>
               </div>
             </div>
