@@ -8234,6 +8234,25 @@ window.sfOnViewSwitch = function(){
             });
         }
     }
+    // A néma token-kérés oldalbetöltésenként LEGFELJEBB egyszer fusson le.
+    // Ha a Google elutasítja (pl. a JavaScript-origin még nem propagált a
+    // konzolban), enélkül minden naptár-újrarajzolás – hétváltás, nézetváltás,
+    // átméretezés – újra nekifutna, és 8 másodpercre megakadna.
+    // silentState: null = még nem próbáltuk · Promise = épp fut · false = elbukott
+    let silentState = null;
+    async function silentOnce(force){
+        if (!hasAutoConnect()) return null;
+        if (force) silentState = null;            // lejárt token: érdemes újra
+        if (silentState === false) return null;
+        if (!silentState){
+            silentState = silentCalendarToken().then(tok => {
+                // Siker után újra próbálható (a következő lejáratkor), bukás után nem.
+                silentState = tok ? null : false;
+                return tok;
+            });
+        }
+        return silentState;
+    }
     let calRenderSeq = 0;
 
     async function initCalendar(){
@@ -8293,11 +8312,11 @@ window.sfOnViewSwitch = function(){
         // Nincs token → előbb NÉMÁN próbálunk szerezni egyet (ha a fiók a jogot
         // már megadta), és csak utána kérjük gombnyomással.
         let token = getCalendarToken();
-        if (!token && hasAutoConnect()){
-            if (grid && !grid.dataset.autoTried){
-                grid.innerHTML = `<div class="cal-connect"><p>Csatlakozás a Google Naptárhoz…</p></div>`;
+        if (!token && hasAutoConnect() && silentState !== false){
+            if (grid && silentState === null){
+                grid.innerHTML = `<div class="ag-empty">Csatlakozás a Google Naptárhoz…</div>`;
             }
-            token = await silentCalendarToken();
+            token = await silentOnce();
             if (seq !== calRenderSeq) return;
         }
         if (!token){ currentColumns = cols || []; showConnect(grid); return; }
@@ -8343,7 +8362,7 @@ window.sfOnViewSwitch = function(){
                 try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
                 // Lejárt token: előbb csendben kérünk újat – a Google-ban élő
                 // munkamenet mellett ez ablak nélkül megy.
-                const fresh = hasAutoConnect() ? await silentCalendarToken() : null;
+                const fresh = await silentOnce(true);
                 if (seq !== calRenderSeq) return;
                 if (fresh){ initCalendar(); return; }
                 showConnect(grid, "A naptár hozzáférés lejárt vagy hiányzik.");
@@ -8363,7 +8382,7 @@ window.sfOnViewSwitch = function(){
     // interactive=true  → hiányzó/lejárt jog esetén felkéri a Tasks jogot (gombnyomásra).
     async function tasksFetch(path, opts, interactive){
         let token = getCalendarToken();
-        if(!token && hasAutoConnect()) token = await silentCalendarToken();
+        if(!token) token = await silentOnce();
         if(!token){
             if(!interactive){ const e = new Error("Nincs Google hozzáférés."); e.status = 401; throw e; }
             token = await connectTasks();
@@ -8375,7 +8394,7 @@ window.sfOnViewSwitch = function(){
         let res = await doIt(token);
         if(res.status === 401 || res.status === 403){
             // Előbb néma frissítés; csak ha az sem megy, kérünk engedélyt gombbal.
-            const quiet = hasAutoConnect() ? await silentCalendarToken() : null;
+            const quiet = await silentOnce(true);
             if(quiet) res = await doIt(quiet);
             else if(interactive){
                 const t = await connectTasks();
