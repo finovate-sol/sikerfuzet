@@ -27,7 +27,10 @@ export const firebaseConfig = {
 // ----------------------------------------------------------------------------
 // Kikapcsoláshoz elég üres sztringre állítani – akkor minden a gombos
 // csatlakozással működik tovább (hasAutoConnect() → false).
-export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
+// KIKAPCSOLVA: a néma token-kérés origin_mismatch-re fut. Visszakapcsoláshoz
+// elég ezt a sort visszaírni a fenti azonosítóval:
+//   export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
+export const googleClientId = "";
 
 // Igaz, ha már valós config van beállítva (nem placeholder).
 export const isConfigured = !String(firebaseConfig.apiKey).includes("PLACEHOLDER");
