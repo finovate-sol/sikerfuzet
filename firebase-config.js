@@ -25,7 +25,7 @@ export const firebaseConfig = {
 //  origint is, ahonnan az app fut: https://finovate-sol.github.io
 //  Ez az azonosító is PUBLIKUS, nyugodtan maradhat a repóban.
 // ----------------------------------------------------------------------------
-export const googleClientId = "";
+export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
 
 // Igaz, ha már valós config van beállítva (nem placeholder).
 export const isConfigured = !String(firebaseConfig.apiKey).includes("PLACEHOLDER");
