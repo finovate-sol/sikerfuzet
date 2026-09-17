@@ -1186,6 +1186,14 @@
         .karrier-miert-grid textarea { padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); line-height:1.55; resize:vertical; outline:none; background:var(--card); box-sizing:border-box; }
         .karrier-miert-grid textarea:focus { border-color:var(--blue); }
 
+        /* Az elvégzett kiértékelők archívum-sávja – mindig kiírja, mennyi rejtve. */
+        .kt-archbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+                      background:#eef1f6; border:1px solid #d8dfe9; border-radius:11px;
+                      padding:9px 12px; margin-bottom:14px; font-size:12.5px; color:#3f4a5a; }
+        .kt-archbar > span { display:inline-flex; align-items:center; gap:7px; font-weight:600; }
+        .kt-archbar svg { width:14px; height:14px; }
+        .kt-archbar b { color:var(--navy); }
+        .kt-archbar .btn { margin-left:auto; }
         /* Kiértékelő telefon – a vezető strukturált eredménye */
         .kt-result { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
         .kt-result-title { font-size:11px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.05em; margin-bottom:9px; }
@@ -5849,7 +5857,12 @@ window.sfOnViewSwitch = function(){
         if (backBtn) backBtn.addEventListener("click", () => applyView(""));
     }
 
+    const KT_ARCH_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></svg>';
     // ===== KIÉRTÉKELŐ TELEFON (csak vezetőknek/adminnak) =====
+    // Az elvégzett hívások archívumba kerülnek: a listán csak a nyitott kérések
+    // maradnak. Nem néma elrejtés – a lista fölött mindig ott a darabszám és a
+    // "Megmutatom" gomb (ugyanaz a minta, mint a 10 perces archiválásánál).
+    let ktShowDone = false;
     async function renderKiertekeloPage(){
         const body = document.getElementById("kiertekeloBody");
         if (!body) return;
@@ -5860,7 +5873,9 @@ window.sfOnViewSwitch = function(){
         body.innerHTML = '<div class="card pg-loading">Kiértékelő telefonok betöltése…</div>';
         const list = isConfigured ? await getClients() : store.load("sf_registry", []);
         window.sfAllClients = list;
-        const requests = list.filter(c => c.kiertekelo && c.kiertekelo.status !== 'nem_kell');
+        const all = list.filter(c => c.kiertekelo && c.kiertekelo.status !== 'nem_kell');
+        const doneN = all.filter(c => c.kiertekelo.status === "elvegezve").length;
+        const requests = ktShowDone ? all : all.filter(c => c.kiertekelo.status !== "elvegezve");
         requests.sort((a,b) => (a.kiertekelo.status==="elvegezve"?1:0) - (b.kiertekelo.status==="elvegezve"?1:0));
         const rowsHtml = requests.map(c => {
             const k = c.kiertekelo;
@@ -5897,9 +5912,21 @@ window.sfOnViewSwitch = function(){
                     <button class="btn primary kt-save-btn">Mentés</button>
                 </div>
             </div>`;
-        }).join("") || `<div class="card"><div class="card-body" style="padding:40px 20px;text-align:center;color:var(--muted);">Nincs kiértékelő telefon kérés.</div></div>`;
+        }).join("") || `<div class="card"><div class="card-body" style="padding:40px 20px;text-align:center;color:var(--muted);">${
+            doneN && !ktShowDone ? "Nincs nyitott kiértékelő telefon kérés – minden elvégzett." : "Nincs kiértékelő telefon kérés."}</div></div>`;
+        const archBar = doneN
+            ? `<div class="kt-archbar">
+                    <span>${KT_ARCH_IC}${ktShowDone
+                        ? `Az elvégzettek is látszanak (<b>${doneN}</b>).`
+                        : `<b>${doneN}</b> elvégzett kiértékelő archiválva.`}</span>
+                    <button class="btn" id="ktArchTog">${ktShowDone ? "Elrejtem" : "Megmutatom"}</button>
+               </div>`
+            : "";
         body.innerHTML = `<div class="str-hero"><div><h2>Kiértékelő telefon</h2><p>A "Portálon fent" jelölésnél rögzített kérések – itt adható rájuk visszajelzés.</p></div></div>
+            ${archBar}
             <div class="kt-list">${rowsHtml}</div>`;
+        const archTog = document.getElementById("ktArchTog");
+        if (archTog) archTog.addEventListener("click", () => { ktShowDone = !ktShowDone; renderKiertekeloPage(); });
         body.querySelectorAll(".kt-row").forEach(rowEl => {
             const cid = rowEl.dataset.cid;
             const saveBtn = rowEl.querySelector(".kt-save-btn");
@@ -5926,6 +5953,12 @@ window.sfOnViewSwitch = function(){
                 try {
                     if (isConfigured) await saveClient(cid, { kiertekelo: client.kiertekelo });
                     saveBtn.textContent = "Mentve ✓";
+                    // "Elvégezve"-re állítva a sor átkerül az archívumba: újrarajzoljuk,
+                    // hogy tényleg eltűnjön a nyitott kérések közül.
+                    if (status === "elvegezve" && !ktShowDone){
+                        setTimeout(() => renderKiertekeloPage(), 700);
+                        return;
+                    }
                     setTimeout(() => { saveBtn.disabled = false; saveBtn.textContent = "Mentés"; }, 1200);
                 } catch(e){
                     alert("Mentés sikertelen: " + (e.message || e));
