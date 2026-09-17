@@ -25,7 +25,11 @@ export const firebaseConfig = {
 //  origint is, ahonnan az app fut: https://finovate-sol.github.io
 //  Ez az azonosító is PUBLIKUS, nyugodtan maradhat a repóban.
 // ----------------------------------------------------------------------------
-export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
+// IDEIGLENESEN KIKAPCSOLVA (2026-09-17): a néma token-kérés origin_mismatch-re
+// futott, ezért visszaálltunk a gombos csatlakozásra. Ha a Google konzolban a
+// JavaScript-origin átvezetődött, elég ezt a sort visszaírni:
+//   export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
+export const googleClientId = "";
 
 // Igaz, ha már valós config van beállítva (nem placeholder).
 export const isConfigured = !String(firebaseConfig.apiKey).includes("PLACEHOLDER");
