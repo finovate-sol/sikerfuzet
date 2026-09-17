@@ -15,7 +15,7 @@ import {
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=12";
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=13";
 
 export { isConfigured };
 
@@ -226,6 +226,21 @@ export async function getCelok(uid){
 export async function saveCelok(uid, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "celok", uid), data, { merge: true });
+}
+
+// ===================== FELADATOK PLUSZ MEZŐI =====================
+// A Google Tasks nem tud prioritást tárolni, a határidőnél pedig levágja az
+// órát – ezért a prioritás, az időpont és a hosszabb jegyzet ide kerül, a
+// feladat azonosítójához kötve. Szigorúan személyes: a Google Tasks is az,
+// ezért a vezető sem látja (nincs canAccess, csak a saját uid).
+export async function getTaskMeta(uid){
+    if(!isConfigured || !db || !uid) return {};
+    try { const snap = await getDoc(doc(db, "task_meta", uid)); return snap.exists() ? (snap.data() || {}) : {}; }
+    catch(e){ console.warn("Feladat-mezők olvasása sikertelen:", e); return {}; }
+}
+export async function saveTaskMeta(uid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "task_meta", uid), data, { merge: true });
 }
 
 // ===================== PG MODUL =====================

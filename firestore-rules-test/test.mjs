@@ -158,6 +158,13 @@ await T('kiértékelő: a felettes rámentheti a beosztott ügyfelére',
 await T('kiértékelő: idegen nem mentheti',
     updateDoc(doc(other,'clients','c1'), { kiertekelo:{ status:'elvegezve' } }), 'fail');
 
+// ---------- 8b. Feladatok plusz mezői (task_meta) ----------
+// A Google Tasks fiókonként privát, ezért itt a FELETTES SEM olvashat bele.
+await T('feladat-mezők: a sajátját írja', setDoc(doc(zsolt,'task_meta',ZSOLT),{ t1:{p:'magas'} }), 'ok');
+await T('feladat-mezők: a sajátját olvassa', getDoc(doc(zsolt,'task_meta',ZSOLT)), 'ok');
+await T('feladat-mezők: A FELETTES SEM olvassa', getDoc(doc(adam,'task_meta',ZSOLT)), 'fail');
+await T('feladat-mezők: idegen nem írja', setDoc(doc(other,'task_meta',ZSOLT),{ t1:{p:'alacsony'} }), 'fail');
+
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 

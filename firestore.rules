@@ -123,6 +123,11 @@ service cloud.firestore {
     match /penzugyek/{userId}     { allow read, write: if canAccess(userId); }
     match /celok/{userId}         { allow read, write: if canAccess(userId); }
 
+    // A feladatok plusz mezői (prioritás, időpont, jegyzet). SZIGORÚAN a gazdáé:
+    // a Google Tasks maga is fiókonként privát, a vezető ott sem lát bele,
+    // ezért itt sem adunk neki rálátást – nincs canAccess, csak a saját uid.
+    match /task_meta/{userId}     { allow read, write: if isUser() && uid() == userId; }
+
     match /havi_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
     match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
 
