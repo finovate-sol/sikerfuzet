@@ -6142,7 +6142,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=18";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=19";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -7415,7 +7415,15 @@ window.sfOnViewSwitch = function(){
             await taskSaveFields(t, { date: ymd(d), hm });
             refreshPGViews();
             initCalendar();
-        } catch(e){ alert("Nem sikerült áthelyezni a feladatot: " + (e.message || e)); }
+        } catch(e){
+            if(e && e.metaOnly){
+                // A nap átállt a Google Tasksban, csak az óra nem mentődött.
+                refreshPGViews(); initCalendar();
+                alert("A feladat átkerült a másik napra, de az ÓRÁT nem sikerült elmenteni: " + e.message);
+                return;
+            }
+            alert("Nem sikerült áthelyezni a feladatot: " + (e.message || e));
+        }
     }
     function wireEventDrag(){
         const canvas = document.getElementById("wkCanvas");
@@ -8961,6 +8969,17 @@ window.sfOnViewSwitch = function(){
         taskMetaLoaded = true;
         return taskMetaMap;
     }
+    // A Firestore jogosultsági hibája angolul és önmagában semmit nem mond:
+    // "Missing or insufficient permissions". Pontosan ez jön akkor is, ha a
+    // szabály a firestore.rules fájlban már benne van, de a Firebase-ben még
+    // nincs közzétéve – a fájlt ugyanis a Firestore NEM innen olvassa.
+    function fsErrText(e){
+        const msg = String((e && e.message) || e || "");
+        const denied = (e && e.code === "permission-denied") || /insufficient permissions/i.test(msg);
+        return denied
+            ? "a szerver visszautasította (hiányzó jogosultság). Ha ez minden feladatnál előjön, a Firestore biztonsági szabályát közzé kell tenni a Firebase konzolban."
+            : (msg || "ismeretlen hiba");
+    }
     async function taskMetaSet(id, patch){
         const uid = (window.sfCurrentUser && window.sfCurrentUser.uid) || "";
         if(!uid || !id) return;
@@ -9007,7 +9026,19 @@ window.sfOnViewSwitch = function(){
         const mp = {};
         if(f.hm !== undefined) mp.hm = f.hm || "";
         if(!isPgTask(t) && f.prio !== undefined) mp.p = f.prio || "";
-        if(Object.keys(mp).length) await taskMetaSet(t.id, mp);
+        if(Object.keys(mp).length){
+            try { await taskMetaSet(t.id, mp); }
+            catch(e){
+                // Ide már csak azután jutunk, hogy a Google Tasks-ba menő rész
+                // (cím, jegyzet, határidő dátuma) SIKERESEN kiment. Ha ezt sima
+                // hibaként dobnánk tovább, a felhasználó azt látná, hogy semmi
+                // nem mentődött – pedig a fele igen. Ezért megjelöljük, hogy a
+                // hívó pontosan tudja: csak a prioritás és az időpont maradt le.
+                const err = new Error(fsErrText(e));
+                err.metaOnly = true;
+                throw err;
+            }
+        }
     }
     const taskTimeLabel = due => due && due.timed ? pad2(due.d.getHours()) + ":" + pad2(due.d.getMinutes()) : "";
     function taskDueLabel(t){
@@ -10007,7 +10038,20 @@ window.sfOnViewSwitch = function(){
                 refreshPGViews(); refreshCalTaskChips();
                 if(typeof initCalendar === "function" && document.getElementById("wkCanvas")) initCalendar();
             }
-            catch(e){ alert("Nem sikerült menteni: " + (e.message || e)); save.disabled = false; save.textContent = "Mentés"; }
+            catch(e){
+                if(e && e.metaOnly){
+                    // A cím, a jegyzet és a határidő ekkor már kint van a Google
+                    // Tasksban – a nézetet tehát frissíteni kell, különben a
+                    // felhasználó a régi állapotot látná, és újra nekifutna.
+                    fdOpenId = null;
+                    refreshPGViews(); refreshCalTaskChips();
+                    if(typeof initCalendar === "function" && document.getElementById("wkCanvas")) initCalendar();
+                    alert("A feladat címe, jegyzete és határidejének dátuma elmentve.\n\n"
+                        + "A prioritást és az időpontot NEM sikerült elmenteni: " + e.message);
+                    return;
+                }
+                alert("Nem sikerült menteni: " + (e.message || e)); save.disabled = false; save.textContent = "Mentés";
+            }
         });
         // Az adatlapon belüli kattintás ne csukja vissza a sort.
         const det = body.querySelector("[data-fddetail]");
