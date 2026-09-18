@@ -2076,6 +2076,14 @@
         .fd-tab.active .fd-tab-n { background:rgba(255,255,255,.25); color:#fff; }
         .fd-bar input[type="search"] { flex:0 1 220px; }
         .fd-group { margin-bottom:14px; }
+        /* Áthúzás másik listába: az üres listák csak húzás közben bukkannak elő,
+           különben tele lenne az oldal üres dobozokkal. */
+        .fd-group-empty { display:none; }
+        body.fd-drag-on .fd-group-empty { display:block; }
+        .fd-group.fd-drop { outline:2px dashed var(--blue); outline-offset:3px; background:var(--blue-light); }
+        .fd-group-drop { color:var(--muted); font-size:13px; padding:12px 2px; }
+        .fd-row[draggable="true"] { cursor:grab; }
+        .fd-row.fd-dragging { opacity:.45; }
         .fd-group-n { font-size:11.5px; font-weight:800; color:var(--muted); background:#eef1f5; border-radius:999px; padding:2px 9px; }
         .fd-list { padding-top:0; padding-bottom:4px; }
         .fd-row { display:flex; align-items:center; gap:10px; padding:10px 2px; border-top:1px solid #f1f4f8; cursor:pointer; }
@@ -6174,7 +6182,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=21";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=22";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -9925,7 +9933,7 @@ window.sfOnViewSwitch = function(){
         const label = taskDueLabel(t);
         const note = taskNote(t).replace(/\s+/g, " ").trim();
         const open = fdOpenId === t.id;
-        return `<div class="fd-row${done ? " done" : ""}${open ? " open" : ""}" data-fdrow="${escM(t.id)}">
+        return `<div class="fd-row${done ? " done" : ""}${open ? " open" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true">
             <label class="fd-check" title="Kész"><input type="checkbox" data-fdtoggle="${escM(t.id)}"${done ? " checked" : ""}></label>
             <span class="fd-main">
                 <span class="fd-title">${escM(t.title || "(névtelen feladat)")}</span>
@@ -9971,12 +9979,23 @@ window.sfOnViewSwitch = function(){
         const groups = gtLists.map(l => ({
             list: l,
             items: gtTasks.filter(t => t.listId === l.id && fdVisible(t)).sort(taskSortKey),
-        })).filter(g => g.items.length);
-        const body = groups.length ? groups.map(g => `
-            <section class="card fd-group">
+        }));
+        // Az üres listák hátulra: húzás közben bukkannak elő, és ha közéjük
+        // ékelődnének, az egész lap megugrana a kurzor alatt, épp ejtés közben.
+        // A lap aljára kerülve semmit nem tolnak el maguk fölött.
+        groups.sort((a, b) => (a.items.length ? 0 : 1) - (b.items.length ? 0 : 1));
+        // Az üres listák is ledobási felületek, különben oda nem lehetne áthúzni
+        // semmit. Húzáson kívül rejtve maradnak (lásd .fd-group-empty), hogy a
+        // szokásos nézet ne legyen tele üres dobozokkal.
+        const body = groups.some(g => g.items.length)
+            ? groups.map(g => `
+            <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}" data-fdgroup="${escM(g.list.id)}">
                 <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span></div>
-                <div class="card-body fd-list">${g.items.map(fdRowHtml).join("")}</div>
-            </section>`).join("") : `<section class="card"><div class="card-body fd-empty">Nincs a szűrőnek megfelelő feladat.</div></section>`;
+                <div class="card-body fd-list">${g.items.length
+                    ? g.items.map(fdRowHtml).join("")
+                    : `<div class="fd-group-drop">Húzd ide, ami ebbe a listába való.</div>`}</div>
+            </section>`).join("")
+            : `<section class="card"><div class="card-body fd-empty">Nincs a szűrőnek megfelelő feladat.</div></section>`;
         return `
         <div class="fd-hero">
             <div class="fd-hero-txt"><h2>Feladatok</h2><p>Minden Google Tasks listád egy helyen – jegyzettel, prioritással és időponttal. Amelyikhez időpontot adsz, az a naptárban is a helyére kerül.</p></div>
@@ -10070,6 +10089,51 @@ window.sfOnViewSwitch = function(){
             fdOpenId = (fdOpenId === id) ? null : id;
             renderFeladatok();
         }));
+
+        // --- áthúzás másik listába ---
+        // A húzás idejére a body kap egy jelölést: ettől bukkannak elő az üres
+        // listák is, hogy legyen hova ejteni.
+        let fdDragId = null, fdDragSrc = "";
+        body.querySelectorAll("[data-fdrow]").forEach(row => {
+            row.addEventListener("dragstart", e => {
+                fdDragId = row.dataset.fdrow; fdDragSrc = row.dataset.fdsrc || "";
+                row.classList.add("fd-dragging");
+                document.body.classList.add("fd-drag-on");
+                if(e.dataTransfer){
+                    e.dataTransfer.effectAllowed = "move";
+                    // Firefox csak akkor indít húzást, ha van adat a vágólapon.
+                    try { e.dataTransfer.setData("text/plain", fdDragId); } catch(err){}
+                }
+            });
+            row.addEventListener("dragend", () => {
+                row.classList.remove("fd-dragging");
+                document.body.classList.remove("fd-drag-on");
+                body.querySelectorAll(".fd-drop").forEach(g => g.classList.remove("fd-drop"));
+                fdDragId = null; fdDragSrc = "";
+            });
+        });
+        body.querySelectorAll("[data-fdgroup]").forEach(g => {
+            const sameList = () => !fdDragId || g.dataset.fdgroup === fdDragSrc;
+            g.addEventListener("dragover", e => {
+                if(sameList()) return;            // a saját listájára ejteni értelmetlen
+                e.preventDefault();
+                if(e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                g.classList.add("fd-drop");
+            });
+            g.addEventListener("dragleave", e => {
+                // A gyerekelemek fölött is jön dragleave – csak akkor oltsuk ki a
+                // kiemelést, ha tényleg elhagytuk a dobozt.
+                if(!g.contains(e.relatedTarget)) g.classList.remove("fd-drop");
+            });
+            g.addEventListener("drop", e => {
+                if(sameList()) return;
+                e.preventDefault();
+                g.classList.remove("fd-drop");
+                const id = fdDragId || (e.dataTransfer && e.dataTransfer.getData("text/plain"));
+                document.body.classList.remove("fd-drag-on");
+                if(id) fdMoveToList(id, g.dataset.fdgroup);
+            });
+        });
 
         // --- adatlap ---
         const cancel = body.querySelector("[data-fdcancel]");
@@ -10290,6 +10354,65 @@ window.sfOnViewSwitch = function(){
         if(!t.listId) t.listId = pgListId;
         try { await taskSetDone(t, checked); refreshPGViews(); refreshCalTaskChips(); }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
+    // Feladat áthúzása másik listába. A Google Tasks API nem tud listák között
+    // áthelyezni, ezért: új feladat a célistán → a régi törlése. A feladat így új
+    // azonosítót kap, tehát a saját mellék-táblánkat (óra, prioritás) át kell
+    // kötni rá, a régi bejegyzést pedig kiürítjük.
+    //
+    // A jegyzet két helyen lakhat, és a két listafajta között át kell fordítani:
+    // a PG listán a notes a modul JSON-metaadata (a jegyzet abban utazik), idegen
+    // listán viszont a notes maga a jegyzet – oda JSON soha nem kerülhet.
+    let fdMoveBusy = false;
+    async function fdMoveToList(taskId, targetListId){
+        if(fdMoveBusy) return;
+        const t = taskById(taskId);
+        if(!t || !targetListId || t.listId === targetListId) return;
+        const target = gtLists.find(l => l.id === targetListId);
+        // Az akciótervhez kötött feladat a PG listán kell maradjon: a PG Modul
+        // a pgListId-n keresi (lásd az akcio-szinkront), egy másik listán már
+        // nem találná meg, és a kipipálás némán elszakadna.
+        if(typeof pgAkciok !== "undefined" && (pgAkciok || []).some(a => a.taskId === taskId)){
+            alert("Ez a feladat egy akciótervhez tartozik, ezért a PG Modul listáján kell maradnia.\n\nHa mégis máshová kell, előbb az akciótervnél bontsd a kapcsolatot.");
+            return;
+        }
+        const note = taskNote(t);                 // a jegyzet, bármelyik formából
+        const prio = taskPrio(t);                 // a prioritás, bármelyik formából
+        const hm = taskTimeHM(t);
+        const toPg = targetListId === pgListId;
+        const body = { title: t.title || "" };
+        if(t.due) body.due = t.due;
+        if(t.status === "completed") body.status = "completed";
+        if(toPg){
+            const meta = { p: prio || "", type:"szemelyes", done: taskIsDone(t), note: note || "", created: fdToday() };
+            body.notes = JSON.stringify(meta);
+        } else if(note){
+            body.notes = note;
+        }
+        fdMoveBusy = true;
+        try {
+            const created = await tasksFetch(`/lists/${targetListId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
+            // Csak a sikeres másolás UTÁN törlünk – így egy megszakadt hálózat
+            // legrosszabb esetben duplikál, de nem tüntet el feladatot.
+            await tasksFetch(`/lists/${t.listId}/tasks/${t.id}`, { method:"DELETE" }, true);
+            // A saját mezők átkötése az új azonosítóra. A PG listán a prioritás a
+            // notes-ban utazik, ezért oda nem írjuk be még egyszer.
+            const mp = { hm: hm || "" };
+            if(!toPg) mp.p = prio || "";
+            if(created && created.id && (mp.hm || mp.p)) await taskMetaSet(created.id, mp);
+            // A régi bejegyzés kiürítése (a merge miatt törölni nem tudjuk, üresre
+            // írjuk – ez az app máshol is használt módja).
+            if(taskMetaOf(t).hm || taskMetaOf(t).p) await taskMetaSet(t.id, { hm:"", p:"" });
+            if(fdOpenId === t.id) fdOpenId = created && created.id ? created.id : null;
+            await loadAllTasks(true);
+            refreshPGViews(); refreshCalTaskChips();
+            if(typeof initCalendar === "function" && document.getElementById("wkCanvas")) initCalendar();
+        } catch(e){
+            alert(`Nem sikerült áthelyezni a(z) „${(target && target.title) || "másik"}” listába: ` + (e.message || e));
+            await loadAllTasks(true).catch(()=>{});
+            refreshPGViews();
+        } finally { fdMoveBusy = false; }
     }
 
     async function pgDelete(id){
