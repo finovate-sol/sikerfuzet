@@ -937,8 +937,13 @@
         table.havi tr.wk-sep td { background:#eef2f7; font-weight:700; color:var(--navy); text-align:left; }
         table.havi input { width:60px; text-align:center; border:1px solid var(--border); border-radius:6px; padding:4px; font-size:13px; font-family:inherit; outline:none; }
         table.havi input:focus { border-color:var(--blue); }
-        .havi-diff.neg { color:var(--red); font-weight:700; }
-        .havi-diff.pos { color:var(--green); font-weight:700; }
+        .havi-diff { display:inline-block; min-width:46px; padding:4px 11px; border-radius:999px;
+                     font-size:14px; font-weight:800; line-height:1.25; }
+        /* A nulla is zöld: a cél pontosan teljesült. Csak az elmaradás piros. */
+        .havi-diff.pos { color:#15803d; background:#e6f6ec; }
+        .havi-diff.neg { color:#b42318; background:#fdeaea; }
+        /* Amíg nincs kiszámolva az érték, ne lebegjen ott egy üres pirula. */
+        .havi-diff:empty { background:none; padding:0; min-width:0; }
         .havi-top { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:22px; }
         .havi-block { border:1px solid var(--border); border-radius:12px; padding:16px; background:#fbfcfe; }
         .havi-block-title { font-size:12px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
@@ -1004,7 +1009,7 @@
         .havi-formcard.collapsed .hform-chevron { transform:rotate(-90deg); }
         .havi-formcard.collapsed .havi-formula { display:none; }
         table.havi .hlblcol { width:70px; }
-        table.havi tr.hdiffrow td { background:#fafbfd; }
+        table.havi tr.hdiffrow td { background:#f4f7fb; padding-top:7px; padding-bottom:7px; }
         table.havi.hsum { background:#f5f7fa; }
         table.havi.hsum td span { font-weight:700; color:var(--navy); }
         /* Jobb oszlop kártyák */
@@ -3694,11 +3699,11 @@ function recomputeHavi(){
             const c=haviNum(haviData.weeks[w].cel[i]), v=haviNum(haviData.weeks[w].van[i]);
             tc+=c; tv+=v;
             const d=v-c, el=document.getElementById(`hdiff-${w}-${i}`);
-            if(el){ el.textContent=(d>0?'+':'')+d; el.className='havi-diff '+(d<0?'neg':(d>0?'pos':'')); }
+            if(el){ el.textContent=(d>0?'+':'')+d; el.className='havi-diff '+(d<0?'neg':'pos'); }
         }
         const dc=document.getElementById(`htotcel-${i}`); if(dc) dc.textContent=tc;
         const dv=document.getElementById(`htotvan-${i}`); if(dv) dv.textContent=tv;
-        const dd=document.getElementById(`htotdiff-${i}`); if(dd){ const d=tv-tc; dd.textContent=(d>0?'+':'')+d; dd.className='havi-diff '+(d<0?'neg':(d>0?'pos':'')); }
+        const dd=document.getElementById(`htotdiff-${i}`); if(dd){ const d=tv-tc; dd.textContent=(d>0?'+':'')+d; dd.className='havi-diff '+(d<0?'neg':'pos'); }
     }
     for(let w=0;w<haviWeekCount;w++){ egyVan+=haviNum(haviData.weeks[w].van[6]); if(haviData.weeks[w].van.some(x=>haviNum(x)>0)) weeksWithData++; }
     // Havi cél teljesítése (Egység VAN / Célom ES-ben)
@@ -6183,7 +6188,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=23";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=24";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
