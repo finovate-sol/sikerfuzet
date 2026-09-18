@@ -2082,6 +2082,7 @@
         body.fd-drag-on .fd-group-empty { display:block; }
         .fd-group.fd-drop { outline:2px dashed var(--blue); outline-offset:3px; background:var(--blue-light); }
         .fd-group-drop { color:var(--muted); font-size:13px; padding:12px 2px; }
+        .fd-rep { flex:none; font-size:11px; font-weight:700; color:#6d28d9; background:#efeafe; border-radius:999px; padding:2px 9px; white-space:nowrap; }
         .fd-row[draggable="true"] { cursor:grab; }
         .fd-row.fd-dragging { opacity:.45; }
         .fd-group-n { font-size:11.5px; font-weight:800; color:var(--muted); background:#eef1f5; border-radius:999px; padding:2px 9px; }
@@ -6182,7 +6183,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=22";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=23";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -9033,6 +9034,57 @@ window.sfOnViewSwitch = function(){
         const hm = taskMetaOf(t).hm;
         return (hm && /^\d{1,2}:\d{2}$/.test(hm)) ? hm : "";
     }
+    // ===== ISMÉTLŐDŐ FELADATOK =====
+    // A Google Tasks nyilvános API-ja NEM tud ismétlődést tárolni (a Task
+    // erőforrásban nincs ilyen mező), ezért az ismétlődést az app kezeli: a
+    // szabály a saját mellék-táblánkba kerül (task_meta, mint az óra), és amikor
+    // a feladatot kipipálod, MI hozzuk létre a következő előfordulást.
+    const FD_REPEATS = [
+        ["",         "Nem ismétlődik"],
+        ["nap",      "Naponta"],
+        ["munkanap", "Munkanapokon"],
+        ["het",      "Hetente"],
+        ["ket_het",  "Kéthetente"],
+        ["honap",    "Havonta"],
+        ["ev",       "Évente"],
+    ];
+    const FD_REPEAT_LABEL = k => (FD_REPEATS.find(r => r[0] === k) || ["",""])[1];
+    function taskRepeat(t){
+        const r = taskMetaOf(t).rep || "";
+        return FD_REPEATS.some(x => x[0] === r && r) ? r : "";
+    }
+    // A következő határidő az ELŐZŐ határidőből számolva – nem a mai napból –,
+    // hogy a sorozat ne csússzon el, ha valaki később pipál. Lejárt feladatnál
+    // viszont előretekerjük az első jövőbeli alkalomig: egy két hete lejárt heti
+    // feladatból ne szülessen megint lejárt.
+    function fdNextDue(ymdStr, repKey){
+        if(!ymdStr || !repKey) return "";
+        const d = new Date(ymdStr + "T00:00:00");
+        if(isNaN(d)) return "";
+        const today = new Date(); today.setHours(0,0,0,0);
+        const step = () => {
+            if(repKey === "nap") d.setDate(d.getDate() + 1);
+            else if(repKey === "munkanap"){ do { d.setDate(d.getDate() + 1); } while(d.getDay() === 0 || d.getDay() === 6); }
+            else if(repKey === "het") d.setDate(d.getDate() + 7);
+            else if(repKey === "ket_het") d.setDate(d.getDate() + 14);
+            else if(repKey === "honap" || repKey === "ev"){
+                // Hónap/év léptetésnél a naiv setMonth túlcsordul (jan. 31. + 1
+                // hónap a JS-ben márc. 3.), ezért a hónap utolsó napjára vágjuk.
+                const day = d.getDate();
+                d.setDate(1);
+                if(repKey === "honap") d.setMonth(d.getMonth() + 1);
+                else d.setFullYear(d.getFullYear() + 1);
+                const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                d.setDate(Math.min(day, last));
+            }
+            else return false;
+            return true;
+        };
+        if(!step()) return "";
+        let guard = 0;
+        while(d < today && guard++ < 400) step();
+        return ymd(d);
+    }
     function taskPrio(t){
         return (isPgTask(t) ? pgMeta(t).p : taskMetaOf(t).p) || "";
     }
@@ -9065,6 +9117,7 @@ window.sfOnViewSwitch = function(){
         }
         const mp = {};
         if(f.hm !== undefined) mp.hm = f.hm || "";
+        if(f.rep !== undefined) mp.rep = f.rep || "";
         if(!isPgTask(t) && f.prio !== undefined) mp.p = f.prio || "";
         if(Object.keys(mp).length){
             try { await taskMetaSet(t.id, mp); }
@@ -9939,6 +9992,7 @@ window.sfOnViewSwitch = function(){
                 <span class="fd-title">${escM(t.title || "(névtelen feladat)")}</span>
                 ${note ? `<span class="fd-note-preview">${escM(note.length > 90 ? note.slice(0,90) + "…" : note)}</span>` : ""}
             </span>
+            ${taskRepeat(t) ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}">↻ ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}</span>` : ""}
             ${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}">${escM(prio)}</span>` : ""}
             ${label ? `<span class="fd-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${escM(label)}</span>` : `<span class="fd-due none">nincs határidő</span>`}
             <button class="fd-del" data-fddel="${escM(t.id)}" title="Törlés">×</button>
@@ -9947,7 +10001,7 @@ window.sfOnViewSwitch = function(){
 
     function fdDetailHtml(t){
         const date = t.due ? String(t.due).substring(0,10) : "";
-        const hm = taskTimeHM(t), prio = taskPrio(t);
+        const hm = taskTimeHM(t), prio = taskPrio(t), repKey = taskRepeat(t);
         return `<div class="fd-detail" data-fddetail="${escM(t.id)}">
             <div class="fd-f fd-f-full"><label>Feladat</label><input type="text" data-fdf="title" value="${escM(t.title || "")}" maxlength="500"></div>
             <div class="fd-f fd-f-full"><label>Jegyzet</label><textarea data-fdf="note" rows="3" placeholder="Amit tudni érdemes róla…">${escM(taskNote(t))}</textarea></div>
@@ -9957,6 +10011,9 @@ window.sfOnViewSwitch = function(){
             </select></div>
             <div class="fd-f"><label>Határidő</label><input type="date" data-fdf="date" value="${escM(date)}"></div>
             <div class="fd-f"><label>Időpont</label><input type="time" data-fdf="hm" value="${escM(hm)}"></div>
+            <div class="fd-f"><label>Ismétlődés</label><select data-fdf="rep">
+                ${FD_REPEATS.map(([k, lab]) => `<option value="${escM(k)}"${k === repKey ? " selected" : ""}>${escM(lab)}</option>`).join("")}
+            </select></div>
             <div class="fd-hint">${isPgTask(t)
                 ? "A prioritás és a jegyzet a PG Modullal közös. Az időpontot a Google Tasks nem tudja tárolni, ezért az csak itt és a naptárban látszik."
                 : "A cím, a jegyzet és a határidő dátuma a Google Tasksba is átmegy. A prioritást és az időpontot a Google Tasks nem tudja tárolni, ezért az csak itt és a naptárban látszik."}</div>
@@ -10034,7 +10091,7 @@ window.sfOnViewSwitch = function(){
     function fdDetailValues(id){
         const box = document.querySelector(`[data-fddetail="${CSS.escape(id)}"]`); if(!box) return null;
         const v = k => { const el = box.querySelector(`[data-fdf="${k}"]`); return el ? el.value : undefined; };
-        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm") };
+        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm"), rep: v("rep") };
     }
 
     function wireFeladatok(){
@@ -10146,6 +10203,9 @@ window.sfOnViewSwitch = function(){
             if(!vals.title){ alert("A feladat címe nem lehet üres."); return; }
             // Időpont határidő nélkül nem értelmezhető – a Tasks a dátumhoz köti.
             if(vals.hm && !vals.date){ alert("Az időponthoz határidő is kell – add meg a dátumot."); return; }
+            // Az ismétlődés a határidőből számolja a következő alkalmat, dátum
+            // nélkül tehát nincs mihez képest ismételni.
+            if(vals.rep && !vals.date){ alert("Az ismétlődéshez határidő is kell – abból számoljuk a következő alkalmat."); return; }
             save.disabled = true; save.textContent = "Mentés…";
             try {
                 await taskSaveFields(t, vals);
@@ -10352,8 +10412,46 @@ window.sfOnViewSwitch = function(){
     async function pgToggle(id, checked){
         const t = taskById(id); if(!t) return;
         if(!t.listId) t.listId = pgListId;
-        try { await taskSetDone(t, checked); refreshPGViews(); refreshCalTaskChips(); }
+        try {
+            await taskSetDone(t, checked);
+            if(checked) await fdSpawnNext(t);
+            refreshPGViews(); refreshCalTaskChips();
+        }
         catch(e){ alert("Nem sikerült frissíteni: " + (e.message || e)); }
+    }
+
+    // Ismétlődő feladat kipipálásakor megszületik a következő alkalom, ugyanazon
+    // a listán, a szabály szerint eltolt határidővel.
+    //
+    // A kipipált példány ELVESZTI az ismétlődését: ő innentől előzmény, a szabályt
+    // az új példány viszi tovább. Ez egyben azt is megakadályozza, hogy egy
+    // ki-be pipálgatásból több másolat szülessen.
+    async function fdSpawnNext(t){
+        const repKey = taskRepeat(t);
+        if(!repKey) return;
+        const cur = t.due ? String(t.due).substring(0, 10) : "";
+        const next = fdNextDue(cur, repKey);
+        if(!next) return;
+        const note = taskNote(t), prio = taskPrio(t), hm = taskTimeHM(t);
+        const toPg = t.listId === pgListId;
+        const body = { title: t.title || "", due: next + "T00:00:00.000Z" };
+        if(toPg){
+            body.notes = JSON.stringify({ p: prio || "", type:"szemelyes", done:false, note: note || "", created: fdToday() });
+        } else if(note){
+            body.notes = note;
+        }
+        try {
+            const created = await tasksFetch(`/lists/${t.listId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
+            const mp = { hm: hm || "", rep: repKey };
+            if(!toPg) mp.p = prio || "";
+            if(created && created.id) await taskMetaSet(created.id, mp);
+            await taskMetaSet(t.id, { rep: "" });     // a kipipált példány már nem ismétlődik
+            await loadAllTasks(true);
+        } catch(e){
+            // A pipálás már sikerült – ezt külön mondjuk meg, hogy ne higgye
+            // valaki, hogy az sem ment át.
+            alert("A feladat kipipálva, de a következő alkalmat nem sikerült létrehozni: " + (e.message || e));
+        }
     }
 
     // Feladat áthúzása másik listába. A Google Tasks API nem tud listák között
