@@ -851,6 +851,12 @@
         .pz-tab tr:hover input { border-color:#e4eaf2; background:#fbfcfe; }
         .pz-tab input:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 2px rgba(31,95,208,.1); }
         .pz-tab input.plan { color:var(--muted); }
+        /* Tény a tervhez képest: zöld, ha megvan, piros, ha elmaradt. Csak a tény
+           oszlop színeződik – a terv marad visszafogott, hogy legyen mihez mérni. */
+        .pz-tab td.hit, .pz-tab td.hit input { color:#15803d; font-weight:700; }
+        .pz-tab td.miss, .pz-tab td.miss input { color:#b42318; font-weight:700; }
+        .pz-tab tfoot td.hit { color:#15803d; }
+        .pz-tab tfoot td.miss { color:#b42318; }
         .pz-pill { display:inline-block; font-size:11px; font-weight:800; border-radius:20px; padding:2px 8px; }
         .pz-pill.ok { background:#e6f6ec; color:#15803d; } .pz-pill.warn { background:#fef3e2; color:#b45309; } .pz-pill.bad { background:#fdeaea; color:#b42318; }
         /* Figyelmeztetés: többet tettél félre, mint amennyi megmaradt. */
@@ -3967,7 +3973,18 @@ function renderPenzugyek(){
     if(kezdoInp && document.activeElement !== kezdoInp) kezdoInp.value = pzData.kezdo[String(pzYear)] != null ? pzFt(pzData.kezdo[String(pzYear)]) : '';
 
     // --- havi tábla ---
-    const cell = (r, f, plan) => `<td${plan?' class="pair"':''}><input type="text" inputmode="numeric" class="${plan?'plan':''}" data-pz="${f}" data-pzm="${r.i}" value="${r[f]!=null?esc(pzFt(r[f])):''}" placeholder="—"></td>`;
+    // A tény a tervhez képest. BEVÉTELNÉL és félretettnél a több a jó, KÖLTSÉGNÉL
+    // viszont a kevesebb – ezért a költség oszlop fordítva értékel. Ha nincs terv
+    // (üres vagy nulla), akkor nincs mihez mérni: marad színezetlenül; ahogy akkor
+    // is, ha a tény még hiányzik (a hátralévő hónapok).
+    const pzHit = (teny, terv, kevesebbAJo) => {
+        if(terv == null || terv === 0 || teny == null) return '';
+        return (kevesebbAJo ? teny <= terv : teny >= terv) ? 'hit' : 'miss';
+    };
+    const cell = (r, f, plan, st) => {
+        const cls = [plan ? 'pair' : '', st || ''].filter(Boolean).join(' ');
+        return `<td${cls?` class="${cls}"`:''}><input type="text" inputmode="numeric" class="${plan?'plan':''}" data-pz="${f}" data-pzm="${r.i}" value="${r[f]!=null?esc(pzFt(r[f])):''}" placeholder="—"></td>`;
+    };
     tab.innerHTML = `<thead>
         <tr class="g"><th></th><th colspan="2">Főállás bevétel</th><th colspan="2">OVB bevétel</th><th colspan="2">Összes bevétel</th><th colspan="2">Költség</th><th></th><th colspan="2">Félretett</th><th></th></tr>
         <tr><th class="l">Hónap</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Terv</th><th>Tény</th><th>Megmaradt</th><th>Terv</th><th>Tény</th><th>Vagyon</th></tr>
@@ -3976,11 +3993,11 @@ function renderPenzugyek(){
         const pill = ar == null ? '' : ar >= 1 ? 'ok' : ar >= 0.8 ? 'warn' : 'bad';
         return `<tr${r.i===curIdx?' class="now"':''}>
             <td class="l">${PZ_MONTHS[r.i]}</td>
-            ${cell(r,'bevFoT',true)}${cell(r,'bevFo',true)}
-            ${cell(r,'bevOvbT',true)}${cell(r,'bevOvb',true)}
+            ${cell(r,'bevFoT',true)}${cell(r,'bevFo',true,pzHit(r.bevFo,r.bevFoT))}
+            ${cell(r,'bevOvbT',true)}${cell(r,'bevOvb',true,pzHit(r.bevOvb,r.bevOvbT))}
             <td class="pair calc${r.bevT==null?' empty':''}">${pzFt(r.bevT)}</td>
-            <td class="pair calc${r.bev==null?' empty':''}">${pzFt(r.bev)}</td>
-            ${cell(r,'koltT')}${cell(r,'kolt')}
+            <td class="pair calc${r.bev==null?' empty':''} ${pzHit(r.bev,r.bevT)}">${pzFt(r.bev)}</td>
+            ${cell(r,'koltT')}${cell(r,'kolt',false,pzHit(r.kolt,r.koltT,true))}
             <td class="pair calc${r.megmaradt==null?' empty':''}">${pzFt(r.megmaradt)}</td>
             ${cell(r,'felT')}
             <td>${r.fel!=null?`<span class="pz-pill ${pill}">${pzFt(r.fel)}</span>`:'<span class="empty">—</span>'}${r.tulkoltes?'<span class="pz-flag" title="Többet tettél félre, mint amennyi megmaradt – ellenőrizd a számokat.">!</span>':''}</td>
@@ -3989,12 +4006,12 @@ function renderPenzugyek(){
     }).join('')}</tbody>
     <tfoot><tr>
         <td class="l">Összesen</td>
-        <td class="pair">${pzFt(pzSum(rows,'bevFoT'))}</td><td class="pair">${pzFt(pzSum(rows,'bevFo'))}</td>
-        <td class="pair">${pzFt(pzSum(rows,'bevOvbT'))}</td><td class="pair">${pzFt(pzSum(rows,'bevOvb'))}</td>
-        <td class="pair">${pzFt(pzSum(rows,'bevT'))}</td><td class="pair">${pzFt(pzSum(rows,'bev'))}</td>
-        <td>${pzFt(pzSum(rows,'koltT'))}</td><td>${pzFt(pzSum(rows,'kolt'))}</td>
+        <td class="pair">${pzFt(pzSum(rows,'bevFoT'))}</td><td class="pair ${pzHit(pzSum(rows,'bevFo'),pzSum(rows,'bevFoT'))}">${pzFt(pzSum(rows,'bevFo'))}</td>
+        <td class="pair">${pzFt(pzSum(rows,'bevOvbT'))}</td><td class="pair ${pzHit(pzSum(rows,'bevOvb'),pzSum(rows,'bevOvbT'))}">${pzFt(pzSum(rows,'bevOvb'))}</td>
+        <td class="pair">${pzFt(pzSum(rows,'bevT'))}</td><td class="pair ${pzHit(pzSum(rows,'bev'),pzSum(rows,'bevT'))}">${pzFt(pzSum(rows,'bev'))}</td>
+        <td>${pzFt(pzSum(rows,'koltT'))}</td><td class="${pzHit(pzSum(rows,'kolt'),pzSum(rows,'koltT'),true)}">${pzFt(pzSum(rows,'kolt'))}</td>
         <td class="pair">${pzFt(pzSum(rows,'megmaradt'))}</td>
-        <td>${pzFt(pzSum(rows,'felT'))}</td><td>${pzFt(pzSum(rows,'fel'))}</td>
+        <td>${pzFt(pzSum(rows,'felT'))}</td><td class="${pzHit(pzSum(rows,'fel'),pzSum(rows,'felT'))}">${pzFt(pzSum(rows,'fel'))}</td>
         <td class="vagyon">${pzFt(rows[11].vagyon)}</td>
     </tr></tfoot>`;
 
@@ -6188,7 +6205,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=24";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=25";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
