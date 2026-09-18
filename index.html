@@ -337,17 +337,22 @@
         .reg-active .clr { margin-left:auto; border:1px solid #e3cf95; background:#fff; border-radius:8px;
                            padding:5px 11px; font-size:12px; font-weight:700; font-family:inherit; color:#8a6b12; cursor:pointer; }
         .reg-active .clr:hover { background:#fdf3d8; }
-        /* Archivált sorok: mindig kiírjuk, hány marad ki – néma elrejtés nincs. */
-        .reg-archbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-                       background:#eef1f6; border:1px solid #d8dfe9; border-radius:11px; padding:9px 12px;
-                       font-size:12.5px; color:#3f4a5a; }
-        .reg-archbar[hidden] { display:none; }
-        .reg-archbar > span { display:inline-flex; align-items:center; gap:7px; font-weight:600; }
-        .reg-archbar svg { width:14px; height:14px; }
-        .reg-archbar b { color:var(--navy); }
-        .reg-archbar .clr { margin-left:auto; border:1px solid #cbd4e1; background:#fff; border-radius:8px;
-                            padding:5px 11px; font-size:12px; font-weight:700; font-family:inherit; color:#3f4a5a; cursor:pointer; }
-        .reg-archbar .clr:hover { background:#f5f7fa; border-color:var(--blue); color:var(--blue); }
+        /* A sorban látszó adatok csak lenyitva szerkeszthetők. Csukott sorban a
+           mezők sima szövegként állnak (keret és háttér nélkül), és nem fogják el
+           a kattintást – az átmegy rajtuk a sorra, ami erre kinyílik. A tiltott
+           mezők alapértelmezett szürkítését is visszavesszük, mert itt az adat
+           olvasható kell legyen, nem "letiltottnak" látszó. */
+        .rc-line.rc-locked input.rc-cell,
+        .rc-line.rc-locked input.reg-mt-inline,
+        .rc-line.rc-locked select.status-sel,
+        .rc-line.rc-locked .flagchip { pointer-events:none; }
+        .rc-line.rc-locked input.rc-cell,
+        .rc-line.rc-locked input.reg-mt-inline {
+            border-color:transparent; background:transparent; box-shadow:none;
+            opacity:1; color:var(--text); -webkit-text-fill-color:var(--text); }
+        .rc-line.rc-locked input.reg-mt-inline { color:var(--muted); -webkit-text-fill-color:var(--muted); }
+        .rc-line.rc-locked select.status-sel { opacity:1; background-image:none; padding-right:12px; cursor:default; }
+        .rc-line.rc-locked .flagchip { opacity:1; cursor:default; }
         /* A szűrőpanel a "Kit ismerhetek?" segédlet fölött, egymás alatt. */
         .reg-subrow { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
         .reg-subrow > #regFilterPanel { margin-bottom:0; }
@@ -1913,6 +1918,13 @@
         .modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus { border-color:var(--blue); }
         .modal-body label .req { color:var(--red); }
         .modal-client { font-size:16px; font-weight:700; color:var(--navy); background:var(--blue-light); padding:10px 12px; border-radius:8px; }
+        /* Új ügyfél űrlapja */
+        .na-two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        @media (max-width:560px){ .na-two { grid-template-columns:1fr; } }
+        .na-check { display:flex !important; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; }
+        .na-check input { width:auto !important; margin:0; }
+        .na-again { border-top:1px solid var(--border); padding-top:13px; color:var(--muted); }
+        .na-done { margin-right:auto; align-self:center; font-size:12.5px; font-weight:700; color:#15803d; }
         .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
         .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
         .modal .btn.primary:hover { background:#1a52b8; }
@@ -2665,7 +2677,6 @@
             </div>
             <div class="reg-subrow">
               <div class="reg-active" id="regActive" hidden></div>
-              <div class="reg-archbar" id="regArchBar" hidden></div>
               <div class="card reg-filterpanel" id="regFilterPanel" hidden>
                 <div class="reg-build-wrap" id="regFilterBar"></div>
               </div>
@@ -4411,8 +4422,8 @@ const REG_FIELDS = [
 const REG_STATUS = [
     ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés','Tanácsadás']],
     ['Lezárt', ['Lezárt – Ügyfél','Lezárt – Nem ügyfél','Inaktív']],
-    // Az archivált sor nem vész el, csak kikerül a listából – az "N archivált
-    // rejtve · Megmutatom" sávval bármikor visszahozható.
+    // Az archivált sor nem vész el, csak kikerül a listából – a Szűrők panel
+    // "Archivált" kapcsolójával bármikor visszahozható.
     ['Archív', ['Archív']],
 ];
 const REG_STATUS_COLOR = {
@@ -4430,9 +4441,9 @@ function regStatusNorm(s){ const v = String(s||''); return REG_STATUS_LEGACY[v] 
 const regIsClosed = s => String(s||'').indexOf('Lezárt') === 0;
 const REG_ARCHIVE = 'Archív';
 const regIsArchived = s => regStatusNorm(s) === REG_ARCHIVE;
-// Az archivált sorok alapból nem látszanak. Ez nem néma elrejtés: a lista
-// fölött mindig ott a "N archivált rejtve · Megmutatom" sáv, és az Archív
-// státuszszűrőre kattintva is előjönnek.
+// Az archivált sorok alapból nem látszanak. Ez nem néma elrejtés: a Szűrők
+// panelen ott a kapcsoló (a tölcsér melletti szám is jelzi, ha be van
+// kapcsolva), és az Archív státuszszűrőre kattintva is előjönnek.
 let regShowArchived = false;
 // Ügyféllé zárás időpontja. Ebből számolja a Havi terv a "Lezárt ÜF" sort –
 // enélkül nem tudnánk, melyik hétre esett a lezárás. Csak az "Ügyfél" ágat
@@ -4444,14 +4455,14 @@ function regSetStatus(r, val){
     if(val === 'Lezárt – Ügyfél'){ if(!r.lezartAt) r.lezartAt = new Date().toISOString(); }
     else if(was === 'Lezárt – Ügyfél') r.lezartAt = '';
 }
-function regStatusSelect(i, val){
+function regStatusSelect(i, val, locked){
     const cls = REG_STATUS_COLOR[val] ? ' status-'+REG_STATUS_COLOR[val] : '';
     let opts = `<option value="">—</option>`;
     REG_STATUS.forEach(([g,items])=>{ opts += `<optgroup label="${g}">`+items.map(s=>`<option value="${esc(s)}"${val===s?' selected':''}>${esc(s)}</option>`).join('')+`</optgroup>`; });
     // Ismeretlen (régi vagy kézzel írt) érték se vesszen el a legördülőből.
     if(val && !REG_STATUS.some(([,items]) => items.includes(val)))
         opts += `<option value="${esc(val)}" selected>${esc(val)}</option>`;
-    return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status">${opts}</select>`;
+    return `<select class="status-sel${cls}" data-ri="${i}" data-rf="status"${locked?' disabled':''}>${opts}</select>`;
 }
 // ===== SZŰRŐK =====
 // A leggyakoribb szűrők (státusz, jelölők) egy kattintással kapcsolhatók a
@@ -4479,7 +4490,7 @@ function regFilterToggle(field, value){
     renderRegFilters(); renderRegistry();
 }
 function regFilterClearAll(){
-    regFilters = []; regSearch = ''; regLive.value = '';
+    regFilters = []; regSearch = ''; regLive.value = ''; regShowArchived = false;
     const s = document.getElementById('regSearch'); if(s) s.value = '';
     renderRegFilters(); renderRegistry();
 }
@@ -4517,7 +4528,9 @@ function renderRegActive(){
 }
 function renderRegFilters(){
     renderRegActive();
-    const nActive = regActiveFilters().length;
+    // A bekapcsolt archív-nézet is eltérés az alapállapottól, ezért beleszámít
+    // a tölcsér melletti számba – különben csendben más listát látnánk.
+    const nActive = regActiveFilters().length + (regShowArchived ? 1 : 0);
     const cntEl = document.getElementById('regFCount');
     if(cntEl){ if(nActive){ cntEl.textContent = nActive; cntEl.hidden = false; } else cntEl.hidden = true; }
     const panel = document.getElementById('regFilterPanel');
@@ -4532,6 +4545,7 @@ function renderRegFilters(){
         const fld = regFieldOf(k);
         return `<button class="fbtn${regFilterIdx(k,'true')>=0?' on':''}" data-fq="${k}:true">${esc(fld?fld.label:k)}</button>`;
     }).join('');
+    const archTotal = registry.filter(r => !r.mt && regIsArchived(r.status)).length;
     const textFields = REG_FIELDS.filter(f => f.type === 'text');
     if(!textFields.some(f => f.key === regLive.field)) regLive.field = textFields[0].key;
     const textOpts = textFields
@@ -4545,11 +4559,19 @@ function renderRegFilters(){
             <select id="regFField">${textOpts}</select>
             <input id="regFVal" type="text" placeholder="gépelj a szűréshez…" value="${esc(regLive.value)}" autocomplete="off">
             <button class="btn" id="regFAdd" title="Rögzíti chipként, hogy egy másik mezőre is szűrhess">+ Hozzáad</button>
+        </div></div>
+        <div class="reg-fsep"></div>
+        <div class="reg-fsec"><span class="lbl">Archivált</span><div class="chips">
+            <button class="fbtn${regShowArchived?' on':''}" id="regFArch" title="Az archivált sorok alapból kimaradnak a listából">${
+                regShowArchived ? `Archiváltak is látszanak${archTotal?` (${archTotal})`:''}`
+                                : `Archiváltak elrejtve${archTotal?` (${archTotal})`:''}`}</button>
         </div></div>`;
     bar.querySelectorAll('[data-fq]').forEach(b => b.addEventListener('click', ()=>{
         const raw = b.dataset.fq, i = raw.indexOf(':');
         regFilterToggle(raw.slice(0,i), raw.slice(i+1));
     }));
+    const archBtn = document.getElementById('regFArch');
+    if(archBtn) archBtn.addEventListener('click', ()=>{ regShowArchived = !regShowArchived; renderRegFilters(); renderRegistry(); });
     const fieldSel = document.getElementById('regFField');
     const valEl = document.getElementById('regFVal');
     // Gépelés közben csak a listát és az aktív sávot rajzoljuk újra – a panelt
@@ -4588,8 +4610,8 @@ function rowMatchesFilters(r){
 // (nem vezetőnek csak a saját kezelt ügyfelei jelennek meg). Nem vezető
 // csak megnézheti, ki a kezelő; vezető át is helyezheti egy másik
 // munkatársra (window.sfEmployeesList a modul-scriptből érkezik).
-function regKezeloControl(i, r){
-    if(!window.sfIsLeader){
+function regKezeloControl(i, r, locked){
+    if(locked || !window.sfIsLeader){
         return `<span class="reg-kezelo-ro">${esc(r.ownerName || '—')}</span>`;
     }
     const employees = window.sfEmployeesList || [];
@@ -4753,7 +4775,7 @@ function cliRefreshBadges(){
 }
 window.sfRefreshCliBadges = cliRefreshBadges;
 
-const flagChip = (i,field,label,checked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}><span>${label}</span></label>`;
+const flagChip = (i,field,label,checked,locked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}${locked?' disabled':''}><span>${label}</span></label>`;
 let regExpandedIdx = null;   // a kinyitott / kiválasztott ügyfél indexe (mindhárom nézetben)
 // Nézetmód: 'tabla' (eredeti táblázat), 'pipeline' (állapot-oszlopok), 'adatlap' (kétpaneles)
 // A megszűnt 'adatlap' nézetet a böngésző még tárolhatja – ilyenkor a
@@ -4824,7 +4846,21 @@ function regMatched(){
     const q=(regSearch||'').trim().toLowerCase();
     const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
     const showArch = regArchivedVisible();
-    return registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && (showArch || !regIsArchived(r.status)) && textMatch(r) && rowMatchesFilters(r));
+    const out = registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && (showArch || !regIsArchived(r.status)) && textMatch(r) && rowMatchesFilters(r));
+    // A frissen felvitt emberek elöl, létrehozás szerint csökkenő sorrendben.
+    // Akinek nincs created mezője (a mostani átállás előtt felvitt sorok), az a
+    // lista végén marad, a maga eddigi sorrendjében: nem forgatjuk fel a régi
+    // adatot csak azért, hogy az újak felülre kerüljenek. Az eredeti registry-
+    // indexet (i) végig magával viszi minden sor, így a szerkesztés és a mentés
+    // ugyanarra a rekordra mutat, mint rendezés nélkül.
+    out.sort((a,b)=>{
+        const ta = a.r.created || '', tb = b.r.created || '';
+        if(ta && tb) return tb.localeCompare(ta);
+        if(ta) return -1;
+        if(tb) return 1;
+        return a.i - b.i;
+    });
+    return out;
 }
 // Hány archivált sor marad ki most a listából (a többi szűrő szerint).
 function regArchivedHidden(){
@@ -4875,23 +4911,7 @@ function groupedRows(list, keyOf, order, closedMap, mode, rowHtml){
     }).join('');
 }
 // Melyik nézet aktív – a táblázat/pipeline konténerek ki-be kapcsolása.
-const REG_ARCH_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></svg>';
-function renderRegArchiveBar(){
-    const host = document.getElementById('regArchBar'); if(!host) return;
-    // Ha kifejezetten az Archív státuszra szűr, a chip már elmondja, mi történik.
-    const byFilter = regActiveFilters().some(f => f.field === 'status' && f.value === REG_ARCHIVE);
-    const total = registry.filter(r => !r.mt && regIsArchived(r.status)).length;
-    const hiddenN = regArchivedHidden();
-    if(byFilter || (!regShowArchived && !hiddenN)){ host.hidden = true; host.innerHTML = ''; return; }
-    host.hidden = false;
-    host.innerHTML = regShowArchived
-        ? `<span>${REG_ARCH_IC}Az archivált sorok is látszanak (<b>${total}</b>).</span><button class="clr" data-archtog="0">Elrejtem</button>`
-        : `<span>${REG_ARCH_IC}<b>${hiddenN}</b> archivált sor rejtve.</span><button class="clr" data-archtog="1">Megmutatom</button>`;
-    const b = host.querySelector('[data-archtog]');
-    if(b) b.addEventListener('click', ()=>{ regShowArchived = b.dataset.archtog === '1'; renderRegistry(); });
-}
 function renderRegistry(){
-    renderRegArchiveBar();
     const matched = regMatched();
     const card = document.getElementById('regTableCard');
     const pipe = document.getElementById('regPipeline');
@@ -4919,22 +4939,26 @@ function renderRegTable(matched){
         const hasName = !!(r.name && r.name.trim());
         const open = i === regExpandedIdx;
         const ac = hasName ? avatarColor(r.name) : null;
+        // Csukott sorban a mezők csak megjelenítenek: a szerkesztés a lenyitott
+        // adatlapon történik. Így egy listában görgetve nem lehet véletlenül
+        // átírni valakinek a telefonszámát vagy a státuszát.
+        const lk = open ? '' : ' disabled';
         return `<div class="rc${open?' open':''}" data-open="${i}">
-        <div class="rc-line">
+        <div class="rc-line${open?'':' rc-locked'}">
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
                 <div class="reg-person-meta">
                     <div class="reg-name-cell">${cliDot(r)}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
-                    <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"></div>
+                    <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r, !open)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"${lk}></div>
                 </div>
             </div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="ajánló"></div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="telefonszám"></div>
-            <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp)}</div></div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="település"></div>
-            <div>${regStatusSelect(i, r.status)}</div>
-            <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"></div>
-            <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes)}${flagChip(i,'portal','PF',r.portal)}${flagChip(i,'tanacsadas','TA',r.tanacsadas)}</div></div>
+            <div><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="ajánló"${lk}></div>
+            <div><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="telefonszám"${lk}></div>
+            <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp,!open)}</div></div>
+            <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="település"${lk}></div>
+            <div>${regStatusSelect(i, r.status, !open)}</div>
+            <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"${lk}></div>
+            <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes,!open)}${flagChip(i,'portal','PF',r.portal,!open)}${flagChip(i,'tanacsadas','TA',r.tanacsadas,!open)}</div></div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
         ${open ? regCardDetailHtml(i) : ''}</div>`;
@@ -4949,7 +4973,7 @@ function renderRegTable(matched){
         || `<div class="rc-empty">${(q||regActiveFilters().length)
                 ? `Nincs találat a beállított szűrőkre.<div style="margin-top:11px;"><button class="btn" id="regClearFromEmpty">Szűrők és keresés törlése</button></div>`
                 : regArchivedHidden()
-                    ? `Minden ide illő sor archiválva van (${regArchivedHidden()} db) – a fenti sávban megmutathatod őket.`
+                    ? `Minden ide illő sor archiválva van (${regArchivedHidden()} db) – a Szűrők panel „Archivált" kapcsolójával megmutathatod őket.`
                     : `Nincs ügyfél. Kattints a „+ Új ügyfél" gombra.${cliEmptyWhy()?`<div style="margin-top:8px;font-size:12.5px;">${cliEmptyWhy()}</div>`:''}`}</div>`;
     host.innerHTML = head + `<div class="rc-body">${rows}</div>`;
     const clrEmpty = document.getElementById('regClearFromEmpty');
@@ -5291,6 +5315,99 @@ function openClientTaskModal(idx){
     });
 }
 
+// ===== ÚJ ÜGYFÉL FELVITELE =====
+// Külön űrlapon, nem a lista aljára ejtett üres sorban. Így a felvitelkor egyben
+// látszik minden mező, és a sor már névvel születik meg – nem marad utána
+// "Nincs név megadva" sor, ha valaki közben elnavigál.
+//
+// A "Felvitel után jöhet a következő" jelölő nyitva tartja az űrlapot, hogy egy
+// ülésben több embert lehessen bevinni. Ilyenkor a tanácsadót és a státuszt
+// szándékosan NEM ürítjük: azok a következő embernél is ugyanazok szoktak lenni.
+// A jelölő állását megjegyezzük, mert aki egyszer sorban visz fel embereket, az
+// legközelebb is úgy fogja.
+function openRegAddModal(){
+    const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
+    const statusOpts = REG_STATUS.map(([g,items]) =>
+        `<optgroup label="${esc(g)}">` + items.map(x=>`<option value="${esc(x)}"${x==='Új'?' selected':''}>${esc(x)}</option>`).join('') + `</optgroup>`).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true" style="max-width:520px;">
+            <div class="modal-head">Új ügyfél</div>
+            <div class="modal-body">
+                <div><label for="naName">Név <span class="req">*</span></label>
+                    <input id="naName" type="text" autocomplete="off" placeholder="Kovács János"></div>
+                <div class="na-two">
+                    <div><label for="naPhone">Telefonszám</label><input id="naPhone" type="text" autocomplete="off" placeholder="06 20 123 4567"></div>
+                    <div><label for="naCity">Település</label><input id="naCity" type="text" autocomplete="off"></div>
+                </div>
+                <div class="na-two">
+                    <div><label for="naRef">Ajánló személy</label><input id="naRef" type="text" autocomplete="off"></div>
+                    <div><label for="naMt">Tanácsadó</label><input id="naMt" type="text" autocomplete="off" value="${esc(owner.name||'')}"></div>
+                </div>
+                <div class="na-two">
+                    <div><label for="naStatus">Státusz</label><select id="naStatus">${statusOpts}</select></div>
+                    <div><label>Jelölő</label><label class="na-check"><input type="checkbox" id="naTp"><span>TP – felhívandó</span></label></div>
+                </div>
+                <label class="na-check na-again"><input type="checkbox" id="naAgain"><span>Felvitel után jöhet a következő – az űrlap nyitva marad</span></label>
+            </div>
+            <div class="modal-foot">
+                <span class="na-done" id="naDone" hidden></span>
+                <button class="btn" id="naCancel">Mégse</button>
+                <button class="btn primary" id="naSave">Felvitel</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const $ = id => overlay.querySelector('#' + id);
+    const close = () => { document.removeEventListener('keydown', onKey); overlay.remove(); };
+    function onKey(e){ if(e.key === 'Escape') close(); }
+    document.addEventListener('keydown', onKey);
+    $('naCancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
+    $('naAgain').checked = !!store.load('sf_regadd_again', false);
+    $('naAgain').addEventListener('change', e => store.save('sf_regadd_again', e.target.checked));
+    $('naName').focus();
+
+    let added = 0;
+    const save = () => {
+        const name = $('naName').value.trim();
+        if(!name){ alert('A név nem maradhat üresen.'); $('naName').focus(); return; }
+        const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const r = { name, munkatars:$('naMt').value.trim(), ajanlo:$('naRef').value.trim(),
+                    phone:$('naPhone').value.trim(), lakhely:$('naCity').value.trim(),
+                    status:$('naStatus').value, tp:$('naTp').checked,
+                    mt:false, elemzes:false, portal:false, tanacsadas:false, ajanlasok:'',
+                    details:{}, celok:{},
+                    ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'',
+                    // Ettől kerül a lista tetejére (lásd regMatched rendezését).
+                    created:new Date().toISOString(), _localKey:localKey };
+        registry.push(r);
+        store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer();
+        if(typeof window.sfAddClient === 'function'){
+            window.sfAddClient(regClientPayload(r)).then(id => {
+                if(!id) return;
+                // A rekordot _localKey alapján keressük vissza – közben más sor is
+                // születhetett, az indexe tehát nem megbízható.
+                const rec = registry.find(x => x._localKey === localKey);
+                if(rec){ rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); }
+            }).catch(e => console.warn('Ügyfél mentése sikertelen:', e));
+        }
+        added++;
+        if(!$('naAgain').checked){ close(); return; }
+        ['naName','naPhone','naCity','naRef'].forEach(id => { $(id).value = ''; });
+        $('naTp').checked = false;
+        const done = $('naDone');
+        done.hidden = false;
+        done.textContent = `${name} felvéve · ${added} ebben a körben`;
+        $('naName').focus();
+    };
+    $('naSave').addEventListener('click', save);
+    // Enter bárhonnan ment – kivéve a jelölőkön, ahol a szóköz/Enter a kapcsolást jelenti.
+    overlay.querySelectorAll('input[type="text"]').forEach(inp => inp.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); save(); }
+    }));
+}
+
 (function(){
     // Az eseménykezelők a három nézetet közösen tartalmazó konténerre kerülnek,
     // hogy a táblázat, a pipeline oldalpanel és a kétpaneles adatlap mezői
@@ -5458,21 +5575,7 @@ function openClientTaskModal(idx){
         dragIdx = null;
         renderRegistry();
     });
-    document.getElementById('regAdd').addEventListener('click', ()=>{
-        const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
-        const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-        const r = { name:'', munkatars:owner.name||'', ajanlo:'', phone:'', lakhely:'', status:'', tp:false, mt:false, elemzes:false, portal:false, tanacsadas:false, ajanlasok:'', details:{}, celok:{}, ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'', _localKey:localKey };
-        registry.push(r);
-        store.save('sf_registry', registry); renderRegistry();
-        if(typeof window.sfAddClient === 'function'){
-            window.sfAddClient(regClientPayload(r)).then(id => {
-                if (!id) return;
-                // Keressük a rekordot _localKey alapján – navigáció esetén is megtaláljuk.
-                const rec = registry.find(x => x._localKey === localKey);
-                if (rec) { rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); }
-            });
-        }
-    });
+    document.getElementById('regAdd').addEventListener('click', openRegAddModal);
     renderRegistry();
 })();
 
@@ -5990,7 +6093,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=14";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=15";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
