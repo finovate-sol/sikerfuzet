@@ -5,10 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sikerfüzet</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
-    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="icon" type="image/svg+xml" href="icons/emelkedo/icon.svg?v=14">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/emelkedo/icon-32.png?v=14">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/emelkedo/icon-16.png?v=14">
+    <link rel="apple-touch-icon" href="icons/emelkedo/icon-180.png?v=14">
+    <script>
+    // ===== APP-IKON =====
+    // Kétféle ikont viselhet az app; hogy melyiket, azt az Admin → Ikon fülön
+    // lehet átállítani, és a config/app dokumentum appIcon mezőjében él, hogy
+    // mindenkinél ugyanaz legyen. A fej-hivatkozásoknak viszont már az első
+    // festés előtt helyesnek kell lenniük – különben a böngészőfülön felvillan
+    // a régi ikon –, a config pedig csak a bejelentkezés után érkezik meg.
+    // Ezért a választást localStorage-ben is tartjuk, és innen alkalmazzuk
+    // azonnal; a felhőből érkező érték aztán felülírja, ha közben változott.
+    // A login.html ugyanezt a szkriptet viseli: ott Firestore-olvasás nincs,
+    // így a helyi másolat az egyetlen forrás.
+    window.SF_ICONS = { emelkedo:'Emelkedő', fuzet:'Nyitott füzet' };
+    window.SF_ICON_DEFAULT = 'emelkedo';
+    window.sfApplyIconLinks = function(key){
+        if(!window.SF_ICONS[key]) key = window.SF_ICON_DEFAULT;
+        var base = 'icons/' + key + '/', v = '?v=14';
+        var set = function(sel, href){ var el = document.querySelector(sel); if(el) el.setAttribute('href', href); };
+        // A manifestet nem lehet menet közben összerakni (a böngészők csak
+        // valódi, azonos eredetű fájlt fogadnak el), ezért variánsonként
+        // külön fájl áll készen, és csak a hivatkozást cseréljük.
+        set('link[rel="manifest"]', key === window.SF_ICON_DEFAULT ? 'manifest.json' : 'manifest-' + key + '.json');
+        set('link[rel="icon"][type="image/svg+xml"]', base + 'icon.svg' + v);
+        set('link[rel="icon"][sizes="32x32"]', base + 'icon-32.png' + v);
+        set('link[rel="icon"][sizes="16x16"]', base + 'icon-16.png' + v);
+        set('link[rel="apple-touch-icon"]', base + 'icon-180.png' + v);
+        try { localStorage.setItem('sf_app_icon', JSON.stringify(key)); } catch(e){}
+        return key;
+    };
+    (function(){
+        var k = null;
+        try { k = JSON.parse(localStorage.getItem('sf_app_icon') || 'null'); } catch(e){}
+        if(k && k !== window.SF_ICON_DEFAULT) window.sfApplyIconLinks(k);
+    })();
+    </script>
     <meta name="theme-color" content="#0f2f5f">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1518,6 +1552,15 @@
         .adm-cal-ev.ev-split-prev { padding:0; overflow:hidden; }
         .ev-split-prev-top { padding:5px 8px 3px; }
         .ev-split-prev-bot { padding:3px 8px 4px; }
+        .adm-icon-opts { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+        .adm-icon-opt { text-align:left; background:#fff; border:2px solid var(--border); border-radius:12px; padding:12px; cursor:pointer; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+        .adm-icon-opt:hover { border-color:#c7d4e6; }
+        .adm-icon-opt.active { border-color:var(--blue); box-shadow:0 4px 14px rgba(31,95,208,.14); }
+        .adm-icon-prev { background:#f7f9fc; border:1px solid var(--border); border-radius:9px; padding:12px; display:flex; align-items:center; gap:14px; margin-bottom:11px; }
+        .adm-icon-big { border-radius:20px; display:block; flex:none; }
+        .adm-icon-small { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .adm-icon-small img { border-radius:5px; display:block; }
+        .adm-icon-small span { color:var(--muted); font-size:11px; }
         .adm-cal-name { font-weight:800; color:var(--navy); font-size:14px; }
         .adm-cal-desc { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.45; }
         .adm-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; }
@@ -5947,7 +5990,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=13";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=14";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -5997,6 +6040,9 @@ window.sfOnViewSwitch = function(){
             // mire ez a callback lefut, a szinkron szkript már inicializálta.
             const cs = (cfg && CAL_STYLES.some(s => s.key === cfg.calendarStyle)) ? cfg.calendarStyle : "solid";
             if (cs !== calStyle){ calStyle = cs; initCalendar(); }
+            // Az app-ikon (Admin → Ikon). A fejben lévő szkript a helyi másolatból
+            // már beállította valamelyiket; ez a közös, mérvadó értékkel írja felül.
+            if (typeof window.sfApplyIconLinks === "function") window.sfApplyIconLinks(cfg && cfg.appIcon);
             if (isAdmin(user)) setupAdminPanel();
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
         });
@@ -10606,7 +10652,7 @@ window.sfOnViewSwitch = function(){
     };
 
     // ===================== ADMIN OLDAL =====================
-    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium','Naptár','Import'];
+    const ADM_TABS = ['Felhasználók','Hozzáférés','INFO időpontok','Rangok','Fontos infók','Szeminárium','Naptár','Ikon','Import'];
     let admCurTab = 0;
 
     window.sfShowAdmin = async function(){
@@ -10627,7 +10673,8 @@ window.sfOnViewSwitch = function(){
         else if(tab===4) renderAdmInfos(cont);
         else if(tab===5) await renderAdmSeminar(cont);
         else if(tab===6) renderAdmCalendar(cont);
-        else if(tab===7) renderAdmImport(cont);
+        else if(tab===7) renderAdmIcon(cont);
+        else if(tab===8) renderAdmImport(cont);
     }
 
     // ===================== NOTION IMPORT =====================
@@ -11040,6 +11087,50 @@ window.sfOnViewSwitch = function(){
             } catch(e){
                 calStyle = prev;
                 renderAdmCalendar(cont);
+                alert('Nem sikerült menteni: ' + (e.message || e));
+            }
+        }));
+    }
+
+    // ===================== APP-IKON VÁLASZTÓ =====================
+    // A két készlet az icons/<kulcs>/ mappákban él; a kulcsokat a fejlécben lévő
+    // window.SF_ICONS adja, hogy a választó és a tényleges hivatkozás-csere soha
+    // ne csúszhasson szét. Csak a hivatkozásokat cseréljük – a rajzokat nem
+    // generáljuk futásidőben, mindkét készlet minden mérete készen áll.
+    const ICON_CHOICES = [
+        { key:"emelkedo", name:"Emelkedő",      desc:"Felfelé tartó nyíl. A legjobban olvasható kis méretben is – böngészőfülön, 16 képpontnál sem esik szét." },
+        { key:"fuzet",    name:"Nyitott füzet", desc:"Nyitott füzet fehér lapokkal, alatta egy halványabb réteg. A név szerinti motívum." },
+    ];
+
+    function renderAdmIcon(cont){
+        const cur = (currentConfig && window.SF_ICONS[currentConfig.appIcon]) ? currentConfig.appIcon : window.SF_ICON_DEFAULT;
+        cont.innerHTML = `<div class="card"><div class="card-body">
+            <div class="adm-section-title">Alkalmazás ikonja</div>
+            <p style="color:var(--muted);font-size:13px;margin:-4px 0 14px;">Melyik ikont viselje a Sikerfüzet. A beállítás mindenkire érvényes. A böngészőfülön azonnal életbe lép; a telefon kezdőképernyőjére vagy a gép dokkjába <b>már kitett</b> alkalmazás viszont a kitételkori ikont őrzi – ott csak újbóli kitétel után változik.</p>
+            <div class="adm-icon-opts">${ICON_CHOICES.map(o=>`
+                <button class="adm-icon-opt${o.key===cur?' active':''}" data-appicon="${escM(o.key)}">
+                    <div class="adm-icon-prev">
+                        <img src="icons/${escM(o.key)}/icon.svg?v=14" alt="" width="88" height="88" class="adm-icon-big">
+                        <div class="adm-icon-small">
+                            <img src="icons/${escM(o.key)}/icon.svg?v=14" alt="" width="32" height="32">
+                            <img src="icons/${escM(o.key)}/icon.svg?v=14" alt="" width="16" height="16">
+                            <span>böngészőfülön</span>
+                        </div>
+                    </div>
+                    <div class="adm-cal-name">${escM(o.name)}</div>
+                    <div class="adm-cal-desc">${escM(o.desc)}</div>
+                </button>`).join('')}</div>
+        </div></div>`;
+        cont.querySelectorAll('[data-appicon]').forEach(b => b.addEventListener('click', async () => {
+            const val = b.dataset.appicon;
+            if (val === cur) return;
+            try {
+                await saveAppConfig({ appIcon: val });
+                currentConfig = Object.assign({}, currentConfig, { appIcon: val });
+                window._admCfg = currentConfig;
+                window.sfApplyIconLinks(val);
+                renderAdmIcon(cont);
+            } catch(e){
                 alert('Nem sikerült menteni: ' + (e.message || e));
             }
         }));

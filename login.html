@@ -5,10 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Belépés – Sikerfüzet</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
-    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="icon" type="image/svg+xml" href="icons/emelkedo/icon.svg?v=14">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/emelkedo/icon-32.png?v=14">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/emelkedo/icon-16.png?v=14">
+    <link rel="apple-touch-icon" href="icons/emelkedo/icon-180.png?v=14">
+    <script>
+    // ===== APP-IKON =====
+    // Kétféle ikont viselhet az app; hogy melyiket, azt az Admin → Ikon fülön
+    // lehet átállítani, és a config/app dokumentum appIcon mezőjében él, hogy
+    // mindenkinél ugyanaz legyen. A fej-hivatkozásoknak viszont már az első
+    // festés előtt helyesnek kell lenniük – különben a böngészőfülön felvillan
+    // a régi ikon –, a config pedig csak a bejelentkezés után érkezik meg.
+    // Ezért a választást localStorage-ben is tartjuk, és innen alkalmazzuk
+    // azonnal; a felhőből érkező érték aztán felülírja, ha közben változott.
+    // A login.html ugyanezt a szkriptet viseli: ott Firestore-olvasás nincs,
+    // így a helyi másolat az egyetlen forrás.
+    window.SF_ICONS = { emelkedo:'Emelkedő', fuzet:'Nyitott füzet' };
+    window.SF_ICON_DEFAULT = 'emelkedo';
+    window.sfApplyIconLinks = function(key){
+        if(!window.SF_ICONS[key]) key = window.SF_ICON_DEFAULT;
+        var base = 'icons/' + key + '/', v = '?v=14';
+        var set = function(sel, href){ var el = document.querySelector(sel); if(el) el.setAttribute('href', href); };
+        // A manifestet nem lehet menet közben összerakni (a böngészők csak
+        // valódi, azonos eredetű fájlt fogadnak el), ezért variánsonként
+        // külön fájl áll készen, és csak a hivatkozást cseréljük.
+        set('link[rel="manifest"]', key === window.SF_ICON_DEFAULT ? 'manifest.json' : 'manifest-' + key + '.json');
+        set('link[rel="icon"][type="image/svg+xml"]', base + 'icon.svg' + v);
+        set('link[rel="icon"][sizes="32x32"]', base + 'icon-32.png' + v);
+        set('link[rel="icon"][sizes="16x16"]', base + 'icon-16.png' + v);
+        set('link[rel="apple-touch-icon"]', base + 'icon-180.png' + v);
+        try { localStorage.setItem('sf_app_icon', JSON.stringify(key)); } catch(e){}
+        return key;
+    };
+    (function(){
+        var k = null;
+        try { k = JSON.parse(localStorage.getItem('sf_app_icon') || 'null'); } catch(e){}
+        if(k && k !== window.SF_ICON_DEFAULT) window.sfApplyIconLinks(k);
+    })();
+    </script>
     <meta name="theme-color" content="#0f2f5f">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -92,7 +126,7 @@
     </div>
 
     <script type="module">
-        import { loginWithGoogle, redirectIfLoggedIn, isConfigured } from "./auth.js?v=13";
+        import { loginWithGoogle, redirectIfLoggedIn, isConfigured } from "./auth.js?v=14";
 
         const btn = document.getElementById("googleBtn");
         const label = document.getElementById("googleBtnLabel");
