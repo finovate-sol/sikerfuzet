@@ -728,6 +728,7 @@
         .rc-qa button svg { width:14px; height:14px; }
         .rc-qa button:hover { border-color:var(--blue); color:var(--blue); }
         /* Feladat-ablak: gyors határidő-gombok */
+        .ct-list-note { margin-top:6px; font-size:12px; color:var(--muted); line-height:1.45; }
         .ct-due { display:flex; gap:7px; flex-wrap:wrap; margin-top:7px; }
         .ct-due button { border:1px solid var(--border); background:var(--card); border-radius:999px; padding:5px 12px;
                          font-family:inherit; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
@@ -5296,6 +5297,9 @@ function openClientTaskModal(idx){
                         <button type="button" data-ctdue="7">Jövő hét</button>
                         <button type="button" data-ctdue="">Nincs</button>
                     </div></div>
+                <div><label for="ctList">Melyik listába kerüljön?</label>
+                    <select id="ctList" disabled><option>Listák betöltése…</option></select>
+                    <div class="ct-list-note" id="ctListNote" hidden></div></div>
             </div>
             <div class="modal-foot">
                 <button class="btn" id="ctCancel">Mégse</button>
@@ -5304,6 +5308,32 @@ function openClientTaskModal(idx){
         </div>`;
     document.body.appendChild(overlay);
     const close = () => overlay.remove();
+    const listEl = overlay.querySelector('#ctList');
+    const listNote = overlay.querySelector('#ctListNote');
+    // Eddig minden ügyfél-feladat szó nélkül a PG Modul listájába került. Most
+    // megkérdezzük – és megjegyezzük a választást, mert aki egyszer máshová
+    // teszi, az legközelebb is oda fogja.
+    let ctLists = [];
+    (async () => {
+        let info = { lists: [], pgListId: null };
+        try { info = (typeof window.sfTaskLists === 'function' ? await window.sfTaskLists() : info) || info; }
+        catch(e){ /* lentebb kezeljük: üres lista */ }
+        if(!document.body.contains(overlay)) return;      // közben bezárták
+        ctLists = info.lists || [];
+        if(!ctLists.length){
+            listEl.innerHTML = '<option value="">PG Modul listája</option>';
+            listEl.disabled = false;
+            listNote.hidden = false;
+            listNote.textContent = 'A listákat nem sikerült lekérni – a feladat a PG Modul listájába kerül.';
+            return;
+        }
+        const saved = store.load('sf_clienttask_list', '');
+        const pick = ctLists.some(l => l.id === saved) ? saved
+                   : (info.pgListId && ctLists.some(l => l.id === info.pgListId) ? info.pgListId : ctLists[0].id);
+        listEl.innerHTML = ctLists.map(l =>
+            `<option value="${esc(l.id)}"${l.id === pick ? ' selected' : ''}>${esc(l.title)}</option>`).join('');
+        listEl.disabled = false;
+    })();
     const dueEl = overlay.querySelector('#ctDue');
     overlay.querySelectorAll('[data-ctdue]').forEach(b => b.addEventListener('click', () => {
         overlay.querySelectorAll('[data-ctdue]').forEach(x => x.classList.remove('on'));
@@ -5317,8 +5347,10 @@ function openClientTaskModal(idx){
         if(!text){ alert('Írd be, mi a teendő.'); return; }
         const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Létrehozás…';
         const note = [r.name, r.phone, r.lakhely].filter(Boolean).join(' · ');
+        const listId = listEl.value || '';
         try {
-            await window.sfCreateTask(text, note, dueEl.value || '');
+            await window.sfCreateTask(text, note, dueEl.value || '', listId);
+            if(listId) store.save('sf_clienttask_list', listId);
             close();
         } catch(err){
             alert('Nem sikerült létrehozni a feladatot: ' + (err.message || err));
@@ -6142,7 +6174,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=20";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=21";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -9820,14 +9852,33 @@ window.sfOnViewSwitch = function(){
     // Az ügyfél-adatlapról ("+ Feladat") indított Google Task. Az ügyfélkezelés a
     // klasszikus scriptben él, a Tasks-kapcsolat itt – ezért ez a híd. Szándékosan
     // csak Google Task lesz belőle, akcióterv nem: az a PG kimenete.
-    window.sfCreateTask = async function(title, notes, due){
+    // A Google Tasks listák az ügyfél-adatlapnak (klasszikus script) is kellenek,
+    // hogy a felhasználó megválaszthassa, hova kerüljön a feladat. A listát csak
+    // akkor kérjük le, ha még nincs meg – a modul amúgy is betölti indulás után.
+    window.sfTaskLists = async function(){
+        if(!gtLists.length){
+            try { await loadAllTasks(false); } catch(e){ /* nincs kapcsolat – üres lista */ }
+        }
+        return { lists: gtLists.map(l => ({ id: l.id, title: l.title })), pgListId };
+    };
+    // listId nélkül a PG lista a cél – így a korábbi hívások változatlanul működnek.
+    window.sfCreateTask = async function(title, notes, due, listId){
         const t = String(title || '').trim();
         if(!t) throw new Error('Üres feladat.');
-        await ensurePGList(true);
-        const meta = { p:'Közepes', type:'szemelyes', done:false, note:'', created: new Date().toISOString().substring(0,10) };
-        const body = { title: t, notes: JSON.stringify(Object.assign(meta, notes ? { note: String(notes) } : {})) };
+        if(!listId) await ensurePGList(true);
+        const target = listId || pgListId;
+        const body = { title: t };
+        if(target === pgListId){
+            // A PG listán a notes a modul metaadata (JSON), a jegyzet abban utazik.
+            const meta = { p:'Közepes', type:'szemelyes', done:false, note:'', created: new Date().toISOString().substring(0,10) };
+            body.notes = JSON.stringify(Object.assign(meta, notes ? { note: String(notes) } : {}));
+        } else if(notes){
+            // Idegen listán a notes a felhasználóé – JSON-metaadat SOHA nem kerül bele,
+            // különben a Google Tasks appjában olvashatatlan kupac lenne belőle.
+            body.notes = String(notes);
+        }
         if(due) body.due = due + 'T00:00:00.000Z';
-        const created = await tasksFetch(`/lists/${pgListId}/tasks`, { method:'POST', body: JSON.stringify(body) }, true);
+        const created = await tasksFetch(`/lists/${target}/tasks`, { method:'POST', body: JSON.stringify(body) }, true);
         await loadAllTasks(true);
         refreshPGViews();
         return created;
