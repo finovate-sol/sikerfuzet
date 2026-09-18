@@ -1924,6 +1924,12 @@
         .na-check { display:flex !important; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; }
         .na-check input { width:auto !important; margin:0; }
         .na-again { border-top:1px solid var(--border); padding-top:13px; color:var(--muted); }
+        .na-modal { max-width:720px; }
+        /* Az ajánláskor kapott adatok mind felkerülnek, ezért az űrlap hosszú:
+           a fej és a lábléc marad, a mezők görgethetők. */
+        .na-modal .modal-body { max-height:min(68vh,600px); overflow-y:auto; }
+        .na-sec { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+        .na-sec.sep { border-top:1px solid var(--border); padding-top:14px; }
         .na-done { margin-right:auto; align-self:center; font-size:12.5px; font-weight:700; color:#15803d; }
         .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
         .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
@@ -4786,6 +4792,10 @@ const RD_PERSON_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const RD_TARGET_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
 // Az adatlap mezőcsoportjai. Ugyanezekből épül a táblázat kártyás nézetének
 // füles adatlapja és a többi nézet egymás alatti szekciós adatlapja is.
+// Az adatlap legördülőinek értékkészlete. Két helyen kell: itt és az új ügyfél
+// felviteli űrlapján – ezért közös, hogy egy bővítés mindkét helyen megjelenjen.
+const RD_LAKAS_OPTS  = ['Egyedülálló','Párkapcsolatban él','Élettársi kapcsolatban él','Házas','Elvált','Özvegy'];
+const RD_GYEREK_OPTS = ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 vagy több gyermek'];
 function rdAdatokFields(r, i){
     const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
     // Lenyíló lista, de a korábban szabadon beírt, a felsorolásban nem szereplő
@@ -4802,9 +4812,9 @@ function rdAdatokFields(r, i){
             ${f('eletkor','Életkor')}
             <div class="rd-field"><label>Település</label><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely||'')}" placeholder="település"></div>
             ${f('miert','Miért gondolt rá')}
-            ${fSel('lakas','Lakáshelyzet / Családi állapot', ['Egyedülálló','Párkapcsolatban él','Élettársi kapcsolatban él','Házas','Elvált','Özvegy'])}
+            ${fSel('lakas','Lakáshelyzet / Családi állapot', RD_LAKAS_OPTS)}
             ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
-            ${fSel('gyerekek','Gyerekek száma / Életkora', ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 vagy több gyermek'])}
+            ${fSel('gyerekek','Gyerekek száma / Életkora', RD_GYEREK_OPTS)}
             <div class="rd-field"><label>Tőle kapott ajánlások száma</label><input type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}"></div>
         </div>
         <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>`;
@@ -5329,26 +5339,44 @@ function openRegAddModal(){
     const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
     const statusOpts = REG_STATUS.map(([g,items]) =>
         `<optgroup label="${esc(g)}">` + items.map(x=>`<option value="${esc(x)}"${x==='Új'?' selected':''}>${esc(x)}</option>`).join('') + `</optgroup>`).join('');
+    const selOpts = list => `<option value="" selected>—</option>` + list.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-        <div class="modal" role="dialog" aria-modal="true" style="max-width:520px;">
+        <div class="modal na-modal" role="dialog" aria-modal="true">
             <div class="modal-head">Új ügyfél</div>
             <div class="modal-body">
-                <div><label for="naName">Név <span class="req">*</span></label>
-                    <input id="naName" type="text" autocomplete="off" placeholder="Kovács János"></div>
+                <div class="na-sec">Kapcsolat</div>
                 <div class="na-two">
+                    <div><label for="naName">Név <span class="req">*</span></label><input id="naName" type="text" autocomplete="off" placeholder="Kovács János"></div>
                     <div><label for="naPhone">Telefonszám</label><input id="naPhone" type="text" autocomplete="off" placeholder="06 20 123 4567"></div>
+                </div>
+                <div class="na-two">
                     <div><label for="naCity">Település</label><input id="naCity" type="text" autocomplete="off"></div>
-                </div>
-                <div class="na-two">
                     <div><label for="naRef">Ajánló személy</label><input id="naRef" type="text" autocomplete="off"></div>
-                    <div><label for="naMt">Tanácsadó</label><input id="naMt" type="text" autocomplete="off" value="${esc(owner.name||'')}"></div>
+                </div>
+
+                <div class="na-sec sep">Amit az ajánláskor megtudunk</div>
+                <div class="na-two">
+                    <div><label for="naAge">Életkor</label><input id="naAge" type="text" autocomplete="off"></div>
+                    <div><label for="naWhy">Miért gondolt rá</label><input id="naWhy" type="text" autocomplete="off"></div>
                 </div>
                 <div class="na-two">
-                    <div><label for="naStatus">Státusz</label><select id="naStatus">${statusOpts}</select></div>
-                    <div><label>Jelölő</label><label class="na-check"><input type="checkbox" id="naTp"><span>TP – felhívandó</span></label></div>
+                    <div><label for="naLakas">Lakáshelyzet / Családi állapot</label><select id="naLakas">${selOpts(RD_LAKAS_OPTS)}</select></div>
+                    <div><label for="naJob">Foglalkozás / Honnan ismeri</label><input id="naJob" type="text" autocomplete="off"></div>
                 </div>
+                <div class="na-two">
+                    <div><label for="naKids">Gyerekek száma / Életkora</label><select id="naKids">${selOpts(RD_GYEREK_OPTS)}</select></div>
+                    <div><label for="naRefN">Tőle kapott ajánlások száma</label><input id="naRefN" type="number" min="0" step="1" placeholder="0"></div>
+                </div>
+                <div><label for="naNote">Megjegyzés</label><textarea id="naNote" rows="2"></textarea></div>
+
+                <div class="na-sec sep">Kezelés</div>
+                <div class="na-two">
+                    <div><label for="naMt">Tanácsadó</label><input id="naMt" type="text" autocomplete="off" value="${esc(owner.name||'')}"></div>
+                    <div><label for="naStatus">Státusz</label><select id="naStatus">${statusOpts}</select></div>
+                </div>
+                <label class="na-check"><input type="checkbox" id="naTp"><span>TP – felhívandó</span></label>
                 <label class="na-check na-again"><input type="checkbox" id="naAgain"><span>Felvitel után jöhet a következő – az űrlap nyitva marad</span></label>
             </div>
             <div class="modal-foot">
@@ -5372,12 +5400,25 @@ function openRegAddModal(){
     const save = () => {
         const name = $('naName').value.trim();
         if(!name){ alert('A név nem maradhat üresen.'); $('naName').focus(); return; }
+        // Az üresen hagyott mezők ki sem kerülnek a details-be: az adatlap úgyis
+        // üresen mutatja őket, viszont így nem szemetelünk tele minden rekordot
+        // üres kulcsokkal.
+        const details = {};
+        const put = (k, v) => { const t = String(v == null ? '' : v).trim(); if(t) details[k] = t; };
+        put('eletkor', $('naAge').value);
+        put('miert', $('naWhy').value);
+        put('lakas', $('naLakas').value);
+        put('foglalkozas', $('naJob').value);
+        put('gyerekek', $('naKids').value);
+        put('megjegyzes', $('naNote').value);
+
         const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
         const r = { name, munkatars:$('naMt').value.trim(), ajanlo:$('naRef').value.trim(),
                     phone:$('naPhone').value.trim(), lakhely:$('naCity').value.trim(),
                     status:$('naStatus').value, tp:$('naTp').checked,
-                    mt:false, elemzes:false, portal:false, tanacsadas:false, ajanlasok:'',
-                    details:{}, celok:{},
+                    mt:false, elemzes:false, portal:false, tanacsadas:false,
+                    ajanlasok:$('naRefN').value.trim(),
+                    details, celok:{},
                     ownerUid:owner.uid||'', ownerEmail:owner.email||'', ownerName:owner.name||'',
                     // Ettől kerül a lista tetejére (lásd regMatched rendezését).
                     created:new Date().toISOString(), _localKey:localKey };
@@ -5394,16 +5435,21 @@ function openRegAddModal(){
         }
         added++;
         if(!$('naAgain').checked){ close(); return; }
-        ['naName','naPhone','naCity','naRef'].forEach(id => { $(id).value = ''; });
-        $('naTp').checked = false;
+        // Csak a személyre szóló mezők ürülnek. Az ajánló, a tanácsadó és a
+        // státusz marad: egy ajánlási körben rendszerint UGYANATTÓL az embertől
+        // kapunk több nevet, és azokat ugyanaz veszi fel, ugyanabban az állapotban.
+        ['naName','naPhone','naCity','naAge','naWhy','naJob','naNote','naRefN'].forEach(id => { $(id).value = ''; });
+        $('naLakas').value = ''; $('naKids').value = ''; $('naTp').checked = false;
         const done = $('naDone');
         done.hidden = false;
         done.textContent = `${name} felvéve · ${added} ebben a körben`;
         $('naName').focus();
+        $('naName').scrollIntoView({ block:'nearest' });
     };
     $('naSave').addEventListener('click', save);
-    // Enter bárhonnan ment – kivéve a jelölőkön, ahol a szóköz/Enter a kapcsolást jelenti.
-    overlay.querySelectorAll('input[type="text"]').forEach(inp => inp.addEventListener('keydown', e => {
+    // Enter bárhonnan ment, kivéve a Megjegyzés mezőt (ott sortörést jelent) és
+    // a jelölőket (ott kapcsolást).
+    overlay.querySelectorAll('input:not([type="checkbox"])').forEach(inp => inp.addEventListener('keydown', e => {
         if(e.key === 'Enter'){ e.preventDefault(); save(); }
     }));
 }
@@ -6093,7 +6139,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=15";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=16";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
