@@ -4723,12 +4723,14 @@ function cliAddNote(i, text){
     // A saját jegyzetem nekem nem "új info".
     r.seen = Object.assign({}, r.seen || {}, { [cliMyUid()]: now });
     r._prevSeen = now;
+    store.save('sf_registry', registry);
     if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { jegyzetek: r.jegyzetek, seen: r.seen });
     return true;
 }
 function cliDeleteNote(i, noteId){
     const r = registry[i]; if(!r) return;
     r.jegyzetek = cliNotes(r).filter(n => n.id !== noteId);
+    store.save('sf_registry', registry);
     if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { jegyzetek: r.jegyzetek });
 }
 function cliNoteDate(iso){
@@ -5549,12 +5551,9 @@ function openRegAddModal(){
         if(tabBtn){ regDetailTab = tabBtn.dataset.rdtab; renderRegistry(); return; }
         const nameBtn = e.target.closest('.reg-name[data-open]');
         if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
-        // Szerkeszthető mezőre (input/select/checkbox/gomb) kattintva ne nyíljon/záruljon
-        // a sor – csak a sor egyéb (nem szerkeszthető) részére kattintva.
-        if(e.target.closest('input, select, textarea, label, button, a')) return;
-        // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
-        const pipeCard = e.target.closest('[data-pipe]');
-        if(pipeCard){ regExpandedIdx = +pipeCard.dataset.pipe; cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
+        // FIGYELEM: a jegyzet-ágaknak a lenti mező-őr ELŐTT kell állniuk, mert a
+        // "Hozzáadás" és a törlés × is gomb – az őr különben kilépne, mielőtt ide
+        // érnénk, és a gombok némán nem csinálnának semmit.
         const noteAdd = e.target.closest('[data-clinoteadd]');
         if(noteAdd){
             const ta = document.querySelector(`[data-clinote="${noteAdd.dataset.clinoteadd}"]`);
@@ -5567,6 +5566,12 @@ function openRegAddModal(){
             if(host && confirm('Törlöd ezt a jegyzetet?')){ cliDeleteNote(+host.dataset.regdetail, noteDel.dataset.clidelnote); cliRefreshBadges(); renderRegistry(); }
             return;
         }
+        // Szerkeszthető mezőre (input/select/checkbox/gomb) kattintva ne nyíljon/záruljon
+        // a sor – csak a sor egyéb (nem szerkeszthető) részére kattintva.
+        if(e.target.closest('input, select, textarea, label, button, a')) return;
+        // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
+        const pipeCard = e.target.closest('[data-pipe]');
+        if(pipeCard){ regExpandedIdx = +pipeCard.dataset.pipe; cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
         // Kártyasor nyitása/zárása – a már kinyitott adatlapon belüli kattintás nem zárja be.
         if(e.target.closest('.rc-detail')) return;
         const row = e.target.closest('.rc[data-open]');
@@ -5973,13 +5978,7 @@ function ketCardDetailHtml(i){
         // Fülváltás a kártyás adatlapon (a lenti mező-őr előtt, mert ezek gombok)
         const ketTab = e.target.closest('[data-kettab]');
         if(ketTab){ ketDetailTab = ketTab.dataset.kettab; renderKetorasList(); return; }
-        // Sorra kattintva nyit/zár (accordion) – szerkeszthető mezőkre kattintva nem.
-        if(e.target.closest('input, label, button, textarea, select')) return;
-        // A már kinyitott adatlapon belüli kattintás ne csukja össze a kártyát.
-        if(e.target.closest('.rc-detail')) return;
-        // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
-        const pipeCard = e.target.closest('[data-ketpipe]');
-        if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); return; }
+        // FIGYELEM: a jegyzet-ágak itt is a mező-őr ELŐTT állnak – gombok.
         const kNoteAdd = e.target.closest('[data-clinoteadd="ket"]');
         if(kNoteAdd){
             const ta = document.querySelector('[data-clinote="ket"]');
@@ -5992,6 +5991,13 @@ function ketCardDetailHtml(i){
             if(host && confirm('Törlöd ezt a jegyzetet?')){ cliDeleteNote(+host.dataset.tobdetail, kNoteDel.dataset.clidelnote); cliRefreshBadges(); renderKetorasList(); }
             return;
         }
+        // Sorra kattintva nyit/zár (accordion) – szerkeszthető mezőkre kattintva nem.
+        if(e.target.closest('input, label, button, textarea, select')) return;
+        // A már kinyitott adatlapon belüli kattintás ne csukja össze a kártyát.
+        if(e.target.closest('.rc-detail')) return;
+        // Pipeline kártya → oldalpanel; kétpaneles lista → jobb oldali adatlap.
+        const pipeCard = e.target.closest('[data-ketpipe]');
+        if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); return; }
         const o = e.target.closest('[data-ketopen]');
         if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; if(ketorasExpandedIdx!=null) cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); }
     });
@@ -6136,7 +6142,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=17";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta } from "./auth.js?v=18";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
