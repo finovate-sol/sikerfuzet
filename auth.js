@@ -414,15 +414,15 @@ if (isConfigured) {
 }
 export { auth, db, storage };
 
-// ===================== CÉLFAL KÉPEK (Firebase Storage) =====================
-// A célfal képei nem férnének el a Firestore-ban (1 MB/dokumentum), ezért a
-// Storage-ba mennek: celfal/{uid}/{fájlnév}. A celok dokumentum csak a
-// letöltési URL-t és a tárolási útvonalat tárolja.
+// ============ CÉLFAL KÉPEK – RÉGI, STORAGE-OS ÚT (nem használt) ============
+// A képek a celfal/{uid}/{fájlnév} útvonalra mentek, a celok dokumentum pedig
+// csak a letöltési URL-t és az útvonalat tárolta. EZ NEM MŰKÖDÖTT: a Firebase
+// Storage Blaze (fizetős) csomagot igényel, a projekt pedig Spark csomagon van.
+// A helyette használt Firestore-os út lentebb van (addCelImage).
 //
-// FONTOS: a Storage szabályai NEM látják a Firestore-t, tehát ott nem tudjuk
-// leellenőrizni sem az allowlistát, sem a felettes-láncot. Ezért: írni csak a
-// saját mappájába tud valaki, olvasni bármelyik belépett felhasználó – így
-// működik a vezetői "ránézés" is. A célfal motivációs kép, nem ügyféladat.
+// A függvény azért marad itt, mert a RÉGI, még Storage-ba került képek törlése
+// ezen keresztül megy (a célfal bejegyzésen path mező van url-lel), és mert
+// egy esetleges Blaze-váltás után egy lépésben visszakapcsolható.
 export async function uploadCelKep(uid, file){
     if(!isConfigured || !storage) throw new Error("A Firebase nincs beállítva.");
     if(!uid) throw new Error("Hiányzik a felhasználó azonosítója.");
@@ -436,6 +436,35 @@ export async function deleteCelKep(path){
     if(!isConfigured || !storage || !path) return;
     try { await deleteObject(storageRef(storage, path)); }
     catch(e){ console.warn("A célfal-kép törlése sikertelen:", e); }
+}
+
+// ===================== CÉLFAL KÉPEK (Firestore) =====================
+// A ténylegesen használt változat. A fenti Storage-os út elvben szebb lenne
+// (nincs méretkorlát, nem terheli a Firestore-t), de a Storage BLAZE (fizetős)
+// csomagot igényel – emiatt a célfal feltöltés évekig néma hibával hasalt el.
+// A Firestore a Spark csomagon is megy, cserébe egy dokumentum legfeljebb
+// 1 MB, ezért a képet a kliens zsugorítja (lásd sfKepToB64 az index.html-ben).
+//
+// Külön kollekció, nem a celok dokumentumban: a célok minden betöltéskor
+// lejönnek, a képeket viszont csak akkor akarjuk lehozni, amikor látszanak.
+//
+// LÁTHATÓSÁG: a jegyzet-képekkel ellentétben itt a felettes és az admin is
+// olvashat, mert a célfal a vezetői "ránézés" része – ugyanaz a canAccess(),
+// ami a celok dokumentumot is védi.
+export async function addCelImage(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "cel_images"), data);
+    return ref.id;
+}
+export async function getCelImage(id){
+    if(!isConfigured || !db || !id) return null;
+    const snap = await getDoc(doc(db, "cel_images", id));
+    return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+}
+export async function deleteCelImageDoc(id){
+    if(!isConfigured || !db || !id) return;
+    try { await deleteDoc(doc(db, "cel_images", id)); }
+    catch(e){ console.warn("Célfal-kép törlése sikertelen:", e); }
 }
 
 // --- Segéd: benne van-e az email az allowlistben? ---

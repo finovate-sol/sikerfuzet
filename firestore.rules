@@ -123,6 +123,25 @@ service cloud.firestore {
     match /penzugyek/{userId}     { allow read, write: if canAccess(userId); }
     match /celok/{userId}         { allow read, write: if canAccess(userId); }
 
+    // A célfal képei. Külön dokumentumban, mert a Firestore-ban egy dokumentum
+    // legfeljebb 1 MB, és a célok betöltésekor nem akarjuk az összes képet
+    // lehozni. (A Firebase Storage fizetős csomagot igényelne, ezért kerültek
+    // ide – lásd a note_images-nél írtakat.)
+    //
+    // A JEGYZET-KÉPEKKEL ELLENTÉTBEN itt a felettes és az admin is olvashat:
+    // a célfal a vezetői "ránézés" része, ugyanúgy, mint maga a celok
+    // dokumentum. Ezért canAccess(), nem szigorú uid-egyezés.
+    //
+    // Az ownerUid-ot írásnál mindkét oldalon nézzük: a régin (hogy máséba ne
+    // lehessen belenyúlni) és az újon is (hogy ne lehessen másra átíratni).
+    match /cel_images/{imgId} {
+      allow read:   if canAccess(resource.data.ownerUid);
+      allow create: if canAccess(request.resource.data.ownerUid);
+      allow update: if canAccess(resource.data.ownerUid)
+                    && canAccess(request.resource.data.ownerUid);
+      allow delete: if canAccess(resource.data.ownerUid);
+    }
+
     // A feladatok plusz mezői (prioritás, időpont, jegyzet). SZIGORÚAN a gazdáé:
     // a Google Tasks maga is fiókonként privát, a vezető ott sem lát bele,
     // ezért itt sem adunk neki rálátást – nincs canAccess, csak a saját uid.

@@ -1376,6 +1376,12 @@
         .cl-wall-item { position:relative; margin:0; background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
                         box-shadow:var(--shadow); overflow:hidden; }
         .cl-wall-item img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:#eef1f5; }
+        /* A kép külön Firestore-dokumentumban van, és csak a Célok oldal
+           megnyitásakor töltjük le – a szürke doboz addig is tartja a helyet.
+           Ha a letöltés elhasal, a doboz megmondja, mi történt. */
+        .cl-wall-item.hiba::before { content:'A kép nem tölthető be'; position:absolute; left:0; right:0; top:0;
+            aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; padding:8px;
+            font-size:12px; color:var(--muted); text-align:center; }
         .cl-wall-item figcaption { padding:7px 9px; }
         .cl-wall-item input { width:100%; border:1px solid transparent; border-radius:7px; padding:4px 6px; background:transparent;
                               font-family:inherit; font-size:12.5px; font-weight:600; color:var(--text); outline:none; box-sizing:border-box; }
@@ -6386,7 +6392,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=32";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=33";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11065,7 +11071,9 @@ window.sfOnViewSwitch = function(){
         <div class="cl-h3">Célfal<span class="n">amit magad előtt akarsz látni · ${clWall().length} kép</span></div>
         <div class="cl-wall">
             ${clWall().map(k => `<figure class="cl-wall-item">
-                <img src="${escM(k.url)}" alt="${escM(k.caption||'Célfal kép')}" loading="lazy">
+                ${k.imgId
+                    ? `<img data-celimg="${escM(k.imgId)}" data-alt="${escM(k.caption||'Célfal kép')}" alt="">`
+                    : `<img src="${escM(k.url||'')}" alt="${escM(k.caption||'Célfal kép')}" loading="lazy">`}
                 <figcaption><input data-clwallcap="${escM(k.id)}" value="${escM(k.caption||'')}" placeholder="Mi ez? (pl. Porsche 2028)"></figcaption>
                 <button class="cl-wall-del" data-clwalldel="${escM(k.id)}" title="Kép törlése">×</button>
             </figure>`).join('')}
@@ -11118,6 +11126,52 @@ window.sfOnViewSwitch = function(){
             img.src = url;
         });
     }
+
+    // Kép → Firestore-ba tehető alak. A célfal és a jegyzet is ezt használja;
+    // a kettő csak abban különbözik, melyik kollekcióba kerül a dokumentum.
+    //
+    // Miért nem a Firebase Storage? Mert az BLAZE (fizetős) csomagot igényel,
+    // a projekt pedig Spark csomagon van – emiatt a célfal feltöltés némán
+    // elhasalt. A Firestore itt is elérhető, cserébe egy dokumentum legfeljebb
+    // 1 MB, és a base64 ~33%-kal hizlal: kb. 700 kB nyers kép fér el. Ezért
+    // zsugorítunk lépcsőzetesen, és inkább hibát dobunk, mint hogy a mentés
+    // magyarázat nélkül szálljon el.
+    const SF_IMG_MAX_B64 = 900 * 1024;
+    function sfBlobToB64(blob){
+        return new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result).split(",")[1] || "");
+            r.onerror = () => rej(new Error("A képet nem sikerült beolvasni."));
+            r.readAsDataURL(blob);
+        });
+    }
+    async function sfKepToB64(blob, nev){
+        const tipus = /\.png$/i.test(nev||'') ? 'image/png'
+                    : /\.gif$/i.test(nev||'') ? 'image/gif' : 'image/jpeg';
+        const file = new File([blob], String(nev||'kep.jpg').split('/').pop() || 'kep.jpg',
+                              { type: blob.type || tipus });
+        let b64 = '', mime = file.type, fajlNev = file.name;
+        for(const px of [1400, 1000, 700]){
+            // A zsugorítás JPEG-et ad vissza .jpg névvel, ezért a nevet és a
+            // típust is a ténylegesen eltárolt változatból vesszük – különben
+            // egy .png nevű dokumentumban JPEG-adat ülne.
+            const kicsi = await clShrinkImage(file, px).catch(() => file);
+            b64 = await sfBlobToB64(kicsi);
+            mime = kicsi.type || mime;
+            fajlNev = kicsi.name || fajlNev;
+            if(b64.length <= SF_IMG_MAX_B64) break;
+        }
+        if(b64.length > SF_IMG_MAX_B64) throw new Error('A kép a zsugorítás után is túl nagy.');
+        return { mime, data: b64, nev: fajlNev };
+    }
+    // A célfal képeit akkor kérjük le, amikor a Célok oldal tényleg látszik –
+    // egy munkamenetben egyszer, innentől ez a gyorsítótár szolgálja ki őket,
+    // így az oldal újrarajzolása (pl. egy felirat átírása) nem tölt le újra.
+    const clImgCache = new Map();
+
+    // A kép a Firestore-ba megy (cel_images), NEM a Storage-ba – az fizetős
+    // csomagot igényelne. A célok dokumentumban csak a kép azonosítója marad,
+    // így a célok betöltése nem rángatja be az összes képet.
     async function clAddWallImage(file){
         const uid = clUid();
         if(!isConfigured || uid === 'local'){ alert('A képfeltöltéshez be kell lépni.'); return; }
@@ -11126,14 +11180,16 @@ window.sfOnViewSwitch = function(){
         if(box) box.classList.add('busy');
         if(lbl) lbl.textContent = 'Feltöltés…';
         try {
-            const small = await clShrinkImage(file, 1400);
-            const { path, url } = await uploadCelKep(uid, small);
-            clData.celfal = clWall().concat([{ id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), url, path, caption:'' }]);
+            const k = await sfKepToB64(file, file.name);
+            const imgId = await addCelImage({ ownerUid: uid, mime: k.mime, data: k.data,
+                                              nev: k.nev, created: new Date().toISOString() });
+            clImgCache.set(imgId, `data:${k.mime};base64,${k.data}`);
+            clData.celfal = clWall().concat([{ id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), imgId, caption:'' }]);
             clPersist(true);
             clRender();
         } catch(e){
             alert('Nem sikerült feltölteni a képet: ' + (e.message || e)
-                + '\n\nHa most először próbálod: a Firebase konzolban engedélyezni kell a Storage-ot.');
+                + '\n\nHa jogosultsági hibát írt: a Firebase konzolban publikálni kell a firestore.rules-t.');
             if(box) box.classList.remove('busy');
             if(lbl) lbl.textContent = 'Kép hozzáadása';
         }
@@ -11144,7 +11200,30 @@ window.sfOnViewSwitch = function(){
         clData.celfal = clWall().filter(x => x.id !== id);
         clPersist(true);
         clRender();
-        if(k.path) deleteCelKep(k.path);
+        // A kép külön dokumentum: ha itt maradna, senki nem hivatkozna rá.
+        if(k.imgId) deleteCelImageDoc(k.imgId);
+        if(k.path) deleteCelKep(k.path);   // a régi, Storage-os képekhez
+    }
+
+    async function clLoadWallImages(){
+        // Az alt-ot csak a sikeres betöltéskor tesszük ki: egy src nélküli
+        // <img alt="..."> a törött kép ikonját és a szöveget mutatná, a szürke
+        // helytartó doboz helyett.
+        const kesz = el => { el.alt = el.dataset.alt || ''; };
+        for(const el of document.querySelectorAll('img[data-celimg]')){
+            const id = el.dataset.celimg;
+            if(clImgCache.has(id)){ el.src = clImgCache.get(id); kesz(el); continue; }
+            try {
+                const d = await getCelImage(id);
+                if(!d || !d.data){ el.closest('.cl-wall-item')?.classList.add('hiba'); continue; }
+                const url = `data:${d.mime || 'image/jpeg'};base64,${d.data}`;
+                clImgCache.set(id, url);
+                el.src = url;
+                kesz(el);
+            } catch(e){
+                el.closest('.cl-wall-item')?.classList.add('hiba');
+            }
+        }
     }
 
     // ---- mentés ----
@@ -11170,6 +11249,7 @@ window.sfOnViewSwitch = function(){
         const body = document.getElementById('celokBody'); if(!body) return;
         body.innerHTML = clShell();
         clWire();
+        clLoadWallImages();
     }
 
     function clWire(){
@@ -11548,31 +11628,11 @@ window.sfOnViewSwitch = function(){
     }
 
     // ---------- Jegyzet-képek (Firestore) ----------
-    // A Firestore-ban egy dokumentum legfeljebb 1 MB, a base64 pedig ~33%-kal
-    // hizlal – tehát kb. 700 kB nyers kép fér el. Ezért a képet lépcsőzetesen
-    // zsugorítjuk, és ha a legkisebb változat sem fér bele, inkább kihagyjuk,
-    // mint hogy a mentés elhasaljon.
-    const JG_IMG_MAX_B64 = 900 * 1024;
-    function jgBlobToB64(blob){
-        return new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(String(r.result).split(",")[1] || "");
-            r.onerror = () => rej(new Error("A képet nem sikerült beolvasni."));
-            r.readAsDataURL(blob);
-        });
-    }
+    // A zsugorítást és a base64-re alakítást a közös sfKepToB64() végzi (lásd a
+    // célok modulnál) – itt csak az dől el, melyik kollekcióba kerül a kép.
     async function jgImageToDoc(blob, nev, owner){
-        const tipus = /\.png$/i.test(nev) ? "image/png" : /\.gif$/i.test(nev) ? "image/gif" : "image/jpeg";
-        const file = new File([blob], nev.split("/").pop() || "kep.jpg", { type: blob.type || tipus });
-        let b64 = "", mime = file.type;
-        for(const [px, q] of [[1400, 0.82], [1000, 0.7], [700, 0.6]]){
-            const kicsi = await clShrinkImage(file, px).catch(() => file);
-            b64 = await jgBlobToB64(kicsi);
-            mime = kicsi.type || mime;
-            if(b64.length <= JG_IMG_MAX_B64) break;
-        }
-        if(b64.length > JG_IMG_MAX_B64) throw new Error("A kép a zsugorítás után is túl nagy.");
-        return await addNoteImage({ ownerUid: owner, mime, data: b64, nev: file.name, created: jgNow() });
+        const k = await sfKepToB64(blob, nev);
+        return await addNoteImage({ ownerUid: owner, mime: k.mime, data: k.data, nev: k.nev, created: jgNow() });
     }
     // A megjelenített jegyzet képeit akkor kérjük le, amikor tényleg látszanak.
     // Egy munkamenetben egyszer – a gyorsítótár miatt a lapozgatás nem kér újra.

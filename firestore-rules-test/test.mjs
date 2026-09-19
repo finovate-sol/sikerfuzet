@@ -84,6 +84,26 @@ await T('célok: IDEGEN munkatárs NEM olvassa', getDoc(doc(other,'celok',ZSOLT)
 await T('célok: a beosztott nem olvassa a felettesét', getDoc(doc(zsolt,'celok',ADAM)), 'fail');
 await T('célok: a felettes ránézésben szerkeszthet', setDoc(doc(adam,'celok',ZSOLT),{vizio:{y1:'x'}},{merge:true}), 'ok');
 await T('célok: idegen nem írhat', setDoc(doc(other,'celok',ZSOLT),{vizio:{}},{merge:true}), 'fail');
+
+// A célfal képei a celok dokumentummal EGYEZŐ láthatóságúak: a felettes és az
+// admin is látja (ránézés), az idegen munkatárs nem. Ez tudatosan más, mint a
+// jegyzet-képeknél, ahol a felettes sem lát bele.
+await T('célfal-kép: sajátot létrehoz',
+    setDoc(doc(zsolt,'cel_images','ci1'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'AAAA' }), 'ok');
+await T('célfal-kép: sajátot olvas',          getDoc(doc(zsolt,'cel_images','ci1')), 'ok');
+await T('célfal-kép: a felettes is olvassa',  getDoc(doc(adam,'cel_images','ci1')), 'ok');
+await T('célfal-kép: az admin is olvassa',    getDoc(doc(mark,'cel_images','ci1')), 'ok');
+await T('célfal-kép: IDEGEN munkatárs nem olvassa', getDoc(doc(other,'cel_images','ci1')), 'fail');
+await T('célfal-kép: a felettes ránézésben feltölt',
+    setDoc(doc(adam,'cel_images','ci2'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'BBBB' }), 'ok');
+await T('célfal-kép: idegen nem tölt fel a nevére',
+    setDoc(doc(other,'cel_images','ci3'), { ownerUid: ZSOLT, data:'x' }), 'fail');
+await T('célfal-kép: a gazdája nem írathatja át idegenre',
+    updateDoc(doc(zsolt,'cel_images','ci1'), { ownerUid: OTHER }), 'fail');
+await T('célfal-kép: kívülálló (nem allowlistás) nem fér hozzá', getDoc(doc(out,'cel_images','ci1')), 'fail');
+await T('célfal-kép: idegen nem törli',  deleteDoc(doc(other,'cel_images','ci1')), 'fail');
+await T('célfal-kép: a gazdája törli',   deleteDoc(doc(zsolt,'cel_images','ci1')), 'ok');
+await T('célfal-kép: a felettes is törli', deleteDoc(doc(adam,'cel_images','ci2')), 'ok');
 await T('idegen nem szerkesztheti a struktúrát', setDoc(doc(other,'structures',ZSOLT),{tree:{}}), 'fail');
 await T('karrier-létra: saját', setDoc(doc(adam,'karrier_letra',ADAM),{miert:{pozicio:'x'}},{merge:true}), 'ok');
 await T('karrier-létra: idegen tiltva', getDoc(doc(other,'karrier_letra',ADAM)), 'fail');
