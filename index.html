@@ -11738,7 +11738,9 @@ window.sfOnViewSwitch = function(){
     // A teljes munkaterület exportját a Notion ZIP-BE CSOMAGOLT ZIP-ekként adja ki
     // (Export-…-Part-1.zip, Part-2.zip …). Ezért a belső ZIP-eket is kibontjuk,
     // és a nevüket az útvonal elé fűzzük, hogy a mappaszerkezet megmaradjon.
+    let jgUnzipHibak = null;
     async function jgUnzipDeep(buf, melyseg){
+        if(!(melyseg || 0)) jgUnzipHibak = [];
         const entries = await jgUnzip(buf);
         if((melyseg || 0) >= 3) return entries;                     // végtelen mélységtől óvva
         const out = [];
@@ -11747,7 +11749,12 @@ window.sfOnViewSwitch = function(){
                 try {
                     const inner = await jgUnzipDeep(e.data.buffer.slice(e.data.byteOffset, e.data.byteOffset + e.data.byteLength), (melyseg || 0) + 1);
                     for(const x of inner) out.push({ name: x.name, data: x.data });
-                } catch(err){ console.warn("Belső ZIP kibontása sikertelen:", e.name, err); }
+                } catch(err){
+                    // Ne némán vesszen el: enélkül úgy tűnne, hogy a ZIP-ben
+                    // nincsenek oldalak, pedig csak a kibontás akadt el.
+                    console.warn("Belső ZIP kibontása sikertelen:", e.name, err);
+                    (jgUnzipHibak ||= []).push(`${e.name.split("/").pop()}: ${err.message || err}`);
+                }
             } else out.push(e);
         }
         return out;
@@ -11795,13 +11802,17 @@ window.sfOnViewSwitch = function(){
                 <div class="modal-head">Notion-import</div>
                 <div class="modal-body">
                     <p style="font-size:13px;color:var(--muted);line-height:1.65;margin:0;">
-                        A Notionben: <b>••• → Export → Markdown &amp; CSV</b>, majd az így kapott
-                        <b>.zip</b> fájlt válaszd ki itt. Minden oldalból egy jegyzet lesz, a címkék
-                        az oldal tulajdonságaiból (Tags) és a mappanevekből jönnek. A képek is
-                        átjönnek, a saját tárhelyedre. Az adatbázis-exportokat (.csv) kihagyjuk –
-                        azok táblázatok, nem jegyzetek.
-                        <br><br>A <b>teljes munkaterület</b> exportja is jó: a Notion olyankor
-                        ZIP-be csomagolt ZIP-eket ad, azokat magától kibontja.
+                        A Notionben: <b>••• → Export</b>, ott <b>Export format: Markdown &amp; CSV</b>,
+                        és – ez a fontos – <b>Include content: Everything</b> (régebbi Notionben:
+                        <b>Include subpages</b> bekapcsolva). Az így kapott <b>.zip</b> fájlt
+                        válaszd ki itt.
+                        <br><br>Ha az „Include content” nincs „Everything”-en, egy adatbázisból
+                        csak a <b>táblázat</b> jön le (2 db .csv), a jegyzetek szövege nem – ilyenkor
+                        az import azt írja, hogy nem talált oldalt.
+                        <br><br>Minden oldalból egy jegyzet lesz, a címkék az oldal tulajdonságaiból
+                        (Tags) és a mappanevekből jönnek. A képek is átjönnek. A <b>teljes
+                        munkaterület</b> exportja is jó: a Notion olyankor ZIP-be csomagolt ZIP-eket
+                        ad, azokat magától kibontja.
                     </p>
                     <div><label for="jgZip">Az export ZIP-fájlja</label>
                         <input id="jgZip" type="file" accept=".zip,.md,application/zip"></div>
@@ -11859,9 +11870,24 @@ window.sfOnViewSwitch = function(){
             }
             const lista = Object.entries(kiterj).sort((a, b) => b[1] - a[1]).slice(0, 6)
                 .map(([k, v]) => `${v} db .${k}`).join(", ");
-            if(!entries.length) throw new Error("A ZIP üresnek bizonyult – nem volt benne egyetlen fájl sem.");
-            if(kiterj.html) throw new Error(`Ez HTML-export (${lista}). A Notionben a „Markdown & CSV” lehetőséget válaszd, ne a HTML-t.`);
-            throw new Error(`Nem találtam .md oldalt. Ez volt a fájlban: ${lista}. A Notionben a „Markdown & CSV” exportot válaszd.`);
+            const nevek = entries.slice(0, 5).map(e => e.name.split("/").pop()).join(", ")
+                + (entries.length > 5 ? ` … (+${entries.length - 5})` : "");
+            const belso = (jgUnzipHibak && jgUnzipHibak.length)
+                ? ` Ezen felül ${jgUnzipHibak.length} belső ZIP-et nem sikerült kibontani (${jgUnzipHibak[0]}).` : "";
+            if(!entries.length) throw new Error("A ZIP üresnek bizonyult – nem volt benne egyetlen fájl sem." + belso);
+            if(kiterj.html) throw new Error(`Ez HTML-export (${lista}). A Notionben a „Markdown & CSV” lehetőséget válaszd, ne a HTML-t.` + belso);
+            // A LEGGYAKORIBB ESET: adatbázis-export, amiben csak a tábla van.
+            // A Notion ilyenkor a nézet CSV-jét és egy "_all.csv"-t ad – az
+            // OLDALAK (a jegyzetek szövege) csak akkor jönnek, ha az exportnál
+            // az "Include content" = "Everything". Ezt külön mondjuk meg, mert
+            // a formátum ilyenkor helyes: a "válassz Markdown & CSV-t" tanács
+            // ebben az esetben félrevezető, hiszen épp azt választotta.
+            if(csvs.length && csvs.length === entries.length)
+                throw new Error(`Ebben a ZIP-ben csak a táblázat van (${lista}: ${nevek}) – a jegyzetek szövege nincs benne. `
+                    + `A formátum jó volt; az export ablakában az „Include content” legyen „Everything” (régebbi Notionben: `
+                    + `kapcsold be az „Include subpages” kapcsolót). Enélkül csak a sorok listája jön le, az oldalak nem.` + belso);
+            throw new Error(`Nem találtam .md oldalt. Ez volt a fájlban: ${lista} (${nevek}). `
+                + `A Notionben a „Markdown & CSV” exportot válaszd, és az „Include content” legyen „Everything”.` + belso);
         }
 
         // Egy TELJES munkaterület-export nemcsak a jegyzeteket hozza, hanem
