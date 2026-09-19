@@ -6374,7 +6374,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=27";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=28";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11555,6 +11555,37 @@ window.sfOnViewSwitch = function(){
     // A Notion minden névhez hozzáfűz egy 32 jegyű azonosítót – azt levágjuk.
     const jgClean = t => String(t || "").replace(/\s+[0-9a-f]{32}(?=$|\.)/i, "").replace(/\.md$/i, "").trim();
 
+    // Az adatbázis-oldalak tulajdonságai (Tags, Oktató, Date, …) a .md tetején
+    // állnak, a cím alatt, "Kulcs: érték" sorokként – NEM a mappanevekben. A
+    // címkék tehát innen jönnek; a mappanév csak kiegészítés.
+    //
+    // Óvatosan nyúlunk hozzá: csak akkor tekintjük tulajdonság-blokknak, ha
+    // legalább két ilyen sor van, vagy ha az egy sor épp a címkéké. Így egy
+    // "Megállapodás: ..." kezdetű valódi jegyzetet nem csonkítunk meg. Amit nem
+    // használunk fel, az sem vész el: idézetként a jegyzet elejére kerül.
+    const JG_TAG_KEYS = ["tags", "címkék", "cimkék", "címke", "cimke"];
+    function jgParseProps(body){
+        const lines = body.split(/\r?\n/);
+        const props = [];
+        let i = 0;
+        while(i < lines.length && lines[i].trim() === "") i++;
+        const start = i;
+        for(; i < lines.length; i++){
+            const t = lines[i].trim();
+            if(!t) break;
+            const m = t.match(/^([^:\n]{1,40}):\s*(.*)$/);
+            if(!m) break;
+            props.push([m[1].trim(), m[2].trim()]);
+        }
+        const tagLine = props.find(([k]) => JG_TAG_KEYS.includes(k.toLowerCase()));
+        if(props.length < 2 && !tagLine) return { tags: [], rest: body };
+        const tags = tagLine ? tagLine[1].split(",").map(x => x.trim()).filter(Boolean) : [];
+        // A maradék tulajdonságot megtartjuk a jegyzet elején, hogy ne vesszen el.
+        const keep = props.filter(([k, v]) => v && !JG_TAG_KEYS.includes(k.toLowerCase()));
+        const head = keep.length ? keep.map(([k, v]) => `> **${k}:** ${v}`).join("\n") + "\n\n" : "";
+        return { tags, rest: head + lines.slice(i).join("\n").replace(/^\s*\n/, "") };
+    }
+
     function jgOpenImport(){
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
@@ -11627,6 +11658,12 @@ window.sfOnViewSwitch = function(){
             let title = jgClean(parts[parts.length - 1]);
             const m = body.match(/^\s*#\s+(.+)\s*$/m);
             if(m && body.slice(0, m.index).trim() === ""){ title = m[1].trim(); body = body.slice(m.index + m[0].length).replace(/^\s*\n/, ""); }
+            // A cím alatti tulajdonság-blokkból jönnek a valódi Notion-címkék.
+            const props = jgParseProps(body);
+            body = props.rest;
+            // A mappanév is címke marad, de a tulajdonságból jövők az elsők, és
+            // nem duplikálunk.
+            for(const t of props.tags) if(!dirs.includes(t)) dirs.unshift(t);
 
             // Képek: a hivatkozott fájlt feltöltjük, és átírjuk rá a linket.
             const base = parts.slice(0, -1).join("/");
