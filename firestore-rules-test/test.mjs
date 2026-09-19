@@ -165,6 +165,24 @@ await T('feladat-mezők: a sajátját olvassa', getDoc(doc(zsolt,'task_meta',ZSO
 await T('feladat-mezők: A FELETTES SEM olvassa', getDoc(doc(adam,'task_meta',ZSOLT)), 'fail');
 await T('feladat-mezők: idegen nem írja', setDoc(doc(other,'task_meta',ZSOLT),{ t1:{p:'alacsony'} }), 'fail');
 
+// ---------- 8c. Jegyzetek ----------
+// Magánjegyzet: a gazdáján KÍVÜL senki – se felettes, se admin.
+await T('jegyzet: sajátot létrehoz',
+    setDoc(doc(zsolt,'notes','n1'), { ownerUid: ZSOLT, title:'Sajátom', body:'titok', tags:['teszt'] }), 'ok');
+await T('jegyzet: sajátot olvas',       getDoc(doc(zsolt,'notes','n1')), 'ok');
+await T('jegyzet: sajátot módosít',     updateDoc(doc(zsolt,'notes','n1'), { body:'új' }), 'ok');
+await T('jegyzet: A FELETTES SEM olvassa', getDoc(doc(adam,'notes','n1')), 'fail');
+await T('jegyzet: AZ ADMIN SEM olvassa',   getDoc(doc(mark,'notes','n1')), 'fail');
+await T('jegyzet: idegen nem olvassa',     getDoc(doc(other,'notes','n1')), 'fail');
+await T('jegyzet: a felettes nem írja át', updateDoc(doc(adam,'notes','n1'), { body:'belenyúlok' }), 'fail');
+await T('jegyzet: idegen nem törli',       deleteDoc(doc(other,'notes','n1')), 'fail');
+await T('jegyzet: más nevére nem hozható létre',
+    setDoc(doc(other,'notes','n2'), { ownerUid: ZSOLT, title:'hamis' }), 'fail');
+await T('jegyzet: a gazdája nem írathatja át másra',
+    updateDoc(doc(zsolt,'notes','n1'), { ownerUid: OTHER }), 'fail');
+await T('jegyzet: kívülálló (nem allowlistás) nem fér hozzá', getDoc(doc(out,'notes','n1')), 'fail');
+await T('jegyzet: a gazdája törli', deleteDoc(doc(zsolt,'notes','n1')), 'ok');
+
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 

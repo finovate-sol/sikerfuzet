@@ -42,6 +42,24 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Jegyzet-képek: jegyzet/{uid}/{fájlnév}
+    //
+    // A célfallal ellentétben itt az OLVASÁS IS csak a gazdáé. A jegyzet
+    // magánjegyzet, és szerencsére ehhez nem kell a Firestore-t látni: elég a
+    // bejelentkezett uid összevetése az útvonallal, amit a Storage tud.
+    match /jegyzet/{userId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Feltöltés: csak a gazdája, csak kép, legfeljebb 8 MB.
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 8 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      // Törlésnél nincs request.resource – lásd a célfalnál írt magyarázatot.
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Minden más útvonal tiltva.
     match /{allPaths=**} { allow read, write: if false; }
   }

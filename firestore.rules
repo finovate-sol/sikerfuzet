@@ -193,6 +193,27 @@ service cloud.firestore {
     }
 
     // ========================================================================
+    //  JEGYZETEK
+    // ========================================================================
+
+    // A jegyzet SZIGORÚAN a gazdájáé – se a felettes, se az admin nem lát bele.
+    // Ez tudatos: ide magánjegyzet kerül, nem csapatadat. Ezért itt nincs
+    // canAccess() és nincs isAdmin() kivétel sem, ellentétben a személyes
+    // adatokkal (havi terv, pénzügyek), amikbe a felettes beleláthat.
+    //
+    // Az ownerUid-ot írásnál MINDKÉT oldalon nézzük: a régin (hogy máséba ne
+    // lehessen belenyúlni) és az újon is (hogy ne lehessen másra átíratni).
+    // Az auth.js getNotes() ezért szűr ownerUid-ra: szűretlen listázást ez a
+    // szabály egészében elutasítana.
+    match /notes/{noteId} {
+      allow read:   if isUser() && resource.data.ownerUid == uid();
+      allow create: if isUser() && request.resource.data.ownerUid == uid();
+      allow update: if isUser() && resource.data.ownerUid == uid()
+                    && request.resource.data.ownerUid == uid();
+      allow delete: if isUser() && resource.data.ownerUid == uid();
+    }
+
+    // ========================================================================
     //  MINDEN MÁS TILOS
     // ========================================================================
     match /{document=**} { allow read, write: if false; }

@@ -15,7 +15,7 @@ import {
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=26";
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=27";
 
 export { isConfigured };
 
@@ -241,6 +241,47 @@ export async function getTaskMeta(uid){
 export async function saveTaskMeta(uid, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "task_meta", uid), data, { merge: true });
+}
+
+// ===================== JEGYZETEK =====================
+// Magánjegyzet: szigorúan a gazdájáé (lásd firestore.rules – ott se felettes,
+// se admin nem fér hozzá). A listázás EZÉRT szűr ownerUid-ra: szűretlen
+// lekérdezést a szabály egészében elutasítana.
+export async function getNotes(uid){
+    if(!isConfigured || !db || !uid) return [];
+    try {
+        const snap = await getDocs(query(collection(db, "notes"), where("ownerUid", "==", uid)));
+        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch(e){ console.warn("Jegyzetek olvasása sikertelen:", e); return []; }
+}
+export async function addNote(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "notes"), data);
+    return ref.id;
+}
+export async function saveNote(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "notes", id), data, { merge: true });
+}
+export async function deleteNote(id){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, "notes", id));
+}
+// A jegyzet-képek a Storage-ban, a gazdájuk mappájában. A célfaltól eltérően
+// ezeket OLVASNI is csak ő tudja (lásd storage.rules).
+export async function uploadNoteImage(uid, blob, name){
+    if(!isConfigured || !storage) throw new Error("A Firebase nincs beállítva.");
+    if(!uid) throw new Error("Hiányzik a felhasználó azonosítója.");
+    const ext = (String(name||"kep").match(/\.([a-z0-9]{1,5})$/i) || [,"png"])[1].toLowerCase();
+    const path = `jegyzet/${uid}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const r = storageRef(storage, path);
+    await uploadBytes(r, blob, { contentType: blob.type || "image/png" });
+    return { path, url: await getDownloadURL(r) };
+}
+export async function deleteNoteImage(path){
+    if(!isConfigured || !storage || !path) return;
+    try { await deleteObject(storageRef(storage, path)); }
+    catch(e){ console.warn("A jegyzet-kép törlése sikertelen:", e); }
 }
 
 // ===================== PG MODUL =====================
