@@ -2156,6 +2156,15 @@
         .jg-td-c { color:var(--navy); font-weight:600; }
         .jg-pill { display:inline-block; margin:0 3px 3px 0; padding:1px 8px; border-radius:999px; font-size:11px; background:var(--blue-light); color:var(--navy); }
         .jg-back { margin-bottom:12px; }
+        .jg-grp > summary { cursor:pointer; list-style:none; padding:8px 13px; background:#f5f7fa; border-bottom:1px solid var(--border);
+            font-size:12.5px; font-weight:800; color:var(--navy);
+            display:flex; justify-content:space-between; gap:8px; align-items:center; position:sticky; top:0; z-index:2; }
+        .jg-grp > summary::-webkit-details-marker { display:none; }
+        .jg-grp > summary::before { content:"▾"; margin-right:5px; color:var(--blue); font-size:10px; }
+        .jg-grp:not([open]) > summary::before { content:"▸"; }
+        .jg-grp > summary span { font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; }
+        .jg-grow td { background:#f5f7fa; font-size:12.5px; font-weight:800; color:var(--navy); padding:7px 12px; }
+        .jg-grow td span { float:right; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; }
         .jg-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
         .jg-title { flex:1 1 220px; min-width:0; padding:9px 12px; border:1px solid transparent; border-radius:9px; font-family:inherit; font-size:19px; font-weight:800; color:var(--navy); outline:none; background:transparent; }
         .jg-title:hover { border-color:#e4eaf2; } .jg-title:focus { border-color:var(--blue); background:#fff; }
@@ -2953,7 +2962,7 @@
               <div class="seg" id="pzYearSeg"></div>
               <div class="reg-tools">
                 <label class="pz-kezdo">Évnyitó vagyon<input type="text" inputmode="numeric" id="pzKezdo" placeholder="0"></label>
-                <button class="btn" id="pzImportBtn" title="Egy év adatainak beolvasása JSON-ból">Import</button>
+                <a class="link" href="#" data-page="admin" style="font-size:12.5px;" title="Az importok az Admin → Import fülön vannak">Import: Admin ↗</a>
               </div>
             </div>
             <div class="pz-kpis" id="pzKpis"></div>
@@ -4365,7 +4374,6 @@ window.sfShowPenzugyek = function(){
         const y = e.target.closest('[data-pzyear]');
         if(y){ pzYear = +y.dataset.pzyear; renderPenzugyek(); return; }
         if(e.target.closest('#pzChartToggle')) document.getElementById('pzChartPanel').classList.toggle('open');
-        if(e.target.closest('#pzImportBtn')) pzOpenImport();
     });
 })();
 
@@ -4373,6 +4381,7 @@ window.sfShowPenzugyek = function(){
 // Egy teljes év beolvasása JSON-ból. A pénzügyi adat személyes: a böngésződből
 // megy egyenesen a saját Firestore-odba, sehol máshol nem tároljuk.
 // Alak: { "kezdo": { "2025": 4000000 }, "months": { "2025": [ {…}×12 ] } }
+window.pzOpenImport = pzOpenImport;
 function pzOpenImport(){
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
@@ -6423,7 +6432,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=34";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=35";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11459,6 +11468,7 @@ window.sfOnViewSwitch = function(){
     // dolgozik – a Notionből importált szöveg is adat, nem program.
     let jgNotes = [], jgLoaded = false, jgOpenId = null, jgSearch = "", jgTag = "";
     let jgView = "kereso", jgEv = "", jgOkt = "", jgSort = { mezo: "d", irany: -1 };
+    let jgGroup = "", jgClosed = new Set();
     let jgEditing = false, jgSaveTimer = null, jgDirty = false, jgSearchTimer = null;
 
     const jgNow = () => new Date().toISOString();
@@ -11617,6 +11627,31 @@ window.sfOnViewSwitch = function(){
         for(const nt of sor){ const s = jgScore(nt, ts); if(s) ki.push({ nt, db: s.db, pont: s.pont }); }
         return ki.sort((a, b) => b.pont - a.pont || jgIx(b.nt).date.localeCompare(jgIx(a.nt).date));
     }
+    // Csoportosítás. A címke és az oktató TÖBBÉRTÉKŰ: az ilyen jegyzet minden
+    // csoportjában megjelenik – ez szándékos, egy "Oktatás + Kiemelt" jegyzetet
+    // mindkét helyen keresne az ember. Az üres eset külön csoport, a lista végén.
+    const JG_GROUPS = [["", "Nincs csoportosítás"], ["ev", "Év szerint"], ["tag", "Címke szerint"], ["okt", "Oktató szerint"]];
+    const JG_NINCS = { ev: "Dátum nélkül", tag: "Nincs címke", okt: "Nincs oktató" };
+    function jgGroupsOf(list){
+        if(!jgGroup) return [{ cim: "", items: list }];
+        const map = new Map();
+        const be = (k, x) => { if(!map.has(k)) map.set(k, []); map.get(k).push(x); };
+        for(const x of list){
+            const ix = jgIx(x.nt);
+            const kulcsok = jgGroup === "ev"  ? [ix.date.slice(0, 4)]
+                          : jgGroup === "tag" ? (x.nt.tags || [])
+                          : ix.okt;
+            const tiszta = kulcsok.filter(Boolean);
+            if(tiszta.length) tiszta.forEach(k => be(k, x)); else be(JG_NINCS[jgGroup], x);
+        }
+        const ures = JG_NINCS[jgGroup];
+        return [...map.entries()].map(([cim, items]) => ({ cim, items })).sort((a, b) => {
+            if(a.cim === ures) return 1;
+            if(b.cim === ures) return -1;
+            return jgGroup === "ev" ? b.cim.localeCompare(a.cim) : a.cim.localeCompare(b.cim, "hu");
+        });
+    }
+
     // Az évszűrő csak azokra szűr, amiknek VAN valódi dátuma.
     function jgYears(){
         return [...new Set(jgNotes.map(nt => jgIx(nt).date.slice(0, 4)).filter(Boolean))].sort().reverse();
@@ -11658,7 +11693,7 @@ window.sfOnViewSwitch = function(){
         </div></div>` : ""}
         <div class="fd-hero">
             <div class="fd-hero-txt"><h2>Jegyzetek</h2><p>A saját jegyzeteid – rajtad kívül senki nem látja őket, a felettesed és az admin sem. A szöveg Markdownnal formázható.</p></div>
-            <button class="btn" id="jgImport">Notion-import</button>
+            <a class="link" href="#" id="jgToAdmin" title="Az importok az Admin → Import fülön vannak">Import: Admin → Import ↗</a>
         </div>
         ${jgToolsHtml(tags, list.length)}
         ${jgView === "tabla" ? jgTableViewHtml(list, open) : `
@@ -11687,7 +11722,8 @@ window.sfOnViewSwitch = function(){
             <span class="jg-count">${jgSearch.trim() ? `<b>${n}</b> találat / ${jgNotes.length}` : `<b>${jgNotes.length}</b> jegyzet`}</span>
             ${evek.length ? `<select id="jgEvSel"><option value="">Minden év</option>${evek.map(e => `<option value="${escM(e)}"${jgEv === e ? " selected" : ""}>${escM(e)}</option>`).join("")}</select>` : ""}
             ${okts.length ? `<select id="jgOktSel"><option value="">Minden oktató</option>${okts.map(o => `<option value="${escM(o)}"${jgOkt === o ? " selected" : ""}>${escM(o)}</option>`).join("")}</select>` : ""}
-            ${(jgSearch || jgTag || jgEv || jgOkt) ? `<button class="jg-clear" id="jgClear">Szűrők törlése</button>` : ""}
+            <select id="jgGroupSel" title="Csoportosítás">${JG_GROUPS.map(([k, lab]) => `<option value="${k}"${jgGroup === k ? " selected" : ""}>${escM(lab)}</option>`).join("")}</select>
+            ${(jgSearch || jgTag || jgEv || jgOkt || jgGroup) ? `<button class="jg-clear" id="jgClear">Szűrők törlése</button>` : ""}
         </div>
         ${tags.length ? `<div class="jg-tags">
             <button class="jg-tag${jgTag ? "" : " on"}" data-jgtag="">Mind (${jgNotes.length})</button>
@@ -11697,7 +11733,15 @@ window.sfOnViewSwitch = function(){
 
     // A) Kereső: a találat KÖRNYEZETÉVEL és a találatszámmal.
     function jgListHtml(list){
-        if(!list.length) return `<div class="jg-empty">${jgNotes.length ? "Nincs találat." : "Még nincs jegyzeted. Kezdd az „+ Új” gombbal, vagy hozd át a Notion-jegyzeteidet."}</div>`;
+        if(!list.length) return `<div class="jg-empty">${jgNotes.length ? "Nincs találat." : "Még nincs jegyzeted. Kezdd az „+ Új” gombbal, vagy az Admin → Import fülön hozd át a Notion-jegyzeteidet."}</div>`;
+        if(jgGroup) return jgGroupsOf(list).map(g => `
+            <details class="jg-grp"${jgClosed.has(g.cim) ? "" : " open"} data-jggrp="${escM(g.cim)}">
+                <summary>${escM(g.cim)}<span>${g.items.length}</span></summary>
+                ${jgItemsHtml(g.items)}
+            </details>`).join("");
+        return jgItemsHtml(list);
+    }
+    function jgItemsHtml(list){
         const ts = jgTerms(jgSearch);
         return list.map(({ nt, db }) => {
             const ix = jgIx(nt);
@@ -11719,20 +11763,28 @@ window.sfOnViewSwitch = function(){
                           : jgSort.mezo === "c" ? jgNorm(nt.title)
                           : jgSort.mezo === "o" ? jgNorm(jgIx(nt).okt.join(" "))
                           : jgNorm((nt.tags || []).join(" "));
-        const sor = list.slice().sort((a, b) =>
+        const rendez = sor => sor.slice().sort((a, b) =>
             String(kulcs(a.nt)).localeCompare(String(kulcs(b.nt)), "hu") * jgSort.irany);
         const fej = (m, cim) => `<th><button data-jgsort="${m}">${cim}${jgSort.mezo === m ? `<span class="jg-ar">${jgSort.irany < 0 ? "▼" : "▲"}</span>` : ""}</button></th>`;
+        const sorHtml = ({ nt }) => {
+            const ix = jgIx(nt);
+            return `<tr data-jgopen="${escM(nt.id)}">
+                <td class="jg-td-d">${escM(jgDateHu(ix.date))}</td>
+                <td class="jg-td-c">${jgTitleHtml(nt, ts)}</td>
+                <td>${escM(ix.okt.join(", ")) || "<span class=\"jg-td-d\">—</span>"}</td>
+                <td>${(nt.tags || []).map(t => `<span class="jg-pill">${escM(t)}</span>`).join("") || "<span class=\"jg-td-d\">—</span>"}</td>
+            </tr>`;
+        };
+        const torzs = !list.length
+            ? `<tr><td colspan="4"><div class="jg-empty">Nincs találat.</div></td></tr>`
+            : jgGroup
+                ? jgGroupsOf(list).map(g =>
+                    `<tr class="jg-grow"><td colspan="4">${escM(g.cim)}<span>${g.items.length}</span></td></tr>`
+                    + rendez(g.items).map(sorHtml).join("")).join("")
+                : rendez(list).map(sorHtml).join("");
         return `<div class="card"><div class="jg-tbox"><table class="jg-table">
             <thead><tr>${fej("d", "Dátum")}${fej("c", "Cím")}${fej("o", "Oktató")}${fej("t", "Címke")}</tr></thead>
-            <tbody>${sor.length ? sor.map(({ nt }) => {
-                const ix = jgIx(nt);
-                return `<tr data-jgopen="${escM(nt.id)}">
-                    <td class="jg-td-d">${escM(jgDateHu(ix.date))}</td>
-                    <td class="jg-td-c">${jgTitleHtml(nt, ts)}</td>
-                    <td>${escM(ix.okt.join(", ")) || "<span class=\"jg-td-d\">—</span>"}</td>
-                    <td>${(nt.tags || []).map(t => `<span class="jg-pill">${escM(t)}</span>`).join("") || "<span class=\"jg-td-d\">—</span>"}</td>
-                </tr>`;
-            }).join("") : `<tr><td colspan="4"><div class="jg-empty">Nincs találat.</div></td></tr>`}</tbody>
+            <tbody>${torzs}</tbody>
         </table></div></div>`;
     }
 
@@ -11801,9 +11853,16 @@ window.sfOnViewSwitch = function(){
         if(ev) ev.addEventListener("change", async () => { await jgFlush(); jgEv = ev.value; renderJegyzetek(); });
         const ok = document.getElementById("jgOktSel");
         if(ok) ok.addEventListener("change", async () => { await jgFlush(); jgOkt = ok.value; renderJegyzetek(); });
+        const gr = document.getElementById("jgGroupSel");
+        if(gr) gr.addEventListener("change", async () => { await jgFlush(); jgGroup = gr.value; jgClosed.clear(); renderJegyzetek(); });
+        // A nyitott/csukott állapotot MEGJEGYEZZÜK: a teljes újrarajzolás
+        // különben minden csoportot visszanyitna a keresés minden leütésénél.
+        host.querySelectorAll("[data-jggrp]").forEach(d => d.addEventListener("toggle", () => {
+            if(d.open) jgClosed.delete(d.dataset.jggrp); else jgClosed.add(d.dataset.jggrp);
+        }));
         const cl = document.getElementById("jgClear");
         if(cl) cl.addEventListener("click", async () => {
-            await jgFlush(); jgSearch = ""; jgTag = ""; jgEv = ""; jgOkt = ""; renderJegyzetek();
+            await jgFlush(); jgSearch = ""; jgTag = ""; jgEv = ""; jgOkt = ""; jgGroup = ""; jgClosed.clear(); renderJegyzetek();
         });
         const bk = document.getElementById("jgBack");
         if(bk) bk.addEventListener("click", async () => { await jgFlush(); jgOpenId = null; renderJegyzetek(); });
@@ -11812,9 +11871,15 @@ window.sfOnViewSwitch = function(){
         }));
         host.querySelectorAll("[data-jgopen]").forEach(b => b.addEventListener("click", () => jgOpen(b.dataset.jgopen)));
         const nw = document.getElementById("jgNew"); if(nw) nw.addEventListener("click", jgCreate);
+        const ta = document.getElementById("jgToAdmin");
+        if(ta) ta.addEventListener("click", e => {
+            e.preventDefault();
+            // Ez a lap újrarajzolódik, ezért a betöltéskori data-page bekötés
+            // nem fogná meg – a valódi menüpontot kattintjuk helyette.
+            const l = document.getElementById("adminInfoBtn"); if(l) l.click();
+        });
         const rt = document.getElementById("jgRetry");
         if(rt) rt.addEventListener("click", async () => { jgLoaded = false; await window.sfShowJegyzetek(); });
-        const imp = document.getElementById("jgImport"); if(imp) imp.addEventListener("click", jgOpenImport);
 
         const tgl = document.getElementById("jgToggle");
         if(tgl) tgl.addEventListener("click", async () => { await jgFlush(); jgEditing = !jgEditing; renderJegyzetek(); });
@@ -12206,6 +12271,9 @@ window.sfOnViewSwitch = function(){
             catch(err){ console.warn("Jegyzet mentése sikertelen:", title, err); }
             say(`Jegyzetek behozása… ${kesz} / ${mds.length}`);
         }
+        // Az Admin lapról indított import után a Jegyzetek lap még a régi listát
+        // tartaná; a következő megnyitáskor töltsön újra a szerverről.
+        jgLoaded = false;
         say(`Kész: <b>${kesz}</b> jegyzet behozva${kepDb ? `, <b>${kepDb}</b> képpel` : ""}.`
             + (kepHiba ? `<br><span style="color:var(--red);">${kepHiba} kép nem jött át</span> – a szövegük helyén jelzés maradt.` : "")
             + (csvs.length ? `<br>${csvs.length} adatbázis-exportot (.csv) kihagytam – azok táblázatok.` : ""));
@@ -12394,8 +12462,31 @@ window.sfOnViewSwitch = function(){
         const emps = (window.sfEmployeesList || []);
         const ownerOpts = (emps.length ? emps : [{ uid: me.uid, email: me.email, name: me.name }])
             .map(e => `<option value="${escM(e.uid||'')}"${(e.uid===me.uid)?' selected':''}>${escM(e.name||e.email||'')}</option>`).join('');
-        cont.innerHTML = `<div class="card"><div class="card-body">
-            <div class="adm-section-title">Notion import</div>
+        // MINDEN import ezen az egy lapon van – ügyfelek, jegyzetek, pénzügyek.
+        // Külön kártya mindegyiknek, mert egészen más fájlt és más célt takarnak.
+        cont.innerHTML = `
+        <div class="card" style="margin-bottom:14px;"><div class="card-body">
+            <div class="adm-section-title">Jegyzetek – Notion (ZIP)</div>
+            <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 12px;">
+                A Notion <b>„Markdown &amp; CSV”</b> exportja, az oldalak szövegével és a képekkel együtt.
+                Az export ablakában az <b>„Include content” legyen „Everything”</b>, különben csak a
+                táblázat jön le, a jegyzetek szövege nem. A jegyzetek a <b>saját</b> fiókodba kerülnek –
+                rajtad kívül senki nem látja őket.
+            </p>
+            <button class="btn primary" id="admJgImport" style="background:var(--blue);color:#fff;border-color:var(--blue);">Jegyzet-import megnyitása</button>
+        </div></div>
+
+        <div class="card" style="margin-bottom:14px;"><div class="card-body">
+            <div class="adm-section-title">Pénzügyek (JSON)</div>
+            <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 12px;">
+                Egy év pénzügyi adatainak beolvasása JSON-ból. A meglévő évek érintetlenül maradnak –
+                csak a fájlban szereplő év(ek) íródnak felül.
+            </p>
+            <button class="btn primary" id="admPzImport" style="background:var(--blue);color:#fff;border-color:var(--blue);">Pénzügy-import megnyitása</button>
+        </div></div>
+
+        <div class="card"><div class="card-body">
+            <div class="adm-section-title">Ügyfelek / MT potenciál (CSV vagy JSON)</div>
             <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 14px;">
                 Kétféle fájlt fogad el. <b>CSV:</b> Notionben az „… – Ügyfél / MT Potenciál” adatbázison
                 <b>••• → Export → Markdown &amp; CSV</b> – ez csak a táblázat oszlopait hozza.
@@ -12411,6 +12502,13 @@ window.sfOnViewSwitch = function(){
             </div>
             <div id="impPreview"></div>
         </div></div>`;
+        document.getElementById('admJgImport').addEventListener('click', jgOpenImport);
+        document.getElementById('admPzImport').addEventListener('click', () => {
+            // A pénzügyi rész a klasszikus szkriptben él, ezért globálisan érjük el.
+            if(typeof window.pzOpenImport === 'function') window.pzOpenImport();
+            else alert('A pénzügyi import most nem érhető el – tölts újra az oldalon.');
+        });
+
         const prev = document.getElementById('impPreview');
         let pending = [];
         const impErr = msg => { prev.innerHTML = `<div style="color:var(--red);font-size:13px;">${msg}</div>`; };
