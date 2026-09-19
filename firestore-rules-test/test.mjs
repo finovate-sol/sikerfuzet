@@ -183,6 +183,16 @@ await T('jegyzet: a gazdája nem írathatja át másra',
 await T('jegyzet: kívülálló (nem allowlistás) nem fér hozzá', getDoc(doc(out,'notes','n1')), 'fail');
 await T('jegyzet: a gazdája törli', deleteDoc(doc(zsolt,'notes','n1')), 'ok');
 
+// A jegyzet-képek ugyanolyan zártak, mint maga a jegyzet.
+await T('jegyzet-kép: sajátot létrehoz',
+    setDoc(doc(zsolt,'note_images','i1'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'AAAA' }), 'ok');
+await T('jegyzet-kép: sajátot olvas',        getDoc(doc(zsolt,'note_images','i1')), 'ok');
+await T('jegyzet-kép: A FELETTES SEM olvassa', getDoc(doc(adam,'note_images','i1')), 'fail');
+await T('jegyzet-kép: AZ ADMIN SEM olvassa',   getDoc(doc(mark,'note_images','i1')), 'fail');
+await T('jegyzet-kép: más nevére nem hozható létre',
+    setDoc(doc(other,'note_images','i2'), { ownerUid: ZSOLT, data:'x' }), 'fail');
+await T('jegyzet-kép: a gazdája törli', deleteDoc(doc(zsolt,'note_images','i1')), 'ok');
+
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 

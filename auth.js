@@ -15,7 +15,7 @@ import {
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=31";
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=32";
 
 export { isConfigured };
 
@@ -275,8 +275,34 @@ export async function deleteNote(id){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await deleteDoc(doc(db, "notes", id));
 }
-// A jegyzet-képek a Storage-ban, a gazdájuk mappájában. A célfaltól eltérően
-// ezeket OLVASNI is csak ő tudja (lásd storage.rules).
+// A jegyzet-képek a FIRESTORE-ban, képenként külön dokumentumban.
+//
+// Miért nem a Storage-ban? Mert az fizetős csomagot (Blaze) igényel, a projekt
+// pedig a Spark csomagon van – emiatt nem működött a célfal képfeltöltése sem.
+// A Firestore viszont itt is elérhető. Cserébe két korlátot tartani kell:
+// egy dokumentum legfeljebb 1 MB, és a base64 ~33%-kal hizlal, ezért a képet
+// feltöltés előtt zsugorítjuk (lásd jgImageToDoc).
+//
+// Külön dokumentumban vannak, nem a jegyzetben: így a lista betöltése nem
+// rángatja be az összes képet, csak az, amelyik tényleg látszik.
+export async function addNoteImage(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "note_images"), data);
+    return ref.id;
+}
+export async function getNoteImage(id){
+    if(!isConfigured || !db || !id) return null;
+    const snap = await getDoc(doc(db, "note_images", id));
+    return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+}
+export async function deleteNoteImageDoc(id){
+    if(!isConfigured || !db || !id) return;
+    try { await deleteDoc(doc(db, "note_images", id)); }
+    catch(e){ console.warn("Jegyzet-kép törlése sikertelen:", e); }
+}
+
+// A Storage-alapú változat megmarad arra az esetre, ha egyszer mégis Blaze
+// csomagra váltanál – a célfal ugyanezt használja.
 export async function uploadNoteImage(uid, blob, name){
     if(!isConfigured || !storage) throw new Error("A Firebase nincs beállítva.");
     if(!uid) throw new Error("Hiányzik a felhasználó azonosítója.");

@@ -213,6 +213,18 @@ service cloud.firestore {
       allow delete: if isUser() && resource.data.ownerUid == uid();
     }
 
+    // A jegyzetekhez tartozó képek. Ugyanaz a zártság, mint a jegyzeteknél –
+    // külön dokumentumban, mert a Firestore-ban egy dokumentum legfeljebb 1 MB,
+    // és a képeket csak akkor akarjuk beolvasni, amikor tényleg látszanak.
+    // (A Firebase Storage fizetős csomagot igényelne; ez a Spark csomagon is megy.)
+    match /note_images/{imgId} {
+      allow read:   if isUser() && resource.data.ownerUid == uid();
+      allow create: if isUser() && request.resource.data.ownerUid == uid();
+      allow update: if isUser() && resource.data.ownerUid == uid()
+                    && request.resource.data.ownerUid == uid();
+      allow delete: if isUser() && resource.data.ownerUid == uid();
+    }
+
     // ========================================================================
     //  MINDEN MÁS TILOS
     // ========================================================================
