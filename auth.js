@@ -15,7 +15,7 @@ import {
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=29";
+import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=30";
 
 export { isConfigured };
 
@@ -251,8 +251,16 @@ export async function getNotes(uid){
     if(!isConfigured || !db || !uid) return [];
     try {
         const snap = await getDocs(query(collection(db, "notes"), where("ownerUid", "==", uid)));
+        window.sfNotesError = "";
         return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-    } catch(e){ console.warn("Jegyzetek olvasása sikertelen:", e); return []; }
+    } catch(e){
+        // A hibát KI IS ÍRJUK a felületre (lásd renderJegyzetek): enélkül a
+        // sikertelen olvasás pont úgy néz ki, mintha nem lenne egyetlen
+        // jegyzet sem – és az ember a saját szövegét keresi hiába.
+        window.sfNotesError = String((e && e.message) || e);
+        console.warn("Jegyzetek olvasása sikertelen:", e);
+        return [];
+    }
 }
 export async function addNote(data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");

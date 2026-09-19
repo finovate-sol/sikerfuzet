@@ -2146,6 +2146,9 @@
         .jg-view table.md-table th { background:#f5f7fa; color:var(--navy); }
         .jg-meta { display:flex; gap:12px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:12px; padding-top:11px; border-top:1px solid var(--border); }
         .jg-meta .grow { margin-left:auto; }
+        .jg-err { border-color:#f6c9c5; background:#fdeaea; margin-bottom:14px; }
+        .jg-err .card-body { color:#b42318; font-size:13px; line-height:1.6; }
+        .jg-err code { background:#fff; border-radius:5px; padding:1px 6px; }
         .jg-none { text-align:center; color:var(--muted); font-size:14px; padding:64px 20px; }
         .fd-rep { flex:none; font-size:11px; font-weight:700; color:#6d28d9; background:#efeafe; border-radius:999px; padding:2px 9px; white-space:nowrap; }
         .fd-row[draggable="true"] { cursor:grab; }
@@ -3557,6 +3560,8 @@ renderMoney(); renderCareer(); renderInfo();
         }
         const p = a.dataset.page;
         if(window.sfBlockedPages && window.sfBlockedPages.has(p)) return;
+        // Ha épp jegyzetet írtunk, a lapváltás előtt mentsük ki.
+        if(typeof window.sfLeaveJegyzetek === 'function') window.sfLeaveJegyzetek();
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
@@ -6374,7 +6379,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=29";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=30";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11369,7 +11374,21 @@ window.sfOnViewSwitch = function(){
         const list = jgMatched();
         const tags = [...new Set(jgNotes.flatMap(nt => nt.tags || []))].sort((a,b)=>a.localeCompare(b,'hu'));
         const open = jgOpenId ? jgById(jgOpenId) : null;
+        // Ha az olvasás elhasalt, azt MEG KELL MONDANI. A jogosultsági hiba
+        // ugyanis némán üres listának látszik, és az ember a saját jegyzetét
+        // keresi hiába – pont ez történt a task_meta-nál is.
+        const hiba = window.sfNotesError || "";
+        const jogHiba = /permission|insufficient/i.test(hiba);
         host.innerHTML = `
+        ${hiba ? `<div class="card jg-err"><div class="card-body">
+            <b>A jegyzeteket nem sikerült betölteni.</b>
+            ${jogHiba
+                ? `A szerver visszautasította az olvasást. Ilyenkor a Firestore biztonsági szabályát
+                   még közzé kell tenni a Firebase konzolban (Firestore Database → Rules → Publish) –
+                   a <code>notes</code> kollekció szabálya enélkül nem létezik, és a mentés is elhasal.`
+                : `A hiba: ${escM(hiba)}`}
+            <div style="margin-top:10px;"><button class="btn" id="jgRetry">Újra</button></div>
+        </div></div>` : ""}
         <div class="fd-hero">
             <div class="fd-hero-txt"><h2>Jegyzetek</h2><p>A saját jegyzeteid – rajtad kívül senki nem látja őket, a felettesed és az admin sem. A szöveg Markdownnal formázható.</p></div>
             <button class="btn" id="jgImport">Notion-import</button>
@@ -11456,10 +11475,18 @@ window.sfOnViewSwitch = function(){
         }));
         host.querySelectorAll("[data-jgopen]").forEach(b => b.addEventListener("click", () => jgOpen(b.dataset.jgopen)));
         const nw = document.getElementById("jgNew"); if(nw) nw.addEventListener("click", jgCreate);
+        const rt = document.getElementById("jgRetry");
+        if(rt) rt.addEventListener("click", async () => { jgLoaded = false; await window.sfShowJegyzetek(); });
         const imp = document.getElementById("jgImport"); if(imp) imp.addEventListener("click", jgOpenImport);
 
         const tgl = document.getElementById("jgToggle");
         if(tgl) tgl.addEventListener("click", async () => { await jgFlush(); jgEditing = !jgEditing; renderJegyzetek(); });
+        // Mezőelhagyáskor azonnal mentünk, nem várjuk ki a késleltetést – aki
+        // beírja a címet és rögtön továbbkattint, ne veszítse el.
+        ["jgTitle", "jgBody", "jgTags"].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener("blur", jgFlush);
+        });
         const ti = document.getElementById("jgTitle");
         if(ti) ti.addEventListener("input", () => {
             const nt = jgById(jgOpenId); if(!nt) return;
@@ -11478,6 +11505,10 @@ window.sfOnViewSwitch = function(){
         const del = document.getElementById("jgDel");
         if(del) del.addEventListener("click", jgDelete);
     }
+
+    // A lapváltó (klasszikus script) ezt hívja, mielőtt elhagynánk az oldalt.
+    window.sfLeaveJegyzetek = function(){ jgFlush(); };
+    window.addEventListener("beforeunload", () => { if(jgDirty) jgFlush(); });
 
     async function jgOpen(id){
         await jgFlush();
