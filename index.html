@@ -6379,7 +6379,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=30";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=31";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11790,7 +11790,18 @@ window.sfOnViewSwitch = function(){
                     const up = await uploadNoteImage(owner, blob, hit.name);
                     body = body.split(`(${ref})`).join(`(${up.url})`);
                     kepDb++;
-                } catch(err){ kepHiba++; console.warn("Kép feltöltése sikertelen:", hit.name, err); }
+                } catch(err){
+                    // Ha a feltöltés nem megy (pl. nincs bekapcsolva a Storage),
+                    // a ZIP-beli útvonal a jegyzetben törött képként maradna.
+                    // Cseréljük olvasható jelzésre, hogy tudni lehessen, mi
+                    // hiányzik és hol keresd – a szöveg így is ép marad.
+                    const nev = (hit.name.split("/").pop() || "kép");
+                    body = body.split(`![`).map((r, idx) => idx === 0 ? r : r).join("![");
+                    body = body.replace(new RegExp(`!\\[[^\\]]*\\]\\(${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`, "g"),
+                        `*(kép: ${nev} – nem jött át, a Notion-exportban megvan)*`);
+                    kepHiba++;
+                    console.warn("Kép feltöltése sikertelen:", hit.name, err);
+                }
             }
 
             const nt = { title, body: body.trim(), tags: dirs, ownerUid: owner,
@@ -11800,7 +11811,8 @@ window.sfOnViewSwitch = function(){
             say(`Jegyzetek behozása… ${kesz} / ${mds.length}`);
         }
         say(`Kész: <b>${kesz}</b> jegyzet behozva${kepDb ? `, <b>${kepDb}</b> képpel` : ""}.`
-            + (kepHiba ? ` <span style="color:var(--red);">${kepHiba} kép nem sikerült.</span>` : "")
+            + (kepHiba ? `<br><span style="color:var(--red);">${kepHiba} kép nem jött át</span> – a szövegük helyén jelzés maradt. `
+                + `Ehhez a Firebase Storage kellene, ami fizetős csomagot igényel.` : "")
             + (csvs.length ? `<br>${csvs.length} adatbázis-exportot (.csv) kihagytam – azok táblázatok.` : ""));
     }
 
