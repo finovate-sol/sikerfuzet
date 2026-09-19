@@ -6374,7 +6374,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=28";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage } from "./auth.js?v=29";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -11521,19 +11521,50 @@ window.sfOnViewSwitch = function(){
             if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
         }
         if(eocd < 0) throw new Error("Ez nem ZIP-fájl, vagy sérült.");
-        const count = dv.getUint16(eocd + 10, true);
-        let off = dv.getUint32(eocd + 16, true);
+        let count = dv.getUint16(eocd + 10, true);
+        let cdOff = dv.getUint32(eocd + 16, true);
+        // ZIP64: egy nagy munkaterület-export átlépheti a 65535 bejegyzést vagy a
+        // 4 GB-ot; ilyenkor a klasszikus mezők csupa egyest tartalmaznak, az igazi
+        // értékek pedig a ZIP64 záró rekordban vannak.
+        if(count === 0xFFFF || cdOff === 0xFFFFFFFF){
+            const loc = eocd - 20;
+            if(loc >= 0 && dv.getUint32(loc, true) === 0x07064b50){
+                const z64 = Number(dv.getBigUint64(loc + 8, true));
+                if(dv.getUint32(z64, true) === 0x06064b50){
+                    count = Number(dv.getBigUint64(z64 + 32, true));
+                    cdOff = Number(dv.getBigUint64(z64 + 48, true));
+                }
+            }
+        }
+        let off = cdOff;
         const dec = new TextDecoder("utf-8");
         const out = [];
         for(let k = 0; k < count; k++){
             if(dv.getUint32(off, true) !== 0x02014b50) break;
             const method = dv.getUint16(off + 10, true);
-            const compSize = dv.getUint32(off + 20, true);
+            let compSize = dv.getUint32(off + 20, true);
             const nameLen = dv.getUint16(off + 28, true);
             const extraLen = dv.getUint16(off + 30, true);
             const cmtLen = dv.getUint16(off + 32, true);
-            const localOff = dv.getUint32(off + 42, true);
+            let localOff = dv.getUint32(off + 42, true);
             const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+            // ZIP64 kiegészítő mező (0x0001): a 0xFFFFFFFF-re állított méret és
+            // eltolás valódi, 64 bites értéke itt van, a jelölt mezők sorrendjében.
+            if(compSize === 0xFFFFFFFF || localOff === 0xFFFFFFFF){
+                let e = off + 46 + nameLen;
+                const eEnd = e + extraLen;
+                while(e + 4 <= eEnd){
+                    const hid = dv.getUint16(e, true), hsz = dv.getUint16(e + 2, true);
+                    if(hid === 0x0001){
+                        let q = e + 4;
+                        if(dv.getUint32(off + 24, true) === 0xFFFFFFFF) q += 8;      // eredeti méret
+                        if(compSize === 0xFFFFFFFF){ compSize = Number(dv.getBigUint64(q, true)); q += 8; }
+                        if(localOff === 0xFFFFFFFF) localOff = Number(dv.getBigUint64(q, true));
+                        break;
+                    }
+                    e += 4 + hsz;
+                }
+            }
             off += 46 + nameLen + extraLen + cmtLen;
             if(name.endsWith("/")) continue;                       // mappa-bejegyzés
             // A helyi fejlécben a név/extra hossza ELTÉRHET a központitól.
@@ -11552,6 +11583,24 @@ window.sfOnViewSwitch = function(){
         }
         return out;
     }
+    // A teljes munkaterület exportját a Notion ZIP-BE CSOMAGOLT ZIP-ekként adja ki
+    // (Export-…-Part-1.zip, Part-2.zip …). Ezért a belső ZIP-eket is kibontjuk,
+    // és a nevüket az útvonal elé fűzzük, hogy a mappaszerkezet megmaradjon.
+    async function jgUnzipDeep(buf, melyseg){
+        const entries = await jgUnzip(buf);
+        if((melyseg || 0) >= 3) return entries;                     // végtelen mélységtől óvva
+        const out = [];
+        for(const e of entries){
+            if(/\.zip$/i.test(e.name)){
+                try {
+                    const inner = await jgUnzipDeep(e.data.buffer.slice(e.data.byteOffset, e.data.byteOffset + e.data.byteLength), (melyseg || 0) + 1);
+                    for(const x of inner) out.push({ name: x.name, data: x.data });
+                } catch(err){ console.warn("Belső ZIP kibontása sikertelen:", e.name, err); }
+            } else out.push(e);
+        }
+        return out;
+    }
+
     // A Notion minden névhez hozzáfűz egy 32 jegyű azonosítót – azt levágjuk.
     const jgClean = t => String(t || "").replace(/\s+[0-9a-f]{32}(?=$|\.)/i, "").replace(/\.md$/i, "").trim();
 
@@ -11595,9 +11644,12 @@ window.sfOnViewSwitch = function(){
                 <div class="modal-body">
                     <p style="font-size:13px;color:var(--muted);line-height:1.65;margin:0;">
                         A Notionben: <b>••• → Export → Markdown &amp; CSV</b>, majd az így kapott
-                        <b>.zip</b> fájlt válaszd ki itt. Minden oldalból egy jegyzet lesz, a mappák
-                        nevéből pedig címke. A képek is átjönnek, a saját tárhelyedre.
-                        Az adatbázis-exportokat (.csv) kihagyjuk – azok táblázatok, nem jegyzetek.
+                        <b>.zip</b> fájlt válaszd ki itt. Minden oldalból egy jegyzet lesz, a címkék
+                        az oldal tulajdonságaiból (Tags) és a mappanevekből jönnek. A képek is
+                        átjönnek, a saját tárhelyedre. Az adatbázis-exportokat (.csv) kihagyjuk –
+                        azok táblázatok, nem jegyzetek.
+                        <br><br>A <b>teljes munkaterület</b> exportja is jó: a Notion olyankor
+                        ZIP-be csomagolt ZIP-eket ad, azokat magától kibontja.
                     </p>
                     <div><label for="jgZip">Az export ZIP-fájlja</label>
                         <input id="jgZip" type="file" accept=".zip,.md,application/zip"></div>
@@ -11626,7 +11678,7 @@ window.sfOnViewSwitch = function(){
                 say("Fájl beolvasása…");
                 const buf = await f.arrayBuffer();
                 const entries = /\.zip$/i.test(f.name)
-                    ? await jgUnzip(buf)
+                    ? await jgUnzipDeep(buf, 0)
                     : [{ name: f.name, data: new Uint8Array(buf) }];
                 await jgRunImport(entries, say);
                 jgLoaded = false;
@@ -11645,7 +11697,33 @@ window.sfOnViewSwitch = function(){
         const mds = entries.filter(e => /\.md$/i.test(e.name));
         const csvs = entries.filter(e => /\.csv$/i.test(e.name));
         const imgs = new Map(entries.filter(e => JG_IMG_RE.test(e.name)).map(e => [e.name, e]));
-        if(!mds.length) throw new Error("Nem találtam .md oldalt a fájlban. A Notionben a „Markdown & CSV” exportot válaszd.");
+        if(!mds.length){
+            // Ne zsákutca legyen: soroljuk fel, mi VAN a fájlban, mert abból
+            // rögtön látszik, mi ment félre (pl. HTML-export, vagy üres ZIP).
+            const kiterj = {};
+            for(const e of entries){
+                const k = (String(e.name).match(/\.([a-z0-9]{1,6})$/i) || [, "(nincs kiterjesztés)"])[1].toLowerCase();
+                kiterj[k] = (kiterj[k] || 0) + 1;
+            }
+            const lista = Object.entries(kiterj).sort((a, b) => b[1] - a[1]).slice(0, 6)
+                .map(([k, v]) => `${v} db .${k}`).join(", ");
+            if(!entries.length) throw new Error("A ZIP üresnek bizonyult – nem volt benne egyetlen fájl sem.");
+            if(kiterj.html) throw new Error(`Ez HTML-export (${lista}). A Notionben a „Markdown & CSV” lehetőséget válaszd, ne a HTML-t.`);
+            throw new Error(`Nem találtam .md oldalt. Ez volt a fájlban: ${lista}. A Notionben a „Markdown & CSV” exportot válaszd.`);
+        }
+
+        // Egy TELJES munkaterület-export nemcsak a jegyzeteket hozza, hanem
+        // minden oldalt – ügyfeleket, haviterveket, szemináriumokat is. Sok
+        // oldalnál ezért egyszer rákérdezünk: a visszacsinálás (több száz jegyzet
+        // kézi törlése) sokkal fájdalmasabb, mint most egy kattintás.
+        if(mds.length > 300){
+            const ok = confirm(`A fájlban ${mds.length} oldal van.\n\n`
+                + `Ez valószínűleg a TELJES munkaterület exportja, nem csak a jegyzeteké – `
+                + `így az ügyféloldalak, havitervek és szemináriumok is jegyzetként jönnek be.\n\n`
+                + `Behozzam mind a(z) ${mds.length} oldalt?`);
+            if(!ok){ say("Megszakítva – nem hoztam be semmit."); return; }
+        }
+        say(`${mds.length} oldal, ${imgs.size} kép – kezdem…`);
 
         const owner = jgOwner();
         let kesz = 0, kepDb = 0, kepHiba = 0;
