@@ -2117,6 +2117,10 @@
         .fd-group > .card-head { background:var(--navy); border-bottom:none; padding:11px 13px; }
         .fd-group > .card-head h2 { color:#fff; }
         .fd-group > .card-head .fd-group-n { background:rgba(255,255,255,.22); color:#fff; }
+        .fd-group > .card-head { cursor:grab; user-select:none; }
+        .fd-group > .card-head:active { cursor:grabbing; }
+        .fd-group.fd-listdrag { opacity:.45; }
+        .fd-group.fd-listdrop { outline:2px dashed var(--blue); outline-offset:3px; }
         .fd-head-acts { margin-left:auto; display:flex; gap:2px; align-items:center; }
         .fd-fold { background:none; border:0; cursor:pointer; color:rgba(255,255,255,.8);
                    font-size:13px; line-height:1; padding:5px 7px; border-radius:7px; font-family:inherit; }
@@ -6510,7 +6514,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=44";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=45";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -10406,6 +10410,18 @@ window.sfOnViewSwitch = function(){
     // a rendezés stabil, ezért az azonos rangúak nem keverednek össze.
     const fdRank = id => { const i = fdOrder.indexOf(id); return i < 0 ? 9999 : i; };
     const fdListEmpty = id => !gtTasks.some(t => t.listId === id && fdVisible(t));
+    // A húzott lista a cél HELYÉRE kerül, a többi eggyel arrébb csúszik.
+    function fdPlaceList(dragId, celId){
+        if(!dragId || !celId || dragId === celId) return;
+        const sorrend = gtLists.map(l => l.id).sort((a, b) => fdRank(a) - fdRank(b));
+        const lathato = sorrend.filter(x => !fdListEmpty(x));
+        const honnan = lathato.indexOf(dragId), hova = lathato.indexOf(celId);
+        if(honnan < 0 || hova < 0) return;
+        lathato.splice(hova, 0, lathato.splice(honnan, 1)[0]);
+        fdOrder = [...lathato, ...sorrend.filter(fdListEmpty)];
+        fdSaveOrder();
+        renderFeladatok();
+    }
     function fdMoveList(id, dir){
         // A mozgatás csak a LÁTHATÓ listák között értelmes. Az üres listák
         // rejtve vannak; ha a csere közéjük esne, a gomb látszólag nem csinálna
@@ -10554,11 +10570,11 @@ window.sfOnViewSwitch = function(){
         const lathatoDb = groups.filter(g => g.items.length).length;
         const kartya = (g, gi) => `
             <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}${fdFolded.has(g.list.id) ? " folded" : ""}" data-fdgroup="${escM(g.list.id)}">
-                <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span>
+                <div class="card-head" draggable="true" title="Fogd meg és húzd a helyére"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span>
                     <span class="fd-head-acts">
-                        <button class="fd-fold" data-fdmove="${escM(g.list.id)}" data-fddir="-1" title="Előrébb"${gi === 0 ? " disabled" : ""}>↑</button>
-                        <button class="fd-fold" data-fdmove="${escM(g.list.id)}" data-fddir="1" title="Hátrébb"${gi === lathatoDb - 1 ? " disabled" : ""}>↓</button>
-                        <button class="fd-fold" data-fdfold="${escM(g.list.id)}"
+                        <button class="fd-fold" draggable="false" data-fdmove="${escM(g.list.id)}" data-fddir="-1" title="Előrébb"${gi === 0 ? " disabled" : ""}>↑</button>
+                        <button class="fd-fold" draggable="false" data-fdmove="${escM(g.list.id)}" data-fddir="1" title="Hátrébb"${gi === lathatoDb - 1 ? " disabled" : ""}>↓</button>
+                        <button class="fd-fold" draggable="false" data-fdfold="${escM(g.list.id)}"
                                 title="${fdFolded.has(g.list.id) ? "Kinyitás" : "Összecsukás"}"
                                 aria-expanded="${fdFolded.has(g.list.id) ? "false" : "true"}">${fdFolded.has(g.list.id) ? "▸" : "▾"}</button>
                     </span></div>
@@ -10722,7 +10738,10 @@ window.sfOnViewSwitch = function(){
         // --- áthúzás másik listába ---
         // A húzás idejére a body kap egy jelölést: ettől bukkannak elő az üres
         // listák is, hogy legyen hova ejteni.
-        let fdDragId = null, fdDragSrc = "";
+        // KÉT húzás-fajta van a lapon: feladat másik listába, és lista átrendezése.
+        // Az őrfeltételek zárják ki egymást – a feladat-kezelők fdDragId-re, a
+        // lista-kezelők fdDragList-re néznek, és a kettő sosem áll egyszerre.
+        let fdDragId = null, fdDragSrc = "", fdDragList = null;
         body.querySelectorAll("[data-fdrow]").forEach(row => {
             row.addEventListener("dragstart", e => {
                 fdDragId = row.dataset.fdrow; fdDragSrc = row.dataset.fdsrc || "";
@@ -10741,7 +10760,50 @@ window.sfOnViewSwitch = function(){
                 fdDragId = null; fdDragSrc = "";
             });
         });
+        body.querySelectorAll("[data-fdgroup] > .card-head").forEach(fej => {
+            const g = fej.closest("[data-fdgroup]");
+            fej.addEventListener("dragstart", e => {
+                fdDragList = g.dataset.fdgroup;
+                g.classList.add("fd-listdrag");
+                document.body.classList.add("fd-listdrag-on");
+                if(e.dataTransfer){
+                    e.dataTransfer.effectAllowed = "move";
+                    // Saját adattípus: dragover közben a tartalom nem olvasható,
+                    // a TÍPUSA viszont igen – ebből tudja a lap, mit húznak.
+                    try { e.dataTransfer.setData("application/x-sf-list", fdDragList); } catch(err){}
+                }
+            });
+            fej.addEventListener("dragend", () => {
+                g.classList.remove("fd-listdrag");
+                document.body.classList.remove("fd-listdrag-on");
+                body.querySelectorAll(".fd-listdrop").forEach(x => x.classList.remove("fd-listdrop"));
+                fdDragList = null;
+            });
+        });
         body.querySelectorAll("[data-fdgroup]").forEach(g => {
+            const listaCel = () => fdDragList && g.dataset.fdgroup !== fdDragList;
+            g.addEventListener("dragover", e => {
+                if(!listaCel()) return;
+                e.preventDefault();
+                if(e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                g.classList.add("fd-listdrop");
+            });
+            g.addEventListener("dragleave", e => {
+                if(!g.contains(e.relatedTarget)) g.classList.remove("fd-listdrop");
+            });
+            g.addEventListener("drop", e => {
+                if(!listaCel()) return;
+                e.preventDefault();
+                g.classList.remove("fd-listdrop");
+                const honnan = fdDragList;
+                document.body.classList.remove("fd-listdrag-on");
+                fdDragList = null;
+                fdPlaceList(honnan, g.dataset.fdgroup);
+            });
+        });
+        body.querySelectorAll("[data-fdgroup]").forEach(g => {
+            // Lista-húzás közben a feladat-ejtés ne szóljon bele: fdDragId ilyenkor
+            // üres, ezért a sameList() igazat ad, és a kezelők azonnal kilépnek.
             const sameList = () => !fdDragId || g.dataset.fdgroup === fdDragSrc;
             g.addEventListener("dragover", e => {
                 if(sameList()) return;            // a saját listájára ejteni értelmetlen
