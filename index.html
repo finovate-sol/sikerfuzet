@@ -2104,13 +2104,25 @@
            listánál teljes szélesség, nem fél hasáb üres hellyel mellette.
            Legfeljebb 2 sáv: a szélesebb kártyában a hosszú feladatcím és a
            jegyzetbeli hivatkozás is elfér. 860 px alatt egy sáv. */
-        .fd-groups { --cols:var(--fd-cols,1); display:grid; gap:14px; align-items:start;
-                     grid-template-columns:repeat(var(--cols), minmax(0,1fr)); margin-bottom:14px; }
+        .fd-groups { --cols:var(--fd-cols,1); column-count:var(--cols); column-gap:14px; margin-bottom:14px; }
         @media (max-width:1280px){ .fd-groups { --cols:var(--fd-cols2,1); } }
         @media (max-width:860px){  .fd-groups { --cols:1; } }
         /* A megnyitott adatlap a SAJÁT oszlopa szélességéhez igazodik, nem a
            képernyőéhez – három oszlopban ugyanis a képernyő tág, az oszlop nem. */
-        .fd-group { container-type:inline-size; }
+        /* A hasábban a kártya nem törhet ketté. Az inline-block + 100% a bevált
+           párja a break-inside-nak: enélkül egyes böngészők átvinnék a kártya
+           alját a következő hasábba. */
+        .fd-group { container-type:inline-size; break-inside:avoid; -webkit-column-break-inside:avoid;
+                    display:inline-block; width:100%; margin-bottom:14px; overflow:hidden; }
+        /* ---- lista-fejléc: elüt a kártya törzsétől ---- */
+        .fd-group > .card-head { background:var(--navy); border-bottom:none; padding:11px 13px; }
+        .fd-group > .card-head h2 { color:#fff; }
+        .fd-group > .card-head .fd-group-n { background:rgba(255,255,255,.22); color:#fff; }
+        .fd-fold { margin-left:auto; background:none; border:0; cursor:pointer; color:rgba(255,255,255,.8);
+                   font-size:13px; line-height:1; padding:5px 7px; border-radius:7px; font-family:inherit; }
+        .fd-fold:hover { background:rgba(255,255,255,.16); color:#fff; }
+        .fd-fold:focus-visible { outline:2px solid #fff; outline-offset:1px; }
+        .fd-group.folded .fd-list { display:none; }
         /* Áthúzás másik listába: az üres listák csak húzás közben bukkannak elő,
            különben tele lenne az oldal üres dobozokkal. */
         .fd-group-empty { display:none; }
@@ -6492,7 +6504,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=39";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=40";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -10371,6 +10383,11 @@ window.sfOnViewSwitch = function(){
     const FD_PRIO_CLASS = { "Alacsony":"low", "Közepes":"mid", "Magas":"high" };
     const FD_FILTERS = [["aktiv","Aktív"],["ma","Mai és lejárt"],["het","Ezen a héten"],["lejart","Lejárt"],["kesz","Kész"]];
     let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false;
+    // Az összecsukott listák a böngészőben megmaradnak – különben minden
+    // betöltéskor újra be kellene csukni őket.
+    const FD_FOLD_KEY = "sf_fd_folded";
+    let fdFolded = new Set((() => { try { return JSON.parse(localStorage.getItem(FD_FOLD_KEY)) || []; } catch(e){ return []; } })());
+    const fdSaveFolded = () => { try { localStorage.setItem(FD_FOLD_KEY, JSON.stringify([...fdFolded])); } catch(e){} };
 
     const fdToday = () => new Date().toISOString().substring(0,10);
     function fdWeekEnd(){
@@ -10506,8 +10523,11 @@ window.sfOnViewSwitch = function(){
         const body = groups.some(g => g.items.length)
             ? `<div class="fd-groups" style="--fd-cols:${Math.min(2, Math.max(1, lathato))};--fd-cols2:${Math.min(2, Math.max(1, lathato))};">`
             + groups.map(g => `
-            <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}" data-fdgroup="${escM(g.list.id)}">
-                <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span></div>
+            <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}${fdFolded.has(g.list.id) ? " folded" : ""}" data-fdgroup="${escM(g.list.id)}">
+                <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span>
+                    <button class="fd-fold" data-fdfold="${escM(g.list.id)}"
+                            title="${fdFolded.has(g.list.id) ? "Kinyitás" : "Összecsukás"}"
+                            aria-expanded="${fdFolded.has(g.list.id) ? "false" : "true"}">${fdFolded.has(g.list.id) ? "▸" : "▾"}</button></div>
                 <div class="card-body fd-list">${g.items.length
                     ? g.items.map(fdRowHtml).join("")
                     : `<div class="fd-group-drop">Húzd ide, ami ebbe a listába való.</div>`}</div>
@@ -10625,6 +10645,13 @@ window.sfOnViewSwitch = function(){
         }));
         body.querySelectorAll("[data-fddel]").forEach(bt => bt.addEventListener("click", e => {
             e.stopPropagation(); pgDelete(bt.dataset.fddel);
+        }));
+        body.querySelectorAll("[data-fdfold]").forEach(btn => btn.addEventListener("click", e => {
+            e.stopPropagation();
+            const id = btn.dataset.fdfold;
+            if(fdFolded.has(id)) fdFolded.delete(id); else fdFolded.add(id);
+            fdSaveFolded();
+            renderFeladatok();
         }));
         body.querySelectorAll("[data-fdrow]").forEach(row => row.addEventListener("click", e => {
             if(e.target.closest(".fd-check, .fd-del, a")) return;   // a link a saját dolgát végzi
