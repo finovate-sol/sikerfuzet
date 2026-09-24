@@ -2244,6 +2244,18 @@
             width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
             font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; resize:vertical; }
         .fd-f input:focus, .fd-f textarea:focus, .fd-f select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+        .fd-rep { background:#eef3fb; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+        .fd-rep-sor { display:flex; flex-wrap:wrap; gap:7px; align-items:center; font-size:12.5px; color:var(--muted); }
+        .fd-rep-sor input[type="number"] { width:70px; }
+        .fd-rep-sor select { width:auto; min-width:92px; }
+        .fd-rep-sor input[type="date"] { width:auto; }
+        .fd-rep-vege { margin-left:4px; }
+        .fd-days { display:flex; gap:3px; flex-wrap:wrap; }
+        .fd-day { font-family:inherit; font-size:11.5px; font-weight:700; min-width:30px; padding:5px 7px; cursor:pointer;
+                  border:1px solid var(--border); border-radius:7px; background:#fff; color:var(--muted); }
+        .fd-day:hover { border-color:var(--blue); color:var(--blue); }
+        .fd-day.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .fd-rep-sug { font-size:11.5px; color:var(--muted); margin-top:6px; }
         .fd-hint { grid-column:1 / -1; font-size:11.5px; color:var(--muted); line-height:1.45; }
         .fd-acts { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         @container (min-width:520px){ .fd-detail { grid-template-columns:repeat(3, minmax(0,1fr)); } }
@@ -6443,7 +6455,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=36";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=37";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -9320,9 +9332,49 @@ window.sfOnViewSwitch = function(){
         ["honap",    "Havonta"],
         ["ev",       "Évente"],
     ];
-    const FD_REPEAT_LABEL = k => (FD_REPEATS.find(r => r[0] === k) || ["",""])[1];
+    // EGYÉNI ISMÉTLŐDÉS
+    // Ugyanabban a "rep" mezőben él, mint a kész szabályok, csak összetett
+    // alakban: "egyedi:<egység>:<n>:<napok>:<vége>", például
+    //   egyedi:het:2:1,3::            – kéthetente hétfőn és szerdán
+    //   egyedi:nap:3::2026-12-31      – háromnaponta, 2026.12.31-ig
+    // Így a korábban mentett "nap"/"het"/… értékek változatlanul működnek,
+    // és nem kell új mezőt bevezetni a task_meta-ba.
+    const FD_UNIT_1 = { nap:"Naponta", het:"Hetente", honap:"Havonta", ev:"Évente" };
+    const FD_UNIT_N = { nap:"naponta", het:"hetente", honap:"havonta", ev:"évente" };
+    const FD_UNITS  = [["nap","nap"], ["het","hét"], ["honap","hónap"], ["ev","év"]];
+    // A getDay() sorrendje vasárnappal kezd, a magyar hét hétfővel – a gombok
+    // ezért ebben a sorrendben állnak, az ÉRTÉK viszont marad a getDay()-é.
+    const FD_DAYS = [["1","H"], ["2","K"], ["3","Sze"], ["4","Cs"], ["5","P"], ["6","Szo"], ["0","V"]];
+
+    function fdParseRep(rep){
+        const s = String(rep || "");
+        if(s.slice(0, 7) !== "egyedi:") return null;
+        const r = s.split(":");
+        const freq = FD_UNIT_1[r[1]] ? r[1] : "het";
+        return {
+            freq,
+            n: Math.max(1, Math.min(365, parseInt(r[2], 10) || 1)),
+            days: freq === "het" ? String(r[3] || "").split(",").filter(x => /^[0-6]$/.test(x)) : [],
+            until: /^\d{4}-\d{2}-\d{2}$/.test(r[4] || "") ? r[4] : "",
+        };
+    }
+    const fdRepStr = c => `egyedi:${c.freq}:${c.n}:${c.days.join(",")}:${c.until}`;
+
+    function FD_REPEAT_LABEL(k){
+        const c = fdParseRep(k);
+        if(!c) return (FD_REPEATS.find(r => r[0] === k) || ["",""])[1];
+        let s = c.n === 1 ? FD_UNIT_1[c.freq] : `${c.n} ${FD_UNIT_N[c.freq]}`;
+        if(c.days.length){
+            const sorrend = FD_DAYS.map(d => d[0]);
+            s += " (" + c.days.slice().sort((a, b) => sorrend.indexOf(a) - sorrend.indexOf(b))
+                          .map(d => (FD_DAYS.find(x => x[0] === d) || ["",""])[1]).join(", ") + ")";
+        }
+        if(c.until) s += " – " + c.until.split("-").join(".") + "-ig";
+        return s;
+    }
     function taskRepeat(t){
         const r = taskMetaOf(t).rep || "";
+        if(fdParseRep(r)) return r;
         return FD_REPEATS.some(x => x[0] === r && r) ? r : "";
     }
     // A következő határidő az ELŐZŐ határidőből számolva – nem a mai napból –,
@@ -9334,6 +9386,47 @@ window.sfOnViewSwitch = function(){
         const d = new Date(ymdStr + "T00:00:00");
         if(isNaN(d)) return "";
         const today = new Date(); today.setHours(0,0,0,0);
+
+        const egyedi = fdParseRep(repKey);
+        if(egyedi){
+            const c = egyedi;
+            // A hét eleje a HÉTFŐ – ehhez mérjük, hány hét telt el, mert az
+            // "minden 2. héten" a hetek számára vonatkozik, nem 14 napra: a
+            // kijelölt napok a SAJÁT hetükön belül bármelyik sorrendben jöhetnek.
+            const hetfo = x => { const m = new Date(x); m.setHours(0,0,0,0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
+            const horgony = hetfo(d);
+            const lep = () => {
+                if(c.freq === "het" && c.days.length){
+                    // Napról napra lépünk a következő kijelölt napig, közben a
+                    // közbülső heteket átugorjuk (0, n, 2n, … hét a horgonytól).
+                    for(let i = 0; i < 366 * 2; i++){
+                        d.setDate(d.getDate() + 1);
+                        const hetek = Math.round((hetfo(d) - horgony) / 604800000);
+                        if(hetek % c.n === 0 && c.days.includes(String(d.getDay()))) return true;
+                    }
+                    return false;
+                }
+                if(c.freq === "nap"){ d.setDate(d.getDate() + c.n); return true; }
+                if(c.freq === "het"){ d.setDate(d.getDate() + 7 * c.n); return true; }
+                // Hónap/év léptetésnél a naiv setMonth túlcsordul (jan. 31. + 1
+                // hónap a JS-ben márc. 3.), ezért a hónap utolsó napjára vágjuk.
+                const nap = d.getDate();
+                d.setDate(1);
+                if(c.freq === "honap") d.setMonth(d.getMonth() + c.n);
+                else d.setFullYear(d.getFullYear() + c.n);
+                const utolso = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                d.setDate(Math.min(nap, utolso));
+                return true;
+            };
+            if(!lep()) return "";
+            let g = 0;
+            while(d < today && g++ < 400){ if(!lep()) return ""; }
+            const eredmeny = ymd(d);
+            // A sorozat vége: ezen túl nem születik új alkalom.
+            if(c.until && eredmeny > c.until) return "";
+            return eredmeny;
+        }
+
         const step = () => {
             if(repKey === "nap") d.setDate(d.getDate() + 1);
             else if(repKey === "munkanap"){ do { d.setDate(d.getDate() + 1); } while(d.getDay() === 0 || d.getDay() === 6); }
@@ -10274,6 +10367,9 @@ window.sfOnViewSwitch = function(){
     function fdDetailHtml(t){
         const date = t.due ? String(t.due).substring(0,10) : "";
         const hm = taskTimeHM(t), prio = taskPrio(t), repKey = taskRepeat(t);
+        const egyedi = fdParseRep(repKey);
+        // Ha még nincs egyéni szabály, a mezők ésszerű kiindulóval nyílnak.
+        const e = egyedi || { freq: "het", n: 2, days: [], until: "" };
         return `<div class="fd-detail" data-fddetail="${escM(t.id)}">
             <div class="fd-f fd-f-full"><label>Feladat</label><input type="text" data-fdf="title" value="${escM(t.title || "")}" maxlength="500"></div>
             <div class="fd-f fd-f-full"><label>Jegyzet</label><textarea data-fdf="note" rows="3" placeholder="Amit tudni érdemes róla…">${escM(taskNote(t))}</textarea></div>
@@ -10285,7 +10381,26 @@ window.sfOnViewSwitch = function(){
             <div class="fd-f"><label>Időpont</label><input type="time" data-fdf="hm" value="${escM(hm)}"></div>
             <div class="fd-f"><label>Ismétlődés</label><select data-fdf="rep">
                 ${FD_REPEATS.map(([k, lab]) => `<option value="${escM(k)}"${k === repKey ? " selected" : ""}>${escM(lab)}</option>`).join("")}
+                <option value="egyedi"${egyedi ? " selected" : ""}>Egyéni…</option>
             </select></div>
+            <div class="fd-f fd-f-full fd-rep" data-fdrep${egyedi ? "" : " hidden"}>
+                <label>Egyéni ismétlődés</label>
+                <div class="fd-rep-sor">
+                    <span>Minden</span>
+                    <input type="number" data-fdf="repN" min="1" max="365" step="1" value="${e.n}">
+                    <select data-fdf="repUnit">
+                        ${FD_UNITS.map(([k, lab]) => `<option value="${k}"${k === e.freq ? " selected" : ""}>${escM(lab)}</option>`).join("")}
+                    </select>
+                    <span data-fdrepday${e.freq === "het" ? "" : " hidden"}>ezeken a napokon:</span>
+                    <span class="fd-days" data-fdrepday${e.freq === "het" ? "" : " hidden"}>
+                        ${FD_DAYS.map(([v, lab]) => `<button type="button" class="fd-day${e.days.includes(v) ? " on" : ""}" data-fdday="${v}">${escM(lab)}</button>`).join("")}
+                    </span>
+                    <span class="fd-rep-vege">Vége:</span>
+                    <input type="date" data-fdf="repUntil" value="${escM(e.until)}" title="Üresen hagyva nem áll le">
+                </div>
+                <div class="fd-rep-sug">${e.freq === "het" && !e.days.length
+                    ? "Nap kijelölése nélkül a határidő napján ismétlődik." : "&nbsp;"}</div>
+            </div>
             <div class="fd-hint">${isPgTask(t)
                 ? "A prioritás és a jegyzet a PG Modullal közös. Az időpontot a Google Tasks nem tudja tárolni, ezért az csak itt és a naptárban látszik."
                 : "A cím, a jegyzet és a határidő dátuma a Google Tasksba is átmegy. A prioritást és az időpontot a Google Tasks nem tudja tárolni, ezért az csak itt és a naptárban látszik."}</div>
@@ -10374,7 +10489,19 @@ window.sfOnViewSwitch = function(){
     function fdDetailValues(id){
         const box = document.querySelector(`[data-fddetail="${CSS.escape(id)}"]`); if(!box) return null;
         const v = k => { const el = box.querySelector(`[data-fdf="${k}"]`); return el ? el.value : undefined; };
-        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm"), rep: v("rep") };
+        let rep = v("rep");
+        if(rep === "egyedi"){
+            const unit = v("repUnit") || "het";
+            rep = fdRepStr({
+                freq: unit,
+                n: Math.max(1, Math.min(365, parseInt(v("repN"), 10) || 1)),
+                // A napok csak heti ismétlődésnél értelmesek – havinál a
+                // korábban bepipált napok félrevezetők lennének a címkében.
+                days: unit === "het" ? Array.from(box.querySelectorAll("[data-fdday].on")).map(b => b.dataset.fdday) : [],
+                until: v("repUntil") || "",
+            });
+        }
+        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm"), rep };
     }
 
     function wireFeladatok(){
@@ -10511,6 +10638,20 @@ window.sfOnViewSwitch = function(){
                 alert("Nem sikerült menteni: " + (e.message || e)); save.disabled = false; save.textContent = "Mentés";
             }
         });
+        // Az egyéni ismétlődés mezői. A blokkot csak elrejtjük/megmutatjuk,
+        // nem rajzolunk újra – különben elszállna a fókusz a mezőből.
+        const repSel = body.querySelector('[data-fdf="rep"]');
+        const repBox = body.querySelector("[data-fdrep]");
+        const napok = () => body.querySelectorAll("[data-fdrepday]");
+        if(repSel && repBox) repSel.addEventListener("change", () => {
+            repBox.hidden = repSel.value !== "egyedi";
+        });
+        const unitSel = body.querySelector('[data-fdf="repUnit"]');
+        if(unitSel) unitSel.addEventListener("change", () => {
+            napok().forEach(x => { x.hidden = unitSel.value !== "het"; });
+        });
+        body.querySelectorAll("[data-fdday]").forEach(b => b.addEventListener("click", () => b.classList.toggle("on")));
+
         // Az adatlapon belüli kattintás ne csukja vissza a sort.
         const det = body.querySelector("[data-fddetail]");
         if(det) det.addEventListener("click", e => e.stopPropagation());
