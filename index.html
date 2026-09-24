@@ -2245,6 +2245,8 @@
             width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
             font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; resize:vertical; }
         .fd-f input:focus, .fd-f textarea:focus, .fd-f select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+        .fd-tag { flex:none; font-size:11px; font-weight:700; color:var(--navy); background:var(--blue-light);
+                  border:1px solid var(--border); border-radius:999px; padding:2px 9px; white-space:nowrap; }
         .fd-note-preview a { color:var(--blue); text-decoration:underline; }
         .fd-links { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
         .fd-links a { font-size:11.5px; font-weight:700; color:var(--blue); background:var(--blue-light);
@@ -6490,7 +6492,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=38";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=39";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -9349,6 +9351,19 @@ window.sfOnViewSwitch = function(){
             throw e;
         }
     }
+    const taskTags = t => String(taskMetaOf(t).tg || "").split(",").map(x => x.trim()).filter(Boolean);
+    // Azonos címke ne szerepeljen kétszer más-más kis/nagybetűvel.
+    function fdCleanTags(str){
+        const ki = [], latott = new Set();
+        for(const x of String(str || "").split(",").map(v => v.trim()).filter(Boolean)){
+            const k = x.toLowerCase();
+            if(!latott.has(k)){ latott.add(k); ki.push(x); }
+        }
+        return ki.slice(0, 12);
+    }
+    const fdAllTags = () => [...new Set(gtTasks.flatMap(taskTags).map(x => x.trim()))]
+        .sort((a, b) => a.localeCompare(b, "hu"));
+
     function taskTimeHM(t){
         const hm = taskMetaOf(t).hm;
         return (hm && /^\d{1,2}:\d{2}$/.test(hm)) ? hm : "";
@@ -9519,6 +9534,7 @@ window.sfOnViewSwitch = function(){
         if(f.hm !== undefined) mp.hm = f.hm || "";
         if(f.rep !== undefined) mp.rep = f.rep || "";
         if(!isPgTask(t) && f.prio !== undefined) mp.p = f.prio || "";
+        if(f.tags !== undefined) mp.tg = f.tags || "";
         if(Object.keys(mp).length){
             try { await taskMetaSet(t.id, mp); }
             catch(e){
@@ -10354,7 +10370,7 @@ window.sfOnViewSwitch = function(){
     const FD_PRIOS = ["Alacsony","Közepes","Magas"];
     const FD_PRIO_CLASS = { "Alacsony":"low", "Közepes":"mid", "Magas":"high" };
     const FD_FILTERS = [["aktiv","Aktív"],["ma","Mai és lejárt"],["het","Ezen a héten"],["lejart","Lejárt"],["kesz","Kész"]];
-    let fdFilter = "aktiv", fdPrio = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false;
+    let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false;
 
     const fdToday = () => new Date().toISOString().substring(0,10);
     function fdWeekEnd(){
@@ -10374,9 +10390,11 @@ window.sfOnViewSwitch = function(){
     }
     function fdInSide(t){
         if(fdPrio && taskPrio(t) !== fdPrio) return false;
+        if(fdTag && !taskTags(t).some(x => x.toLowerCase() === fdTag.toLowerCase())) return false;
         const q = fdSearch.trim().toLowerCase();
         if(!q) return true;
-        return [t.title, taskNote(t), t.listTitle].some(v => String(v || "").toLowerCase().includes(q));
+        return [t.title, taskNote(t), t.listTitle, taskTags(t).join(" ")]
+            .some(v => String(v || "").toLowerCase().includes(q));
     }
     const fdVisible = t => fdInFilter(t, fdFilter) && fdInSide(t);
 
@@ -10392,6 +10410,7 @@ window.sfOnViewSwitch = function(){
                 <span class="fd-title">${escM(t.title || "(névtelen feladat)")}</span>
                 ${note ? `<span class="fd-note-preview">${sfLinkify(escM(note.slice(0, 300)))}</span>` : ""}
             </span>
+            ${taskTags(t).map(x => `<span class="fd-tag">${escM(x)}</span>`).join("")}
             ${taskRepeat(t) ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}">↻ ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}</span>` : ""}
             ${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}">${escM(prio)}</span>` : ""}
             ${label ? `<span class="fd-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${escM(label)}</span>` : `<span class="fd-due none">nincs határidő</span>`}
@@ -10417,6 +10436,11 @@ window.sfOnViewSwitch = function(){
                     return `<div class="fd-links">${l.map(u =>
                         `<a href="${escM(u)}" target="_blank" rel="noopener noreferrer" title="${escM(u)}">↗ ${rovid(u)}</a>`).join("")}</div>`;
                 })()}
+            </div>
+            <div class="fd-f fd-f-full"><label>Címkék</label>
+                <input type="text" data-fdf="tags" list="fdTagOpts" value="${escM(taskTags(t).join(", "))}"
+                       placeholder="Vesszővel elválasztva – pl. Ügyfél, Sürgős" maxlength="200">
+                <datalist id="fdTagOpts">${fdAllTags().map(x => `<option value="${escM(x)}"></option>`).join("")}</datalist>
             </div>
             <div class="fd-f"><label>Prioritás</label><select data-fdf="prio">
                 <option value=""${prio ? "" : " selected"}>—</option>
@@ -10513,6 +10537,10 @@ window.sfOnViewSwitch = function(){
                 <option value=""${fdPrio ? "" : " selected"}>Minden prioritás</option>
                 ${FD_PRIOS.map(o => `<option${o === fdPrio ? " selected" : ""}>${o}</option>`).join("")}
             </select>
+            ${(() => { const c = fdAllTags(); return c.length ? `<select id="fdTagSel" title="Címke szerint">
+                <option value=""${fdTag ? "" : " selected"}>Minden címke</option>
+                ${c.map(x => `<option${x === fdTag ? " selected" : ""}>${escM(x)}</option>`).join("")}
+            </select>` : ""; })()}
             <input type="search" id="fdSearch" placeholder="Keresés…" value="${escM(fdSearch)}">
         </div>
         ${body}`;
@@ -10546,7 +10574,8 @@ window.sfOnViewSwitch = function(){
                 until: v("repUntil") || "",
             });
         }
-        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm"), rep };
+        return { title: String(v("title") || "").trim(), note: v("note"), prio: v("prio"), date: v("date"), hm: v("hm"), rep,
+                 tags: fdCleanTags(v("tags")).join(", ") };
     }
 
     function wireFeladatok(){
@@ -10557,6 +10586,8 @@ window.sfOnViewSwitch = function(){
         }));
         const ps = document.getElementById("fdPrioSel");
         if(ps) ps.addEventListener("change", () => { fdPrio = ps.value; renderFeladatok(); });
+        const ts = document.getElementById("fdTagSel");
+        if(ts) ts.addEventListener("change", () => { fdTag = ts.value; fdOpenId = null; renderFeladatok(); });
         const sr = document.getElementById("fdSearch");
         if(sr) sr.addEventListener("input", () => { fdSearch = sr.value; renderFeladatok(); });
 
@@ -10911,7 +10942,7 @@ window.sfOnViewSwitch = function(){
         }
         try {
             const created = await tasksFetch(`/lists/${t.listId}/tasks`, { method:"POST", body: JSON.stringify(body) }, true);
-            const mp = { hm: hm || "", rep: repKey };
+            const mp = { hm: hm || "", rep: repKey, tg: taskTags(t).join(", ") };
             if(!toPg) mp.p = prio || "";
             if(created && created.id) await taskMetaSet(created.id, mp);
             await taskMetaSet(t.id, { rep: "" });     // a kipipált példány már nem ismétlődik
