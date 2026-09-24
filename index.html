@@ -2099,7 +2099,17 @@
         .fd-tab-n { font-size:11px; font-weight:800; background:#eef1f5; color:var(--muted); border-radius:999px; padding:0 6px; }
         .fd-tab.active .fd-tab-n { background:rgba(255,255,255,.25); color:#fff; }
         .fd-bar input[type="search"] { flex:0 1 220px; }
-        .fd-group { margin-bottom:14px; }
+        /* A listák egymás mellett, legfeljebb 3 oszlopban. Az oszlopszámot a
+           lap adja meg (--fd-cols), a listák SZÁMÁBÓL számolva: két listánál
+           két féloszlop szebb, mint két harmad + egy üres hely. A töréspontok
+           ezt feljebb felülírják, hogy keskeny kijelzőn ne préselődjön. */
+        .fd-groups { --cols:var(--fd-cols,1); display:grid; gap:14px; align-items:start;
+                     grid-template-columns:repeat(var(--cols), minmax(0,1fr)); margin-bottom:14px; }
+        @media (max-width:1280px){ .fd-groups { --cols:var(--fd-cols2,1); } }
+        @media (max-width:860px){  .fd-groups { --cols:1; } }
+        /* A megnyitott adatlap a SAJÁT oszlopa szélességéhez igazodik, nem a
+           képernyőéhez – három oszlopban ugyanis a képernyő tág, az oszlop nem. */
+        .fd-group { container-type:inline-size; }
         /* Áthúzás másik listába: az üres listák csak húzás közben bukkannak elő,
            különben tele lenne az oldal üres dobozokkal. */
         .fd-group-empty { display:none; }
@@ -2225,7 +2235,7 @@
                   line-height:1; cursor:pointer; padding:0 4px; opacity:0; }
         .fd-row:hover .fd-del { opacity:1; }
         .fd-del:hover { color:var(--red); }
-        .fd-detail { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px;
+        .fd-detail { display:grid; grid-template-columns:minmax(0,1fr); gap:12px;
                      background:#f7f9fc; border:1px solid var(--border); border-radius:12px; padding:14px; margin:0 0 8px; cursor:default; }
         .fd-f { display:flex; flex-direction:column; gap:4px; min-width:0; }
         .fd-f-full { grid-column:1 / -1; }
@@ -2235,7 +2245,8 @@
             font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; resize:vertical; }
         .fd-f input:focus, .fd-f textarea:focus, .fd-f select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .fd-hint { grid-column:1 / -1; font-size:11.5px; color:var(--muted); line-height:1.45; }
-        .fd-acts { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
+        .fd-acts { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        @container (min-width:520px){ .fd-detail { grid-template-columns:repeat(3, minmax(0,1fr)); } }
         .fd-listnm { flex:1; min-width:0; font-size:11.5px; font-weight:800; color:var(--muted);
                      text-transform:uppercase; letter-spacing:.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .fd-empty { color:var(--muted); font-size:13px; text-align:center; padding:26px 12px; }
@@ -6432,7 +6443,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=35";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=36";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -10305,14 +10316,18 @@ window.sfOnViewSwitch = function(){
         // Az üres listák is ledobási felületek, különben oda nem lehetne áthúzni
         // semmit. Húzáson kívül rejtve maradnak (lásd .fd-group-empty), hogy a
         // szokásos nézet ne legyen tele üres dobozokkal.
+        // Csak a nem üres listák számítanak: az üresek rejtve vannak, egy üres
+        // oszlopot foglalnának a semmiért.
+        const lathato = groups.filter(g => g.items.length).length;
         const body = groups.some(g => g.items.length)
-            ? groups.map(g => `
+            ? `<div class="fd-groups" style="--fd-cols:${Math.min(3, Math.max(1, lathato))};--fd-cols2:${Math.min(2, Math.max(1, lathato))};">`
+            + groups.map(g => `
             <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}" data-fdgroup="${escM(g.list.id)}">
                 <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span></div>
                 <div class="card-body fd-list">${g.items.length
                     ? g.items.map(fdRowHtml).join("")
                     : `<div class="fd-group-drop">Húzd ide, ami ebbe a listába való.</div>`}</div>
-            </section>`).join("")
+            </section>`).join("") + `</div>`
             : `<section class="card"><div class="card-body fd-empty">Nincs a szűrőnek megfelelő feladat.</div></section>`;
         return `
         ${taskMetaError ? `<div class="card jg-err"><div class="card-body">
