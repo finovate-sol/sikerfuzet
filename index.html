@@ -2105,18 +2105,21 @@
         @media (max-width:860px){  .fd-groups { --cols:1; } }
         /* A megnyitott adatlap a SAJÁT oszlopa szélességéhez igazodik, nem a
            képernyőéhez – három oszlopban ugyanis a képernyő tág, az oszlop nem. */
-        /* A hasábban a kártya nem törhet ketté. Az inline-block + 100% a bevált
-           párja a break-inside-nak: enélkül egyes böngészők átvinnék a kártya
-           alját a következő hasábba. */
+        /* A hasábban a kártya nem törhet ketté. A container-type layout-zárást
+           is ad, ettől a kártya eleve oszthatatlan – az inline-block trükk így
+           fölösleges, sőt ártott: a kártyák közti sortörés szóköz-csomópontja
+           minden kártya alá ~5 px-t csempészett, amitől a két hasáb elcsúszott. */
         .fd-group { container-type:inline-size; break-inside:avoid; -webkit-column-break-inside:avoid;
-                    display:inline-block; width:100%; margin-bottom:14px; overflow:hidden; }
+                    margin:0 0 14px; overflow:hidden; }
         /* ---- lista-fejléc: elüt a kártya törzsétől ---- */
         .fd-group > .card-head { background:var(--navy); border-bottom:none; padding:11px 13px; }
         .fd-group > .card-head h2 { color:#fff; }
         .fd-group > .card-head .fd-group-n { background:rgba(255,255,255,.22); color:#fff; }
-        .fd-fold { margin-left:auto; background:none; border:0; cursor:pointer; color:rgba(255,255,255,.8);
+        .fd-head-acts { margin-left:auto; display:flex; gap:2px; align-items:center; }
+        .fd-fold { background:none; border:0; cursor:pointer; color:rgba(255,255,255,.8);
                    font-size:13px; line-height:1; padding:5px 7px; border-radius:7px; font-family:inherit; }
-        .fd-fold:hover { background:rgba(255,255,255,.16); color:#fff; }
+        .fd-fold:hover:not(:disabled) { background:rgba(255,255,255,.16); color:#fff; }
+        .fd-fold:disabled { opacity:.3; cursor:default; }
         .fd-fold:focus-visible { outline:2px solid #fff; outline-offset:1px; }
         .fd-group.folded .fd-list { display:none; }
         /* Áthúzás másik listába: az üres listák csak húzás közben bukkannak elő,
@@ -2232,10 +2235,12 @@
         .fd-title { font-size:13.5px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .fd-row.done .fd-title { text-decoration:line-through; color:var(--muted); }
         .fd-note-preview { font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .fd-prio { flex:none; font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; }
-        .fd-prio.low { background:#eef1f5; color:var(--muted); }
-        .fd-prio.mid { background:#fef3e2; color:#b45309; }
-        .fd-prio.high { background:#fdeaea; color:var(--red); }
+        /* Csak a jel, pirula nélkül: a felkiáltójel maga is elég erős jelzés,
+           a doboz mellette csak zajt csinálna a címke és az ismétlődés között. */
+        .fd-prio { flex:none; font-size:15px; font-weight:900; letter-spacing:.5px; line-height:1; }
+        .fd-prio.low { color:var(--green); }
+        .fd-prio.mid { color:var(--amber); }
+        .fd-prio.high { color:var(--red); }
         .fd-due { flex:none; font-size:11.5px; font-weight:700; color:var(--muted); }
         .fd-due.timed { font-weight:800; color:var(--navy); }
         .fd-due.overdue { color:var(--red); }
@@ -6501,7 +6506,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=41";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=42";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -10378,11 +10383,38 @@ window.sfOnViewSwitch = function(){
     // a taskSaveFields() feletti magyarázatot.
     const FD_PRIOS = ["Alacsony","Közepes","Magas"];
     const FD_PRIO_CLASS = { "Alacsony":"low", "Közepes":"mid", "Magas":"high" };
+    // A prioritás jele az iOS Emlékeztetők mintájára: alacsony "!", közepes
+    // "!!", magas "!!!". A JEL IS hordozza a szintet, nem csak a szín – aki a
+    // zöldet és a pirosat nem különbözteti meg, annak is egyértelmű marad.
+    const FD_PRIO_MARK = { "Alacsony":"!", "Közepes":"!!", "Magas":"!!!" };
     const FD_FILTERS = [["aktiv","Aktív"],["ma","Mai és lejárt"],["het","Ezen a héten"],["lejart","Lejárt"],["kesz","Kész"]];
     let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false;
     // Az összecsukott listák a böngészőben megmaradnak – különben minden
     // betöltéskor újra be kellene csukni őket.
     const FD_FOLD_KEY = "sf_fd_folded";
+    // A listák sorrendje. A Google Tasks sorrendje az alap; ez csak akkor tér
+    // el tőle, ha a felhasználó átrendezi. Azért itt tartjuk és nem a Google-nél,
+    // mert a Tasks API a listák átrendezését nem teszi lehetővé.
+    const FD_ORDER_KEY = "sf_fd_order";
+    let fdOrder = (() => { try { return JSON.parse(localStorage.getItem(FD_ORDER_KEY)) || []; } catch(e){ return []; } })();
+    const fdSaveOrder = () => { try { localStorage.setItem(FD_ORDER_KEY, JSON.stringify(fdOrder)); } catch(e){} };
+    // Ismeretlen lista a végére, de egymáshoz képest a Google sorrendjében:
+    // a rendezés stabil, ezért az azonos rangúak nem keverednek össze.
+    const fdRank = id => { const i = fdOrder.indexOf(id); return i < 0 ? 9999 : i; };
+    const fdListEmpty = id => !gtTasks.some(t => t.listId === id && fdVisible(t));
+    function fdMoveList(id, dir){
+        // A mozgatás csak a LÁTHATÓ listák között értelmes. Az üres listák
+        // rejtve vannak; ha a csere közéjük esne, a gomb látszólag nem csinálna
+        // semmit – kétszer kellene kattintani egyetlen lépésért.
+        const sorrend = gtLists.map(l => l.id).sort((a, b) => fdRank(a) - fdRank(b));
+        const lathato = sorrend.filter(x => !fdListEmpty(x));
+        const i = lathato.indexOf(id), j = i + dir;
+        if(i < 0 || j < 0 || j >= lathato.length) return;
+        [lathato[i], lathato[j]] = [lathato[j], lathato[i]];
+        fdOrder = [...lathato, ...sorrend.filter(fdListEmpty)];
+        fdSaveOrder();
+        renderFeladatok();
+    }
     let fdFolded = new Set((() => { try { return JSON.parse(localStorage.getItem(FD_FOLD_KEY)) || []; } catch(e){ return []; } })());
     const fdSaveFolded = () => { try { localStorage.setItem(FD_FOLD_KEY, JSON.stringify([...fdFolded])); } catch(e){} };
 
@@ -10426,7 +10458,7 @@ window.sfOnViewSwitch = function(){
             </span>
             ${taskTags(t).map(x => `<span class="fd-tag">${escM(x)}</span>`).join("")}
             ${taskRepeat(t) ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}">↻ ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}</span>` : ""}
-            ${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}">${escM(prio)}</span>` : ""}
+            ${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}" title="${escM(prio)} prioritás">${escM(FD_PRIO_MARK[prio] || "!")}</span>` : ""}
             ${label ? `<span class="fd-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${escM(label)}</span>` : `<span class="fd-due none">nincs határidő</span>`}
             <button class="fd-del" data-fddel="${escM(t.id)}" title="Törlés">×</button>
         </div>${open ? fdDetailHtml(t) : ""}`;
@@ -10458,7 +10490,7 @@ window.sfOnViewSwitch = function(){
             </div>
             <div class="fd-f"><label>Prioritás</label><select data-fdf="prio">
                 <option value=""${prio ? "" : " selected"}>—</option>
-                ${FD_PRIOS.map(o => `<option${o === prio ? " selected" : ""}>${o}</option>`).join("")}
+                ${FD_PRIOS.map(o => `<option value="${escM(o)}"${o === prio ? " selected" : ""}>${escM(FD_PRIO_MARK[o])} ${escM(o)}</option>`).join("")}
             </select></div>
             <div class="fd-f"><label>Határidő</label><input type="date" data-fdf="date" value="${escM(date)}"></div>
             <div class="fd-f"><label>Időpont</label><input type="time" data-fdf="hm" value="${escM(hm)}"></div>
@@ -10506,7 +10538,7 @@ window.sfOnViewSwitch = function(){
         const groups = gtLists.map(l => ({
             list: l,
             items: gtTasks.filter(t => t.listId === l.id && fdVisible(t)).sort(taskSortKey),
-        }));
+        })).sort((a, b) => fdRank(a.list.id) - fdRank(b.list.id));
         // Az üres listák hátulra: húzás közben bukkannak elő, és ha közéjük
         // ékelődnének, az egész lap megugrana a kurzor alatt, épp ejtés közben.
         // A lap aljára kerülve semmit nem tolnak el maguk fölött.
@@ -10516,15 +10548,19 @@ window.sfOnViewSwitch = function(){
         // szokásos nézet ne legyen tele üres dobozokkal.
         // Csak a nem üres listák számítanak: az üresek rejtve vannak, egy üres
         // oszlopot foglalnának a semmiért.
-        const lathato = groups.filter(g => g.items.length).length;
+        const lathato = groups.filter(g => g.items.length).length, lathatoDb = lathato;
         const body = groups.some(g => g.items.length)
             ? `<div class="fd-groups" style="--fd-cols:${Math.min(2, Math.max(1, lathato))};--fd-cols2:${Math.min(2, Math.max(1, lathato))};">`
-            + groups.map(g => `
+            + groups.map((g, gi) => `
             <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}${fdFolded.has(g.list.id) ? " folded" : ""}" data-fdgroup="${escM(g.list.id)}">
                 <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span>
-                    <button class="fd-fold" data-fdfold="${escM(g.list.id)}"
-                            title="${fdFolded.has(g.list.id) ? "Kinyitás" : "Összecsukás"}"
-                            aria-expanded="${fdFolded.has(g.list.id) ? "false" : "true"}">${fdFolded.has(g.list.id) ? "▸" : "▾"}</button></div>
+                    <span class="fd-head-acts">
+                        <button class="fd-fold" data-fdmove="${escM(g.list.id)}" data-fddir="-1" title="Előrébb"${gi === 0 ? " disabled" : ""}>↑</button>
+                        <button class="fd-fold" data-fdmove="${escM(g.list.id)}" data-fddir="1" title="Hátrébb"${gi === lathatoDb - 1 ? " disabled" : ""}>↓</button>
+                        <button class="fd-fold" data-fdfold="${escM(g.list.id)}"
+                                title="${fdFolded.has(g.list.id) ? "Kinyitás" : "Összecsukás"}"
+                                aria-expanded="${fdFolded.has(g.list.id) ? "false" : "true"}">${fdFolded.has(g.list.id) ? "▸" : "▾"}</button>
+                    </span></div>
                 <div class="card-body fd-list">${g.items.length
                     ? g.items.map(fdRowHtml).join("")
                     : `<div class="fd-group-drop">Húzd ide, ami ebbe a listába való.</div>`}</div>
@@ -10548,7 +10584,7 @@ window.sfOnViewSwitch = function(){
             <div class="fd-tabs">${tabs}</div>
             <select id="fdPrioSel" title="Prioritás szerint">
                 <option value=""${fdPrio ? "" : " selected"}>Minden prioritás</option>
-                ${FD_PRIOS.map(o => `<option${o === fdPrio ? " selected" : ""}>${o}</option>`).join("")}
+                ${FD_PRIOS.map(o => `<option value="${escM(o)}"${o === fdPrio ? " selected" : ""}>${escM(FD_PRIO_MARK[o])} ${escM(o)}</option>`).join("")}
             </select>
             ${(() => { const c = fdAllTags(); return c.length ? `<select id="fdTagSel" title="Címke szerint">
                 <option value=""${fdTag ? "" : " selected"}>Minden címke</option>
@@ -10639,6 +10675,10 @@ window.sfOnViewSwitch = function(){
         }));
         body.querySelectorAll("[data-fddel]").forEach(bt => bt.addEventListener("click", e => {
             e.stopPropagation(); pgDelete(bt.dataset.fddel);
+        }));
+        body.querySelectorAll("[data-fdmove]").forEach(btn => btn.addEventListener("click", e => {
+            e.stopPropagation();
+            fdMoveList(btn.dataset.fdmove, +btn.dataset.fddir);
         }));
         body.querySelectorAll("[data-fdfold]").forEach(btn => btn.addEventListener("click", e => {
             e.stopPropagation();
