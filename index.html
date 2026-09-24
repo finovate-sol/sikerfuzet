@@ -2100,9 +2100,10 @@
         .fd-tab.active .fd-tab-n { background:rgba(255,255,255,.25); color:#fff; }
         .fd-bar input[type="search"] { flex:0 1 220px; }
         /* A listák egymás mellett, legfeljebb 3 oszlopban. Az oszlopszámot a
-           lap adja meg (--fd-cols), a listák SZÁMÁBÓL számolva: két listánál
-           két féloszlop szebb, mint két harmad + egy üres hely. A töréspontok
-           ezt feljebb felülírják, hogy keskeny kijelzőn ne préselődjön. */
+           lap adja meg (--fd-cols), a listák SZÁMÁBÓL számolva: egyetlen
+           listánál teljes szélesség, nem fél hasáb üres hellyel mellette.
+           Legfeljebb 2 sáv: a szélesebb kártyában a hosszú feladatcím és a
+           jegyzetbeli hivatkozás is elfér. 860 px alatt egy sáv. */
         .fd-groups { --cols:var(--fd-cols,1); display:grid; gap:14px; align-items:start;
                      grid-template-columns:repeat(var(--cols), minmax(0,1fr)); margin-bottom:14px; }
         @media (max-width:1280px){ .fd-groups { --cols:var(--fd-cols2,1); } }
@@ -2244,18 +2245,24 @@
             width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
             font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; resize:vertical; }
         .fd-f input:focus, .fd-f textarea:focus, .fd-f select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
-        .fd-rep { background:#eef3fb; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
-        .fd-rep-sor { display:flex; flex-wrap:wrap; gap:7px; align-items:center; font-size:12.5px; color:var(--muted); }
-        .fd-rep-sor input[type="number"] { width:70px; }
-        .fd-rep-sor select { width:auto; min-width:92px; }
-        .fd-rep-sor input[type="date"] { width:auto; }
-        .fd-rep-vege { margin-left:4px; }
+        .fd-note-preview a { color:var(--blue); text-decoration:underline; }
+        .fd-links { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+        .fd-links a { font-size:11.5px; font-weight:700; color:var(--blue); background:var(--blue-light);
+                      border:1px solid var(--border); border-radius:999px; padding:3px 10px;
+                      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .fd-links a:hover { border-color:var(--blue); }
+        .fd-repc { background:#eef3fb; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+        .fd-repc-sor { display:flex; flex-wrap:wrap; gap:7px; align-items:center; font-size:12.5px; color:var(--muted); }
+        .fd-repc-sor input[type="number"] { width:70px; }
+        .fd-repc-sor select { width:auto; min-width:92px; }
+        .fd-repc-sor input[type="date"] { width:auto; }
+        .fd-repc-vege { margin-left:4px; }
         .fd-days { display:flex; gap:3px; flex-wrap:wrap; }
         .fd-day { font-family:inherit; font-size:11.5px; font-weight:700; min-width:30px; padding:5px 7px; cursor:pointer;
                   border:1px solid var(--border); border-radius:7px; background:#fff; color:var(--muted); }
         .fd-day:hover { border-color:var(--blue); color:var(--blue); }
         .fd-day.on { background:var(--blue); border-color:var(--blue); color:#fff; }
-        .fd-rep-sug { font-size:11.5px; color:var(--muted); margin-top:6px; }
+        .fd-repc-sug { font-size:11.5px; color:var(--muted); margin-top:6px; }
         .fd-hint { grid-column:1 / -1; font-size:11.5px; color:var(--muted); line-height:1.45; }
         .fd-acts { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         @container (min-width:520px){ .fd-detail { grid-template-columns:repeat(3, minmax(0,1fr)); } }
@@ -3100,6 +3107,26 @@ function mdUrl(u){
     // Csak a felsorolt sémák mehetnek át – a javascript: és a data: nem.
     return MD_SCHEME_OK.test(t) ? t : '';
 }
+// Csupasz URL-ből kattintható link. A BEMENET MÁR ESCAPE-ELT szöveg, ezért az
+// "&" itt "&amp;" alakban áll – és így is kell hagyni a href-ben, mert az
+// attribútumban ez a helyes kódolás; a böngésző a valódi &-re fejti vissza.
+// (Ha kézzel visszaalakítanánk, a Google Docs linkek paraméterei törnének el.)
+const SF_URL_RE = /https?:\/\/[^\s<>"']+/g;
+function sfLinkify(escaped){
+    return String(escaped).replace(SF_URL_RE, m => {
+        // A mondatvégi írásjel nem tartozik a címhez.
+        const farok = (m.match(/[.,;:!?)\]]+$/) || [""])[0];
+        const url = farok ? m.slice(0, -farok.length) : m;
+        if(!/^https?:\/\/[^\s\/]+\.[^\s\/]/.test(url)) return m;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${farok}`;
+    });
+}
+window.sfLinkify = sfLinkify;
+function sfHasLink(txt){ SF_URL_RE.lastIndex = 0; return SF_URL_RE.test(String(txt || "")); }
+window.sfHasLink = sfHasLink;
+function sfLinksOf(txt){ return String(txt || "").match(SF_URL_RE) || []; }
+window.sfLinksOf = sfLinksOf;
+
 function mdInline(txt){
     // A kódrészeket kivesszük, hogy a bennük lévő csillag/aláhúzás ne formázzon.
     const codes = [];
@@ -3116,6 +3143,14 @@ function mdInline(txt){
         const url = mdUrl(u);
         return url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${lbl}</a>` : lbl;
     });
+    // A csupasz URL is legyen kattintható – a Notionből behozott jegyzetekben
+    // (Zoom-linkek, Google Docs) a legtöbb hivatkozás így, jelölés nélkül áll.
+    // A már elkészült <a>/<img> tagokat előbb félretesszük, különben a minta
+    // belenyúlna a href/src attribútumba, és linket raknánk a linkbe.
+    const tagok = [];
+    t = t.replace(/<a\b[^>]*>[^<]*<\/a>|<img\b[^>]*>/g, m => { tagok.push(m); return `\u0001${tagok.length - 1}\u0001`; });
+    t = sfLinkify(t);
+    t = t.replace(/\u0001(\d+)\u0001/g, (m, i) => tagok[+i]);
     t = t.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
          .replace(/(^|[^*])\*([^*]+)\*/g, '$1<i>$2</i>')
          .replace(/(^|[^_])_([^_]+)_/g, '$1<i>$2</i>')
@@ -6455,7 +6490,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=37";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=38";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -10355,7 +10390,7 @@ window.sfOnViewSwitch = function(){
             <label class="fd-check" title="Kész"><input type="checkbox" data-fdtoggle="${escM(t.id)}"${done ? " checked" : ""}></label>
             <span class="fd-main">
                 <span class="fd-title">${escM(t.title || "(névtelen feladat)")}</span>
-                ${note ? `<span class="fd-note-preview">${escM(note.length > 90 ? note.slice(0,90) + "…" : note)}</span>` : ""}
+                ${note ? `<span class="fd-note-preview">${sfLinkify(escM(note.slice(0, 300)))}</span>` : ""}
             </span>
             ${taskRepeat(t) ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}">↻ ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}</span>` : ""}
             ${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}">${escM(prio)}</span>` : ""}
@@ -10372,7 +10407,17 @@ window.sfOnViewSwitch = function(){
         const e = egyedi || { freq: "het", n: 2, days: [], until: "" };
         return `<div class="fd-detail" data-fddetail="${escM(t.id)}">
             <div class="fd-f fd-f-full"><label>Feladat</label><input type="text" data-fdf="title" value="${escM(t.title || "")}" maxlength="500"></div>
-            <div class="fd-f fd-f-full"><label>Jegyzet</label><textarea data-fdf="note" rows="3" placeholder="Amit tudni érdemes róla…">${escM(taskNote(t))}</textarea></div>
+            <div class="fd-f fd-f-full"><label>Jegyzet</label><textarea data-fdf="note" rows="3" placeholder="Amit tudni érdemes róla…">${escM(taskNote(t))}</textarea>
+                ${(() => {
+                    // Szövegdobozban nem lehet kattintható link, ezért a
+                    // megtalált hivatkozásokat alatta soroljuk fel.
+                    const l = sfLinksOf(taskNote(t));
+                    if(!l.length) return "";
+                    const rovid = u => { const x = u.replace(/^https?:\/\//, ""); return escM(x.length > 46 ? x.slice(0, 46) + "…" : x); };
+                    return `<div class="fd-links">${l.map(u =>
+                        `<a href="${escM(u)}" target="_blank" rel="noopener noreferrer" title="${escM(u)}">↗ ${rovid(u)}</a>`).join("")}</div>`;
+                })()}
+            </div>
             <div class="fd-f"><label>Prioritás</label><select data-fdf="prio">
                 <option value=""${prio ? "" : " selected"}>—</option>
                 ${FD_PRIOS.map(o => `<option${o === prio ? " selected" : ""}>${o}</option>`).join("")}
@@ -10383,9 +10428,9 @@ window.sfOnViewSwitch = function(){
                 ${FD_REPEATS.map(([k, lab]) => `<option value="${escM(k)}"${k === repKey ? " selected" : ""}>${escM(lab)}</option>`).join("")}
                 <option value="egyedi"${egyedi ? " selected" : ""}>Egyéni…</option>
             </select></div>
-            <div class="fd-f fd-f-full fd-rep" data-fdrep${egyedi ? "" : " hidden"}>
+            <div class="fd-f fd-f-full fd-repc" data-fdrep${egyedi ? "" : " hidden"}>
                 <label>Egyéni ismétlődés</label>
-                <div class="fd-rep-sor">
+                <div class="fd-repc-sor">
                     <span>Minden</span>
                     <input type="number" data-fdf="repN" min="1" max="365" step="1" value="${e.n}">
                     <select data-fdf="repUnit">
@@ -10395,10 +10440,10 @@ window.sfOnViewSwitch = function(){
                     <span class="fd-days" data-fdrepday${e.freq === "het" ? "" : " hidden"}>
                         ${FD_DAYS.map(([v, lab]) => `<button type="button" class="fd-day${e.days.includes(v) ? " on" : ""}" data-fdday="${v}">${escM(lab)}</button>`).join("")}
                     </span>
-                    <span class="fd-rep-vege">Vége:</span>
+                    <span class="fd-repc-vege">Vége:</span>
                     <input type="date" data-fdf="repUntil" value="${escM(e.until)}" title="Üresen hagyva nem áll le">
                 </div>
-                <div class="fd-rep-sug">${e.freq === "het" && !e.days.length
+                <div class="fd-repc-sug">${e.freq === "het" && !e.days.length
                     ? "Nap kijelölése nélkül a határidő napján ismétlődik." : "&nbsp;"}</div>
             </div>
             <div class="fd-hint">${isPgTask(t)
@@ -10435,7 +10480,7 @@ window.sfOnViewSwitch = function(){
         // oszlopot foglalnának a semmiért.
         const lathato = groups.filter(g => g.items.length).length;
         const body = groups.some(g => g.items.length)
-            ? `<div class="fd-groups" style="--fd-cols:${Math.min(3, Math.max(1, lathato))};--fd-cols2:${Math.min(2, Math.max(1, lathato))};">`
+            ? `<div class="fd-groups" style="--fd-cols:${Math.min(2, Math.max(1, lathato))};--fd-cols2:${Math.min(2, Math.max(1, lathato))};">`
             + groups.map(g => `
             <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}" data-fdgroup="${escM(g.list.id)}">
                 <div class="card-head"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span></div>
@@ -10551,7 +10596,7 @@ window.sfOnViewSwitch = function(){
             e.stopPropagation(); pgDelete(bt.dataset.fddel);
         }));
         body.querySelectorAll("[data-fdrow]").forEach(row => row.addEventListener("click", e => {
-            if(e.target.closest(".fd-check, .fd-del")) return;
+            if(e.target.closest(".fd-check, .fd-del, a")) return;   // a link a saját dolgát végzi
             const id = row.dataset.fdrow;
             fdOpenId = (fdOpenId === id) ? null : id;
             renderFeladatok();
