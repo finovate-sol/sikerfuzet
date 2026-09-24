@@ -1832,16 +1832,30 @@
         .wk-head .h .num { font-size:16px; color:var(--text); font-weight:700; }
         .wk-head .h.today .num { background:var(--blue); color:#fff; min-width:26px; height:26px; line-height:26px;
                                  border-radius:13px; padding:0 5px; text-align:center; box-sizing:border-box; }
-        .wk-allday { display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border); }
-        .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0; align-self:center; }
-        .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column; gap:3px; min-height:14px; min-width:0; }
+        /* Az egész napos sor legfeljebb 3 chipnyi magas, utána GÖRGETHETŐ.
+           A görgetés az EGÉSZ soron van, nem cellánként: így a napok együtt
+           mozognak, és a 4. sor mind a hét napnál egyszerre bukkan elő. Hét
+           külön görgetősáv használhatatlan volna.
+           A chip magasságát rögzítjük, különben a keretes (feladat) és a
+           keret nélküli (esemény) chip 2 px-et térne el, és a 3 sor nem
+           ugyanott végződne napról napra. */
+        .wk-allday { --ad-chip:18px; --ad-gap:3px; --ad-sorok:3;
+                     display:grid; grid-template-columns:52px repeat(7,1fr); border-bottom:1px solid var(--border);
+                     max-height:calc(var(--ad-sorok) * var(--ad-chip) + (var(--ad-sorok) - 1) * var(--ad-gap) + 8px);
+                     overflow-y:auto; overscroll-behavior:contain; }
+        /* A felirat görgetés közben is a helyén marad. */
+        .wk-allday .lbl { font-size:10px; color:var(--muted); text-align:right; padding:5px 8px 5px 0;
+                          align-self:start; position:sticky; top:0; background:var(--card); z-index:2; }
+        .wk-allday .cell { border-left:1px solid #f0f2f6; padding:4px; display:flex; flex-direction:column;
+                           gap:var(--ad-gap); min-height:14px; min-width:0; align-content:start; }
         /* A chip soha ne legyen szélesebb a cellájánál – ami nem fér ki, az
            "…"-tal záródik (a teljes szöveg a tooltipben marad). */
         .wk-allday .cell > .allday-ev { max-width:100%; min-width:0; }
         /* Az időzített naptár-rácsból ide húzott esemény célpontja – ugyanaz a
            kékes kiemelés, mint az időzített rács saját drop-jelzőjén. */
         .wk-allday .cell.allday-drop-target { background:var(--blue-light); }
-        .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; cursor:grab; }
+        .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:10px; padding:0 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; cursor:grab; }
+        .wk-allday .allday-ev { height:var(--ad-chip); box-sizing:border-box; display:flex; align-items:center; flex:none; }
         .allday-ev:active { cursor:grabbing; }
         .allday-ev.dragging { opacity:.4; }
         .wk-grid { display:flex; overflow-y:auto; }
@@ -2078,21 +2092,38 @@
 
 
         /* ===== FELADATOK OLDAL ===== */
-        .fd-add { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+        /* ---- A két eszközsor közös mértékei ----
+           Egy magasság, egy betűméret, egy keret és egy fókuszjel mindenre.
+           A magasságot FIXEN adjuk meg, nem a belső térközből hagyjuk kijönni:
+           a böngésző az input, a select és a gomb belsejét eltérően méri, ezért
+           azonos paddinggel is más-más magas lett (a keresőmező 2 px-cel
+           alacsonyabb volt a többinél). */
+        .fd-add, .fd-bar { --ctl-h:38px; --ctl-r:9px; --ctl-fs:13px; }
+        .fd-add { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
         .fd-add input[type="text"] { flex:1 1 220px; min-width:0; }
+        .fd-add input, .fd-add select, .fd-add button,
+        .fd-bar input, .fd-bar select, .fd-bar .fd-tab {
+            height:var(--ctl-h); box-sizing:border-box;
+            font-size:var(--ctl-fs); font-family:inherit; line-height:1; }
+        .fd-add input, .fd-add select, .fd-add button,
+        .fd-bar input, .fd-bar select { border-radius:var(--ctl-r); }
         .fd-add input, .fd-add select, .fd-bar input, .fd-bar select {
-            padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px;
-            font-family:inherit; color:var(--text); background:#fff; outline:none; }
-        .fd-add input:focus, .fd-bar input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+            padding:0 11px; border:1px solid var(--border);
+            color:var(--text); background:#fff; outline:none; }
+        .fd-add input:focus, .fd-add select:focus,
+        .fd-bar input:focus, .fd-bar select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .fd-add button { flex:none; }
         .fd-bar { display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-        .fd-tabs { display:flex; gap:6px; flex-wrap:wrap; flex:1 1 auto; }
-        .fd-tab { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px;
-                  border:1px solid var(--border); background:#fff; font-family:inherit; font-size:12.5px;
+        .fd-tabs { display:flex; gap:6px; flex-wrap:wrap; flex:1 1 auto; align-items:center; }
+        /* A fülek pirula alakúak maradnak – ez az app egységes "chip" formája,
+           a Jegyzetek címkéinél is ez van. Csak a MAGASSÁGUK igazodik a
+           mellettük álló választókhoz, hogy a sor egy vonalban fusson. */
+        .fd-tab { display:inline-flex; align-items:center; gap:6px; padding:0 13px; border-radius:999px;
+                  border:1px solid var(--border); background:#fff;
                   font-weight:700; color:var(--muted); cursor:pointer; }
         .fd-tab:hover { border-color:var(--blue); color:var(--navy); }
         .fd-tab.active { background:var(--blue); border-color:var(--blue); color:#fff; }
-        .fd-tab-n { font-size:11px; font-weight:800; background:#eef1f5; color:var(--muted); border-radius:999px; padding:0 6px; }
+        .fd-tab-n { font-size:11px; font-weight:800; background:#eef1f5; color:var(--muted); border-radius:999px; padding:1px 6px; }
         .fd-tab.active .fd-tab-n { background:rgba(255,255,255,.25); color:#fff; }
         .fd-bar input[type="search"] { flex:0 1 220px; }
         /* A listák egymás mellett, legfeljebb 3 oszlopban. Az oszlopszámot a
@@ -2142,7 +2173,8 @@
         .jg-tools input { flex:1 1 auto; min-width:0; padding:8px 11px; border:1px solid var(--border); border-radius:9px; font-family:inherit; font-size:13px; outline:none; }
         .jg-tools input:focus { border-color:var(--blue); }
         .jg-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-        .jg-tag { border:1px solid var(--border); background:var(--card); border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit; }
+        .jg-tag { border:1px solid var(--border); background:var(--card); border-radius:999px; padding:0 11px; height:26px;
+                  font-size:11.5px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit; }
         .jg-tag:hover { border-color:var(--blue); color:var(--blue); }
         .jg-tag.on { background:var(--blue); border-color:var(--blue); color:#fff; }
         .jg-list { display:flex; flex-direction:column; max-height:62vh; overflow:auto; }
@@ -2154,17 +2186,26 @@
         .jg-item i { font-style:normal; font-size:10.5px; color:#8f98aa; }
         .jg-empty { padding:16px 13px; color:var(--muted); font-size:13px; }
         /* --- kereső + táblázat --- */
-        .jg-tools { align-items:center; }
-        .jg-tools input { font-size:13.5px; }
-        .jg-seg { display:flex; gap:3px; padding:3px; background:var(--card); border:1px solid var(--border); border-radius:10px; }
-        .jg-segb { font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); background:none; border:0; border-radius:7px; padding:6px 13px; cursor:pointer; white-space:nowrap; }
+        /* Ugyanaz a mérték-rendszer, mint a Feladatok eszközsorán: a fő sor
+           egy magasságon fut, a sűrűbb szűrősor pedig egy kisebb, de szintén
+           egységes mérten. Eddig 33/26/31/30/20 px keveredett négyféle
+           betűmérettel – a sor emiatt nézett ki hullámzónak. */
+        .jg-tools { --ctl-h:38px; --ctl-r:9px; --ctl-fs:13px; align-items:center; }
+        .jg-tools input, .jg-tools .btn, .jg-seg {
+            height:var(--ctl-h); box-sizing:border-box; font-size:var(--ctl-fs); border-radius:var(--ctl-r); }
+        .jg-tools input { padding:0 11px; line-height:1; }
+        .jg-seg { display:flex; gap:3px; padding:3px; background:var(--card); border:1px solid var(--border); align-items:stretch; }
+        .jg-segb { font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); background:none; border:0; border-radius:calc(var(--ctl-r) - 3px); padding:0 13px; cursor:pointer; white-space:nowrap; }
         .jg-segb:hover { color:var(--text); }
         .jg-segb.on { background:var(--blue); color:#fff; }
-        .jg-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
-        .jg-count { font-size:12.5px; color:var(--muted); }
+        .jg-filters { --ctl-h:32px; --ctl-r:8px; --ctl-fs:12.5px;
+                      display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+        .jg-count { font-size:var(--ctl-fs); color:var(--muted); }
         .jg-count b { color:var(--navy); }
-        .jg-filters select { font-family:inherit; font-size:12.5px; padding:6px 9px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); cursor:pointer; }
-        .jg-clear { font-family:inherit; font-size:12.5px; color:var(--blue); background:none; border:0; cursor:pointer; text-decoration:underline; }
+        .jg-filters select { font-family:inherit; font-size:var(--ctl-fs); height:var(--ctl-h); box-sizing:border-box;
+                             padding:0 9px; border:1px solid var(--border); border-radius:var(--ctl-r);
+                             background:var(--card); color:var(--text); cursor:pointer; }
+        .jg-clear { font-family:inherit; font-size:var(--ctl-fs); color:var(--blue); background:none; border:0; cursor:pointer; text-decoration:underline; }
         .jg-item mark, .jg-table mark { background:#ffe9a3; color:#4a3600; border-radius:3px; padding:0 2px; }
         .jg-item b { display:flex; gap:7px; align-items:baseline; justify-content:space-between; }
         .jg-item > span { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.4; }
@@ -6514,7 +6555,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=45";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=46";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
