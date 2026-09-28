@@ -269,9 +269,13 @@ export async function stravaHivas(nev, adat){
         const r = await httpsCallable(functions, nev, { timeout: 60000 })(adat || {});
         return r.data;
     } catch(e){
-        // Ki nem telepített függvénynél a Firebase csak annyit mond: "internal".
-        if(e && (e.code === "functions/not-found" || (e.code === "functions/internal" && /^internal$/i.test(e.message || ""))))
-            throw new Error("A Strava-szerver még nincs kitelepítve (firebase deploy --only functions), vagy most nem érhető el.");
+        // A Firebase ugyanazt a szűkszavú "internal"-t adja, ha a függvény nincs
+        // kitelepítve, nem érhető el, vagy kitelepítve van, de belül elszállt –
+        // a pontos ok ilyenkor a függvénynaplóban (functions:log) látszik.
+        if(e && e.code === "functions/not-found")
+            throw new Error("A Strava-szerver még nincs kitelepítve (firebase deploy --only functions).");
+        if(e && e.code === "functions/internal" && /^internal$/i.test(e.message || ""))
+            throw new Error(`A Strava-szerver (${nev}) nem válaszolt rendesen: vagy még nincs kitelepítve, vagy belül hibára futott – a pontos ok a függvénynaplóban látszik.`);
         throw e;
     }
 }
