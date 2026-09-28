@@ -2391,23 +2391,87 @@
         .pz-torol { font-family:inherit; font-size:15px; line-height:1; color:var(--muted); background:none;
                     border:0; cursor:pointer; padding:2px 6px; border-radius:6px; }
         .pz-torol:hover { background:#fdeaea; color:var(--red); }
-        .pz-form { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
-        .pz-form label { display:flex; flex-direction:column; gap:4px; font-size:11.5px; font-weight:700; color:var(--muted); }
-        .pz-form label.tel { grid-column:1 / -1; }
-        .pz-form input, .pz-form select { height:38px; box-sizing:border-box; padding:0 11px; border:1px solid var(--border);
-                                          border-radius:9px; font-family:inherit; font-size:13px; color:var(--text); background:#fff; }
-        .pz-form input:focus, .pz-form select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
-        .pz-hiba { color:var(--red); font-size:12.5px; margin-top:9px; min-height:16px; }
-        .pz-katsor { display:grid; grid-template-columns:minmax(140px,1fr) 2fr auto; gap:8px; margin-bottom:7px; align-items:center; }
-        .pz-katsor:has(.cel) { grid-template-columns:minmax(140px,1fr) 150px 2fr auto; }
-        .pz-katsor input, .pz-katsor select { height:34px; box-sizing:border-box; padding:0 10px; border:1px solid var(--border);
+        /* --- statisztika-csempék: szürke alap, a hangulatot a jelvény adja.
+               A szín SOHA nem hordozza egyedül a jelentést: a nyíl/jel és a
+               felirat magában is elmondja, mit lát az ember. A piros és a
+               zöld deuteranópiánál ΔE 5,0 – színre bízni nem szabad. --- */
+        .pz-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:10px; margin-bottom:14px; }
+        .pz-tile { background:#f4f6f9; border:1px solid var(--border); border-radius:14px; padding:13px 15px;
+                   display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto auto; gap:2px 11px; align-items:center; }
+        .pz-tile .ikon { grid-row:1 / 3; width:38px; height:38px; border-radius:11px; display:flex; align-items:center;
+                         justify-content:center; font-size:17px; font-weight:800; background:#e4e9f0; color:var(--navy); }
+        .pz-tile .cim { font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; align-self:end; }
+        .pz-tile .ertek { font-size:19px; font-weight:800; color:var(--navy); line-height:1.15; letter-spacing:-.3px;
+                          align-self:start; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pz-tile .alatta { grid-column:1 / -1; font-size:11.5px; color:var(--muted); margin-top:5px; }
+        .pz-tile.t-be  .ikon { background:#dcf5e6; color:#12803c; }
+        .pz-tile.t-ki  .ikon { background:#fde4e4; color:#b91c1c; }
+        .pz-tile.t-sem .ikon { background:#e4e9f0; color:var(--navy); }
+        /* --- kategória-jelvény: díszítő azonosító, nem adatot kódol --- */
+        .pz-ikon { flex:none; display:inline-flex; align-items:center; justify-content:center; font-style:normal;
+                   width:26px; height:26px; border-radius:8px; font-size:13px; }
+        .sz-szurke     { background:#eef1f5; } .sz-palaszurke { background:#e2e8f0; }
+        .sz-sotet      { background:#dbe2ec; } .sz-kek        { background:#dce9fd; }
+        .sz-zold       { background:#dcf5e6; } .sz-piros      { background:#fde4e4; }
+        .sz-borostyan  { background:#fdecd2; } .sz-sarga      { background:#fbf3cf; }
+        .sz-lila       { background:#ebe2fb; } .sz-rozsa      { background:#fbe2ee; }
+        .sz-turkiz     { background:#d6f1f1; }
+        .pz-katcell { display:inline-flex; align-items:center; gap:8px; }
+        .pz-bont-sor .nev { display:flex; align-items:center; gap:8px; }
+        /* --- beviteli ablak --- */
+        .pz-modal { max-width:620px; }
+        /* A hosszú ablak törzse görögjön, ne az egész ablak: különben a
+           lábléc (és vele a Mentés gomb) kicsúszik a képernyőről. Húsz
+           kategóriánál ez pont bekövetkezett. */
+        .pz-modal .modal-body, .pz-katmodal .modal-body { max-height:70vh; overflow-y:auto; }
+        .pz-tipseg { width:100%; margin-bottom:14px; }
+        .pz-tipseg button { flex:1; padding:9px 0; font-size:13px; }
+        .pz-osszeg { display:flex; align-items:baseline; gap:8px; background:#f4f6f9; border:1px solid var(--border);
+                     border-radius:12px; padding:12px 16px; margin-bottom:12px; }
+        .pz-osszeg input { flex:1; min-width:0; border:0; background:none; outline:none; font-family:inherit;
+                           font-size:30px; font-weight:800; color:var(--navy); letter-spacing:-.5px; }
+        .pz-osszeg span { font-size:15px; font-weight:800; color:var(--muted); }
+        .pz-napok { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+        .pz-nap { font-family:inherit; font-size:12.5px; font-weight:700; color:var(--muted); background:var(--card);
+                  border:1px solid var(--border); border-radius:999px; padding:7px 14px; cursor:pointer; }
+        .pz-nap.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .pz-napok input[type="date"] { height:34px; padding:0 10px; border:1px solid var(--border); border-radius:8px;
+                                       font-family:inherit; font-size:12.5px; color:var(--text); background:var(--card); }
+        .pz-cimke { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase;
+                    letter-spacing:.5px; margin:0 0 7px; }
+        .pz-cimke i { font-style:normal; text-transform:none; letter-spacing:0; font-weight:600; opacity:.75; }
+        /* Ikonos rács a legördülő helyett: 20 kategóriánál a select azt
+           jelentené, hogy minden felvitelnél végig kell olvasni a listát. */
+        .pz-racs { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:7px; margin-bottom:14px;
+                   max-height:216px; overflow-y:auto; padding:2px; }
+        .pz-kart { display:flex; flex-direction:column; align-items:center; gap:5px; padding:9px 5px; cursor:pointer;
+                   background:var(--card); border:1px solid var(--border); border-radius:11px; font-family:inherit; }
+        .pz-kart span { font-size:10.5px; font-weight:700; color:var(--muted); line-height:1.25; text-align:center;
+                        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .pz-kart:hover { border-color:var(--blue); }
+        .pz-kart.on { border-color:var(--blue); background:var(--blue-light); box-shadow:inset 0 0 0 1px var(--blue); }
+        .pz-kart.on span { color:var(--navy); }
+        .pz-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+        .pz-chip { font-family:inherit; font-size:12px; font-weight:700; color:var(--muted); background:var(--card);
+                   border:1px solid var(--border); border-radius:999px; padding:6px 13px; cursor:pointer; }
+        .pz-chip:hover { border-color:var(--blue); color:var(--blue); }
+        .pz-chip.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .pz-megjinp { width:100%; box-sizing:border-box; height:38px; padding:0 12px; border:1px solid var(--border);
+                      border-radius:9px; font-family:inherit; font-size:13px; color:var(--text); background:#fff; }
+        .pz-megjinp:focus, .pz-osszeg:focus-within { outline:2px solid var(--blue); outline-offset:-1px; }
+        .pz-hiba { color:var(--red); font-size:12.5px; margin-top:10px; min-height:16px; }
+        .pz-katsor { display:grid; grid-template-columns:54px 118px minmax(130px,1fr) 2fr auto; gap:7px; margin-bottom:7px; align-items:center; }
+        .pz-katsor:has(.cel) { grid-template-columns:54px 118px minmax(130px,1fr) 140px 2fr auto; }
+        .pz-katsor input, .pz-katsor select { height:34px; box-sizing:border-box; padding:0 9px; border:1px solid var(--border);
                                               border-radius:8px; font-family:inherit; font-size:12.5px; color:var(--text); background:#fff; }
+        .pz-katsor .ikon { text-align:center; font-size:16px; }
         @media (max-width:760px){
-            .pz-form { grid-template-columns:1fr; }
-            .pz-katsor, .pz-katsor:has(.cel) { grid-template-columns:1fr auto; }
+            .pz-katsor, .pz-katsor:has(.cel) { grid-template-columns:54px 1fr auto; }
+            .pz-katsor .szin, .pz-katsor .cel { grid-column:2 / 3; }
             .pz-kbar-jobb { margin-left:0; width:100%; }
             .pz-bont-sor { grid-template-columns:1fr auto; }
             .pz-bont-sor .sav, .pz-bont-sor .szaz { display:none; }
+            .pz-racs { grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); max-height:180px; }
         }
 
         /* ===== NEXT INFO ===== */
@@ -4540,34 +4604,40 @@ function renderPzFive(){
 // elem mondja meg, a tervező MELYIK oszlopába kerüljön az összeg.
 const PZ_KAT_ALAP = {
     kiadas: [
-        ['Ajándék',                      ['Egyéb','Évforduló','Karácsony','Születésnap']],
-        ['Autó',                         ['Adó','Alfa Romeo Giulia','Autópálya matrica','Autóvásárlás','Biztosítás','Egyéb parkolás','Hitel','Karbantartás','Mosás','Parkolás OTP','Parkolás Otthon','Parkolás OVB','Parkolási bírság','Tankolás']],
-        ['Biztosítás',                   ['Apa','Személyvédelem']],
-        ['Egészség',                     ['Gyógyszer','Nőgyógyász','Vitamin']],
-        ['Egyéb',                        []],
-        ['Események',                    ['Születésnapok']],
-        ['Étel',                         ['Ebéd','Egyéb','Élelmiszer','Étterem','Nassolnivaló','Reggeli','Rendelés','Vacsora']],
-        ['Finovate Solutions Kft.',      ['Adó','Áfa','Alkalmazott fizetés','Készpénzfelvétel','Készpénzfelvételi költség','Könyvelő','Számlavezetési költség','Ügyvéd']],
-        ['Hitel',                        ['Autó hitel','Diák hitel']],
-        ['Közlekedés',                   ['Busz / BKV','Car sharing','Sofőr szolgálat','Taxi']],
-        ['Megtakarítás',                 ['Megtakarítás','Nyugdíj megtakarítás']],
-        ['Oktatás',                      ['Egyéb','Egyetem egyéb','Egyetem korrepetálás','Egyetemi tandíj']],
-        ['Otthon',                       ['Albérlet','Állatorvos','Kölcsön','Tartozás']],
-        ['OVB Vermögensberatung Kft.',   ['Csapat','Egyéb','Irodabérlet','Laki előadó','Negyedéves szeminárium','Success szeminárium']],
-        ['Sport',                        ['Foci','Futás','Ironman','Kerékpározás','Kondi','Snowboard','Úszás','Verseny']],
-        ['Személyes',                    ['Fodrász','Integrált tanácsadás','Masszázs','Személyiségfejlesztés','Szolárium']],
-        ['Szolgáltatások',               ['Egyéb','iCloud','Revolut','Spotify','Telekom']],
-        ['Szórakozás',                   ['Alkohol','Baráti összejövetel','Egyéb','Kocsma','Koncert / fesztivál','Mozi','Party','Rendezvény']],
-        ['Utazás',                       ['Egyéb','Nyaralás']],
-        ['Vásárlás',                     ['App','Bútor / barkácsolás','Cipő','Egyéb','Kiegészítő','Ruha','Vegyes']],
+        { n:'Ajándék',                    i:'🎁', c:'lila',   al:['Egyéb','Évforduló','Karácsony','Születésnap'] },
+        { n:'Autó',                       i:'🚗', c:'palaszurke', al:['Adó','Alfa Romeo Giulia','Autópálya matrica','Autóvásárlás','Biztosítás','Egyéb parkolás','Hitel','Karbantartás','Mosás','Parkolás OTP','Parkolás Otthon','Parkolás OVB','Parkolási bírság','Tankolás'] },
+        { n:'Biztosítás',                 i:'🛡️', c:'piros',  al:['Apa','Személyvédelem'] },
+        { n:'Egészség',                   i:'🩺', c:'rozsa',  al:['Gyógyszer','Nőgyógyász','Vitamin'] },
+        { n:'Egyéb',                      i:'🧺', c:'szurke', al:[] },
+        { n:'Események',                  i:'🎭', c:'kek',    al:['Születésnapok'] },
+        { n:'Étel',                       i:'🍽️', c:'zold',   al:['Ebéd','Egyéb','Élelmiszer','Étterem','Nassolnivaló','Reggeli','Rendelés','Vacsora'] },
+        { n:'Finovate Solutions Kft.',    i:'👔', c:'sotet',  al:['Adó','Áfa','Alkalmazott fizetés','Készpénzfelvétel','Készpénzfelvételi költség','Könyvelő','Számlavezetési költség','Ügyvéd'] },
+        { n:'Hitel',                      i:'🏦', c:'piros',  al:['Autó hitel','Diák hitel'] },
+        { n:'Közlekedés',                 i:'🚊', c:'sarga',  al:['Busz / BKV','Car sharing','Sofőr szolgálat','Taxi'] },
+        { n:'Megtakarítás',               i:'💰', c:'zold',   al:['Megtakarítás','Nyugdíj megtakarítás'] },
+        { n:'Oktatás',                    i:'🎓', c:'borostyan', al:['Egyéb','Egyetem egyéb','Egyetem korrepetálás','Egyetemi tandíj'] },
+        { n:'Otthon',                     i:'🏠', c:'rozsa',  al:['Albérlet','Állatorvos','Kölcsön','Tartozás'] },
+        { n:'OVB Vermögensberatung Kft.', i:'💼', c:'sotet',  al:['Csapat','Egyéb','Irodabérlet','Laki előadó','Negyedéves szeminárium','Success szeminárium'] },
+        { n:'Sport',                      i:'⚽', c:'kek',    al:['Foci','Futás','Ironman','Kerékpározás','Kondi','Snowboard','Úszás','Verseny'] },
+        { n:'Személyes',                  i:'🧍', c:'turkiz', al:['Fodrász','Integrált tanácsadás','Masszázs','Személyiségfejlesztés','Szolárium'] },
+        { n:'Szolgáltatások',             i:'⚡', c:'piros',  al:['Egyéb','iCloud','Revolut','Spotify','Telekom'] },
+        { n:'Szórakozás',                 i:'🍻', c:'kek',    al:['Alkohol','Baráti összejövetel','Egyéb','Kocsma','Koncert / fesztivál','Mozi','Party','Rendezvény'] },
+        { n:'Utazás',                     i:'✈️', c:'borostyan', al:['Egyéb','Nyaralás'] },
+        { n:'Vásárlás',                   i:'🛍️', c:'lila',   al:['App','Bútor / barkácsolás','Cipő','Egyéb','Kiegészítő','Ruha','Vegyes'] },
     ],
     bevetel: [
-        ['OVB Vermögensberatung Kft.',   [], 'ovb'],
-        ['Finovate Solutions Kft.',      [], 'fo'],
-        ['Szécsi Márk EV.',              [], 'fo'],
-        ['Extra bevétel',                ['Baráti összejövetel','Egyéb','Refund'], 'extra'],
+        { n:'OVB Vermögensberatung Kft.', i:'💼', c:'zold', cel:'ovb',   al:[] },
+        { n:'Finovate Solutions Kft.',    i:'🏢', c:'zold', cel:'fo',    al:[] },
+        { n:'Szécsi Márk EV.',            i:'🧾', c:'zold', cel:'fo',    al:[] },
+        { n:'Extra bevétel',              i:'💵', c:'zold', cel:'extra', al:['Baráti összejövetel','Egyéb','Refund'] },
     ],
 };
+// A badge-színek DÍSZÍTŐ azonosítók, nem adatot kódolnak – ezért lehet belőlük
+// 20-nál is több. Ahol SZÁM függ a színtől (bevétel/kiadás/egyenleg), ott a
+// szín mellett mindig van ikon és felirat is: a piros és a zöld
+// deuteranópiánál alig különbözik (ΔE 5,0), színre bízni nem szabad.
+const PZ_SZIN = ['szurke','palaszurke','sotet','kek','zold','piros','borostyan','sarga','lila','rozsa','turkiz'];
+
 const PZ_CEL_NEV = { fo:'Főállás bevétel', ovb:'OVB bevétel', extra:'Extra bevétel' };
 
 let pzKat = null;                         // katalógus (betöltés után)
@@ -4581,21 +4651,28 @@ const pzUid = () => window.sfViewedUid || (window.sfCurrentUser && window.sfCurr
 const pzHoNev = k => { const [y,m] = k.split('-'); return `${y}. ${PZ_MONTHS[+m-1]}`; };
 const pzTKey = () => 'sf_pztranz_' + pzUid();
 
+// A korábbi verzió tömbként tárolta a kategóriát ([név, alkategóriák, cél]).
+// Aki már mentett ilyet, annak se boruljon fel a lapja: felismerjük és
+// átalakítjuk. Új mentés már mindig objektum.
+const pzKatSor = x => Array.isArray(x)
+    ? { n:x[0], al:x[1] || [], cel:x[2], i:'🏷️', c:'szurke' }
+    : { n:x.n, al:x.al || [], cel:x.cel, i:x.i || '🏷️', c:x.c || 'szurke' };
 function pzKatalogus(){
     if(!pzKat) pzKat = JSON.parse(JSON.stringify(PZ_KAT_ALAP));
-    pzKat.kiadas = pzKat.kiadas || [];
-    pzKat.bevetel = pzKat.bevetel || [];
+    pzKat.kiadas  = (pzKat.kiadas  || []).map(pzKatSor);
+    pzKat.bevetel = (pzKat.bevetel || []).map(pzKatSor);
     return pzKat;
 }
-const pzAlkat = (tipus, fo) => {
-    const sor = pzKatalogus()[tipus === 'bev' ? 'bevetel' : 'kiadas'].find(x => x[0] === fo);
-    return sor ? (sor[1] || []) : [];
-};
+const pzLista = tipus => pzKatalogus()[tipus === 'bev' ? 'bevetel' : 'kiadas'];
+const pzKatOf = (tipus, fo) => pzLista(tipus).find(x => x.n === fo) || null;
+const pzAlkat = (tipus, fo) => { const k = pzKatOf(tipus, fo); return k ? k.al : []; };
 // Melyik tervező-oszlopba tartozik ez a bevétel-kategória?
-const pzBevCel = fo => {
-    const sor = pzKatalogus().bevetel.find(x => x[0] === fo);
-    return (sor && sor[2]) || 'extra';
-};
+const pzBevCel = fo => { const k = pzKatOf('bev', fo); return (k && k.cel) || 'extra'; };
+// Az ikon a tételeknél és a bontásban is kell – kiadás és bevétel között is keres.
+function pzIkon(nev){
+    const k = pzKatOf('ki', nev) || pzKatOf('bev', nev);
+    return k ? { i:k.i, c:k.c } : { i:'🏷️', c:'szurke' };
+}
 
 async function pzLoadTranz(hoKulcs){
     if(pzTranz[hoKulcs]) return pzTranz[hoKulcs];
@@ -4667,6 +4744,25 @@ function pzLathatoTetelek(){
     return lista.filter(t => { const n = +String(t.d || '').slice(8, 10); return n >= h.tol && n <= h.ig; });
 }
 
+// Egy csempe. A "hang" (be/ki/sem) adja a színt, DE a jel és a felirat
+// önmagában is elmondja, miről van szó – a piros és a zöld színtévesztéssel
+// alig különbözik, ezért soha nem csak a szín hordozza a jelentést.
+const pzCsempe = (hang, jel, cim, ertek, alatta) => `
+    <div class="pz-tile t-${hang}">
+        <span class="ikon">${jel}</span>
+        <span class="cim">${cim}</span>
+        <span class="ertek">${ertek}</span>
+        <span class="alatta">${alatta}</span>
+    </div>`;
+// Az időszak naphossza – a napi átlaghoz. Folyó hónapnál csak az eltelt
+// napokig számolunk, különben a hónap elején irreálisan alacsony lenne.
+function pzNapokSzama(){
+    const [y,m] = pzTHo.split('-').map(Number);
+    if(pzTPer === 'het'){ const h = pzHetek(pzTHo)[pzTHet]; return h ? (h.ig - h.tol + 1) : 7; }
+    const ma = new Date(), utolso = new Date(y, m, 0).getDate();
+    return (ma.getFullYear() === y && ma.getMonth() === m - 1) ? ma.getDate() : utolso;
+}
+
 function renderPzKovet(){
     const host = document.getElementById('pzKovet'); if(!host) return;
     const tetelek = pzLathatoTetelek();
@@ -4706,17 +4802,20 @@ function renderPzKovet(){
             <button class="btn primary" id="pzUjTetel" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új tétel</button>
         </div>
     </div>
-    <div class="pz-kpis">
-        <div class="pz-kpi k-ok"><div class="lab">Bevétel</div><div class="val">${pzFt(be)} Ft</div><div class="sub">${tetelek.filter(t=>t.t==='bev').length} tétel</div></div>
-        <div class="pz-kpi k-bad"><div class="lab">Kiadás</div><div class="val">${pzFt(ki)} Ft</div><div class="sub">${tetelek.filter(t=>t.t!=='bev').length} tétel</div></div>
-        <div class="pz-kpi ${be-ki>=0?'k-ok':'k-bad'}"><div class="lab">Egyenleg</div><div class="val">${pzFt(be-ki)} Ft</div><div class="sub">${pzTPer==='het'?'ezen a héten':'ebben a hónapban'}</div></div>
-        <div class="pz-kpi"><div class="lab">Legnagyobb tétel</div><div class="val">${sorrend.length?esc(sorrend[0][0]):'—'}</div><div class="sub">${sorrend.length?pzFt(sorrend[0][1])+' Ft':'nincs kiadás'}</div></div>
+    <div class="pz-tiles">
+        ${pzCsempe('be','↓','Bevétel', pzFt(be)+' Ft', `${tetelek.filter(t=>t.t==='bev').length} tétel`)}
+        ${pzCsempe('ki','↑','Kiadás',  pzFt(ki)+' Ft', `${tetelek.filter(t=>t.t!=='bev').length} tétel`)}
+        ${pzCsempe(be-ki>=0?'be':'ki', be-ki>=0?'+':'−', 'Egyenleg', pzFt(Math.abs(be-ki))+' Ft', pzTPer==='het'?'ezen a héten':'ebben a hónapban')}
+        ${sorrend.length
+            ? pzCsempe('sem', pzIkon(sorrend[0][0]).i, 'Legnagyobb kiadás', esc(sorrend[0][0]), pzFt(sorrend[0][1])+' Ft · a kiadás '+(ki?Math.round(sorrend[0][1]/ki*100):0)+'%-a')
+            : pzCsempe('sem','🧺','Legnagyobb kiadás','—','nincs rögzített kiadás')}
+        ${pzCsempe('sem','📅','Napi átlag', pzFt(Math.round(ki / Math.max(1, pzNapokSzama()))) + ' Ft', `${pzNapokSzama()} napra vetítve`)}
     </div>
     <section class="card pz-sec">
         <h4 class="pz-sec-title">Mire ment el<span class="pz-sec-note">kategóriánként, csökkenő sorrendben</span></h4>
         ${sorrend.length ? `<div class="pz-bont">${sorrend.map(([k,v]) => `
             <div class="pz-bont-sor">
-                <span class="nev">${esc(k)}</span>
+                <span class="nev"><i class="pz-ikon sz-${esc(pzIkon(k).c)}">${pzIkon(k).i}</i>${esc(k)}</span>
                 <span class="sav"><i style="width:${maxOsszeg?Math.max(2,Math.round(v/maxOsszeg*100)):0}%"></i></span>
                 <span class="ossz">${pzFt(v)} Ft</span>
                 <span class="szaz">${ki?Math.round(v/ki*100):0}%</span>
@@ -4729,7 +4828,7 @@ function renderPzKovet(){
         </tr></thead><tbody>${tetelek.slice().sort((a,b)=>String(b.d).localeCompare(String(a.d))).map(t => `
             <tr data-pztid="${esc(t.id)}">
                 <td class="l">${esc(String(t.d||'').slice(8,10))}. ${esc(PZ_MONTHS[+String(t.d||'0000-01').slice(5,7)-1]||'')}</td>
-                <td class="${t.t==='bev'?'pz-bev':''}">${esc(t.k||'—')}</td>
+                <td><span class="pz-katcell"><i class="pz-ikon sz-${esc(pzIkon(t.k).c)}">${pzIkon(t.k).i}</i>${esc(t.k||'—')}</span></td>
                 <td>${esc(t.a||'—')}</td>
                 <td class="pz-megj">${esc(t.m||'')}</td>
                 <td class="r ${t.t==='bev'?'pz-up':'pz-down'}">${t.t==='bev'?'+':'−'}${pzFt(t.o)} Ft</td>
@@ -4770,29 +4869,36 @@ function pzAtemelesTervezobe(){
         + `Főállás: ${pzFt(ossz.fo)} Ft\nOVB: ${pzFt(ossz.ovb)} Ft\nExtra: ${pzFt(ossz.extra)} Ft\nKöltség: ${pzFt(ossz.kolt)} Ft`);
 }
 
-// Tételfelvitel / szerkesztés. Az alkategória-lista a főkategóriától függ,
-// ezért a főkategória váltásakor újraépül.
+// Tételfelvitel. A legördülők helyett IKONOS RÁCS: 20 kategóriánál a select
+// azt jelentené, hogy minden felvitelnél végig kell olvasni a listát. Így
+// egy pillantás elég, és az ikon a listában is ugyanaz – ugyanazt keresed
+// mindkét helyen.
 function pzTetelModal(letezo){
-    const t = letezo || { id:'', t:'ki', d: (pzTPer==='het' ? `${pzTHo}-${String(pzHetek(pzTHo)[pzTHet]?.tol||1).padStart(2,'0')}` : new Date().toISOString().slice(0,10)), k:'', a:'', m:'', o:null };
-    if(!t.d.startsWith(pzTHo)) t.d = pzTHo + '-01';
+    const t = letezo || { id:'', t:'ki',
+        d: (pzTPer==='het' ? `${pzTHo}-${String(pzHetek(pzTHo)[pzTHet]?.tol||1).padStart(2,'0')}` : new Date().toISOString().slice(0,10)),
+        k:'', a:'', m:'', o:null };
+    if(!String(t.d).startsWith(pzTHo)) t.d = pzTHo + '-01';
+    let tipus = t.t === 'bev' ? 'bev' : 'ki', kat = t.k, alkat = t.a;
+
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
-    const katOpts = tip => pzKatalogus()[tip === 'bev' ? 'bevetel' : 'kiadas']
-        .map(x => `<option value="${esc(x[0])}"${x[0]===t.k?' selected':''}>${esc(x[0])}</option>`).join('');
-    ov.innerHTML = `<div class="modal" style="max-width:560px;">
+    ov.innerHTML = `<div class="modal pz-modal">
         <div class="modal-head"><h3>${letezo ? 'Tétel szerkesztése' : 'Új tétel'}</h3><button class="modal-x" data-pzx>&times;</button></div>
         <div class="modal-body">
-            <div class="pz-seg2" id="pzTipSeg" style="margin-bottom:12px;">
-                <button data-pztip="ki"${t.t!=='bev'?' class="on"':''}>Kiadás</button>
-                <button data-pztip="bev"${t.t==='bev'?' class="on"':''}>Bevétel</button>
+            <div class="pz-seg2 pz-tipseg">
+                <button data-pztip="ki"${tipus==='ki'?' class="on"':''}>↑ Kiadás</button>
+                <button data-pztip="bev"${tipus==='bev'?' class="on"':''}>↓ Bevétel</button>
             </div>
-            <div class="pz-form">
-                <label>Összeg (Ft)<input type="text" inputmode="numeric" id="pzfO" value="${t.o!=null?esc(pzFt(t.o)):''}" placeholder="0"></label>
-                <label>Dátum<input type="date" id="pzfD" value="${esc(t.d)}"></label>
-                <label>Kategória<select id="pzfK">${katOpts(t.t)}</select></label>
-                <label>Alkategória<select id="pzfA"></select></label>
-                <label class="tel">Megjegyzés<input type="text" id="pzfM" value="${esc(t.m||'')}" placeholder="Amit tudni érdemes róla…" maxlength="120"></label>
+            <div class="pz-osszeg">
+                <input type="text" inputmode="numeric" id="pzfO" value="${t.o!=null?esc(pzFt(t.o)):''}" placeholder="0" aria-label="Összeg">
+                <span>Ft</span>
             </div>
+            <div class="pz-napok" id="pzNapok"></div>
+            <div class="pz-cimke">Kategória</div>
+            <div class="pz-racs" id="pzRacs"></div>
+            <div id="pzAlWrap"></div>
+            <div class="pz-cimke">Megjegyzés <i>nem kötelező</i></div>
+            <input type="text" class="pz-megjinp" id="pzfM" value="${esc(t.m||'')}" placeholder="Pl. Shell, autópálya" maxlength="120">
             <div id="pzfHiba" class="pz-hiba"></div>
         </div>
         <div class="modal-foot">
@@ -4803,39 +4909,76 @@ function pzTetelModal(letezo){
     </div>`;
     document.body.appendChild(ov);
     const zar = () => ov.remove();
-    const tipus = () => ov.querySelector('[data-pztip].on').dataset.pztip;
-    const alkatUjra = () => {
-        const a = ov.querySelector('#pzfA'), lista = pzAlkat(tipus(), ov.querySelector('#pzfK').value);
-        a.innerHTML = `<option value="">—</option>` + lista.map(x => `<option${x===t.a?' selected':''}>${esc(x)}</option>`).join('');
-        a.disabled = !lista.length;
+
+    // --- dátum: gyorsgombok + naptár, hogy a gyakori eset egy kattintás legyen
+    const maStr = new Date().toISOString().slice(0,10);
+    const tegnapD = new Date(); tegnapD.setDate(tegnapD.getDate()-1);
+    const tegnapStr = tegnapD.toISOString().slice(0,10);
+    const napokRajz = () => {
+        ov.querySelector('#pzNapok').innerHTML =
+            [[maStr,'Ma'],[tegnapStr,'Tegnap']].map(([v,l]) =>
+                `<button type="button" class="pz-nap${t.d===v?' on':''}" data-pznap="${v}">${l}</button>`).join('')
+            + `<input type="date" id="pzfD" value="${esc(t.d)}">`;
     };
-    alkatUjra();
-    ov.querySelectorAll('[data-pzx]').forEach(b => b.addEventListener('click', zar));
-    ov.addEventListener('click', e => { if(e.target === ov) zar(); });
-    ov.querySelectorAll('[data-pztip]').forEach(b => b.addEventListener('click', () => {
-        ov.querySelectorAll('[data-pztip]').forEach(x => x.classList.toggle('on', x === b));
-        ov.querySelector('#pzfK').innerHTML = katOpts(b.dataset.pztip);
-        alkatUjra();
-    }));
-    ov.querySelector('#pzfK').addEventListener('change', alkatUjra);
+    napokRajz();
+
+    // --- kategória-rács
+    const racsRajz = () => {
+        ov.querySelector('#pzRacs').innerHTML = pzLista(tipus).map(k => `
+            <button type="button" class="pz-kart${kat===k.n?' on':''}" data-pzkat="${esc(k.n)}" title="${esc(k.n)}">
+                <i class="pz-ikon sz-${esc(k.c)}">${k.i}</i><span>${esc(k.n)}</span>
+            </button>`).join('');
+        alRajz();
+    };
+    const alRajz = () => {
+        const lista = kat ? pzAlkat(tipus, kat) : [];
+        ov.querySelector('#pzAlWrap').innerHTML = lista.length
+            ? `<div class="pz-cimke">Alkategória <i>nem kötelező</i></div><div class="pz-chips">`
+              + lista.map(x => `<button type="button" class="pz-chip${alkat===x?' on':''}" data-pzal="${esc(x)}">${esc(x)}</button>`).join('')
+              + `</div>`
+            : '';
+    };
+    racsRajz();
+
+    ov.addEventListener('click', e => {
+        if(e.target === ov) return zar();
+        if(e.target.closest('[data-pzx]')) return zar();
+        const tip = e.target.closest('[data-pztip]');
+        if(tip){
+            tipus = tip.dataset.pztip;
+            ov.querySelectorAll('[data-pztip]').forEach(x => x.classList.toggle('on', x === tip));
+            // Típusváltáskor a kategória elveszti értelmét – ne maradjon ott
+            // egy kiadás-kategória a bevételnél.
+            if(!pzKatOf(tipus, kat)){ kat = ''; alkat = ''; }
+            racsRajz(); return;
+        }
+        const nap = e.target.closest('[data-pznap]');
+        if(nap){ t.d = nap.dataset.pznap; napokRajz(); return; }
+        const k = e.target.closest('[data-pzkat]');
+        if(k){ kat = k.dataset.pzkat; alkat = ''; racsRajz(); return; }
+        const a = e.target.closest('[data-pzal]');
+        if(a){ alkat = (alkat === a.dataset.pzal) ? '' : a.dataset.pzal; alRajz(); return; }
+    });
+    ov.addEventListener('change', e => { if(e.target.id === 'pzfD'){ t.d = e.target.value; napokRajz(); } });
+
     const torolGomb = ov.querySelector('#pzfTorol');
     if(torolGomb) torolGomb.addEventListener('click', () => {
         if(!confirm('Biztosan törlöd ezt a tételt?')) return;
         pzTranz[pzTHo] = (pzTranz[pzTHo] || []).filter(x => x.id !== t.id);
         pzSaveTranz(pzTHo); zar(); renderPzKovet();
     });
-    ov.querySelector('#pzfMent').addEventListener('click', () => {
-        const o = pzNum(ov.querySelector('#pzfO').value);
+
+    const ment = () => {
         const hiba = ov.querySelector('#pzfHiba');
-        if(o == null || o <= 0){ hiba.textContent = 'Az összeg nem lehet üres vagy nulla.'; return; }
-        const d = ov.querySelector('#pzfD').value;
-        if(!d){ hiba.textContent = 'A dátum kötelező – ebből tudjuk, melyik hónaphoz tartozik.'; return; }
+        const o = pzNum(ov.querySelector('#pzfO').value);
+        if(o == null || o <= 0){ hiba.textContent = 'Az összeg nem lehet üres vagy nulla.'; ov.querySelector('#pzfO').focus(); return; }
+        if(!kat){ hiba.textContent = 'Válassz kategóriát – enélkül a bontásban nem lehetne megtalálni.'; return; }
+        if(!t.d){ hiba.textContent = 'A dátum kötelező – ebből tudjuk, melyik hónaphoz tartozik.'; return; }
         const uj = { id: t.id || ('t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)),
-                     t: tipus(), d, k: ov.querySelector('#pzfK').value,
-                     a: ov.querySelector('#pzfA').value, m: ov.querySelector('#pzfM').value.trim(), o };
-        const celHo = d.slice(0,7);
-        // Ha átdátumozták másik hónapra, a tétel oda költözik – különben a
-        // havi összegzés abban a hónapban hiányozna, ahova a dátuma mutat.
+                     t: tipus, d: t.d, k: kat, a: alkat, m: ov.querySelector('#pzfM').value.trim(), o };
+        const celHo = t.d.slice(0,7);
+        // Ha átdátumozták másik hónapra, a tétel oda költözik – különben a havi
+        // összegzésből kiesne abban a hónapban, ahova a dátuma mutat.
         pzTranz[pzTHo] = (pzTranz[pzTHo] || []).filter(x => x.id !== uj.id);
         if(celHo === pzTHo){ pzTranz[pzTHo].push(uj); pzSaveTranz(pzTHo); zar(); renderPzKovet(); }
         else {
@@ -4846,30 +4989,41 @@ function pzTetelModal(letezo){
                 zar(); pzTHo = celHo; pzTHet = 0; renderPzKovet();
             });
         }
-    });
+    };
+    ov.querySelector('#pzfMent').addEventListener('click', ment);
+    // Enterrel is menthető – a leggyakoribb művelet ne kívánjon egérutat.
+    ov.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); ment(); } });
     setTimeout(() => ov.querySelector('#pzfO').focus(), 30);
 }
 
-// Kategória-szerkesztő: főkategóriák és a hozzájuk tartozó alkategóriák.
+// Kategória-szerkesztő: név, ikon, szín, alkategóriák. Az ikon szabad
+// szöveg (bármelyik emoji beilleszthető), a szín egy kötött készletből jön,
+// hogy a lap ne essen szét húszféle önkényes árnyalatra.
 function pzKatModal(){
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
-    const sorok = tip => pzKatalogus()[tip].map((x, i) => `
-        <div class="pz-katsor" data-kattip="${tip}" data-kati="${i}">
-            <input class="fo" value="${esc(x[0])}" placeholder="Főkategória">
-            ${tip === 'bevetel' ? `<select class="cel" title="A tervező melyik oszlopába kerüljön">
-                ${Object.entries(PZ_CEL_NEV).map(([k,v]) => `<option value="${k}"${(x[2]||'extra')===k?' selected':''}>${esc(v)}</option>`).join('')}
+    const sor = (x, tip) => `
+        <div class="pz-katsor" data-kattip="${tip}">
+            <input class="ikon" value="${esc(x ? x.i : '🏷️')}" maxlength="4" title="Ikon – illessz be bármilyen emojit">
+            <select class="szin" title="Jelvény színe">
+                ${PZ_SZIN.map(c => `<option value="${c}"${x && x.c === c ? ' selected' : ''}>${c}</option>`).join('')}
+            </select>
+            <input class="fo" value="${esc(x ? x.n : '')}" placeholder="Főkategória">
+            ${tip === 'bevetel' ? `<select class="cel" title="A tervező melyik oszlopába kerüljön átemeléskor">
+                ${Object.entries(PZ_CEL_NEV).map(([k,v]) => `<option value="${k}"${x && (x.cel||'extra')===k?' selected':''}>${esc(v)}</option>`).join('')}
             </select>` : ''}
-            <input class="al" value="${esc((x[1]||[]).join(', '))}" placeholder="Alkategóriák vesszővel">
+            <input class="al" value="${esc(x ? (x.al||[]).join(', ') : '')}" placeholder="Alkategóriák vesszővel">
             <button class="pz-torol" data-katdel title="Törlés">×</button>
-        </div>`).join('');
-    ov.innerHTML = `<div class="modal" style="max-width:820px;">
+        </div>`;
+    ov.innerHTML = `<div class="modal pz-katmodal" style="max-width:900px;">
         <div class="modal-head"><h3>Kategóriák</h3><button class="modal-x" data-pzx>&times;</button></div>
         <div class="modal-body">
-            <p class="pz-sec-note" style="margin:0 0 10px;">Az alkategóriákat vesszővel válaszd el. A bevételnél azt is megadod, a tervező melyik oszlopába kerüljön az összeg átemeléskor.</p>
-            <h4 class="pz-sec-title">Kiadás</h4><div id="pzKatKi">${sorok('kiadas')}</div>
-            <button class="btn" data-katuj="kiadas" style="margin:8px 0 16px;">+ Kiadás-kategória</button>
-            <h4 class="pz-sec-title">Bevétel</h4><div id="pzKatBe">${sorok('bevetel')}</div>
+            <p class="pz-sec-note" style="margin:0 0 12px;">Az alkategóriákat vesszővel válaszd el. Az ikon mezőbe bármilyen emoji beilleszthető. A bevételnél azt is megadod, a tervező melyik oszlopába kerüljön az összeg átemeléskor.</p>
+            <h4 class="pz-sec-title" style="padding:0 0 8px;">Kiadás</h4>
+            <div id="pzKatKi">${pzLista('ki').map(x => sor(x,'kiadas')).join('')}</div>
+            <button class="btn" data-katuj="kiadas" style="margin:8px 0 18px;">+ Kiadás-kategória</button>
+            <h4 class="pz-sec-title" style="padding:0 0 8px;">Bevétel</h4>
+            <div id="pzKatBe">${pzLista('bev').map(x => sor(x,'bevetel')).join('')}</div>
             <button class="btn" data-katuj="bevetel" style="margin:8px 0 0;">+ Bevétel-kategória</button>
         </div>
         <div class="modal-foot">
@@ -4879,29 +5033,28 @@ function pzKatModal(){
     </div>`;
     document.body.appendChild(ov);
     const zar = () => ov.remove();
-    ov.querySelectorAll('[data-pzx]').forEach(b => b.addEventListener('click', zar));
     ov.addEventListener('click', e => {
-        if(e.target === ov) return zar();
-        const uj = e.target.closest('[data-katuj]');
-        if(uj){
-            const tip = uj.dataset.katuj, box = ov.querySelector(tip === 'kiadas' ? '#pzKatKi' : '#pzKatBe');
-            const d = document.createElement('div');
-            d.className = 'pz-katsor'; d.dataset.kattip = tip;
-            d.innerHTML = `<input class="fo" placeholder="Főkategória">
-                ${tip === 'bevetel' ? `<select class="cel">${Object.entries(PZ_CEL_NEV).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>` : ''}
-                <input class="al" placeholder="Alkategóriák vesszővel">
-                <button class="pz-torol" data-katdel title="Törlés">×</button>`;
-            box.appendChild(d); d.querySelector('.fo').focus(); return;
+        if(e.target === ov || e.target.closest('[data-pzx]')) return zar();
+        const uj2 = e.target.closest('[data-katuj]');
+        if(uj2){
+            const tip = uj2.dataset.katuj;
+            const box = ov.querySelector(tip === 'kiadas' ? '#pzKatKi' : '#pzKatBe');
+            box.insertAdjacentHTML('beforeend', sor(null, tip));
+            box.lastElementChild.querySelector('.fo').focus();
+            return;
         }
         if(e.target.closest('[data-katdel]')) e.target.closest('.pz-katsor').remove();
     });
     ov.querySelector('#pzKatMent').addEventListener('click', () => {
         const gyujt = tip => [...ov.querySelectorAll(`.pz-katsor[data-kattip="${tip}"]`)].map(d => {
-            const fo = d.querySelector('.fo').value.trim();
-            if(!fo) return null;
-            const al = d.querySelector('.al').value.split(',').map(x => x.trim()).filter(Boolean);
+            const n = d.querySelector('.fo').value.trim();
+            if(!n) return null;                       // névtelen sor nem kategória
             const cel = d.querySelector('.cel');
-            return cel ? [fo, al, cel.value] : [fo, al];
+            return { n,
+                     i: d.querySelector('.ikon').value.trim() || '🏷️',
+                     c: d.querySelector('.szin').value,
+                     al: d.querySelector('.al').value.split(',').map(x => x.trim()).filter(Boolean),
+                     ...(cel ? { cel: cel.value } : {}) };
         }).filter(Boolean);
         pzKat = { kiadas: gyujt('kiadas'), bevetel: gyujt('bevetel') };
         pzSaveKat(); zar(); renderPzKovet();
@@ -7057,7 +7210,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=47";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=48";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
