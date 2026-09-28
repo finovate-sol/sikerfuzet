@@ -54,13 +54,25 @@ async function stravaToken(body){
         res = await fetch('https://www.strava.com/oauth/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: STRAVA_CLIENT_ID, client_secret: STRAVA_CLIENT_SECRET.value(), ...body }),
+            // trim: a titok beállításakor véletlenül bemásolt szóköz / sortörés ne rontsa el
+            body: JSON.stringify({ client_id: STRAVA_CLIENT_ID, client_secret: String(STRAVA_CLIENT_SECRET.value() || '').trim(), ...body }),
         });
     } catch(e){ throw new HttpsError('unavailable', 'A Strava most nem érhető el – próbáld újra később.'); }
     const data = await res.json().catch(() => ({}));
     if(!res.ok){
+        // A Strava megmondja, melyik mező a hibás: {errors:[{resource, field, code}]}.
+        // A naplóba (functions:log) is beírjuk – titok nélkül.
+        const hibak = Array.isArray(data.errors) ? data.errors : [];
+        console.error('Strava token-csere elutasítva', res.status, body.grant_type, JSON.stringify(hibak), data.message || '');
+        const mezo = f => hibak.some(h => h.field === f);
+        if(mezo('client_secret') || mezo('client_id'))
+            throw new HttpsError('failed-precondition', 'A Strava szerint a Client Secret hibás. Állítsd be újra (firebase functions:secrets:set STRAVA_CLIENT_SECRET), pontosan úgy, ahogy a Strava API-oldalán látszik, majd telepítsd ki újra a függvényeket.');
+        if(mezo('code'))
+            throw new HttpsError('failed-precondition', 'A Strava-kód lejárt vagy már felhasználták – indítsd újra az összekötést a „Strava összekötése” gombbal.');
+        if(mezo('refresh_token'))
+            throw new HttpsError('failed-precondition', 'A Strava-hozzáférés lejárt vagy visszavonták – kösd össze újra a fiókodat.');
         if(res.status === 400 || res.status === 401)
-            throw new HttpsError('failed-precondition', 'A Strava elutasította a hozzáférést – kösd össze újra a fiókodat.');
+            throw new HttpsError('failed-precondition', `A Strava elutasította a kérést (${res.status}${data.message ? ': ' + data.message : ''}) – kösd össze újra a fiókodat.`);
         throw new HttpsError('unavailable', `A Strava hibát jelzett (${res.status}).`);
     }
     return data;
