@@ -154,6 +154,12 @@ service cloud.firestore {
     // A kulcs "{uid}_{2026-09}" alakú, a gazda az első szelet.
     match /pz_tranz/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
 
+    // Edzésnapló (Privát → Edzések): az előre definiált edzések és a napokra
+    // tervezett / teljesített edzések. SZIGORÚAN a gazdájáé, mint a
+    // költésnapló – a vezető "ránézés" módban sem lát bele. A kulcs
+    // "{uid}_torzs" vagy "{uid}_2026" alakú, a gazda az első szelet.
+    match /edzes/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
+
     match /havi_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
     match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
 

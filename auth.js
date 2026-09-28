@@ -243,6 +243,22 @@ export async function savePzTranz(uid, kulcs, data){
     await setDoc(doc(db, "pz_tranz", uid + "_" + kulcs), data);
 }
 
+// Edzésnapló – edzes/{uid}_{kulcs}. A kulcs "torzs" (az előre definiált
+// edzések, vagyis a sablonok) vagy egy év ("2026": a napokra tervezett és
+// teljesített edzések). Évente egy dokumentum: egy év pár száz tétel, jóval a
+// Firestore 1 MB-os korlátja alatt. SZIGORÚAN a gazdájáé, mint a költésnapló.
+// Az olvasás hibánál KIVÉTELT dob (nem null-t), hogy az app ne írja felül egy
+// üres dokumentummal a szerveren lévő adatot, amit csak nem sikerült lehozni.
+export async function getEdzesStrict(uid, kulcs){
+    if(!isConfigured || !db) return null;
+    const snap = await getDoc(doc(db, "edzes", uid + "_" + kulcs));
+    return snap.exists() ? (snap.data() || null) : null;
+}
+export async function saveEdzes(uid, kulcs, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "edzes", uid + "_" + kulcs), data);
+}
+
 // Munkatárs személyes céljai – celok/{uid}. Egy dokumentumban a vízió, a
 // célok listája és az életterület-önértékelések; együtt is csak néhány kB.
 // Privát: a gazdája, a felettesei és az admin éri el (ugyanaz, mint a
