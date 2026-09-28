@@ -209,6 +209,14 @@ export async function getPenzugyek(uid){
     try { const snap = await getDoc(doc(db, "penzugyek", uid)); return snap.exists() ? (snap.data() || null) : null; }
     catch(e){ console.warn("Pénzügyek olvasása sikertelen:", e); return null; }
 }
+// Szigorú változat: hibánál DOB, nem null-t ad. Ahol a betöltött adatot
+// utána vissza is mentjük, ott a "nem sikerült olvasni" és a "még nincs
+// adat" nem keverhető össze – az előbbi után a mentés felülírná a szervert.
+export async function getPenzugyekStrict(uid){
+    if(!isConfigured || !db) return null;
+    const snap = await getDoc(doc(db, "penzugyek", uid));
+    return snap.exists() ? (snap.data() || null) : null;
+}
 export async function savePenzugyek(uid, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "penzugyek", uid), data, { merge: true });
