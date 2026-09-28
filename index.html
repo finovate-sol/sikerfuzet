@@ -3043,6 +3043,17 @@
         .pz-ker-info b { color:var(--navy); font-variant-numeric:tabular-nums; }
         @media (max-width:560px){ .pz-ker-sor .pz-seg2 { width:100%; } .pz-ker-sor .pz-seg2 button { flex:1; } }
 
+
+        /* A csempe-blokk kitölti a sor magasságát: ha ⅓ szélességű kártya mellett
+           egy magasabb (pl. a pénzáramlás) áll, a csempék egyenlően nyúlnak, és a
+           blokk alja egy vonalba kerül a szomszédéval. */
+        .pz-a-w > .pz-a-kpis, .pz-a-w > .pz-a-tarcak { flex:1 1 auto; grid-auto-rows:1fr; align-content:stretch; }
+        .pz-a-kpi { height:100%; }
+        .pz-a-kpi > div { justify-content:center; }
+
+
+        .pz-a-aram { flex:1; display:flex; flex-direction:column; }
+
         /* ===== NEXT INFO ===== */
         .next-info-card .card-body { display:flex; flex-direction:column; gap:14px; }
         .ni-hero { display:flex; align-items:center; gap:16px; background:var(--blue-light); border-radius:12px; padding:16px 18px; }
@@ -6048,7 +6059,11 @@ function pzSzepLepes(v){
 
 // ---- Havi pénzáramlás: oszlopok (bevétel, kiadás) + megtakarítás-vonal ----
 // A tervező TÉNY oszlopaiból – a Napló ezeket tölti, így a kettő egyezik.
-function pzAramChart(rows, kiemelt){
+// A H (rajzmagasság) a kártyához igazítható: ha a sorban egy magasabb kártya
+// áll, a diagram kitölti a helyet ahelyett, hogy üres sáv maradna alatta.
+let pzAramUtolso = null;
+function pzAramChart(rows, kiemelt, H = 290){
+    pzAramUtolso = { rows, kiemelt };
     const ertek = rows.map(r => ({ i:r.i, bev:r.bev, ki:r.kolt,
         megt: (r.bev != null && r.kolt != null) ? r.bev - r.kolt : null }));
     if(!ertek.some(e => e.bev != null || e.ki != null))
@@ -6056,7 +6071,7 @@ function pzAramChart(rows, kiemelt){
     const adatMax = Math.max(1, ...ertek.map(e => Math.max(e.bev || 0, e.ki || 0)));
     const lepes = pzSzepLepes(adatMax / 4), osztas = Math.max(1, Math.ceil(adatMax / lepes - 1e-9));
     const max = lepes * osztas;
-    const W = 980, H = 290, bal = 46, jobb = 8, alul = 28, teto = 12;
+    const W = 980, bal = 46, jobb = 8, alul = 28, teto = 12;
     const sav = (W - bal - jobb) / 12, sz = Math.min(15, (sav - 12) / 2);
     const y = v => teto + (H - teto - alul) * (1 - Math.max(0, v || 0) / max);
     const oszlop = (e, kulcs, eltol, grad) => {
@@ -6080,7 +6095,7 @@ function pzAramChart(rows, kiemelt){
             <span><i style="background:${PZ_SOROZAT.ki}"></i>Kiadás</span>
             <span><i class="vonal" style="background:${PZ_SOROZAT.megt}"></i>Megtakarítás</span>
         </div>
-        <div class="pz-a-chart" data-pzaram='${JSON.stringify(ertek)}' data-w="${W}" data-bal="${bal}" data-sav="${sav.toFixed(3)}">
+        <div class="pz-a-chart" data-pzaram='${JSON.stringify(ertek)}' data-w="${W}" data-h="${H}" data-bal="${bal}" data-sav="${sav.toFixed(3)}">
             <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Havi bevétel, kiadás és megtakarítás">
                 <defs>
                     <linearGradient id="pzGBev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${PZ_SOROZAT.bev}"/><stop offset="1" stop-color="${PZ_SOROZAT.bev}" stop-opacity=".45"/></linearGradient>
@@ -6239,7 +6254,7 @@ async function renderPzAttek(){
             : `<section class="card pz-a-kartya"><div class="pz-ures">Még nincs pénztárca. <a class="link" href="#" data-pzview="tarca">Felvétel ↗</a></div></section>`,
         aram: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Havi pénzáramlás</h4><span>${ev} · a naplóból és a tervezőből</span></div>
-            ${pzAramChart(pzRows(ev), +ho.slice(5,7) - 1)}
+            <div class="pz-a-aram">${pzAramChart(pzRows(ev), +ho.slice(5,7) - 1)}</div>
         </section>`,
         kat: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Kiadások kategóriánként</h4><span>${honev}</span></div>
@@ -6322,7 +6337,32 @@ async function renderPzAttek(){
             </div>` : ''}
             ${W[k]}</div>`;
     }).join('')}</div>`;
+    pzAramIgazit();
 }
+
+// A pénzáramlás magassága a kártyához: megméri, mennyi szabad hely maradt a
+// diagram alatt (a sor magasságát egy szomszéd kártya is adhatja), és akkorára
+// rajzolja újra. Legalább az alapmagasság marad, így nem zsugorodik össze.
+function pzAramIgazit(){
+    const w = document.querySelector('#pzAttek .pz-a-w[data-pzw="aram"]');
+    const hely = w && w.querySelector('.pz-a-aram'), svg = hely && hely.querySelector('svg');
+    if(!svg || !pzAramUtolso) return;
+    const kartya = w.querySelector('.pz-a-kartya');
+    const alsoPad = parseFloat(getComputedStyle(kartya).paddingBottom) || 0;
+    const sr = svg.getBoundingClientRect(), kr = kartya.getBoundingClientRect();
+    if(!sr.width) return;
+    const cel = sr.height + (kr.bottom - alsoPad - sr.bottom);
+    const H = Math.max(290, Math.min(640, Math.round(980 * cel / sr.width)));
+    if(Math.abs(H - +(hely.querySelector('.pz-a-chart').dataset.h || 290)) < 4) return;
+    hely.innerHTML = pzAramChart(pzAramUtolso.rows, pzAramUtolso.kiemelt, H);
+}
+{ let ido = null; window.addEventListener('resize', () => {
+    clearTimeout(ido); ido = setTimeout(() => { if(pzView === 'attek'){
+        // Előbb vissza az alapra, hogy a sor a többi kártyához mérődjön, ne a korábbi, nagyobb diagramhoz.
+        const hely = document.querySelector('#pzAttek .pz-a-aram');
+        if(hely && pzAramUtolso){ hely.innerHTML = pzAramChart(pzAramUtolso.rows, pzAramUtolso.kiemelt); }
+        pzAramIgazit();
+    } }, 150); }); }
 
 // Elrendezés-szerkesztő: gombok és húzás. Telefonon a húzás (HTML5 drag)
 // nem működik – ott a ↑↓ nyilak rendeznek.
@@ -9601,7 +9641,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=57";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=58";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
