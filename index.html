@@ -105,7 +105,21 @@
         }
         .sidebar-collapse-btn svg { width: 14px; height: 14px; transition: transform .18s ease; }
         .sidebar-collapse-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
+        /* A menü egyre hosszabb, a lábléc (profil, Admin) viszont mindig
+           látszódjon: ezért csak a linkek görögnek, a fejléc és a lábléc fix. */
+        .sidebar-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden;
+                          display:flex; flex-direction:column; scrollbar-width:thin;
+                          scrollbar-color:rgba(255,255,255,.22) transparent; }
+        .sidebar-scroll::-webkit-scrollbar { width:7px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:99px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.32); }
+        .sidebar-scroll::-webkit-scrollbar-track { background:transparent; }
         .nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+        /* Csoportcím: az OVB-s és a privát részt külön kell látni, még ha
+           van is átfedés köztük. */
+        .nav-grp { display:flex; align-items:center; gap:8px; padding:14px 16px 5px;
+                   font-size:10px; font-weight:800; color:#7f93b5; text-transform:uppercase; letter-spacing:.09em; }
+        .nav-grp::after { content:""; flex:1; height:1px; background:rgba(255,255,255,.09); }
         .nav a {
             display: flex; align-items: center; gap: 12px;
             padding: 11px 16px; border-radius: 8px;
@@ -140,6 +154,8 @@
             .sidebar.collapsed .nav a { justify-content:center; padding:11px 0; gap:0; }
             .sidebar.collapsed .nav-label { display:none; }
             .sidebar.collapsed .nav .divider { margin:10px 10px; }
+            /* Összecsukva nincs hely a feliratnak – marad a választóvonal. */
+            .sidebar.collapsed .nav-grp { padding:10px 10px; font-size:0; letter-spacing:0; gap:0; }
             .sidebar.collapsed .sidebar-user { justify-content:center; padding:14px 8px; }
             .sidebar.collapsed .sidebar-user .su-name { display:none; }
             /* Összecsukva az avatar és a kilépés gomb egymás mellett
@@ -2474,6 +2490,63 @@
             .pz-racs { grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); max-height:180px; }
         }
 
+
+        /* ===== PÉNZÜGYEK – ÁTTEKINTÉS ÉS NYILVÁNTARTÁSOK ===== */
+        .pz-tabs { margin-bottom:16px; }
+        .pz-att { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
+        .pz-att > .pz-sec { margin:0; }
+        .pz-att-szeles { grid-column:1 / -1; }
+        .pz-jelm { display:flex; gap:16px; padding:8px 16px 4px; font-size:12px; font-weight:700; color:var(--muted); }
+        .pz-jelm i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+        .pz-svgwrap { padding:0 16px 14px; }
+        .pz-svgwrap svg { width:100%; height:auto; display:block; }
+        .pz-fiz { display:flex; flex-direction:column; }
+        .pz-fiz-sor { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:10px; align-items:center;
+                      padding:8px 2px; border-top:1px solid var(--border); font-size:13px; }
+        .pz-fiz-sor:first-child { border-top:none; }
+        .pz-fiz-sor .nev { color:var(--navy); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pz-fiz-sor .nev em { display:block; font-style:normal; font-size:11px; font-weight:600; color:var(--muted); }
+        .pz-fiz-sor .mikor { font-size:11.5px; font-weight:700; color:var(--muted); white-space:nowrap; }
+        .pz-fiz-sor b { font-variant-numeric:tabular-nums; color:var(--text); white-space:nowrap; }
+        .pz-celek { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; }
+        .pz-cel { display:flex; align-items:center; gap:12px; }
+        .pz-cel > div { min-width:0; }
+        .pz-cel b { display:block; font-size:13.5px; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pz-cel span { display:block; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+        .pz-halvany { color:var(--muted); font-weight:600; }
+        .pz-minisav { display:inline-block; width:64px; height:8px; border-radius:999px; background:#eef2f7;
+                      overflow:hidden; vertical-align:middle; margin-right:7px; }
+        .pz-minisav i { display:block; height:100%; background:var(--blue); border-radius:999px; }
+        /* Nyilvántartás-szerkesztő: két oszlop, hogy a négy mező egy képernyőn legyen. */
+        .pz-form2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+        .pz-form2 label { display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:800;
+                          color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+        .pz-form2 input, .pz-form2 select { height:38px; box-sizing:border-box; padding:0 11px; border:1px solid var(--border);
+                          border-radius:9px; font-family:inherit; font-size:13.5px; font-weight:600; color:var(--text);
+                          background:#fff; text-transform:none; letter-spacing:0; }
+        .pz-form2 input:focus, .pz-form2 select:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+        .pz-torzs-tab { min-width:520px; }
+        @media (max-width:860px){
+            .pz-att { grid-template-columns:minmax(0,1fr); }
+            .pz-form2 { grid-template-columns:minmax(0,1fr); }
+        }
+
+        /* --- pénztárcák: kártyák, mert kevés van és az egyenleg a lényeg --- */
+        .pz-tarcak { display:grid; grid-template-columns:repeat(auto-fill,minmax(205px,1fr)); gap:10px; }
+        .pz-tarca { display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto auto;
+                    gap:1px 12px; align-items:center; text-align:left; font-family:inherit; cursor:pointer;
+                    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+        .pz-tarca:hover { border-color:var(--blue); }
+        .pz-tarca .pz-tarca-ikon { grid-row:1 / 4; width:42px; height:42px; border-radius:12px; font-style:normal;
+                    display:flex; align-items:center; justify-content:center; font-size:20px; background:#f0f3f7; }
+        .pz-tarca .nev { font-size:14.5px; font-weight:700; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pz-tarca .tip { font-size:11.5px; font-weight:600; color:var(--muted); }
+        .pz-tarca b { font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; }
+        .pz-tarca-uj { display:flex; align-items:center; justify-content:center; text-align:center; border-style:dashed;
+                       color:var(--blue); font-size:13.5px; font-weight:700; min-height:86px; }
+        .pz-tarca-ossz { margin-top:12px; font-size:13px; color:var(--muted); }
+        .pz-tarca-ossz b { color:var(--navy); font-variant-numeric:tabular-nums; }
+
         /* ===== NEXT INFO ===== */
         .next-info-card .card-body { display:flex; flex-direction:column; gap:14px; }
         .ni-hero { display:flex; align-items:center; gap:16px; background:var(--blue-light); border-radius:12px; padding:16px 18px; }
@@ -2648,6 +2721,7 @@
         <div class="brand"><span class="brand-text">Sikerfüzet<small>A sikerhez vezető út</small></span>
             <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Menü össze-/kinyitása"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
         </div>
+        <div class="sidebar-scroll">
         <nav class="nav">
             <a href="#" class="active" data-page="home" title="Sikerfüzet">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
@@ -2661,6 +2735,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H17l3 3v14.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 20.5z"/><path d="M8 9h7M8 13h7M8 17h4"/></svg>
                 <span class="nav-label">Jegyzetek</span>
             </a>
+            <div class="nav-grp">OVB</div>
             <a href="#" data-page="havi" title="Havi Terv">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
                 <span class="nav-label">Havi Terv</span>
@@ -2673,7 +2748,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
                 <span class="nav-label">Ki lesz a következő</span>
             </a>
-            <div class="divider"></div>
             <a href="#" data-page="ugyfelek" title="10 perces füzet">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                 <span class="nav-label">10 perces füzet</span>
@@ -2690,6 +2764,11 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><path d="M4 18V12M12 18v-4M20 18V12"/></svg>
                 <span class="nav-label">Struktúra</span>
             </a>
+            <a href="#" data-page="kiertekelo" id="navKiertekelo" hidden title="Kiértékelő telefon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span class="nav-label">Kiértékelő telefon</span>
+            </a>
+            <div class="nav-grp">Privát</div>
             <a href="#" data-page="penzugyek" title="Pénzügyek">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
                 <span class="nav-label">Pénzügyek</span>
@@ -2697,11 +2776,6 @@
             <a href="#" data-page="celok" title="Célok">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>
                 <span class="nav-label">Célok</span>
-            </a>
-            <div class="divider"></div>
-            <a href="#" data-page="kiertekelo" id="navKiertekelo" hidden title="Kiértékelő telefon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                <span class="nav-label">Kiértékelő telefon</span>
             </a>
         </nav>
         <nav class="nav sidebar-extlinks">
@@ -2714,6 +2788,7 @@
                 <span class="nav-label">Camelot</span>
             </a>
         </nav>
+        </div>
         <div class="sidebar-user">
             <div class="avatar" id="userAvatar">SM</div>
             <span class="su-name" id="userName">Szécsi Márk</span>
@@ -3174,17 +3249,16 @@
           <div class="page-wrap">
             <div class="card reg-bar">
               <h2 title="Személyes pénzügyi terv: mennyi jön be, mennyi megy el, mennyit teszel félre">Pénzügyek</h2>
-              <div class="pz-seg2" id="pzViewSeg">
-                <button data-pzview="terv" class="on">Tervező</button>
-                <button data-pzview="kovet">Követő</button>
-              </div>
               <div class="seg" id="pzYearSeg"></div>
               <div class="reg-tools">
                 <label class="pz-kezdo" id="pzKezdoWrap">Évnyitó vagyon<input type="text" inputmode="numeric" id="pzKezdo" placeholder="0"></label>
                 <a class="link" href="#" data-page="admin" style="font-size:12.5px;" title="Az importok az Admin → Import fülön vannak">Import: Admin ↗</a>
               </div>
             </div>
+            <div class="adm-tabs pz-tabs" id="pzTabs"></div>
+            <div id="pzAttek" hidden></div>
             <div id="pzKovet" hidden></div>
+            <div id="pzTorzs" hidden></div>
             <div id="pzTerv">
             <div class="pz-kpis" id="pzKpis"></div>
             <!-- A lenyitható panel az app közös mintája (lásd Karrier-létra). -->
@@ -4642,10 +4716,31 @@ const PZ_CEL_NEV = { fo:'Főállás bevétel', ovb:'OVB bevétel', extra:'Extra 
 
 let pzKat = null;                         // katalógus (betöltés után)
 let pzTranz = {};                         // "2026-09" -> tételek tömbje
-let pzView = 'terv';                      // terv | kovet
-let pzTHo = new Date().toISOString().slice(0,7);
+// A Pénzügyek almenüje. A vázlatokon bal oldali almenü van, de az appnak
+// MÁR VAN bal oldali menüje – egy második ott csak versenyezne vele. Ezért
+// vízszintes fülek, ahogy az Admin lapon is.
+const PZ_TABS = [
+    ['attek','Áttekintés'], ['terv','Tervező'], ['kovet','Tranzakciók'], ['tarca','Pénztárcák'],
+    ['elofiz','Előfizetések'], ['vagyon','Vagyon'], ['hitel','Hitelek'], ['cel','Célok'],
+];
+let pzView = 'attek';                     // a PZ_TABS kulcsai
+let pzTHo = '';                           // pzMaHo() adja, lásd lentebb
 let pzTPer = 'honap';                     // honap | het
 let pzTHet = 0;                           // hányadik hét a hónapon belül (0-tól)
+
+// A dátumokat HELYI idő szerint képezzük. A toISOString() UTC-t ad: Budapesten
+// este 22 óra után már a következő napot írná, hónapforduló környékén pedig a
+// következő hónapot – a "Ma" gomb és a hónapléptető is mellényúlna.
+const pzNapStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const pzMaStr  = () => pzNapStr(new Date());
+const pzMaHo   = () => pzMaStr().slice(0,7);
+// Hónapléptetés a kulcson, dátumobjektum nélkül – így nincs időzóna-csúszás.
+const pzHoLep = (k, d) => {
+    const [y, m] = k.split('-').map(Number);
+    const t = (m - 1) + d, ev = y + Math.floor(t / 12), ho = ((t % 12) + 12) % 12;
+    return `${ev}-${String(ho + 1).padStart(2, '0')}`;
+};
+pzTHo = pzMaHo();
 
 const pzUid = () => window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
 const pzHoNev = k => { const [y,m] = k.split('-'); return `${y}. ${PZ_MONTHS[+m-1]}`; };
@@ -4673,6 +4768,68 @@ function pzIkon(nev){
     const k = pzKatOf('ki', nev) || pzKatOf('bev', nev);
     return k ? { i:k.i, c:k.c } : { i:'🏷️', c:'szurke' };
 }
+
+/* ---- TÖRZSADATOK ----
+   Mind a négy nyilvántartás EGY dokumentumban, a már meglévő, csak-a-gazdáé
+   pz_tranz gyűjteményben. Így nem kell újabb Firestore-szabály – ami annál is
+   fontosabb, mert a meglévők még nincsenek közzétéve. Együtt is pár kB. */
+let pzTorzsData = null;
+const PZ_TORZS_URES = { elofiz:[], vagyon:[], hitel:[], cel:[], penztarca:[] };
+const PZ_VAGYON_TIP = [['befektetes','Befektetés'],['keszpenz','Készpénz'],['ingatlan','Ingatlan'],['egyeb','Egyéb']];
+// Pénztárca = ahol a pénz FIZIKAILAG van (bankszámla, készpénz, digitális
+// tárca). Ez más, mint a Vagyon lap: ott a nem likvid dolgok (ingatlan,
+// befektetés) vannak. A kettő összege adja az eszközöket.
+const PZ_TARCA_TIP = [
+    ['bank','Bankszámla','🏦'], ['keszpenz','Készpénz','👛'],
+    ['megtakaritas','Megtakarítás','🐖'], ['kartya','Kártya / digitális','💳'],
+];
+const pzTarcaTip = k => PZ_TARCA_TIP.find(x => x[0] === k) || PZ_TARCA_TIP[0];
+const pzTarcaOssz = () => pzTorzsGet().penztarca.reduce((sz,x) => sz + (x.o||0), 0);
+const pzTarcaOf = id => pzTorzsGet().penztarca.find(x => x.id === id) || null;
+// Egy tétel hatása a tárca egyenlegére. jel = +1 alkalmaz, −1 visszavon.
+// Szerkesztésnél előbb visszavonjuk a régit, aztán alkalmazzuk az újat –
+// különben a kétszeri mentés kétszer vonná le ugyanazt.
+function pzTarcaHat(tetel, jel){
+    if(!tetel || !tetel.p) return false;
+    const w = pzTarcaOf(tetel.p); if(!w) return false;
+    w.o = (w.o || 0) + jel * (tetel.t === 'bev' ? 1 : -1) * (tetel.o || 0);
+    return true;
+}
+
+function pzTorzsGet(){
+    if(!pzTorzsData) pzTorzsData = JSON.parse(JSON.stringify(PZ_TORZS_URES));
+    for(const k of Object.keys(PZ_TORZS_URES)) pzTorzsData[k] = pzTorzsData[k] || [];
+    return pzTorzsData;
+}
+async function pzLoadTorzs(){
+    if(pzTorzsData) return pzTorzsGet();
+    const helyi = store.load(pzTKey() + '_torzs', null);
+    if(helyi) pzTorzsData = helyi;
+    const uid = pzUid();
+    if(uid && typeof window.sfGetPzTranz === 'function'){
+        try {
+            const t = await window.sfGetPzTranz(uid, 'torzs');
+            if(t){ pzTorzsData = t; store.save(pzTKey() + '_torzs', t); }
+        } catch(e){ console.warn('Törzsadatok betöltése sikertelen:', e); }
+    }
+    return pzTorzsGet();
+}
+function pzSaveTorzs(){
+    store.save(pzTKey() + '_torzs', pzTorzsGet());
+    const uid = pzUid();
+    if(uid && typeof window.sfSavePzTranz === 'function')
+        window.sfSavePzTranz(uid, 'torzs', pzTorzsGet())
+            .catch(e => alert('A mentés a szerverre nem sikerült: ' + (e.message || e)
+                + '\n\nA böngésződben megmaradt, de másik eszközön nem fog látszani.'));
+}
+// Származtatott számok. A NETTÓ VAGYON az eszközök és a tartozások
+// különbsége – ez MÁS, mint a tervező "vagyon" oszlopa, ami az év eleji
+// összeg és a félretett pénz összege. Az egyik állapot, a másik folyamat,
+// ezért külön is nevezzük őket, nehogy összekeverednek.
+const pzEszkoz   = () => pzTorzsGet().vagyon.reduce((sz,x) => sz + (x.o||0), 0) + pzTarcaOssz();
+const pzTartozas = () => pzTorzsGet().hitel.reduce((sz,x) => sz + (x.o||0), 0);
+const pzNetto    = () => pzEszkoz() - pzTartozas();
+const pzElofizHavi = () => pzTorzsGet().elofiz.reduce((sz,x) => sz + (x.o||0), 0);
 
 async function pzLoadTranz(hoKulcs){
     if(pzTranz[hoKulcs]) return pzTranz[hoKulcs];
@@ -4780,15 +4937,13 @@ function renderPzKovet(){
     const sorrend = [...bont.entries()].sort((a,b) => b[1] - a[1]);
     const maxOsszeg = sorrend.length ? sorrend[0][1] : 0;
 
-    const elozoHo = () => { const [y,m]=pzTHo.split('-').map(Number); const d=new Date(y,m-2,1); return d.toISOString().slice(0,7); };
-    const kovHo   = () => { const [y,m]=pzTHo.split('-').map(Number); const d=new Date(y,m,1);   return d.toISOString().slice(0,7); };
 
     host.innerHTML = `
     <div class="card pz-kbar">
         <div class="pz-honav">
-            <button data-pzho="${elozoHo()}" title="Előző hónap">‹</button>
+            <button data-pzho="${pzHoLep(pzTHo,-1)}" title="Előző hónap">‹</button>
             <b>${pzHoNev(pzTHo)}</b>
-            <button data-pzho="${kovHo()}" title="Következő hónap">›</button>
+            <button data-pzho="${pzHoLep(pzTHo,1)}" title="Következő hónap">›</button>
         </div>
         <div class="pz-seg2" id="pzPerSeg">
             <button data-pzper="honap"${pzTPer==='honap'?' class="on"':''}>Hónap</button>
@@ -4875,10 +5030,13 @@ function pzAtemelesTervezobe(){
 // mindkét helyen.
 function pzTetelModal(letezo){
     const t = letezo || { id:'', t:'ki',
-        d: (pzTPer==='het' ? `${pzTHo}-${String(pzHetek(pzTHo)[pzTHet]?.tol||1).padStart(2,'0')}` : new Date().toISOString().slice(0,10)),
+        d: (pzTPer==='het' ? `${pzTHo}-${String(pzHetek(pzTHo)[pzTHet]?.tol||1).padStart(2,'0')}` : pzMaStr()),
         k:'', a:'', m:'', o:null };
     if(!String(t.d).startsWith(pzTHo)) t.d = pzTHo + '-01';
     let tipus = t.t === 'bev' ? 'bev' : 'ki', kat = t.k, alkat = t.a;
+    // A tárca nem kötelező: aki nem vezet tárcákat, annak ne álljon útban.
+    let tarca = t.p || '';
+    const regi = letezo ? { p:t.p, t:t.t, o:t.o } : null;   // a régi hatás visszavonásához
 
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
@@ -4897,6 +5055,7 @@ function pzTetelModal(letezo){
             <div class="pz-cimke">Kategória</div>
             <div class="pz-racs" id="pzRacs"></div>
             <div id="pzAlWrap"></div>
+            <div id="pzTarcaWrap"></div>
             <div class="pz-cimke">Megjegyzés <i>nem kötelező</i></div>
             <input type="text" class="pz-megjinp" id="pzfM" value="${esc(t.m||'')}" placeholder="Pl. Shell, autópálya" maxlength="120">
             <div id="pzfHiba" class="pz-hiba"></div>
@@ -4911,9 +5070,9 @@ function pzTetelModal(letezo){
     const zar = () => ov.remove();
 
     // --- dátum: gyorsgombok + naptár, hogy a gyakori eset egy kattintás legyen
-    const maStr = new Date().toISOString().slice(0,10);
+    const maStr = pzMaStr();
     const tegnapD = new Date(); tegnapD.setDate(tegnapD.getDate()-1);
-    const tegnapStr = tegnapD.toISOString().slice(0,10);
+    const tegnapStr = pzNapStr(tegnapD);
     const napokRajz = () => {
         ov.querySelector('#pzNapok').innerHTML =
             [[maStr,'Ma'],[tegnapStr,'Tegnap']].map(([v,l]) =>
@@ -4938,10 +5097,22 @@ function pzTetelModal(letezo){
               + `</div>`
             : '';
     };
-    racsRajz();
+    // --- tárca: csak akkor jelenik meg, ha van mit választani
+    const tarcaRajz = () => {
+        const w = pzTorzsGet().penztarca;
+        ov.querySelector('#pzTarcaWrap').innerHTML = w.length
+            ? `<div class="pz-cimke">Pénztárca <i>az egyenlege magától mozdul</i></div><div class="pz-chips">`
+              + w.map(x => `<button type="button" class="pz-chip${tarca===x.id?' on':''}" data-pztw="${esc(x.id)}">`
+                  + `${esc(x.ikon || pzTarcaTip(x.tipus)[2])} ${esc(x.n)}</button>`).join('')
+              + `</div>`
+            : '';
+    };
+    racsRajz(); tarcaRajz();
 
     ov.addEventListener('click', e => {
         if(e.target === ov) return zar();
+        const w = e.target.closest('[data-pztw]');
+        if(w){ tarca = (tarca === w.dataset.pztw) ? '' : w.dataset.pztw; tarcaRajz(); return; }
         if(e.target.closest('[data-pzx]')) return zar();
         const tip = e.target.closest('[data-pztip]');
         if(tip){
@@ -4964,6 +5135,7 @@ function pzTetelModal(letezo){
     const torolGomb = ov.querySelector('#pzfTorol');
     if(torolGomb) torolGomb.addEventListener('click', () => {
         if(!confirm('Biztosan törlöd ezt a tételt?')) return;
+        if(pzTarcaHat(t, -1)) pzSaveTorzs();      // a tárcából levont/hozzáadott összeg visszajár
         pzTranz[pzTHo] = (pzTranz[pzTHo] || []).filter(x => x.id !== t.id);
         pzSaveTranz(pzTHo); zar(); renderPzKovet();
     });
@@ -4975,7 +5147,14 @@ function pzTetelModal(letezo){
         if(!kat){ hiba.textContent = 'Válassz kategóriát – enélkül a bontásban nem lehetne megtalálni.'; return; }
         if(!t.d){ hiba.textContent = 'A dátum kötelező – ebből tudjuk, melyik hónaphoz tartozik.'; return; }
         const uj = { id: t.id || ('t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)),
-                     t: tipus, d: t.d, k: kat, a: alkat, m: ov.querySelector('#pzfM').value.trim(), o };
+                     t: tipus, d: t.d, k: kat, a: alkat, m: ov.querySelector('#pzfM').value.trim(), o,
+                     ...(tarca ? { p: tarca } : {}) };
+        // Előbb a régi hatás vissza, aztán az új rá – így a kétszeri mentés
+        // sem tolja el az egyenleget.
+        let tarcaValt = false;
+        if(regi) tarcaValt = pzTarcaHat(regi, -1) || tarcaValt;
+        tarcaValt = pzTarcaHat(uj, 1) || tarcaValt;
+        if(tarcaValt) pzSaveTorzs();
         const celHo = t.d.slice(0,7);
         // Ha átdátumozták másik hónapra, a tétel oda költözik – különben a havi
         // összegzésből kiesne abban a hónapban, ahova a dátuma mutat.
@@ -5061,18 +5240,402 @@ function pzKatModal(){
     });
 }
 
+/* ---- NYILVÁNTARTÁSOK ----
+   Négy lista (előfizetés, vagyon, hitel, cél) ugyanazzal a motorral: csak a
+   mezőkészlet tér el. Négy külön szerkesztő négyszer ugyanazt a hibalehetőséget
+   jelentené. */
+const PZ_TORZS_DEF = {
+    elofiz: { cim:'Előfizetések', egy:'előfizetés',
+        leiras:'Havonta ismétlődő kifizetések. A hónap napja adja a "közelgő kifizetések" sorrendjét.',
+        mezok:[ ['n','Név','txt'], ['o','Havi összeg (Ft)','ft'], ['nap','Hónap napja','nap'] ],
+        oszlop:['Név','Havi összeg','Nap'], sor:x => [x.n, pzFt(x.o)+' Ft', (x.nap||1)+'.'],
+        ossz: l => l.reduce((s,x)=>s+(x.o||0),0), osszCim:'Havonta összesen' },
+    vagyon: { cim:'Vagyon', egy:'vagyonelem',
+        leiras:'Amid van: befektetés, készpénz, ingatlan. Ezek összege mínusz a hitelek adja a nettó vagyont.',
+        mezok:[ ['n','Megnevezés','txt'], ['tipus','Típus','tip'], ['o','Jelenlegi érték (Ft)','ft'], ['elozo','Előző havi érték (Ft)','ft'] ],
+        oszlop:['Megnevezés','Típus','Érték','Változás'],
+        sor:x => [x.n, (PZ_VAGYON_TIP.find(t=>t[0]===x.tipus)||['','—'])[1], pzFt(x.o)+' Ft', pzValtozas(x.o, x.elozo)],
+        ossz: l => l.reduce((s,x)=>s+(x.o||0),0), osszCim:'Eszközök összesen' },
+    hitel: { cim:'Hitelek', egy:'hitel',
+        leiras:'Fennálló tartozások. Ez csökkenti a nettó vagyont.',
+        mezok:[ ['n','Megnevezés','txt'], ['o','Fennálló tőke (Ft)','ft'], ['torleszto','Havi törlesztő (Ft)','ft'], ['nap','Hónap napja','nap'] ],
+        oszlop:['Megnevezés','Fennálló','Havi törlesztő','Nap'],
+        sor:x => [x.n, pzFt(x.o)+' Ft', pzFt(x.torleszto)+' Ft', (x.nap||1)+'.'],
+        ossz: l => l.reduce((s,x)=>s+(x.o||0),0), osszCim:'Tartozás összesen' },
+    cel: { cim:'Célok', egy:'cél',
+        leiras:'Pénzügyi célok forintban – vésztartalék, lakás, bármi. Nem ugyanaz, mint a Célok oldal életcéljai.',
+        mezok:[ ['n','Cél neve','txt'], ['cel','Célösszeg (Ft)','ft'], ['jelen','Jelenlegi állás (Ft)','ft'] ],
+        oszlop:['Cél','Célösszeg','Jelenleg','Készültség'],
+        sor:x => [x.n, pzFt(x.cel)+' Ft', pzFt(x.jelen)+' Ft', pzSav(x.jelen, x.cel)],
+        ossz: l => l.reduce((s,x)=>s+(x.jelen||0),0), osszCim:'Összesen félretéve' },
+};
+// A "jó irány" oszloponként más: a vagyonnál a növekedés, a kiadásnál a
+// csökkenés. Ezért a hívó mondja meg, ne a függvény találgassa.
+// A nyíl és az előjel a szín MELLETT is ott van: a piros és a zöld
+// deuteranópiánál ΔE 5,0 – színre bízni nem szabad.
+const pzValtozas = (most, elozo, tobbAJo = true) => {
+    if(elozo == null || !elozo || most == null) return '<span class="pz-halvany">—</span>';
+    const p = Math.round((most - elozo) / Math.abs(elozo) * 1000) / 10;
+    const jo = p === 0 ? null : (p > 0) === tobbAJo;
+    return `<span class="${jo===null?'pz-halvany':jo?'pz-up':'pz-down'}">`
+        + `${p>=0?'↑ +':'↓ −'}${String(Math.abs(p)).replace('.',',')}%</span>`;
+};
+const pzSav = (jelen, cel) => {
+    const p = cel ? Math.min(100, Math.round((jelen||0)/cel*100)) : 0;
+    return `<span class="pz-minisav"><i style="width:${p}%"></i></span><b>${p}%</b>`;
+};
+
+/* ---- PÉNZTÁRCÁK ----
+   Kártyás elrendezés, nem táblázat: ezekből kevés van, és az egyenleg az,
+   amit meg akarsz pillantani – nem összehasonlítani oszlopok mentén.
+   Az egyenleg a tételek rögzítésekor MAGÁTÓL mozdul (bevétel +, kiadás −),
+   de kézzel is átírható, ha a valóság elcsúszna tőle. */
+function pzTarcaKartyaHtml(w, i){
+    const [, cim, ikon] = pzTarcaTip(w.tipus);
+    const neg = (w.o || 0) < 0;
+    return `<button type="button" class="pz-tarca" data-pztarca="${i}" title="Szerkesztés">
+        <i class="pz-tarca-ikon">${esc(w.ikon || ikon)}</i>
+        <span class="nev">${esc(w.n || '—')}</span>
+        <span class="tip">${esc(cim)}</span>
+        <b class="${neg ? 'pz-down' : 'pz-up'}">${neg ? '−' : '+'}${pzFt(Math.abs(w.o || 0))} Ft</b>
+    </button>`;
+}
+function renderPzTarcak(){
+    const host = document.getElementById('pzTorzs'); if(!host) return;
+    const lista = pzTorzsGet().penztarca;
+    host.innerHTML = `
+    <div class="card pz-kbar">
+        <div><b style="font-size:15px;color:var(--navy);">Pénztárcák</b>
+             <div class="pz-sec-note" style="margin-top:3px;">Ahol a pénz fizikailag van. A tranzakciók rögzítésekor az egyenleg magától mozdul.</div></div>
+    </div>
+    <div class="pz-tarcak">
+        ${lista.map(pzTarcaKartyaHtml).join('')}
+        <button type="button" class="pz-tarca pz-tarca-uj" id="pzTarcaUj2">+ Új pénztárca hozzáadása</button>
+    </div>
+    ${lista.length ? `<div class="pz-tarca-ossz">Összesen a tárcákban: <b>${pzFt(pzTarcaOssz())} Ft</b></div>` : ''}`;
+}
+function pzTarcaModal(idx){
+    const lista = pzTorzsGet().penztarca;
+    const x = idx != null ? lista[idx] : { tipus:'bank' };
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal pz-modal" style="max-width:520px;">
+        <div class="modal-head"><h3>${idx!=null?'Pénztárca szerkesztése':'Új pénztárca'}</h3><button class="modal-x" data-pzx>&times;</button></div>
+        <div class="modal-body">
+            <div class="pz-cimke">Típus</div>
+            <div class="pz-racs" id="pzTaRacs" style="max-height:none;"></div>
+            <div class="pz-form2">
+                <label>Név<input type="text" data-f="n" value="${esc(x.n||'')}" placeholder="Pl. Revolut"></label>
+                <label>Ikon<input type="text" data-f="ikon" maxlength="4" value="${esc(x.ikon||'')}" placeholder="${esc(pzTarcaTip(x.tipus)[2])}"></label>
+                <label>Egyenleg (Ft)<input type="text" inputmode="numeric" data-f="o" value="${x.o!=null?esc(pzFt(x.o)):''}" placeholder="0"></label>
+            </div>
+            <div class="pz-hiba" id="pzTaHiba"></div>
+        </div>
+        <div class="modal-foot">
+            ${idx!=null?`<button class="btn" id="pzTaDel" style="color:var(--red);margin-right:auto;">Törlés</button>`:''}
+            <button class="btn" data-pzx>Mégse</button>
+            <button class="btn primary" id="pzTaMent" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+    let tipus = x.tipus || 'bank';
+    const rajz = () => {
+        ov.querySelector('#pzTaRacs').innerHTML = PZ_TARCA_TIP.map(([v,l,ik]) => `
+            <button type="button" class="pz-kart${tipus===v?' on':''}" data-pztatip="${v}">
+                <i class="pz-ikon sz-szurke">${ik}</i><span>${esc(l)}</span>
+            </button>`).join('');
+        ov.querySelector('[data-f="ikon"]').placeholder = pzTarcaTip(tipus)[2];
+    };
+    rajz();
+    const zar = () => ov.remove();
+    ov.addEventListener('click', e => {
+        if(e.target === ov || e.target.closest('[data-pzx]')) return zar();
+        const tt = e.target.closest('[data-pztatip]');
+        if(tt){ tipus = tt.dataset.pztatip; rajz(); }
+    });
+    const del = ov.querySelector('#pzTaDel');
+    if(del) del.addEventListener('click', () => {
+        if(!confirm('Biztosan törlöd ezt a pénztárcát?\n\nA hozzá rögzített tételek megmaradnak, csak a tárca-hozzárendelésük szűnik meg.')) return;
+        lista.splice(idx,1); pzSaveTorzs(); zar(); renderPzView();
+    });
+    const ment = () => {
+        const ert = k => ov.querySelector(`[data-f="${k}"]`).value.trim();
+        if(!ert('n')){ ov.querySelector('#pzTaHiba').textContent = 'A név nem lehet üres.'; return; }
+        const uj = { id: x.id || ('w' + Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
+                     n: ert('n'), tipus, ikon: ert('ikon'), o: pzNum(ert('o')) || 0 };
+        if(idx != null) lista[idx] = uj; else lista.push(uj);
+        pzSaveTorzs(); zar(); renderPzView();
+    };
+    ov.querySelector('#pzTaMent').addEventListener('click', ment);
+    ov.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); ment(); } });
+    setTimeout(() => ov.querySelector('[data-f="n"]').focus(), 30);
+}
+
+function renderPzTorzs(){
+    const host = document.getElementById('pzTorzs'); if(!host) return;
+    const d = PZ_TORZS_DEF[pzView]; if(!d) return;
+    const lista = pzTorzsGet()[pzView] || [];
+    host.innerHTML = `
+    <div class="card pz-kbar">
+        <div><b style="font-size:15px;color:var(--navy);">${d.cim}</b>
+             <div class="pz-sec-note" style="margin-top:3px;">${d.leiras}</div></div>
+        <div class="pz-kbar-jobb">
+            <button class="btn primary" id="pzTorzsUj" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ${d.egy}</button>
+        </div>
+    </div>
+    ${lista.length ? `<section class="card pz-sec"><div class="pz-grid-wrap"><table class="pz-tab pz-tetel pz-torzs-tab">
+        <thead><tr>${d.oszlop.map((o,i)=>`<th class="${i?'':'l'}">${esc(o)}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${lista.map((x,i)=>`<tr data-pztorzsi="${i}">
+            ${d.sor(x).map((c,j)=>`<td class="${j?'':'l'}">${j?c:esc(String(c||'—'))}</td>`).join('')}
+            <td class="r"><button class="pz-torol" data-pztorzsdel="${i}" title="Törlés">×</button></td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td class="l">${esc(d.osszCim)}</td>
+            <td colspan="${d.oszlop.length}" class="r"><b>${pzFt(d.ossz(lista))} Ft</b></td></tr></tfoot>
+    </table></div></section>`
+    : `<section class="card pz-sec"><div class="pz-ures">Még nincs ${esc(d.egy)}. Kezdd a <b>+ Új ${esc(d.egy)}</b> gombbal.</div></section>`}`;
+}
+
+function pzTorzsModal(idx){
+    const d = PZ_TORZS_DEF[pzView];
+    const lista = pzTorzsGet()[pzView];
+    const x = idx != null ? lista[idx] : {};
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    const mezo = ([k, cim, tip]) => {
+        if(tip === 'tip') return `<label>${esc(cim)}<select data-f="${k}">${PZ_VAGYON_TIP.map(([v,l])=>`<option value="${v}"${x.tipus===v?' selected':''}>${esc(l)}</option>`).join('')}</select></label>`;
+        if(tip === 'nap') return `<label>${esc(cim)}<input type="number" min="1" max="31" step="1" data-f="${k}" value="${x[k]!=null?esc(String(x[k])):'1'}"></label>`;
+        return `<label>${esc(cim)}<input type="text"${tip==='ft'?' inputmode="numeric"':''} data-f="${k}" value="${x[k]!=null?esc(tip==='ft'?pzFt(x[k]):String(x[k])):''}"${tip==='ft'?' placeholder="0"':''}></label>`;
+    };
+    ov.innerHTML = `<div class="modal pz-modal" style="max-width:520px;">
+        <div class="modal-head"><h3>${idx!=null?'Szerkesztés':'Új '+esc(d.egy)}</h3><button class="modal-x" data-pzx>&times;</button></div>
+        <div class="modal-body"><div class="pz-form2">${d.mezok.map(mezo).join('')}</div><div class="pz-hiba" id="pzTHiba"></div></div>
+        <div class="modal-foot">
+            ${idx!=null?`<button class="btn" id="pzTDel" style="color:var(--red);margin-right:auto;">Törlés</button>`:''}
+            <button class="btn" data-pzx>Mégse</button>
+            <button class="btn primary" id="pzTMent" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mentés</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const zar = () => ov.remove();
+    ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-pzx]')) zar(); });
+    const del = ov.querySelector('#pzTDel');
+    if(del) del.addEventListener('click', () => {
+        if(!confirm('Biztosan törlöd?')) return;
+        lista.splice(idx,1); pzSaveTorzs(); zar(); renderPzTorzs();
+    });
+    ov.querySelector('#pzTMent').addEventListener('click', () => {
+        const uj = {};
+        for(const [k,,tip] of d.mezok){
+            const el = ov.querySelector(`[data-f="${k}"]`);
+            uj[k] = tip === 'ft' ? (pzNum(el.value) || 0) : tip === 'nap' ? Math.min(31, Math.max(1, parseInt(el.value,10)||1)) : el.value.trim();
+        }
+        if(!uj.n){ ov.querySelector('#pzTHiba').textContent = 'A név nem lehet üres – enélkül a listában nem lehetne megkülönböztetni.'; return; }
+        if(idx != null) lista[idx] = { ...lista[idx], ...uj }; else lista.push(uj);
+        pzSaveTorzs(); zar(); renderPzTorzs();
+    });
+    setTimeout(() => ov.querySelector('[data-f]').focus(), 30);
+}
+
+/* ---- ÁTTEKINTÉS ----
+   A műszerfal nem tárol semmit: a tervezőből, a követőből és a
+   nyilvántartásokból olvassa össze a számokat, így nincs mit szinkronban
+   tartani. Mindig a FOLYÓ hónapot mutatja – a dolga a "hol állok most?",
+   nem a böngészés; arra a Tranzakciók lap való. */
+const PZ_SOROZAT = { bev:'#1f5fd0', ki:'#d97706' };   // ΔE 30,4 protanópiánál
+const pzHoOssz = (hk, bev) => (pzTranz[hk] || [])
+    .filter(t => (t.t === 'bev') === bev).reduce((sz, t) => sz + (t.o || 0), 0);
+
+// Hány nap múlva esedékes? A hónap napjából számol, és ha a mostani hónapban
+// már elmúlt, akkor a következő hónapra néz.
+function pzHatra(nap){
+    const ma = new Date(), n = Math.min(31, Math.max(1, nap || 1));
+    const utolso = new Date(ma.getFullYear(), ma.getMonth() + 1, 0).getDate();
+    if(n >= ma.getDate() && n <= utolso) return n - ma.getDate();
+    const kov = new Date(ma.getFullYear(), ma.getMonth() + 1, 0).getDate();
+    return (utolso - ma.getDate()) + Math.min(n, kov);
+}
+const pzHatraSzo = d => d === 0 ? 'ma' : d === 1 ? 'holnap' : d + ' nap múlva';
+
+// Cél-gyűrű. A százalék SZÁMMAL is ott van a gyűrű közepén – a kör kitöltése
+// önmagában nehezen olvasható le.
+function pzGyuru(p){
+    const r = 26, k = 2 * Math.PI * r, tolt = k * Math.min(100, Math.max(0, p)) / 100;
+    return `<svg viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="${p}% készültség">
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="#e6ebf2" stroke-width="7"/>
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="${PZ_SOROZAT.bev}" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="${tolt.toFixed(1)} ${(k-tolt).toFixed(1)}"
+                transform="rotate(-90 32 32)"/>
+        <text x="32" y="36" text-anchor="middle" font-size="15" font-weight="800" fill="#0f2f5f">${p}%</text>
+    </svg>`;
+}
+
+// Éves pénzáramlás: hónaponként két oszlop a tervező TÉNY adataiból. Két
+// sorozat, ezért jelmagyarázat is van – a szín soha nem egyedül azonosít.
+function pzAramChart(rows){
+    const ertek = rows.map(r => ({ i:r.i, bev:r.bev, ki:r.kolt }));
+    if(!ertek.some(e => e.bev != null || e.ki != null))
+        return `<div class="pz-ures">Még nincs tény adat ${pzYear}-re. Töltsd a Tervező havi tábláját, vagy emeld át a Tranzakciók lapról.</div>`;
+    const max = Math.max(1, ...ertek.map(e => Math.max(e.bev || 0, e.ki || 0)));
+    const W = 720, H = 210, bal = 52, jobb = 6, alul = 22, teto = 10;
+    const sav = (W - bal - jobb) / 12, szel = Math.min(14, (sav - 9) / 2);
+    const y = v => teto + (H - teto - alul) * (1 - (v || 0) / max);
+    const oszlop = (e, kulcs, eltol, szin, cim) => {
+        if(e[kulcs] == null) return '';
+        const yy = y(e[kulcs]), m = Math.max(2, H - alul - yy);
+        return `<rect x="${(bal + e.i*sav + sav/2 - szel - 1 + eltol).toFixed(1)}" y="${yy.toFixed(1)}"
+            width="${szel}" height="${m.toFixed(1)}" rx="4" fill="${szin}"
+        ><title>${PZ_MONTHS[e.i]} · ${cim}: ${pzFt(e[kulcs])} Ft</title></rect>`;
+    };
+    // Három visszafogott vonal elég a nagyságrendhez; a pontos érték a
+    // rámutatásnál jön elő, nem minden oszlopra kiírva.
+    const vonalak = [0, .5, 1].map(f => {
+        const yy = y(max * f);
+        return `<line x1="${bal-6}" y1="${yy.toFixed(1)}" x2="${W-jobb}" y2="${yy.toFixed(1)}"
+                      stroke="${f?'#eef2f7':'#dbe2ec'}" stroke-width="1"/>
+                <text x="${bal-10}" y="${(yy+3.5).toFixed(1)}" text-anchor="end" font-size="10"
+                      font-weight="700" fill="#6b7a90">${f ? pzFt(Math.round(max*f)) : '0'}</text>`;
+    }).join('');
+    return `<div class="pz-jelm">
+            <span><i style="background:${PZ_SOROZAT.bev}"></i>Bevétel</span>
+            <span><i style="background:${PZ_SOROZAT.ki}"></i>Költség</span>
+        </div>
+        <div class="pz-svgwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Havi bevétel és költség ${pzYear}-ben">
+            ${vonalak}
+            ${ertek.map(e => oszlop(e,'bev',0,PZ_SOROZAT.bev,'bevétel') + oszlop(e,'ki',szel+2,PZ_SOROZAT.ki,'költség')).join('')}
+            ${PZ_MONTHS.map((n,i) => `<text x="${(bal + i*sav + sav/2).toFixed(1)}" y="${H-5}" text-anchor="middle"
+                font-size="10" font-weight="700" fill="#6b7a90">${n.slice(0,3)}</text>`).join('')}
+        </svg></div>`;
+}
+
+async function renderPzAttek(){
+    const host = document.getElementById('pzAttek'); if(!host) return;
+    if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
+    const most = pzMaHo(), elozo = pzHoLep(most, -1);
+    await pzLoadKat(); await pzLoadTorzs();
+    await pzLoadTranz(most); await pzLoadTranz(elozo);
+    if(pzView !== 'attek') return;            // közben fület váltott
+
+    const be = pzHoOssz(most, true),  beE = pzHoOssz(elozo, true);
+    const ki = pzHoOssz(most, false), kiE = pzHoOssz(elozo, false);
+    const megt = be - ki, megtE = beE - kiE;
+    const torzs = pzTorzsGet();
+
+    // Mire ment el ebben a hónapban – a hat legnagyobb kategória.
+    const bont = new Map();
+    for(const t of (pzTranz[most] || []).filter(x => x.t !== 'bev'))
+        bont.set(t.k || 'Egyéb', (bont.get(t.k || 'Egyéb') || 0) + (t.o || 0));
+    const sorrend = [...bont.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
+    const maxKat = sorrend.length ? sorrend[0][1] : 0;
+
+    // Vagyon összetétele típusonként.
+    const tipOssz = [['Pénztárcák', pzTarcaOssz()]].concat(PZ_VAGYON_TIP.map(([v,l]) =>
+        [l, torzs.vagyon.filter(x => (x.tipus||'egyeb') === v).reduce((sz,x) => sz + (x.o||0), 0)]))
+        .filter(x => x[1] > 0);
+    const eszkoz = pzEszkoz();
+
+    // Közelgő kifizetések: előfizetés és hiteltörlesztő egy listában.
+    const fizet = [
+        ...torzs.elofiz.map(x => ({ n:x.n, o:x.o, nap:x.nap, mi:'Előfizetés', i:'🔁' })),
+        ...torzs.hitel.filter(x => x.torleszto).map(x => ({ n:x.n, o:x.torleszto, nap:x.nap, mi:'Törlesztő', i:'🏦' })),
+    ].map(x => ({ ...x, h: pzHatra(x.nap) })).sort((a,b) => a.h - b.h).slice(0, 6);
+
+    host.innerHTML = `
+    ${torzs.penztarca.length ? `<section class="card pz-sec" style="margin-bottom:12px;">
+        <h4 class="pz-sec-title">Pénztárcák<span class="pz-sec-note">${pzFt(pzTarcaOssz())} Ft összesen</span></h4>
+        <div class="pz-tarcak">${torzs.penztarca.map(pzTarcaKartyaHtml).join('')}</div>
+    </section>` : ''}
+    <div class="pz-tiles">
+        ${pzCsempe(pzNetto() >= 0 ? 'be' : 'ki', '💼', 'Nettó vagyon', pzFt(pzNetto()) + ' Ft',
+            `${pzFt(eszkoz)} Ft eszköz (ebből ${pzFt(pzTarcaOssz())} Ft tárca) − ${pzFt(pzTartozas())} Ft tartozás`)}
+        ${pzCsempe('be','↓','Bevétel · ' + PZ_MONTHS[+most.slice(5,7)-1], pzFt(be) + ' Ft',
+            `Előző hónap: ${pzFt(beE)} Ft · ${pzValtozas(be, beE, true)}`)}
+        ${pzCsempe('ki','↑','Kiadás · ' + PZ_MONTHS[+most.slice(5,7)-1], pzFt(ki) + ' Ft',
+            `Előző hónap: ${pzFt(kiE)} Ft · ${pzValtozas(ki, kiE, false)}`)}
+        ${pzCsempe(megt >= 0 ? 'be' : 'ki', megt >= 0 ? '+' : '−', 'Megtakarítás', pzFt(Math.abs(megt)) + ' Ft',
+            `${be ? Math.round(megt / be * 100) : 0}% a bevételből · ${pzValtozas(megt, megtE, true)}`)}
+        ${pzCsempe('sem','🔁','Fix havi teher', pzFt(pzElofizHavi() + torzs.hitel.reduce((sz,x)=>sz+(x.torleszto||0),0)) + ' Ft',
+            `${torzs.elofiz.length} előfizetés · ${torzs.hitel.filter(x=>x.torleszto).length} törlesztő`)}
+    </div>
+    <div class="pz-att">
+        <section class="card pz-sec pz-att-szeles">
+            <h4 class="pz-sec-title">Éves pénzáramlás<span class="pz-sec-note">${pzYear} · a Tervező tény oszlopaiból</span></h4>
+            ${pzAramChart(pzRows(pzYear))}
+        </section>
+        <section class="card pz-sec">
+            <h4 class="pz-sec-title">Mire ment el<span class="pz-sec-note">${pzHoNev(most)} · top ${sorrend.length || 0}</span></h4>
+            ${sorrend.length ? `<div class="pz-bont">${sorrend.map(([k,v]) => `
+                <div class="pz-bont-sor">
+                    <span class="nev"><i class="pz-ikon sz-${esc(pzIkon(k).c)}">${pzIkon(k).i}</i>${esc(k)}</span>
+                    <span class="sav"><i style="width:${maxKat?Math.max(2,Math.round(v/maxKat*100)):0}%"></i></span>
+                    <span class="ossz">${pzFt(v)} Ft</span>
+                    <span class="szaz">${ki?Math.round(v/ki*100):0}%</span>
+                </div>`).join('')}</div>`
+            : `<div class="pz-ures">Ebben a hónapban még nincs rögzített kiadás.<br><a class="link" href="#" data-pzview="kovet">Tranzakciók felvitele ↗</a></div>`}
+        </section>
+        <section class="card pz-sec">
+            <h4 class="pz-sec-title">Vagyon összetétele<span class="pz-sec-note">${pzFt(eszkoz)} Ft eszköz</span></h4>
+            ${tipOssz.length ? `<div class="pz-bont">${tipOssz.map(([l,v]) => `
+                <div class="pz-bont-sor">
+                    <span class="nev">${esc(l)}</span>
+                    <span class="sav"><i style="width:${Math.max(2,Math.round(v/eszkoz*100))}%"></i></span>
+                    <span class="ossz">${pzFt(v)} Ft</span>
+                    <span class="szaz">${Math.round(v/eszkoz*100)}%</span>
+                </div>`).join('')}</div>`
+            : `<div class="pz-ures">Még nincs rögzített vagyonelem.<br><a class="link" href="#" data-pzview="tarca">Pénztárca</a> vagy <a class="link" href="#" data-pzview="vagyon">vagyonelem felvitele ↗</a></div>`}
+        </section>
+        <section class="card pz-sec">
+            <h4 class="pz-sec-title">Közelgő kifizetések<span class="pz-sec-note">a hónap napja szerint</span></h4>
+            ${fizet.length ? `<div class="pz-fiz">${fizet.map(x => `
+                <div class="pz-fiz-sor">
+                    <i class="pz-ikon sz-szurke">${x.i}</i>
+                    <span class="nev">${esc(x.n||'—')}<em>${x.mi} · ${(x.nap||1)}.</em></span>
+                    <span class="mikor">${pzHatraSzo(x.h)}</span>
+                    <b>${pzFt(x.o)} Ft</b>
+                </div>`).join('')}</div>`
+            : `<div class="pz-ures">Nincs rögzített ismétlődő kifizetés.<br><a class="link" href="#" data-pzview="elofiz">Előfizetés felvitele ↗</a></div>`}
+        </section>
+        <section class="card pz-sec pz-att-szeles">
+            <h4 class="pz-sec-title">Pénzügyi célok<span class="pz-sec-note">${torzs.cel.length} cél</span></h4>
+            ${torzs.cel.length ? `<div class="pz-celek">${torzs.cel.map(c => {
+                const p = c.cel ? Math.min(100, Math.round((c.jelen||0)/c.cel*100)) : 0;
+                return `<div class="pz-cel">${pzGyuru(p)}
+                    <div><b>${esc(c.n||'—')}</b>
+                        <span>${pzFt(c.jelen)} / ${pzFt(c.cel)} Ft</span>
+                        <span class="pz-halvany">Hátra: ${pzFt(Math.max(0,(c.cel||0)-(c.jelen||0)))} Ft</span></div>
+                </div>`; }).join('')}</div>`
+            : `<div class="pz-ures">Még nincs pénzügyi cél.<br><a class="link" href="#" data-pzview="cel">Cél felvitele ↗</a></div>`}
+        </section>
+    </div>`;
+}
+
+function renderPzTabs(){
+    const host = document.getElementById('pzTabs'); if(!host) return;
+    host.innerHTML = PZ_TABS.map(([k,c]) =>
+        `<button class="adm-tab${k===pzView?' active':''}" data-pzview="${k}">${c}</button>`).join('');
+}
+
+// Egy fül – egy panel. A négy nyilvántartás ugyanazt a #pzTorzs panelt
+// használja, mert egy motor rajzolja mindet.
 function renderPzView(){
-    const terv = document.getElementById('pzTerv'), kov = document.getElementById('pzKovet');
+    const panel = {
+        attek: 'pzAttek', terv: 'pzTerv', kovet: 'pzKovet',
+        tarca:'pzTorzs', elofiz:'pzTorzs', vagyon:'pzTorzs', hitel:'pzTorzs', cel:'pzTorzs',
+    };
+    if(!panel[pzView]) pzView = 'attek';
+    const aktiv = panel[pzView];
+    for(const id of ['pzAttek','pzTerv','pzKovet','pzTorzs']){
+        const el = document.getElementById(id); if(el) el.hidden = id !== aktiv;
+    }
+    // Az évnyitó vagyon és az évválasztó a tervezőé – máshol nincs értelmük.
     const kezdo = document.getElementById('pzKezdoWrap'), evSeg = document.getElementById('pzYearSeg');
-    if(!terv || !kov) return;
-    const tervezo = pzView === 'terv';
-    terv.hidden = !tervezo; kov.hidden = tervezo;
-    // Az évnyitó vagyon és az évválasztó a tervezőé – a követő hónapban jár.
-    if(kezdo) kezdo.hidden = !tervezo;
-    if(evSeg) evSeg.hidden = !tervezo;
-    document.querySelectorAll('[data-pzview]').forEach(b => b.classList.toggle('on', b.dataset.pzview === pzView));
-    if(tervezo) renderPenzugyek();
-    else pzLoadKat().then(() => pzLoadTranz(pzTHo)).then(renderPzKovet);
+    if(kezdo) kezdo.hidden = pzView !== 'terv';
+    if(evSeg) evSeg.hidden = pzView !== 'terv';
+    renderPzTabs();
+
+    if(pzView === 'terv') renderPenzugyek();
+    else if(pzView === 'kovet') pzLoadKat().then(() => pzLoadTranz(pzTHo)).then(renderPzKovet);
+    else if(pzView === 'attek') renderPzAttek().catch(e => console.warn('Áttekintés:', e));
+    else pzLoadTorzs().then(pzView === 'tarca' ? renderPzTarcak : renderPzTorzs);
 }
 
 function savePenzugyekData(){
@@ -5094,7 +5657,7 @@ window.sfShowPenzugyek = function(){
             if((window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid)) !== uid) return;
             pzData = { kezdo: remote.kezdo || {}, months: remote.months || {} };
             store.save(pzKey(), pzData);
-            renderPenzugyek();
+            renderPzView();      // az Áttekintés is a tervező adataiból dolgozik
         }).catch(e => console.warn('Pénzügyek betöltése sikertelen:', e));
     }
 };
@@ -5130,7 +5693,20 @@ window.sfShowPenzugyek = function(){
         if(y){ pzYear = +y.dataset.pzyear; renderPenzugyek(); return; }
         if(e.target.closest('#pzChartToggle')) document.getElementById('pzChartPanel').classList.toggle('open');
         const nez = e.target.closest('[data-pzview]');
-        if(nez){ pzView = nez.dataset.pzview; renderPzView(); return; }
+        if(nez){ e.preventDefault(); pzView = nez.dataset.pzview; renderPzView(); return; }
+        if(e.target.closest('#pzTorzsUj')){ pzTorzsModal(null); return; }
+        if(e.target.closest('#pzTarcaUj') || e.target.closest('#pzTarcaUj2')){ pzTarcaModal(null); return; }
+        const wk = e.target.closest('[data-pztarca]');
+        if(wk){ pzTarcaModal(+wk.dataset.pztarca); return; }
+        const tdel = e.target.closest('[data-pztorzsdel]');
+        if(tdel){
+            e.stopPropagation();
+            if(!confirm('Biztosan törlöd ezt a sort?')) return;
+            pzTorzsGet()[pzView].splice(+tdel.dataset.pztorzsdel, 1);
+            pzSaveTorzs(); renderPzTorzs(); return;
+        }
+        const tsor = e.target.closest('[data-pztorzsi]');
+        if(tsor){ pzTorzsModal(+tsor.dataset.pztorzsi); return; }
         const ho = e.target.closest('[data-pzho]');
         if(ho){ pzTHo = ho.dataset.pzho; pzTHet = 0; pzLoadTranz(pzTHo).then(renderPzKovet); return; }
         const per = e.target.closest('[data-pzper]');
@@ -5143,6 +5719,8 @@ window.sfShowPenzugyek = function(){
         const del = e.target.closest('[data-pztorol]');
         if(del){
             if(!confirm('Biztosan törlöd ezt a tételt?')) return;
+            const volt = (pzTranz[pzTHo] || []).find(x => x.id === del.dataset.pztorol);
+            if(pzTarcaHat(volt, -1)) pzSaveTorzs();
             pzTranz[pzTHo] = (pzTranz[pzTHo] || []).filter(x => x.id !== del.dataset.pztorol);
             pzSaveTranz(pzTHo); renderPzKovet(); return;
         }
@@ -7210,7 +7788,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=48";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=49";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
