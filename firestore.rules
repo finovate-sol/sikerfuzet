@@ -147,6 +147,13 @@ service cloud.firestore {
     // ezért itt sem adunk neki rálátást – nincs canAccess, csak a saját uid.
     match /task_meta/{userId}     { allow read, write: if isUser() && uid() == userId; }
 
+    // Tételes költés- és bevétel-napló. SZIGORÚAN a gazdájáé – se a felettes,
+    // se az admin nem lát bele, mint a jegyzeteknél. A penzugyek/{uid} havi
+    // ÖSSZEGEIT a felettes látja (canAccess), de hogy miből állnak össze, az
+    // magánügy. Ezért itt nincs canAccess() és nincs isAdmin() kivétel sem.
+    // A kulcs "{uid}_{2026-09}" alakú, a gazda az első szelet.
+    match /pz_tranz/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
+
     match /havi_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
     match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
 

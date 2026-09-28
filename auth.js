@@ -214,6 +214,27 @@ export async function savePenzugyek(uid, data){
     await setDoc(doc(db, "penzugyek", uid), data, { merge: true });
 }
 
+// Tételes költés- és bevétel-napló – pz_tranz/{uid}_{kulcs}.
+//
+// Miért KÜLÖN gyűjtemény, és miért HAVONTA külön dokumentum?
+//  · A penzugyek/{uid} dokumentumot a felettes is látja (canAccess). A havi
+//    ÖSSZEG még üzleti adat, a tételes költés viszont magánügy – ez a
+//    gyűjtemény ezért szigorúan a gazdájáé, mint a jegyzetek.
+//  · Havi bontásban egy dokumentum pár tucat kB, így a mentés gyors marad.
+//    Egyetlen éves dokumentum pár ezer tétellel a Firestore 1 MB-os
+//    korlátjához közelítene, és minden apró módosítás az egészet újraírná.
+// A kulcs "{uid}_{2026-09}" vagy "{uid}_katalogus" alakú – a szabály az
+// első szelet alapján dönt, ahogy a havi_terv-nél is.
+export async function getPzTranz(uid, kulcs){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "pz_tranz", uid + "_" + kulcs)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Költésnapló olvasása sikertelen:", e); return null; }
+}
+export async function savePzTranz(uid, kulcs, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "pz_tranz", uid + "_" + kulcs), data);
+}
+
 // Munkatárs személyes céljai – celok/{uid}. Egy dokumentumban a vízió, a
 // célok listája és az életterület-önértékelések; együtt is csak néhány kB.
 // Privát: a gazdája, a felettesei és az admin éri el (ugyanaz, mint a
