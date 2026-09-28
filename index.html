@@ -2810,7 +2810,6 @@
         .pz-a-tarca b { font-size:15px; color:var(--navy); font-variant-numeric:tabular-nums; }
         .pz-a-racs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
         .pz-a-kartya { margin:0; padding:16px 18px 18px; border-radius:16px; min-width:0; }
-        .pz-a-szeles, .pz-a-szeles2 { grid-column:1 / -1; }
         .pz-a-fej { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
         .pz-a-fej h4 { margin:0; font-size:15px; font-weight:800; color:var(--navy); }
         .pz-a-fej span { font-size:12px; color:var(--muted); font-weight:600; }
@@ -2878,13 +2877,9 @@
         .pz-a-li .n { color:var(--navy); font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .pz-a-li .n em { display:block; font-style:normal; font-weight:600; font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
         .pz-a-li b { font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--text); }
-        .pz-a-szeles2 .pz-a-lista { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:28px; }
-        .pz-a-szeles2 .pz-a-li:nth-child(2) { border-top:0; }
         @media (max-width:1100px){ .pz-a-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .pz-a-fankwrap { grid-template-columns:minmax(0,1fr); } }
         @media (max-width:860px){
             .pz-a-racs { grid-template-columns:minmax(0,1fr); }
-            .pz-a-szeles2 .pz-a-lista { grid-template-columns:minmax(0,1fr); }
-            .pz-a-szeles2 .pz-a-li:nth-child(2) { border-top:1px solid #eef1f6; }
         }
         @media (max-width:560px){
             .pz-a-kpis { grid-template-columns:minmax(0,1fr); gap:9px; }
@@ -2935,13 +2930,9 @@
 
         /* --- Áttekintés: áthelyezhető kártyák --- */
         .pz-a-w { min-width:0; display:flex; flex-direction:column; }
-        .pz-a-w.szeles { grid-column:1 / -1; }
         .pz-a-w > .pz-a-kpis, .pz-a-w > .pz-a-tarcak { margin-bottom:0; }
         .pz-a-w > .pz-a-kartya { flex:1; }
         .pz-a-kpis { grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); }
-        .pz-a-w.szeles[data-pzw="utolso"] .pz-a-lista, .pz-a-w.szeles[data-pzw="fiz"] .pz-a-lista {
-            display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:28px; }
-        .pz-a-w.szeles[data-pzw="utolso"] .pz-a-li:nth-child(2), .pz-a-w.szeles[data-pzw="fiz"] .pz-a-li:nth-child(2) { border-top:0; }
         .pz-a-edit-info { margin:-4px 0 12px; padding:10px 14px; border-radius:11px; background:var(--blue-light); color:var(--navy); font-size:12.5px; }
         .pz-a-kesz { background:var(--blue) !important; color:#fff !important; border-color:var(--blue) !important; }
         .pz-a-racs.szerk .pz-a-w { outline:2px dashed #c9d6ea; outline-offset:3px; border-radius:17px; }
@@ -2950,8 +2941,6 @@
         .pz-a-w.huzas { opacity:.4; }
         .pz-a-w.cel-elotte { box-shadow:-4px 0 0 var(--blue); }
         .pz-a-w.cel-utana { box-shadow:4px 0 0 var(--blue); }
-        .pz-a-w.szeles.cel-elotte { box-shadow:0 -4px 0 var(--blue); }
-        .pz-a-w.szeles.cel-utana { box-shadow:0 4px 0 var(--blue); }
         .pz-a-wbar { display:flex; align-items:center; gap:6px; margin-bottom:6px; padding:6px 8px; border-radius:10px;
                      background:#fff; border:1px solid var(--border); font-size:12.5px; }
         .pz-a-wbar .fogo { font-size:16px; color:var(--muted); cursor:grab; padding:0 4px; user-select:none; }
@@ -2962,7 +2951,6 @@
         .pz-a-wbar button:disabled { opacity:.35; cursor:default; }
         .pz-a-wbar button.on { background:var(--blue-light); border-color:var(--blue); color:var(--blue); }
         @media (max-width:860px){
-            .pz-a-w.szeles[data-pzw="utolso"] .pz-a-lista, .pz-a-w.szeles[data-pzw="fiz"] .pz-a-lista { grid-template-columns:minmax(0,1fr); }
             .pz-a-wbar .fogo { display:none; }
         }
 
@@ -2982,6 +2970,59 @@
         .pz-cimke-halv { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--muted); white-space:nowrap; }
         .pz-cimke-halv svg { width:12px; height:12px; }
         .pz-nt .n .pz-cimkek, .pz-a-li .n .pz-cimkek { white-space:normal; }
+
+
+        /* ===== ÁTTEKINTÉS: 3 oszlopos rács, 3 kártyaméret, egységes dobozok =====
+           Egy sorban a kártyák egyforma magasak (stretch), és a kártya belseje a
+           SAJÁT szélességéhez igazodik (container query), nem a képernyőéhez. */
+        .pz-a-racs { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; gap:14px; }
+        .pz-a-w { container-type:inline-size; }
+        .pz-a-w.m1 { grid-column:span 1; } .pz-a-w.m2 { grid-column:span 2; } .pz-a-w.m3 { grid-column:1 / -1; }
+        .pz-a-w > .pz-a-kartya { flex:1; display:flex; flex-direction:column; }
+        .pz-a-w > .pz-a-kartya > .pz-a-fankwrap, .pz-a-w > .pz-a-kartya > .pz-a-lista,
+        .pz-a-w > .pz-a-kartya > .pz-a-celok { flex:1; }
+        /* összesítő és tárca-csempék: ugyanaz a doboz, ugyanaz a rács */
+        .pz-a-kpis, .pz-a-tarcak { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:0; }
+        .pz-a-kpi { border-radius:16px; padding:16px; min-height:96px; box-sizing:border-box; align-items:center; }
+        button.pz-a-kpi { font-family:inherit; text-align:left; cursor:pointer; width:100%; }
+        button.pz-a-kpi:hover { border-color:var(--blue); }
+        .pz-a-tarca.pz-a-kpi { display:flex; grid-template-columns:none; grid-template-rows:none; }
+        .pz-a-tarca.pz-a-kpi .pz-a-kpi-ik { width:44px; height:44px; border-radius:14px; }
+        .pz-a-tarca.pz-a-kpi .pz-a-kpi-ik svg { width:22px; height:22px; }
+        .pz-a-kpi .c { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        @container (max-width:900px){ .pz-a-kpis, .pz-a-tarcak { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @container (max-width:430px){ .pz-a-kpis, .pz-a-tarcak { grid-template-columns:minmax(0,1fr); } }
+        /* fánk + jelmagyarázat: egymás mellett, ha elfér, különben egymás alatt */
+        .pz-a-fankwrap { grid-template-columns:minmax(0,1fr); }
+        @container (min-width:560px){ .pz-a-fankwrap { grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); } }
+        /* listák két oszlopban, ha a kártya elég széles */
+        .pz-a-w .pz-a-lista { display:flex; flex-direction:column; }
+        @container (min-width:720px){
+            .pz-a-w .pz-a-lista { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:28px; align-content:start; }
+            .pz-a-w .pz-a-lista > .pz-a-li:nth-child(2) { border-top:0; }
+        }
+        .pz-a-w .pz-a-celok { align-content:start; }
+        /* méretválasztó a szerkesztősávban */
+        .pz-a-meretek { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--border); border-radius:9px; }
+        .pz-a-meretek button { border:0 !important; height:24px !important; min-width:28px !important; border-radius:7px !important; }
+        .pz-a-w.m3.cel-elotte { box-shadow:0 -4px 0 var(--blue); } .pz-a-w.m3.cel-utana { box-shadow:0 4px 0 var(--blue); }
+        @media (max-width:1100px){
+            .pz-a-racs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .pz-a-w.m2 { grid-column:1 / -1; }
+        }
+        @media (max-width:760px){
+            .pz-a-racs { grid-template-columns:minmax(0,1fr); }
+            .pz-a-w.m1, .pz-a-w.m2 { grid-column:1 / -1; }
+        }
+
+
+        /* a tárca-csempe pontosan olyan, mint az összesítő csempe (a régi .pz-a-tarca szabályok felülírása) */
+        .pz-a-tarca.pz-a-kpi b { font-size:22px; font-weight:800; color:var(--navy); }
+        .pz-a-tarca.pz-a-kpi b.pz-down { color:var(--red); }
+        .pz-a-tarca.pz-a-kpi { padding:16px; border-radius:16px; }
+        .pz-a-kpi { min-height:112px; }
+        /* keskeny kártyában kisebb fánk – különben az egész sort magasra nyújtja */
+        @container (max-width:460px){ .pz-fank { max-width:230px; } }
 
         /* ===== NEXT INFO ===== */
         .next-info-card .card-body { display:flex; flex-direction:column; gap:14px; }
@@ -6072,24 +6113,34 @@ function pzFank(szeletek, kozep, opt = {}){
 // ---- Áttekintés elrendezése ----
 // [kulcs, felirat, alapból széles]. A sorrend és a láthatóság a törzsadatban
 // (pz_tranz/{uid}_torzs → attek) tárolódik, így minden eszközön ugyanaz.
+// [kulcs, felirat, alapméret]. A rács 3 oszlopos; a méret 1 = ⅓, 2 = ⅔,
+// 3 = teljes szélesség. Az alap-sorrend úgy van összerakva, hogy a sorok
+// kiteljenek (2+1, 2+1, 1+2).
 const PZ_A_WIDGET = [
-    ['kpi', 'Összesítő csempék', true], ['tarca', 'Pénztárcák', true], ['aram', 'Havi pénzáramlás', true],
-    ['kat', 'Kiadások kategóriánként', false], ['vagyon', 'Vagyon megoszlása', false],
-    ['cel', 'Pénzügyi célok', false], ['fiz', 'Közelgő kifizetések', false], ['utolso', 'Legutóbbi tételek', true],
+    ['kpi', 'Összesítő csempék', 3], ['tarca', 'Pénztárcák', 3],
+    ['aram', 'Havi pénzáramlás', 2], ['cel', 'Pénzügyi célok', 1],
+    ['kat', 'Kiadások kategóriánként', 2], ['fiz', 'Közelgő kifizetések', 1],
+    ['vagyon', 'Vagyon megoszlása', 1], ['utolso', 'Legutóbbi tételek', 2],
 ];
+const PZ_A_MERET = [[1, '⅓', 'Keskeny (a sor harmada)'], [2, '⅔', 'Közepes (a sor kétharmada)'], [3, '▬', 'Teljes szélesség']];
 let pzAEdit = false;
-// → [[kulcs, rejtett, széles], …] a mentett sorrendben; az újonnan hozzáadott
-// kártyák a végére kerülnek, a megszűntek kiesnek.
+// → [[kulcs, rejtett, méret], …] a mentett sorrendben; az újonnan hozzáadott
+// kártyák a végére kerülnek, a megszűntek kiesnek. A korábbi széles/keskeny
+// (szel) beállítás 3-ra / az alapméretre fordul.
 function pzAElrendezes(){
     const t = pzTorzsGet(), m = t.attek || {};
     const rend = (m.rend || []).filter(k => PZ_A_WIDGET.some(w => w[0] === k));
     for(const [k] of PZ_A_WIDGET) if(!rend.includes(k)) rend.push(k);
-    const rejt = new Set(m.rejt || []), szel = m.szel || {};
-    return rend.map(k => [k, rejt.has(k), k in szel ? !!szel[k] : PZ_A_WIDGET.find(w => w[0] === k)[2]]);
+    const rejt = new Set(m.rejt || []), meret = m.meret || {}, szel = m.szel || {};
+    return rend.map(k => {
+        const alap = PZ_A_WIDGET.find(w => w[0] === k)[2];
+        const n = [1, 2, 3].includes(meret[k]) ? meret[k] : (k in szel && szel[k] ? 3 : alap);
+        return [k, rejt.has(k), n];
+    });
 }
 function pzAMent(el){
     pzTorzsGet().attek = { rend: el.map(x => x[0]), rejt: el.filter(x => x[1]).map(x => x[0]),
-                           szel: Object.fromEntries(el.map(x => [x[0], x[2]])) };
+                           meret: Object.fromEntries(el.map(x => [x[0], x[2]])) };
     pzSaveTorzs(); renderPzAttek();
 }
 
@@ -6162,10 +6213,10 @@ async function renderPzAttek(){
         ${csempe('#7c5cff', 'erme', 'Megtakarítás', jel(megt) + ' Ft', `${be ? Math.round(megt / be * 100) : 0}% a bevételből · ${pzValtozas(megt, megtE, true)}`)}
     </div>`,
         tarca: torzs.penztarca.length ? `<div class="pz-a-tarcak">${torzs.penztarca.map((w, i) => `
-        <button type="button" class="pz-a-tarca" data-pztarca="${i}" title="Szerkesztés">
+        <button type="button" class="pz-a-kpi pz-a-tarca" data-pztarca="${i}" title="Szerkesztés">
             <i class="pz-a-kpi-ik" style="--k:${['#3b82f6','#14b8a6','#8b5cf6','#f59e0b','#ec4899','#22a55a'][i % 6]}">${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i>
-            <span class="n">${esc(w.n)}<em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
-            <b class="${(w.o || 0) < 0 ? 'pz-down' : ''}">${jel(w.o || 0)} Ft</b></button>`).join('')}</div>` : `<div class="card pz-ures">Még nincs pénztárca.</div>`,
+            <div><span class="c">${esc(w.n)}</span><b class="${(w.o || 0) < 0 ? 'pz-down' : ''}">${jel(w.o || 0)} Ft</b><span class="s">${esc(pzTarcaTip(w.tipus)[1])}</span></div></button>`).join('')}</div>`
+            : `<section class="card pz-a-kartya"><div class="pz-ures">Még nincs pénztárca. <a class="link" href="#" data-pzview="tarca">Felvétel ↗</a></div></section>`,
         aram: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Havi pénzáramlás</h4><span>${ev} · a naplóból és a tervezőből</span></div>
             ${pzAramChart(pzRows(ev), +ho.slice(5,7) - 1)}
@@ -6235,17 +6286,18 @@ async function renderPzAttek(){
             <button class="btn${pzAEdit ? ' primary pz-a-kesz' : ''}" id="pzAEditBtn">${pzAEdit ? 'Kész' : 'Elrendezés'}</button>
         </div>
     </div>
-    ${pzAEdit ? `<div class="pz-a-edit-info">Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A szem gombbal elrejted / megjeleníted, a ⇔ gombbal széles vagy keskeny lesz.</div>` : ''}
+    ${pzAEdit ? `<div class="pz-a-edit-info">Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A „Látszik” gombbal elrejted / megjeleníted, a ⅓ · ⅔ · ▬ gombokkal a szélességét állítod (a sor harmada, kétharmada vagy egésze).</div>` : ''}
 
-    <div class="pz-a-racs${pzAEdit ? ' szerk' : ''}">${pzAElrendezes().map(([k, rejtett, szeles], i, arr) => {
+    <div class="pz-a-racs${pzAEdit ? ' szerk' : ''}">${pzAElrendezes().map(([k, rejtett, meret], i, arr) => {
         if(rejtett && !pzAEdit) return '';
         const [, cim] = PZ_A_WIDGET.find(x => x[0] === k);
-        return `<div class="pz-a-w${szeles ? ' szeles' : ''}${rejtett ? ' rejtett' : ''}" data-pzw="${k}"${pzAEdit ? ' draggable="true"' : ''}>
+        return `<div class="pz-a-w m${meret}${rejtett ? ' rejtett' : ''}" data-pzw="${k}" data-meret="${meret}"${pzAEdit ? ' draggable="true"' : ''}>
             ${pzAEdit ? `<div class="pz-a-wbar">
                 <span class="fogo" title="Húzd">⠿</span><b>${esc(cim)}</b>
                 <button type="button" data-pzwfel="${k}" ${i ? '' : 'disabled'} title="Feljebb" aria-label="Feljebb">↑</button>
                 <button type="button" data-pzwle="${k}" ${i < arr.length - 1 ? '' : 'disabled'} title="Lejjebb" aria-label="Lejjebb">↓</button>
-                <button type="button" data-pzwszel="${k}" class="${szeles ? 'on' : ''}" title="${szeles ? 'Keskeny legyen' : 'Széles legyen'}" aria-pressed="${szeles}">⇔</button>
+                <span class="pz-a-meretek" role="group" aria-label="Méret">${PZ_A_MERET.map(([n, jel, cim]) =>
+                    `<button type="button" data-pzwmeret="${k}" data-n="${n}" class="${meret === n ? 'on' : ''}" title="${cim}" aria-pressed="${meret === n}">${jel}</button>`).join('')}</span>
                 <button type="button" data-pzwrejt="${k}" class="${rejtett ? '' : 'on'}" title="${rejtett ? 'Megjelenítés' : 'Elrejtés'}" aria-pressed="${!rejtett}">${rejtett ? 'Rejtve' : 'Látszik'}</button>
             </div>` : ''}
             ${W[k]}</div>`;
@@ -6262,14 +6314,14 @@ async function renderPzAttek(){
             if(!confirm('Visszaállítod az eredeti sorrendet és láthatóságot?')) return;
             delete pzTorzsGet().attek; pzSaveTorzs(); renderPzAttek(); return;
         }
-        const b = e.target.closest('[data-pzwfel],[data-pzwle],[data-pzwszel],[data-pzwrejt]'); if(!b) return;
+        const b = e.target.closest('[data-pzwfel],[data-pzwle],[data-pzwmeret],[data-pzwrejt]'); if(!b) return;
         e.stopPropagation();
         const el = pzAElrendezes();
-        const k = b.dataset.pzwfel || b.dataset.pzwle || b.dataset.pzwszel || b.dataset.pzwrejt;
+        const k = b.dataset.pzwfel || b.dataset.pzwle || b.dataset.pzwmeret || b.dataset.pzwrejt;
         const i = el.findIndex(x => x[0] === k); if(i < 0) return;
         if(b.dataset.pzwfel && i > 0) [el[i-1], el[i]] = [el[i], el[i-1]];
         else if(b.dataset.pzwle && i < el.length - 1) [el[i+1], el[i]] = [el[i], el[i+1]];
-        else if(b.dataset.pzwszel) el[i][2] = !el[i][2];
+        else if(b.dataset.pzwmeret) el[i][2] = +b.dataset.n;
         else if(b.dataset.pzwrejt) el[i][1] = !el[i][1];
         pzAMent(el);
     }, true);
@@ -6284,7 +6336,7 @@ async function renderPzAttek(){
     host.addEventListener('dragend', () => { huzott = null; jelzo(); host.querySelectorAll('.huzas').forEach(x => x.classList.remove('huzas')); });
     const hely = (e, w) => { const r = w.getBoundingClientRect();
         // Széles kártyánál a függőleges fele dönt, keskenynél a vízszintes.
-        return w.classList.contains('szeles') ? (e.clientY > r.top + r.height / 2) : (e.clientX > r.left + r.width / 2); };
+        return w.dataset.meret === '3' ? (e.clientY > r.top + r.height / 2) : (e.clientX > r.left + r.width / 2); };
     host.addEventListener('dragover', e => {
         if(!huzott) return;
         const w = e.target.closest('.pz-a-w'); if(!w || w.dataset.pzw === huzott) return;
@@ -9463,7 +9515,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=55";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=56";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
