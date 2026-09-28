@@ -12,6 +12,7 @@ import {
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
@@ -259,6 +260,14 @@ export async function saveEdzes(uid, kulcs, data){
     await setDoc(doc(db, "edzes", uid + "_" + kulcs), data);
 }
 
+// A Strava-függvények hívása (stravaCsatol / stravaSzinkron / stravaLevalaszt).
+// A tokeneket csak a szerver látja; ide a hiba üzenete jön vissza magyarul.
+export async function stravaHivas(nev, adat){
+    if(!isConfigured || !functions) throw new Error("A Firebase nincs beállítva.");
+    const r = await httpsCallable(functions, nev, { timeout: 60000 })(adat || {});
+    return r.data;
+}
+
 // Munkatárs személyes céljai – celok/{uid}. Egy dokumentumban a vízió, a
 // célok listája és az életterület-önértékelések; együtt is csak néhány kB.
 // Privát: a gazdája, a felettesei és az admin éri el (ugyanaz, mint a
@@ -442,7 +451,7 @@ export async function getEmployees(){
     } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
 }
 
-let app, auth, db, storage;
+let app, auth, db, storage, functions;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -456,6 +465,9 @@ if (isConfigured) {
     // késleltetés árán, de nem hasal el csendben az írás/olvasás).
     db = initializeFirestore(app, { experimentalForceLongPolling: true });
     storage = getStorage(app);
+    // A Strava-összekötés függvényei (functions/index.js) – ugyanabban a
+    // régióban, ahová ki vannak telepítve.
+    functions = getFunctions(app, "europe-west1");
 }
 export { auth, db, storage };
 
