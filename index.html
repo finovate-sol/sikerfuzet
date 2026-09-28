@@ -3024,6 +3024,25 @@
         /* keskeny kártyában kisebb fánk – különben az egész sort magasra nyújtja */
         @container (max-width:460px){ .pz-fank { max-width:230px; } }
 
+
+        /* --- Napló: kereső --- */
+        .pz-kereso { padding:12px 13px; margin-bottom:12px; display:flex; flex-direction:column; gap:10px; }
+        .pz-ker-mezo { display:flex; align-items:center; gap:9px; border:2px solid var(--border); border-radius:12px; padding:0 12px;
+                       background:#f7f9fc; color:var(--muted); cursor:text; }
+        .pz-ker-mezo:focus-within { border-color:var(--blue); background:#fff; color:var(--blue); }
+        .pz-ker-mezo svg { width:18px; height:18px; flex:none; }
+        .pz-ker-mezo input { flex:1; min-width:0; height:42px; border:0; outline:none; background:none; font-family:inherit;
+                             font-size:14.5px; color:var(--text); }
+        .pz-ker-mezo input::-webkit-search-cancel-button { display:none; }
+        .pz-ker-mezo button { flex:none; width:28px; height:28px; border:0; border-radius:8px; background:#eef1f6; color:var(--muted);
+                              font-size:17px; line-height:1; cursor:pointer; }
+        .pz-ker-mezo button:hover { background:#e2e8f0; color:var(--text); }
+        .pz-ker-sor { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; }
+        .pz-ker-sor .pz-seg2 button { padding:6px 11px; font-size:12px; }
+        .pz-ker-info { font-size:12.5px; color:var(--muted); }
+        .pz-ker-info b { color:var(--navy); font-variant-numeric:tabular-nums; }
+        @media (max-width:560px){ .pz-ker-sor .pz-seg2 { width:100%; } .pz-ker-sor .pz-seg2 button { flex:1; } }
+
         /* ===== NEXT INFO ===== */
         .next-info-card .card-body { display:flex; flex-direction:column; gap:14px; }
         .ni-hero { display:flex; align-items:center; gap:16px; background:var(--blue-light); border-radius:12px; padding:16px 18px; }
@@ -5217,6 +5236,7 @@ const PZ_IKONOK = {
     naptar:     ['Naptár', '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>'],
     csillag:    ['Csillag', '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'],
     szumma:     ['Összes', '<path d="M18 5H6l6 7-6 7h12"/>'],
+    kereses:    ['Keresés', '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'],
     atutal:     ['Átutalás', '<path d="M4 8h14M14 4l4 4-4 4"/><path d="M20 16H6M10 12l-4 4 4 4"/>'],
 };
 // A korábbi (emojis) katalógus automatikus átfordítása – aki már mentett
@@ -6778,16 +6798,36 @@ function pzNaploSorHtml(t, tarcaSzuro){
         <b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b>
     </button>`;
 }
+/* A Napló keresésre való: rögzíteni a Hónap fülön lehet. Keres a megjegyzésben,
+   a kategóriában, az alkategóriában, a tárca nevében és az összegben –
+   ékezet és kis/nagybetű nélkül. Hatókör: a kiválasztott hónap, vagy az egész év. */
+let pzKer = '', pzKerTip = 'mind', pzKerEv = false;
+function pzKerIlleszk(t, szavak){
+    if(!szavak.length) return true;
+    const w1 = t.p ? pzTarcaOf(t.p) : null, w2 = t.p2 ? pzTarcaOf(t.p2) : null;
+    const szoveg = pzNorm([t.m, t.k, t.a, w1 && w1.n, w2 && w2.n, t.t === 'atu' ? 'átutalás' : ''].filter(Boolean).join(' '));
+    const osszeg = String(Math.round(t.o || 0));
+    // Minden szónak illeszkednie kell (ÉS). A szám az összegben is kereshető, szóközzel vagy anélkül.
+    return szavak.every(sz => szoveg.includes(sz) || (/^[\d\s]+$/.test(sz) && osszeg.includes(sz.replace(/\s/g, ''))));
+}
+
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
     await pzNezetBetolt();
+    const ev = pzTHo.slice(0, 4);
+    const hok = pzKerEv ? Array.from({ length: 12 }, (_, i) => `${ev}-${String(i + 1).padStart(2, '0')}`) : [pzTHo];
+    if(pzKerEv) await Promise.all(hok.map(h => pzLoadTranz(h)));
     if(pzView !== 'naplo') return;
 
     const torzs = pzTorzsGet();
     if(pzNTarca && !pzTarcaOf(pzNTarca)) pzNTarca = '';
-    const osszes = (pzTranz[pzTHo] || []).map((t, i) => ({ ...t, _i:i }));
+    const osszes = hok.flatMap(h => (pzTranz[h] || []).map((t, i) => ({ ...t, _i:i })));
+    const szavak = pzNorm(pzKer).split(' ').filter(Boolean);
+    const keres = szavak.length > 0 || pzKerTip !== 'mind';
     const lista = osszes.filter(t => !pzNTarca || t.p === pzNTarca || (t.t === 'atu' && t.p2 === pzNTarca))
+        .filter(t => pzKerTip === 'mind' || (pzKerTip === 'ki' ? pzKi(t) : t.t === pzKerTip))
+        .filter(t => pzKerIlleszk(t, szavak))
         .sort((a,b) => String(b.d).localeCompare(String(a.d)) || b._i - a._i);
     const be = pzOsszBe(lista), ki = pzOsszKi(lista), nagy = Math.max(be, ki, 1);
     const szuro = pzNTarca ? pzTarcaOf(pzNTarca).n : '';
@@ -6800,17 +6840,21 @@ async function renderPzNaplo(){
     const egyenleg = l => l.reduce((s,t) => s + (t.t === 'atu'
         ? (pzNTarca ? (t.p2 === pzNTarca ? 1 : -1) : 0) : (t.t === 'bev' ? 1 : -1)) * (t.o || 0), 0);
     const hoRov = PZ_MONTHS[+pzTHo.slice(5,7) - 1].toLowerCase();
-    const feed = hetek.map(h => {
-        const ht = lista.filter(t => nap(t.d) >= h.tol && nap(t.d) <= h.ig);
-        if(!ht.length) return '';
-        const napok = [...new Set(ht.map(t => t.d))];
-        return `<div class="pz-het"><span>${hoRov} ${h.tol}–${h.ig}.</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>`
-            + napok.map(d => {
-                const nt = ht.filter(t => t.d === d);
-                return `<div class="pz-nap-fej"><span>${esc(pzNapCim(d))}</span><span>${elojel(egyenleg(nt))}</span></div>`
-                    + nt.map(t => pzNaploSorHtml(t, pzNTarca)).join('');
-            }).join('');
+    const napokHtml = ht => [...new Set(ht.map(t => t.d))].map(d => {
+        const nt = ht.filter(t => t.d === d);
+        return `<div class="pz-nap-fej"><span>${esc(pzNapCim(d))}</span><span>${elojel(egyenleg(nt))}</span></div>`
+            + nt.map(t => pzNaploSorHtml(t, pzNTarca)).join('');
     }).join('');
+    const feed = pzKerEv
+        ? hok.slice().reverse().map(h => {
+            const ht = lista.filter(t => String(t.d).startsWith(h));
+            return ht.length ? `<div class="pz-het"><span>${pzHoNev(h)}</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
+        }).join('')
+        : hetek.map(h => {
+            const ht = lista.filter(t => nap(t.d) >= h.tol && nap(t.d) <= h.ig);
+            return ht.length ? `<div class="pz-het"><span>${hoRov} ${h.tol}–${h.ig}.</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
+        }).join('');
+    const hatokor = pzKerEv ? `${ev} egész éve` : pzHoNev(pzTHo);
 
     const kovetkezo = pzFixek().map((x, i) => ({ ...x, i, h: pzHatra(x.nap),
             kesz: !!pzFixTetel(x, pzTHo) }))
@@ -6832,14 +6876,30 @@ async function renderPzNaplo(){
             <a class="link pz-wl-kez" href="#" data-pzview="tarca">${torzs.penztarca.length ? 'Tárcák kezelése' : '+ Pénztárca felvétele'} ↗</a>
         </aside>
         <div class="pz-b-kozep">
-            ${pzGyorsHtml()}
+            <div class="card pz-kereso">
+                <label class="pz-ker-mezo">${pzSvg('kereses')}
+                    <input type="search" id="pzKer" value="${esc(pzKer)}" placeholder="Keresés: megjegyzés, kategória, alkategória, tárca, összeg…" autocomplete="off" aria-label="Keresés a tételek között">
+                    ${pzKer ? `<button type="button" id="pzKerTorol" title="Keresés törlése" aria-label="Keresés törlése">×</button>` : ''}
+                </label>
+                <div class="pz-ker-sor">
+                    <div class="pz-seg2">${[['mind','Mind'],['ki','↑ Kiadás'],['bev','↓ Bevétel'],['atu','⇄ Átutalás']].map(([v,l]) =>
+                        `<button type="button" data-pzkertip="${v}"${pzKerTip===v?' class="on"':''}>${l}</button>`).join('')}</div>
+                    <div class="pz-seg2">
+                        <button type="button" data-pzkerev="0"${pzKerEv?'':' class="on"'}>Ez a hónap</button>
+                        <button type="button" data-pzkerev="1"${pzKerEv?' class="on"':''}>Egész év (${ev})</button>
+                    </div>
+                </div>
+                ${keres || pzKerEv ? `<div class="pz-ker-info"><b>${lista.length}</b> találat · ${esc(hatokor)}${szuro ? ' · ' + esc(szuro) : ''}
+                    ${lista.length ? ` · kiadás <b class="pz-down">−${pzFt(ki)} Ft</b> · bevétel <b class="pz-up">+${pzFt(be)} Ft</b>` : ''}</div>` : ''}
+            </div>
             <section class="card pz-feed">
                 ${szuro ? `<div class="pz-szuro">Csak: <b>${esc(szuro)}</b> <button type="button" class="pz-chip" data-pzntarca="">× Összes</button></div>` : ''}
-                ${feed || `<div class="pz-ures">${szuro ? 'Ebben a tárcában' : 'Ebben a hónapban'} még nincs tétel.${pzTHo === pzMaHo() ? ' Írd be fent az első összeget.' : ''}</div>`}
+                ${feed || `<div class="pz-ures">${keres ? 'Nincs a keresésnek megfelelő tétel.' : `${szuro ? 'Ebben a tárcában' : (pzKerEv ? 'Ebben az évben' : 'Ebben a hónapban')} még nincs tétel.`}
+                    ${pzTHo === pzMaHo() && !keres ? '<br><a class="link" href="#" data-pzview="honap">Új tételt a Hónap fülön rögzíthetsz ↗</a>' : ''}</div>`}
             </section>
         </div>
         <div class="pz-b-jobb">
-            <section class="card pz-sec"><h4 class="pz-sec-title">${esc(szuro || pzHoNev(pzTHo))}</h4>
+            <section class="card pz-sec"><h4 class="pz-sec-title">${esc(szuro || hatokor)}${keres ? '<span class="pz-sec-note">a találatokból</span>' : ''}</h4>
                 <div class="pz-ossz">
                     <div><span>↓ Bevétel</span><b>${pzFt(be)} Ft</b></div><span class="sv"><i style="width:${Math.round(be/nagy*100)}%;background:${PZ_SOROZAT.bev}"></i></span>
                     <div><span>↑ Kiadás</span><b>${pzFt(ki)} Ft</b></div><span class="sv"><i style="width:${Math.round(ki/nagy*100)}%;background:${PZ_SOROZAT.ki}"></i></span>
@@ -6856,7 +6916,6 @@ async function renderPzNaplo(){
             </section>
         </div>
     </div>`;
-    pzGyRajz(); pzGyFokusz();
 }
 
 /* ---- KERETEK SZERKESZTŐJE ----
@@ -7019,6 +7078,22 @@ window.sfShowPenzugyek = function(){
     page.addEventListener('change', e => { if(e.target.dataset.pz !== undefined || e.target.id === 'pzKezdo') renderPenzugyek(); });
     page.addEventListener('keydown', e => {
         if(e.key === 'Enter' && (e.target.id === 'pzGyO' || e.target.id === 'pzGyM')){ e.preventDefault(); pzGyMent(); }
+        if(e.key === 'Escape' && e.target.id === 'pzKer' && pzKer){ pzKer = ''; pzKerFrissit(); }
+    });
+    // Keresés gépelés közben: rövid késleltetéssel rajzol újra, utána a mező
+    // visszakapja a fókuszt és a kurzor a helyére kerül.
+    let kerIdo = null;
+    const pzKerFrissit = () => {
+        const inp = document.getElementById('pzKer'), poz = inp ? inp.selectionStart : null;
+        renderPzNaplo().then(() => {
+            const u = document.getElementById('pzKer');
+            if(u && poz != null){ u.focus(); u.setSelectionRange(poz, poz); }
+        });
+    };
+    page.addEventListener('input', e => {
+        if(e.target.id !== 'pzKer') return;
+        pzKer = e.target.value;
+        clearTimeout(kerIdo); kerIdo = setTimeout(pzKerFrissit, 180);
     });
     page.addEventListener('click', e => {
         const y = e.target.closest('[data-pzyear]');
@@ -7074,6 +7149,11 @@ window.sfShowPenzugyek = function(){
         const fx = e.target.closest('[data-pzfix]');
         if(fx){ pzFixValt(+fx.dataset.pzfix); return; }
         if(e.target.closest('#pzKeretBtn') || e.target.closest('#pzKeretBtn2')){ pzKeretModal(); return; }
+        const kt = e.target.closest('[data-pzkertip]');
+        if(kt){ pzKerTip = kt.dataset.pzkertip; renderPzNaplo(); return; }
+        const ke = e.target.closest('[data-pzkerev]');
+        if(ke){ pzKerEv = ke.dataset.pzkerev === '1'; renderPzNaplo(); return; }
+        if(e.target.closest('#pzKerTorol')){ pzKer = ''; renderPzNaplo().then(() => document.getElementById('pzKer')?.focus()); return; }
         const nw = e.target.closest('[data-pzntarca]');
         if(nw){ pzNTarca = nw.dataset.pzntarca; renderPzNaplo(); return; }
         if(e.target.closest('#pzTorzsUj')){ pzTorzsModal(null); return; }
@@ -7102,7 +7182,13 @@ window.sfShowPenzugyek = function(){
         }
         const sor = e.target.closest('[data-pztid]');
         if(sor){
-            const t = (pzTranz[pzTHo] || []).find(x => x.id === sor.dataset.pztid);
+            // Az éves keresés találata más hónapban is lehet: a tételablak a
+            // tétel saját hónapjában dolgozik, ezért arra állunk át.
+            let t = (pzTranz[pzTHo] || []).find(x => x.id === sor.dataset.pztid);
+            if(!t) for(const [h, l] of Object.entries(pzTranz)){
+                const x = (l || []).find(y => y.id === sor.dataset.pztid);
+                if(x){ t = x; pzTHo = h; break; }
+            }
             if(t) pzTetelModal(t);
             return;
         }
@@ -9515,7 +9601,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=56";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=57";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
