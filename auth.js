@@ -12,11 +12,10 @@ import {
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 // A ?v= a böngésző-gyorsítótár miatt kell: enélkül egy config-változás
 // (pl. a googleClientId ki-/bekapcsolása) nem ér el a már betöltött
 // gépekre. Az index.html/login.html auth.js?v= értékével EGYÜTT léptesd.
-import { firebaseConfig, isConfigured, googleClientId } from "./firebase-config.js?v=32";
+import { firebaseConfig, isConfigured, googleClientId, stravaWorkerUrl } from "./firebase-config.js?v=33";
 
 export { isConfigured };
 
@@ -260,12 +259,26 @@ export async function saveEdzes(uid, kulcs, data){
     await setDoc(doc(db, "edzes", uid + "_" + kulcs), data);
 }
 
-// A Strava-függvények hívása (stravaCsatol / stravaSzinkron / stravaLevalaszt).
-// A tokeneket csak a szerver látja; ide a hiba üzenete jön vissza magyarul.
+// A Strava-szerver (Cloudflare Worker, cloudflare/strava-worker.js) hívása.
+// A belépést a Firebase ID tokennel igazoljuk; a Strava-tokeneket csak a
+// Worker látja. Hibánál a Worker magyar üzenete jön vissza.
+const STRAVA_UTAK = { stravaCsatol: "/csatol", stravaSzinkron: "/szinkron", stravaLevalaszt: "/levalaszt" };
 export async function stravaHivas(nev, adat){
-    if(!isConfigured || !functions) throw new Error("A Firebase nincs beállítva.");
-    const r = await httpsCallable(functions, nev, { timeout: 60000 })(adat || {});
-    return r.data;
+    if(!stravaWorkerUrl) throw new Error("A Strava-szerver (Cloudflare Worker) címe még nincs beállítva.");
+    const user = auth && auth.currentUser;
+    if(!user) throw new Error("Jelentkezz be újra.");
+    const idToken = await user.getIdToken();
+    let r;
+    try {
+        r = await fetch(stravaWorkerUrl.replace(/\/+$/, "") + STRAVA_UTAK[nev], {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + idToken },
+            body: JSON.stringify(adat || {}),
+        });
+    } catch(e){ throw new Error("A Strava-szerver nem érhető el – ellenőrizd a hálózatot."); }
+    const j = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(j.hiba || `A Strava-szerver hibát jelzett (${r.status}).`);
+    return j;
 }
 
 // Munkatárs személyes céljai – celok/{uid}. Egy dokumentumban a vízió, a
@@ -451,7 +464,7 @@ export async function getEmployees(){
     } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
 }
 
-let app, auth, db, storage, functions;
+let app, auth, db, storage;
 if (isConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -465,9 +478,6 @@ if (isConfigured) {
     // késleltetés árán, de nem hasal el csendben az írás/olvasás).
     db = initializeFirestore(app, { experimentalForceLongPolling: true });
     storage = getStorage(app);
-    // A Strava-összekötés függvényei (functions/index.js) – ugyanabban a
-    // régióban, ahová ki vannak telepítve.
-    functions = getFunctions(app, "europe-west1");
 }
 export { auth, db, storage };
 

@@ -31,5 +31,14 @@ export const firebaseConfig = {
 // csatlakozással működik tovább (hasAutoConnect() → false).
 export const googleClientId = "494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com";
 
+// ----------------------------------------------------------------------------
+//  STRAVA-SZERVER (Cloudflare Worker) CÍME
+//  A cloudflare/strava-worker.js kódja fut rajta; a Worker neve alatt a
+//  Cloudflare felületén látszik, pl. https://sikerfuzet-strava.valami.workers.dev
+//  Ez is PUBLIKUS (a titkos Client Secret a Workerben van, nem itt).
+//  Üresen hagyva az Edzések oldal kézi jelöléssel működik tovább.
+// ----------------------------------------------------------------------------
+export const stravaWorkerUrl = "";
+
 // Igaz, ha már valós config van beállítva (nem placeholder).
 export const isConfigured = !String(firebaseConfig.apiKey).includes("PLACEHOLDER");

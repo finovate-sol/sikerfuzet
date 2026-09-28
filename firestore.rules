@@ -159,14 +159,10 @@ service cloud.firestore {
     // költésnapló – a vezető "ránézés" módban sem lát bele. A kulcs
     // "{uid}_torzs" vagy "{uid}_2026" alakú, a gazda az első szelet.
     // A Strava-profil ("{uid}_strava") és a leszinkronizált aktivitások
-    // ("{uid}_sv2026") is itt vannak – ezeket a szerver (functions/) írja,
-    // az app csak olvassa.
+    // ("{uid}_sv2026") is itt vannak. A Strava-TOKEN viszont nem a Firestore-ban
+    // van, hanem a Strava-szerveren (cloudflare/strava-worker.js) – a böngésző
+    // sosem látja.
     match /edzes/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
-
-    // A Strava access/refresh tokenje. A böngészőből SEM olvasni, SEM írni
-    // nem lehet – csak a Cloud Function éri el (az Admin SDK megkerüli a
-    // szabályokat). Így egy ellopott böngésző-munkamenetből sem szerezhető meg.
-    match /strava_token/{userId} { allow read, write: if false; }
 
     match /havi_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
     match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }

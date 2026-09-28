@@ -10608,14 +10608,24 @@ let ezAdat = {};             // 'torzs' | '2026' → adat
 let ezHiba = new Set();      // ezek nem jöttek le a szerverről → csak helyben mentünk, hogy ne írjuk felül
 let ezAdatUid = null;
 const ezLKey = k => `sf_edzes_${ezUid()}_${k}`;
-// A Strava-profil ('strava') és a leszinkronizált aktivitások ('sv2026') a
-// szerver (functions/) dolga – az app csak olvassa őket, sosem menti.
+// A Strava-profil ('strava') és a leszinkronizált aktivitások ('sv2026'). A
+// Strava-szerver (Cloudflare Worker) adja őket, az app menti a Firestore-ba.
+// Ha nem jönnek le, az nem adatvesztés – egy szinkron újra előállítja –, ezért
+// ezekre nem írjuk ki a "csak helyben mentünk" figyelmeztetést.
 const ezCsakSzerver = k => k === 'strava' || k.startsWith('sv');
 const ezStravaKapcs = () => !!(ezAdat.strava && ezAdat.strava.athleteId);
-function ezCacheEllenor(){ if(ezAdatUid !== ezUid()){ ezAdat = {}; ezHiba = new Set(); ezAdatUid = ezUid(); } }
-async function ezBetolt(k){
+let ezToltes = {};           // a folyamatban lévő betöltések – ugyanazt a kulcsot egyszerre csak egyszer kérjük le
+function ezCacheEllenor(){ if(ezAdatUid !== ezUid()){ ezAdat = {}; ezHiba = new Set(); ezToltes = {}; ezAdatUid = ezUid(); } }
+// Két egyidejű betöltés (pl. szinkron és újrarajzolás) ugyanarra a kulcsra
+// ugyanazt az objektumot kapja – különben a később érkező, régebbi példány
+// felülírná azt, amibe a másik már beleírt.
+function ezBetolt(k){
     ezCacheEllenor();
-    if(ezAdat[k]) return ezAdat[k];
+    if(ezAdat[k]) return Promise.resolve(ezAdat[k]);
+    return ezToltes[k] || (ezToltes[k] = ezBetoltSzerverrol(k).finally(() => { delete ezToltes[k]; }));
+}
+async function ezBetoltSzerverrol(k){
+    const kiee = ezAdatUid;
     const helyi = store.load(ezLKey(k), null);
     let adat = helyi;
     const uid = ezUid();
@@ -10629,7 +10639,7 @@ async function ezBetolt(k){
         if(!Array.isArray(adat.versenyek)) adat.versenyek = [];
     }
     else if(k !== 'strava' && (!adat.napok || typeof adat.napok !== 'object')) adat.napok = {};
-    if(ezCsakSzerver(k)) store.save(ezLKey(k), adat);
+    if(kiee !== ezAdatUid) return adat;         // közben felhasználót váltottak – ne keverjük össze
     return (ezAdat[k] = adat);
 }
 const ezEvekBetolt = (...napok) => Promise.all([...new Set(napok.map(s => s.slice(0, 4)))]
@@ -11206,9 +11216,7 @@ function ezSzinkIdo(){
     return ezS(d) === ezMa() ? `ma ${ora}` : `${ezRovidD(ezS(d))} ${ora}`;
 }
 function ezHibaSzoveg(e){
-    const kod = String((e && e.code) || ''), m = String((e && e.message) || e || '');
-    if(kod.includes('not-found') || m === 'internal' || m === 'INTERNAL')
-        return 'a Strava-szerver még nincs telepítve (firebase deploy --only functions), vagy nem érhető el.';
+    const m = String((e && e.message) || e || '');
     return m || 'ismeretlen hiba';
 }
 // A Strava-belépés: a Strava visszairányít ide ?code=…&scope=…&state=… paraméterekkel.
@@ -11229,9 +11237,16 @@ async function ezStravaSzinkron(kezi){
     const ma = ezMa();
     try {
         const r = await window.sfStravaHivas('stravaSzinkron', { tol: ezPlusz(ma, -35), ig: ma });
+        // A lehúzott napok felülírják a korábbiakat (egy nap üres listája is
+        // információ: aznap nem volt aktivitás); a többi nap marad.
+        const evek = {};
+        for(const [nap, l] of Object.entries(r.napok || {})) if(/^\d{4}-\d{2}-\d{2}$/.test(nap)) (evek[nap.slice(0, 4)] ||= {})[nap] = l;
+        for(const [ev, napok] of Object.entries(evek)){
+            const k = 'sv' + ev, d = await ezBetolt(k);
+            Object.assign(d.napok, napok); d.frissitve = r.utolsoSzinkron; ezMent(k);
+        }
         ezAdat.strava = { ...ezAdat.strava, utolsoSzinkron: r.utolsoSzinkron };
-        store.save(ezLKey('strava'), ezAdat.strava);
-        for(const k of Object.keys(ezAdat)) if(k.startsWith('sv')) delete ezAdat[k];   // a friss aktivitásokat újraolvassuk
+        ezMent('strava');
         ezUz = kezi ? { t: `Szinkron kész: ${r.db} Strava-aktivitás az elmúlt 5 hétből.` } : null;
     } catch(e){ ezUz = { t: 'A Strava-szinkron nem sikerült: ' + ezHibaSzoveg(e), hiba: true }; }
     ezSzinkronFut = false;
@@ -11241,7 +11256,7 @@ async function ezStravaLe(){
     if(!confirm('Leválasztod a Strava-fiókodat? A Strava-igazolások eltűnnek a naptárból, a kézi jelöléseid megmaradnak.')) return;
     try {
         await window.sfStravaHivas('stravaLevalaszt', {});
-        ezAdat.strava = {}; store.save(ezLKey('strava'), {});
+        ezAdat.strava = {}; ezMent('strava');
         ezUz = { t: 'A Strava leválasztva.' };
     } catch(e){ ezUz = { t: 'A leválasztás nem sikerült: ' + ezHibaSzoveg(e), hiba: true }; }
     renderEdz();
@@ -11269,7 +11284,7 @@ function ezStravaVisszaFeldolgoz(){
     ezUz = { t: 'A Strava összekötése folyamatban…' }; renderEdz();
     window.sfStravaHivas('stravaCsatol', { code: v.code, scope: v.scope })
         .then(p => {
-            ezAdat.strava = p; store.save(ezLKey('strava'), p);
+            ezAdat.strava = p; ezMent('strava');
             ezUz = { t: `Strava összekötve: ${p.nev}. Most lehúzom az elmúlt 5 hét edzéseit…` };
             return ezStravaSzinkron(true);
         })
@@ -11343,7 +11358,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=69";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=70";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
