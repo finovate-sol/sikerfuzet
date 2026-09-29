@@ -3132,7 +3132,6 @@
         .ez-prog .k b { font-size:14.5px; color:var(--navy); } .ez-prog .k em { font-style:normal; font-size:12px; color:var(--muted); }
         .ez-prog .k span { font-size:12.5px; color:#475569; line-height:1.45; margin-top:3px; }
         .ez-prog .btn { flex:none; white-space:nowrap; }
-        .ez-prog-kesz { flex:none; font-size:12px; font-weight:800; color:#15803d; background:#dcf5e6; border-radius:99px; padding:5px 10px; white-space:nowrap; }
         @media (max-width:560px){ .ez-prog { flex-direction:column; } }
         .ez-gy-cim { margin-top:22px; } .ez-gy-megj { margin:-4px 2px 10px; }
         .ez-gy-lista { display:flex; flex-wrap:wrap; gap:8px; }
@@ -11621,9 +11620,10 @@ function ezSablonHtml(){
         const van = sab.filter(s => s.prog === p.id).length, gyDb = new Set(p.sablonok.flatMap(x => x.gy.map(g => ezNevKulcs(g[0])))).size;
         return `<div class="ez-prog">
             <div class="k"><b>${esc(p.n)}</b><em>${p.sablonok.length} edzésnap · ${gyDb} gyakorlat · forrás: ${esc(p.forras)}</em><span>${esc(p.leiras)}</span></div>
-            ${van >= p.sablonok.length ? '<span class="ez-prog-kesz">✓ A sablonjaid között</span>'
-                : `<button type="button" class="btn ez-gb-kek" data-ezprog="${esc(p.id)}">${van ? 'Hiányzók hozzáadása' : 'Hozzáadom'}</button>`}</div>`;
+            <button type="button" class="btn ez-gb-kek" data-ezprog="${esc(p.id)}">${van ? 'Hiányzók hozzáadása' : 'Hozzáadom'}</button></div>`;
     };
+    // a már teljesen hozzáadott programot nem kínáljuk újra – eltávolítás után visszajön
+    const progNem = EZ_PROGRAMOK.filter(p => p.sablonok.some(x => !sab.some(s => s.id === p.id + '-' + x.k)));
     return `<div class="ez-sab-fej"><span>Az előre definiált edzéseid. Tervezéskor ezek közül választasz, a napon a célt felülírhatod.</span>
             <button type="button" class="btn primary ez-gb-kek" data-ezsabuj>+ Új sablon</button></div>
         ${csop.map(([k, n, l]) => { const cs = tobb && ezSabCsuk.has(k || '_'); return `<section class="ez-sab-csop${cs ? ' csukva' : ''}">
@@ -11631,9 +11631,9 @@ function ezSablonHtml(){
             ${cs ? '' : `<div class="ez-sab-racs">${l.map(ezSabKartya).join('')}</div>`}
             ${k && !cs ? `<button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(k)}">A program sablonjainak eltávolítása</button>` : ''}
         </section>`; }).join('')}
-        <div class="ez-vers-cim ez-gy-cim">Kész edzéstervek</div>
+        ${progNem.length ? `<div class="ez-vers-cim ez-gy-cim">Kész edzéstervek</div>
         <p class="ez-megj ez-gy-megj">Egy gombbal a sablonjaid közé kerülnek, a hiányzó gyakorlatokkal együtt. Utána úgy szerkeszted őket, mint a sajátjaidat.</p>
-        <div class="ez-prog-lista">${EZ_PROGRAMOK.map(progKartya).join('')}</div>
+        <div class="ez-prog-lista">${progNem.map(progKartya).join('')}</div>` : ''}
         <div class="ez-vers-cim ez-gy-cim">Gyakorlatok · ${ezGyakLista().length}</div>
         <p class="ez-megj ez-gy-megj">A szettnapló ezekből dolgozik: a sablonba teszed őket, edzés közben súlyt és ismétlést rögzítesz, a Csúcsok fülön pedig látod a legjobbjaidat.</p>
         <div class="ez-gy-kat">${ezGyakCsopok(ezGyakLista()).map(([k, n, l]) => `<section class="ez-gy-kcs">
