@@ -168,11 +168,38 @@
         .su-logout { background:transparent; border:1px solid rgba(255,255,255,.2); color:#cdd8ea; border-radius:8px; padding:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .su-logout svg { width:16px; height:16px; }
         .su-logout:hover { background:rgba(255,255,255,.09); color:#fff; }
-        .sidebar-viewas { padding:10px 16px 14px; border-bottom:1px solid rgba(255,255,255,.09); }
-        .viewas-label { display:block; font-size:10.5px; font-weight:700; color:#8fa1c2; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+        /* Lábléc-ikonsor: Nézet, Admin, Kilépés egy sorban a profil mellett */
+        .sidebar-user { position:relative; gap:6px; padding:12px 12px 14px; }
+        .sidebar-user .su-name { margin-left:4px; }
+        .su-ikon { width:36px; height:36px; flex-shrink:0; border:0; border-radius:10px; background:transparent; color:#cdd8ea;
+                   display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; }
+        .su-ikon[hidden] { display:none; }
+        .su-ikon svg { width:17px; height:17px; }
+        .su-ikon:hover { background:rgba(255,255,255,.09); color:#fff; }
+        .su-ikon:focus-visible { outline:2px solid #fff; outline-offset:1px; }
+        .su-ikon.active, .su-ikon[aria-expanded="true"] { background:var(--blue); color:#fff; }
+        /* más nézetét nézed: a szem borostyán, hogy ne felejtsd el */
+        .su-ikon.mas { background:#fef3c7; color:#78350f; }
+        body.sf-privat .su-ikon { color:#e4dbf5; }
+        body.sf-privat .su-ikon.active, body.sf-privat .su-ikon[aria-expanded="true"] { background:#7c3aed; color:#fff; }
+        .sidebar-viewas { position:absolute; left:12px; right:12px; bottom:calc(100% + 6px); z-index:5; padding:8px; border-radius:14px;
+                          background:#1c3f78; border:1px solid rgba(255,255,255,.12); box-shadow:0 16px 40px rgba(5,15,35,.5);
+                          display:flex; flex-direction:column; gap:2px; max-height:min(60vh,420px); overflow-y:auto; }
+        .sidebar-viewas[hidden] { display:none; }
+        body.sf-privat .sidebar-viewas { background:#3b2366; }
+        .viewas-lista { display:flex; flex-direction:column; gap:2px; }
+        .viewas-elem { display:flex; align-items:center; gap:10px; width:100%; padding:7px 9px; border:0; border-radius:8px; background:transparent;
+                       color:#e6ecf5; font:inherit; font-size:13.5px; text-align:left; cursor:pointer; }
+        .viewas-elem:hover { background:rgba(255,255,255,.08); }
+        .viewas-elem.on { background:rgba(255,255,255,.1); color:#fff; font-weight:700; }
+        .viewas-elem i { width:26px; height:26px; flex-shrink:0; border-radius:99px; background:rgba(255,255,255,.14); color:#fff; font-style:normal;
+                         display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800; }
+        .viewas-elem span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .viewas-elem b { color:#93c5fd; } body.sf-privat .viewas-elem b { color:#c4b5fd; }
+        .viewas-label { display:block; font-size:10px; font-weight:800; color:#9fb0cc; text-transform:uppercase; letter-spacing:.08em; padding:6px 9px 4px; }
         .viewas-select { width:100%; padding:7px 9px; border-radius:8px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:13px; font-family:inherit; }
         .viewas-select option { color:#1c2b45; }
-        .sidebar.collapsed .sidebar-viewas { display:none; }
+        .sidebar.collapsed .sidebar-viewas:not([hidden]) { display:flex; }
 
         /* Bal oldali menü összecsukása – csak asztali méretnél (mobilon a sidebar
            amúgy is teljes szélességű kihúzható fiók, ott nincs értelme az ikon-módnak). */
@@ -189,7 +216,8 @@
             .sidebar.collapsed .sf-ter-cimke { display:none !important; }
             .sidebar.collapsed .sf-ter { justify-content:center; margin:10px 8px; padding:10px 0; }
             .sidebar.collapsed .sf-ter-ik, .sidebar.collapsed .sf-ter-k { display:none !important; }
-            .sidebar.collapsed .sidebar-user { justify-content:center; padding:14px 8px; }
+            .sidebar.collapsed .sidebar-user { justify-content:center; flex-direction:column; padding:12px 8px; }
+            .sidebar.collapsed .sidebar-viewas { left:calc(100% + 8px); right:auto; bottom:8px; width:230px; }
             .sidebar.collapsed .sidebar-user .su-name { display:none; }
             /* Összecsukva az avatar és a kilépés gomb egymás mellett
                szorongott a keskeny sávban – itt csak a kilépés maradjon. */
@@ -197,7 +225,6 @@
             /* Összecsukva a lábléc csak a kilépés gombot mutassa – az Admin
                gomb ikonként zsugorítva furán jelent meg, inkább teljesen
                eltűnik, és a sáv kinyitásával érhető el újra. */
-            .sidebar.collapsed #adminPanel { display:none; }
         }
 
         /* ===== MAIN ===== */
@@ -4024,28 +4051,24 @@
             <span class="sf-ter-k"><b>Privát mód</b><span class="sf-ovb-csak">Most az OVB rész</span><span class="sf-priv-csak">Most a saját részed</span></span>
             <button type="button" class="sf-ter-kapcs" id="sfTerBtn" role="switch" aria-checked="false" aria-label="Privát mód" title="Privát mód"><i></i></button>
         </div>
+        <!-- Lábléc: profil és egy ikonsor – Nézet (ránézés), Admin, Kilépés.
+             A Nézet és az Admin csak annak látszik, akinek van jogosultsága. -->
         <div class="sidebar-user">
             <div class="avatar" id="userAvatar">SM</div>
             <span class="su-name" id="userName">Szécsi Márk</span>
-            <button class="su-logout" id="logoutBtn" hidden title="Kilépés">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+            <button type="button" class="su-ikon" id="viewAsBtn" hidden aria-label="Nézet váltása (ránézés)" aria-expanded="false" aria-controls="sidebarViewAs" title="Nézet">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-        </div>
-        <div class="sidebar-viewas" id="sidebarViewAs" hidden>
-            <label class="viewas-label" for="viewAsSelect">Nézet</label>
-            <select id="viewAsSelect" class="viewas-select">
-                <option value="">Saját nézet</option>
-            </select>
-            <button class="su-logout viewas-back-btn" id="viewAsBackBtn" type="button" hidden style="width:100%; justify-content:center; gap:7px; margin-top:8px; font-size:12px; font-weight:700;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Vissza a sajátomhoz
-            </button>
-        </div>
-        <div id="adminPanel" hidden style="padding:12px 16px; border-top:1px solid rgba(255,255,255,.09);">
-            <a href="#" class="su-logout" id="adminInfoBtn" data-page="admin" title="Admin" style="width:100%; justify-content:center; gap:8px; text-decoration:none;">
+            <a href="#" class="su-ikon" id="adminInfoBtn" data-page="admin" hidden title="Admin" aria-label="Admin">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span class="nav-label">Admin</span>
             </a>
+            <button type="button" class="su-ikon" id="logoutBtn" hidden title="Kilépés" aria-label="Kilépés">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+            </button>
+            <div class="sidebar-viewas" id="sidebarViewAs" hidden>
+                <span class="viewas-label">Kinek a nézete</span>
+                <div class="viewas-lista" id="viewAsLista"></div>
+            </div>
         </div>
     </aside>
 
@@ -12304,7 +12327,8 @@ window.sfOnViewSwitch = function(){
         const nameEl = document.getElementById("userName");
         const avatarEl = document.getElementById("userAvatar");
         const logoutBtn = document.getElementById("logoutBtn");
-        if (nameEl) nameEl.childNodes[0].nodeValue = (user.displayName || user.email) + " ";
+        // Az ikonsor mellett csak a keresztnév fér el; a teljes név a buborékban.
+        if (nameEl){ const tel = user.displayName || user.email || ""; nameEl.textContent = (user.displayName ? tel.split(/\s+/)[0] : tel.split("@")[0]) || tel; nameEl.title = tel; }
         if (avatarEl) avatarEl.textContent = initials(user.displayName, user.email);
         if (logoutBtn){ logoutBtn.hidden = false; logoutBtn.addEventListener("click", logout); }
         initCalendar();
@@ -12433,42 +12457,56 @@ window.sfOnViewSwitch = function(){
     // (Google Tasks) nem támogat fiókok közötti megosztást, ott letiltjuk.
     function setupViewAsSwitcher(){
         const wrap = document.getElementById("sidebarViewAs");
-        const sel = document.getElementById("viewAsSelect");
-        const backBtn = document.getElementById("viewAsBackBtn");
-        if (!wrap || !sel) return;
+        const lista = document.getElementById("viewAsLista");
+        const btn = document.getElementById("viewAsBtn");
+        if (!wrap || !lista || !btn) return;
         // Admin bárkire ránézhet; egyéb vezetők csak a hozzáférés-térkép szerinti beosztottjaikra.
         const employees = (window.sfEmployeesList || []).filter(e =>
             e.uid !== window.sfCurrentUser.uid && (window.sfIsAdmin || (window.sfVisibleUids && window.sfVisibleUids.has(e.uid))));
         if (!employees.length) return;   // nincs (még) beosztott – nincs mit váltani
         window.sfViewAsEmployees = employees;
-        sel.innerHTML = `<option value="">Saját nézet</option>` + employees
-            .map(e => `<option value="${e.uid}">${(e.name || e.email || "").replace(/</g,"&lt;")}</option>`).join("");
-        wrap.hidden = false;
-        // Ez a függvény minden alkalommal lefut, amikor a bejelentkezés-
-        // állapot újraellenőrződik (pl. token-frissítéskor) – ilyenkor a
-        // "saját nézet" is mindig újraáll (lásd sfViewedUid = user.uid a
-        // hívás előtt), a legördülő pedig alapállapotból épül fel. A "Vissza
-        // a sajátomhoz" gomb láthatóságát enélkül a sor nélkül nem követte
-        // ez a visszaállás, és láthatóként ragadt be egy korábbi "rá tud
-        // nézni" váltás után, holott már a saját nézet volt aktív.
-        sel.value = "";
-        if (backBtn) backBtn.hidden = true;
-        // A "más nézetét nézed" jelzés a sidebaron belül marad: a legördülő
-        // maga mutatja, kit nézünk, a "Vissza a sajátomhoz" gomb pedig csak
-        // ilyenkor jelenik meg alatta – nincs külön, a tartalom tetején
-        // megjelenő figyelmeztető sáv.
+        btn.hidden = false;
+        // A lábléc szem-ikonja nyitja a listát. Ha valaki más nézetét nézed,
+        // a szem borostyánszínű (és a buborékja megmondja, kiét) – így nem
+        // felejted el, hogy nem a saját adataidat látod. Ez a függvény minden
+        // bejelentkezés-ellenőrzéskor lefut; ilyenkor a saját nézet áll vissza
+        // (sfViewedUid = user.uid a hívás előtt), ezért mindent újrarajzolunk.
+        const own = window.sfCurrentUser.uid;
+        const monogram = e => initials(e.name, e.email);
+        const rajz = () => {
+            const cur = window.sfViewedUid || own;
+            const sor = (uid, nev, mono) => `<button type="button" class="viewas-elem${cur === uid ? " on" : ""}" data-viewas="${uid}">
+                <i>${escM(mono)}</i><span>${escM(nev)}</span>${cur === uid ? "<b>✓</b>" : ""}</button>`;
+            lista.innerHTML = sor(own, "Saját nézet", initials(window.sfCurrentUser.name, window.sfCurrentUser.email))
+                + employees.map(e => sor(e.uid, e.name || e.email || "", monogram(e))).join("");
+            const mas = employees.find(e => e.uid === cur);
+            btn.classList.toggle("mas", !!mas);
+            btn.title = mas ? `${mas.name || mas.email} nézete – kattints a váltáshoz` : "Nézet";
+        };
+        const nyit = open => { wrap.hidden = !open; btn.setAttribute("aria-expanded", open ? "true" : "false"); };
         const applyView = (uid) => {
-            const own = window.sfCurrentUser.uid;
             window.sfViewedUid = uid || own;
-            const isOther = window.sfViewedUid !== own;
-            if (backBtn) backBtn.hidden = !isOther;
-            sel.value = isOther ? window.sfViewedUid : "";
+            rajz(); nyit(false);
             loadAndDistributeClients();
             if (typeof window.sfOnViewSwitch === "function") window.sfOnViewSwitch();
             initCalendar();
         };
-        sel.addEventListener("change", () => applyView(sel.value));
-        if (backBtn) backBtn.addEventListener("click", () => applyView(""));
+        rajz(); nyit(false);
+        // Újrahíváskor a kezelők is cserélődnek (onclick, ill. a korábbi levétele),
+        // hogy mindig a friss munkatárslistával dolgozzanak.
+        btn.onclick = e => { e.stopPropagation(); nyit(wrap.hidden); };
+        lista.onclick = e => {
+            const b = e.target.closest("[data-viewas]"); if (!b) return;
+            applyView(b.dataset.viewas === own ? "" : b.dataset.viewas);
+        };
+        if (window.__viewAsKint){ document.removeEventListener("click", window.__viewAsKint); document.removeEventListener("keydown", window.__viewAsKint); }
+        window.__viewAsKint = e => {
+            if (wrap.hidden) return;
+            if (e.type === "click" && !wrap.contains(e.target)) nyit(false);
+            if (e.type === "keydown" && e.key === "Escape"){ nyit(false); btn.focus(); }
+        };
+        document.addEventListener("click", window.__viewAsKint);
+        document.addEventListener("keydown", window.__viewAsKint);
     }
 
     const KT_ARCH_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></svg>';
@@ -12633,9 +12671,8 @@ window.sfOnViewSwitch = function(){
     }
 
     function setupAdminPanel(){
-        const panel = document.getElementById("adminPanel");
-        if(!panel) return;
-        panel.hidden = false;
+        const btn = document.getElementById("adminInfoBtn");
+        if(btn) btn.hidden = false;
     }
 
     function openAdminModal(){
