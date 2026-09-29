@@ -3125,7 +3125,23 @@
         .ez-sab-csf i { font-style:normal; font-size:18px; color:var(--muted); transform:rotate(90deg); transition:transform .15s; width:14px; text-align:center; }
         .ez-sab-csop.csukva .ez-sab-csf i { transform:none; }
         .ez-sab-csf b { font-size:15px; color:var(--navy); } .ez-sab-csf span { font-size:11.5px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:1px 8px; }
-        .ez-prog-torol { margin-top:8px; font-size:12px; color:var(--muted); }
+        .ez-sab-csfs { display:flex; align-items:center; gap:4px; position:relative; }
+        .ez-sab-csfs .ez-sab-csf { width:auto; }
+        .ez-tipw { position:relative; display:inline-flex; margin-bottom:4px; }
+        .ez-info { width:22px; height:22px; border-radius:99px; border:1.5px solid #b6c2d3; background:#fff; color:#5b6a80; font:italic 800 12px/1 Georgia, serif; cursor:pointer; padding:0; }
+        .ez-info:hover, .ez-tipw.nyitva .ez-info { border-color:var(--blue); color:var(--blue); background:#e8effc; }
+        .ez-tip { display:none; position:absolute; z-index:30; top:calc(100% + 8px); left:-12px; width:340px; max-width:calc(100vw - 40px); box-sizing:border-box;
+            background:#fff; border:1px solid var(--border); border-radius:14px; box-shadow:0 12px 32px rgba(15,47,95,.16); padding:14px 16px; flex-direction:column; gap:5px; }
+        .ez-tip::before { content:''; position:absolute; top:-6px; left:19px; width:10px; height:10px; background:#fff; border-left:1px solid var(--border); border-top:1px solid var(--border); transform:rotate(45deg); }
+        .ez-tipw.nyitva .ez-tip { display:flex; }
+        .ez-tip b { font-size:14px; color:var(--navy); } .ez-tip em { font-style:normal; font-size:12px; color:var(--muted); }
+        .ez-tip > span { font-size:12.5px; color:#475569; line-height:1.45; }
+        .ez-tip-het { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; margin-top:4px; }
+        .ez-tip-het span { display:flex; flex-direction:column; align-items:center; gap:2px; background:#f5f3ff; color:#6d28d9; border-radius:8px; padding:5px 2px; font-size:10.5px; font-weight:700; text-align:center; line-height:1.15; }
+        .ez-tip-het span.pih { background:#eef1f5; color:#64748b; }
+        .ez-tip-het em { font-size:10px !important; font-weight:800; color:inherit !important; opacity:.7; }
+        .ez-prog-torol { margin-top:6px; font-size:12px; color:var(--red, #b91c1c); align-self:flex-start; }
+        @media (max-width:560px){ .ez-tipw { position:static; } .ez-tip { left:0; width:100%; max-width:none; } .ez-tip::before { display:none; } }
         .ez-prog-lista { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:10px; }
         .ez-prog { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; display:flex; gap:14px; align-items:flex-start; }
         .ez-prog .k { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
@@ -11614,6 +11630,21 @@ const ezSabKartya = s => `<div class="card ez-sab">${ezIk(s.sport)}
                 ${s.leiras ? `<span>${esc(String(s.leiras).split('\n').filter(Boolean).join(' · '))}</span>` : ''}</div>
             <div class="g"><button type="button" class="ez-link" data-eztervez="${esc(s.id)}">Tervezés</button>
                 <button type="button" class="ez-link" data-ezsabszerk="${esc(s.id)}">Szerkesztés</button></div></div>`;
+// Info gomb a program csoportfejlécében – buborékban a program leírása, heti rendje és az eltávolítás.
+function ezProgInfo(p, l){
+    if(!p) return '';
+    const gyDb = new Set(p.sablonok.flatMap(x => x.gy.map(g => ezNevKulcs(g[0])))).size;
+    const het = (p.het || []).length ? `<div class="ez-tip-het">${p.het.map((sid, i) => { const s = l.find(x => x.id === sid);
+        return `<span${sid ? '' : ' class="pih"'}><em>${EZ_NAP_R[i]}</em>${sid ? esc(s ? s.n.replace(/^CBum · /, '') : '—') : 'pihenő'}</span>`; }).join('')}</div>` : '';
+    return `<span class="ez-tipw"><button type="button" class="ez-info" data-ezinfo aria-expanded="false" aria-label="A programról">i</button>
+        <span class="ez-tip" role="dialog" aria-label="${esc(p.n)}"><b>${esc(p.n)}</b>
+            <em>${p.sablonok.length} edzésnap · ${gyDb} gyakorlat · forrás: ${esc(p.forras)}</em>
+            <span>${esc(p.leiras)}</span>${het}
+            <button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(p.id)}">A program sablonjainak eltávolítása</button></span></span>`;
+}
+const ezTipZar = () => document.querySelectorAll('.ez-tipw.nyitva').forEach(x => { x.classList.remove('nyitva'); x.firstElementChild.setAttribute('aria-expanded', 'false'); });
+document.addEventListener('click', e => { if(!e.target.closest('.ez-tipw')) ezTipZar(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') ezTipZar(); });
 function ezSablonHtml(){
     const sab = ezAdat.torzs.sablonok, csop = ezSabCsopok(sab), tobb = csop.length > 1;
     const progKartya = p => {
@@ -11627,9 +11658,9 @@ function ezSablonHtml(){
     return `<div class="ez-sab-fej"><span>Az előre definiált edzéseid. Tervezéskor ezek közül választasz, a napon a célt felülírhatod.</span>
             <button type="button" class="btn primary ez-gb-kek" data-ezsabuj>+ Új sablon</button></div>
         ${csop.map(([k, n, l]) => { const cs = tobb && ezSabCsuk.has(k || '_'); return `<section class="ez-sab-csop${cs ? ' csukva' : ''}">
-            ${tobb ? `<button type="button" class="ez-sab-csf" data-ezsabcsuk="${esc(k || '_')}" aria-expanded="${!cs}"><i aria-hidden="true">›</i><b>${esc(n)}</b><span>${l.length}</span></button>` : ''}
+            ${tobb ? `<div class="ez-sab-csfs"><button type="button" class="ez-sab-csf" data-ezsabcsuk="${esc(k || '_')}" aria-expanded="${!cs}"><i aria-hidden="true">›</i><b>${esc(n)}</b><span>${l.length}</span></button>
+                ${k ? ezProgInfo(EZ_PROGRAMOK.find(p => p.id === k), l) : ''}</div>` : ''}
             ${cs ? '' : `<div class="ez-sab-racs">${l.map(ezSabKartya).join('')}</div>`}
-            ${k && !cs ? `<button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(k)}">A program sablonjainak eltávolítása</button>` : ''}
         </section>`; }).join('')}
         ${progNem.length ? `<div class="ez-vers-cim ez-gy-cim">Kész edzéstervek</div>
         <p class="ez-megj ez-gy-megj">Egy gombbal a sablonjaid közé kerülnek, a hiányzó gyakorlatokkal együtt. Utána úgy szerkeszted őket, mint a sajátjaidat.</p>
@@ -12658,6 +12689,10 @@ window.sfShowEdzes = function(){
         if(pt){ const p = EZ_PROGRAMOK.find(x => x.id === pt.dataset.ezprogtorol);
             if(!p || !confirm(`Eltávolítod a(z) „${p.n}” sablonjait? A gyakorlatok és a már betervezett vagy rögzített edzések megmaradnak.`)) return;
             ezAdat.torzs.sablonok = ezAdat.torzs.sablonok.filter(s => s.prog !== p.id); ezMent('torzs'); renderEdz(); return; }
+        const inf = e.target.closest('[data-ezinfo]');
+        if(inf){ const w = inf.parentElement, ny = !w.classList.contains('nyitva');
+            ezTipZar();
+            if(ny){ w.classList.add('nyitva'); inf.setAttribute('aria-expanded', 'true'); } return; }
         const sc = e.target.closest('[data-ezsabcsuk]');
         if(sc){ const k = sc.dataset.ezsabcsuk; ezSabCsuk.has(k) ? ezSabCsuk.delete(k) : ezSabCsuk.add(k);
             store.save('sf_ez_sab_csuk', [...ezSabCsuk]); renderEdz(); return; }
