@@ -1623,8 +1623,28 @@
         .cl-csop-f .db { font-size:12px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:2px 9px; }
         .cl-csop-f .vonal { flex:1; }
         .cl-csop-f em { font-style:normal; font-size:12px; font-weight:700; color:var(--blue); }
-        .cl-csop-f .osszeg { font-size:12.5px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-        .cl-ido-csop .cl-csop-f b { font-size:18px; font-variant-numeric:tabular-nums; }
+        /* idővonal: függőleges vonal, évenként egy csomópont */
+        .cl-tl { position:relative; }
+        .cl-tl::before { content:''; position:absolute; left:17px; top:14px; bottom:14px; width:2px; background:#d5dce6; border-radius:2px; }
+        .cl-tl-ev { position:relative; display:grid; grid-template-columns:185px minmax(0,1fr); gap:14px; padding-bottom:20px; }
+        .cl-tl-f { align-self:start; position:sticky; top:12px; display:grid; grid-template-columns:36px minmax(0,1fr) 18px; align-items:start; gap:0 6px;
+                   font:inherit; text-align:left; background:none; border:0; padding:4px 0; cursor:pointer; color:var(--navy); }
+        .cl-tl-f .pont { width:16px; height:16px; margin:6px 0 0 10px; border-radius:99px; box-sizing:border-box; background:#fff; border:3px solid #94a3b8; position:relative; z-index:1; }
+        .cl-tl-ev.mult .pont { background:#94a3b8; }
+        .cl-tl-ev.jovo .pont { border-color:var(--blue); }
+        .cl-tl-ev.ma .pont { background:var(--blue); border-color:var(--blue); box-shadow:0 0 0 4px #dce9fd; }
+        .cl-tl-ev.valamikor .pont { border-style:dashed; border-color:#8b5cf6; }
+        .cl-tl-f .k { display:flex; flex-direction:column; }
+        .cl-tl-f b { font-size:22px; font-weight:800; line-height:1.2; font-variant-numeric:tabular-nums; }
+        .cl-tl-ev.mult .cl-tl-f b { color:#475569; }
+        .cl-tl-f .k span { font-size:12px; color:var(--muted); font-weight:600; } .cl-tl-f .k i { font-style:normal; color:var(--blue); font-weight:800; }
+        .cl-tl-f .nyil { width:18px; height:18px; margin-top:6px; color:var(--muted); transition:transform .15s; }
+        .cl-tl-ev.csukva .cl-tl-f .nyil { transform:rotate(-90deg); }
+        .cl-tl-f:hover b { text-decoration:underline; text-underline-offset:4px; }
+        .cl-tl-csuk { width:100%; display:flex; align-items:center; gap:10px; font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); text-align:left;
+                      background:transparent; border:1px dashed #cbd5e1; border-radius:12px; padding:10px 14px; margin-top:4px; cursor:pointer; }
+        .cl-tl-csuk:hover { border-color:var(--blue); background:#fff; }
+        .cl-tl-csuk em { margin-left:auto; font-style:normal; font-weight:700; color:var(--blue); white-space:nowrap; }
         .cl-kgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
         .cl-kgrid.kicsi { grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); }
         .cl-k { font:inherit; text-align:left; color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; cursor:pointer; padding:0; min-width:0; }
@@ -1711,6 +1731,10 @@
             .cl-kgrid, .cl-kgrid.kicsi { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
             .cl-k-fedo { height:78px; }
             .cl-csop-f em { display:none; }
+            .cl-tl-ev { grid-template-columns:minmax(0,1fr); gap:4px; padding-bottom:16px; }
+            .cl-tl-f { position:static; grid-template-columns:36px auto 18px; justify-content:start; }
+            .cl-tl-f .k { flex-direction:row; align-items:baseline; gap:8px; }
+            .cl-tl-t { padding-left:36px; }
             .cl-ido-s { grid-template-columns:10px minmax(0,1fr) auto; } .cl-ido-s em { display:none; }
             .cl-ter-p { padding:14px; }
             /* telefonon a vízió és a területek vízszintesen görgethető sor – ne tolják le a célokat */
@@ -17484,21 +17508,27 @@ window.sfOnViewSwitch = function(){
         const csop = new Map();
         for(const g of l){ const e = clEv(g) || 'Valamikor'; if(!csop.has(e)) csop.set(e, []); csop.get(e).push(g); }
         const kulcs = [...csop.keys()].sort((a, b) => a === 'Valamikor' ? -1 : b === 'Valamikor' ? 1 : b.localeCompare(a));
-        // évenként összecsukható, mint a Galéria szakaszai (a kulcs "ev:2026", ugyanabban a halmazban)
-        return kulcs.map(e => {
+        // Függőleges idővonal: minden év egy csomópont a vonalon; az évszámra kattintva
+        // az év összecsukható (a kulcs "ev:2026", ugyanabban a halmazban, mint a Galéria szakaszai).
+        const iden = String(new Date().getFullYear());
+        const nyil = '<svg class="nyil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+        return `<div class="cl-tl">${kulcs.map(e => {
             const l = csop.get(e), k = 'ev:' + e, csukva = clCsukva.has(k);
+            const hol = e === 'Valamikor' ? 'valamikor' : e === iden ? 'ma' : e > iden ? 'jovo' : 'mult';
             const osszeg = ['fut', 'nincs', 'kesz', 'arch'].map(s => [s, l.filter(g => clStat(g) === s).length]).filter(([, n]) => n)
                 .map(([s, n]) => `${n} ${CL_STAT[s][0].toLowerCase()}`).join(' · ');
-            return `<section class="cl-csop cl-ido-csop${csukva ? ' csukva' : ''}">
-                <button type="button" class="cl-csop-f" data-clcsop="${escM(k)}" aria-expanded="${!csukva}">
-                    <svg class="nyil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                    <b>${escM(e)}</b><span class="db">${l.length}</span><span class="osszeg">${escM(osszeg)}</span><span class="vonal"></span>
-                    <em>${csukva ? 'megjelenítés' : 'összecsukás'}</em></button>
-                ${csukva ? '' : `<div class="cl-ido-l">${clRend(l).map(g => `<button type="button" class="cl-ido-s" data-clnyit="${escM(g.id)}">
-                    <i style="background:${clTer(clTerek(g)[0]).szin}"></i><b>${escM(g.name || '(névtelen cél)')}</b>
-                    <em>${escM(CL_TIP[g.tip] || '')}${g.due ? ' · ' + escM(clDateLabel(g.due)) : ''}</em>${clStatPill(g)}</button>`).join('')}</div>`}
+            return `<section class="cl-tl-ev ${hol}${csukva ? ' csukva' : ''}">
+                <button type="button" class="cl-tl-f" data-clcsop="${escM(k)}" aria-expanded="${!csukva}" title="${csukva ? 'Megjelenítés' : 'Összecsukás'}">
+                    <span class="pont" aria-hidden="true"></span>
+                    <span class="k"><b>${escM(e)}</b><span>${l.length} cél${hol === 'ma' ? ' · <i>idén</i>' : ''}</span></span>${nyil}
+                </button>
+                <div class="cl-tl-t">${csukva
+                    ? `<button type="button" class="cl-tl-csuk" data-clcsop="${escM(k)}">${escM(osszeg)}<em>megjelenítés ›</em></button>`
+                    : `<div class="cl-ido-l">${clRend(l).map(g => `<button type="button" class="cl-ido-s" data-clnyit="${escM(g.id)}">
+                        <i style="background:${clTer(clTerek(g)[0]).szin}"></i><b>${escM(g.name || '(névtelen cél)')}</b>
+                        <em>${escM(CL_TIP[g.tip] || '')}${g.due ? ' · ' + escM(clDateLabel(g.due)) : ''}</em>${clStatPill(g)}</button>`).join('')}</div>`}</div>
             </section>`;
-        }).join('');
+        }).join('')}</div>`;
     }
     function clMeroHtml(){
         const l = clRend(clSzurt().filter(clMert));
