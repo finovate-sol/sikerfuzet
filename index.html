@@ -3114,6 +3114,12 @@
         .ez-sab .k span.gy { color:#6d28d9; }
         .ez-gy-cim { margin-top:22px; } .ez-gy-megj { margin:-4px 2px 10px; }
         .ez-gy-lista { display:flex; flex-wrap:wrap; gap:8px; }
+        .ez-gy-kat { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin-bottom:10px; }
+        .ez-gy-kcs { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+        .ez-gy-kf { display:flex; align-items:center; gap:8px; }
+        .ez-gy-kf b { font-size:14px; color:var(--navy); } .ez-gy-kf span { font-size:11.5px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:1px 8px; }
+        .ez-gy-kf .ez-link { margin-left:auto; font-size:12px; }
+        .ez-gy-kcs .ez-gy-chip { background:#f7f9fc; }
         .ez-gy-chip { display:flex; flex-direction:column; align-items:flex-start; gap:1px; border:1px solid var(--border); border-radius:12px; background:#fff; padding:8px 12px; font:inherit; text-align:left; cursor:pointer; }
         .ez-gy-chip:hover { border-color:var(--blue); }
         .ez-gy-chip b { font-size:13px; color:var(--navy); } .ez-gy-chip em { font-style:normal; font-size:11px; color:var(--muted); }
@@ -11000,12 +11006,35 @@ const EZ_ALAP_SABLON = [
 // súly lépésköze kg-ban (alapból 2,5).
 const EZ_GYAK_TIP = { sulyism:'Súly × ismétlés', ism:'Ismétlés', ido:'Idő', tavido:'Táv és idő' };
 const EZ_ALAP_GYAK = [
-    { id:'g1', n:'Mellgép', tip:'sulyism' }, { id:'g2', n:'Fekvenyomás', tip:'sulyism' }, { id:'g3', n:'Guggolás', tip:'sulyism' },
-    { id:'g4', n:'Felhúzás', tip:'sulyism' }, { id:'g5', n:'Lehúzás', tip:'sulyism' }, { id:'g6', n:'Lábtoló', tip:'sulyism', lep:5 },
-    { id:'g7', n:'Vállból nyomás', tip:'sulyism' }, { id:'g8', n:'Bicepsz hajlítás', tip:'sulyism', lep:1 },
-    { id:'g9', n:'Húzódzkodás', tip:'ism' }, { id:'g10', n:'Fekvőtámasz', tip:'ism' }, { id:'g11', n:'Plank', tip:'ido' },
-    { id:'g12', n:'Evezőgép 500 m', tip:'tavido' },
+    { id:'g1', n:'Mellgép', tip:'sulyism', kat:'mell' }, { id:'g2', n:'Fekvenyomás', tip:'sulyism', kat:'mell' }, { id:'g3', n:'Guggolás', tip:'sulyism', kat:'lab' },
+    { id:'g4', n:'Felhúzás', tip:'sulyism', kat:'hat' }, { id:'g5', n:'Lehúzás', tip:'sulyism', kat:'hat' }, { id:'g6', n:'Lábtoló', tip:'sulyism', lep:5, kat:'lab' },
+    { id:'g7', n:'Vállból nyomás', tip:'sulyism', kat:'vall' }, { id:'g8', n:'Bicepsz hajlítás', tip:'sulyism', lep:1, kat:'kar' },
+    { id:'g9', n:'Húzódzkodás', tip:'ism', kat:'hat' }, { id:'g10', n:'Fekvőtámasz', tip:'ism', kat:'mell' }, { id:'g11', n:'Plank', tip:'ido', kat:'torzs' },
+    { id:'g12', n:'Evezőgép 500 m', tip:'tavido', kat:'kardio' },
 ];
+// A gyakorlatok kategóriája (izomcsoport) – ebben a sorrendben csoportosítunk mindenhol.
+const EZ_GYAK_KAT = [['mell','Mell'], ['hat','Hát'], ['lab','Láb és far'], ['vall','Váll'], ['kar','Kar'],
+    ['torzs','Has és törzs'], ['egesz','Teljes test'], ['kardio','Kardió'], ['egyeb','Egyéb']];
+const EZ_GYAK_KAT_N = Object.fromEntries(EZ_GYAK_KAT);
+// Ha egy gyakorlatnak nincs kategóriája (régebbi vagy új), a nevéből tippelünk.
+const EZ_GYAK_KAT_TIPP = [
+    ['kardio', /evezőgép|futópad|szobabicikli|kerékpár|bicikli|ellipszis|elliptikus|lépcsőgép|ugrókötél|kardió|air ?bike|síergométer|rower|treadmill/i],
+    ['torzs', /plank|\bhas|crunch|törzs|lábemel|russian|hollow|ab ?roll|oldaltámasz|bird ?dog|dead ?bug/i],
+    ['egesz', /burpee|clean|snatch|thruster|swing|teljes test|farmer|turkish/i],
+    ['vall', /váll|oldalemel|előreemel|arnold|military|shoulder|face ?pull|reverse ?fly|hátsó delta/i],
+    ['kar', /bicepsz|tricepsz|\bkar|curl|francia|letolás|kalapács|hammer|skull/i],
+    ['mell', /mell|fekvenyom|tárogat|fekvőtámasz|pec ?deck|chest|bench|tolódzkod|\bdip/i],
+    ['lab', /guggol|láb|kitör|\bfar|vádli|squat|lunge|hip ?thrust|csípő|glute|román|bolgár|step ?up/i],
+    ['hat', /hát|lehúz|evezés|húzódzkod|felhúz|\brow|pull|deadlift|\blat|shrug|vállvon|hiperextenzi/i],
+];
+const ezGyakKatTipp = n => (EZ_GYAK_KAT_TIPP.find(([, re]) => re.test(String(n || ''))) || ['egyeb'])[0];
+const ezGyakKat = g => g && EZ_GYAK_KAT_N[g.kat] ? g.kat : ezGyakKatTipp(g && g.n);
+// Kategóriánként csoportosítva, névsorban: [[kat, név, [gyakorlat…]], …] – csak a nem üresek.
+const ezGyakCsopok = lista => EZ_GYAK_KAT.map(([k, n]) => [k, n, lista.filter(g => ezGyakKat(g) === k)
+    .sort((a, b) => String(a.n).localeCompare(String(b.n), 'hu'))]).filter(([, , l]) => l.length);
+// Legördülő listához: kategóriánként <optgroup>.
+const ezGyakOpciok = (lista, kivalasztott, jelol) => ezGyakCsopok(lista).map(([, n, l]) => `<optgroup label="${esc(n)}">${l.map(x =>
+    `<option value="${esc(x.id)}"${x.id === kivalasztott ? ' selected' : ''}>${esc(x.n)}${jelol && jelol(x) ? ' ' + jelol(x) : ''}</option>`).join('')}</optgroup>`).join('');
 const EZ_ALAP_S5_GYAK = [{ gid:'g1', sz:3, ism:10 }, { gid:'g5', sz:3, ism:12 }, { gid:'g6', sz:3, ism:10 }, { gid:'g11', sz:3, mp:45 }];
 const EZ_NAP   = ['Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat','Vasárnap'];
 const EZ_NAP_R = ['H','K','Sze','Cs','P','Szo','V'];
@@ -11453,8 +11482,11 @@ function ezSablonHtml(){
                 <button type="button" class="ez-link" data-ezsabszerk="${esc(s.id)}">Szerkesztés</button></div></div>`).join('')}</div>
         <div class="ez-vers-cim ez-gy-cim">Gyakorlatok · ${ezGyakLista().length}</div>
         <p class="ez-megj ez-gy-megj">A szettnapló ezekből dolgozik: a sablonba teszed őket, edzés közben súlyt és ismétlést rögzítesz, a Csúcsok fülön pedig látod a legjobbjaidat.</p>
-        <div class="ez-gy-lista">${ezGyakLista().map(g => `<button type="button" class="ez-gy-chip" data-ezgyszerk="${esc(g.id)}"><b>${esc(g.n)}</b><em>${EZ_GYAK_TIP[g.tip] || ''}${g.lep ? ` · ${ezKg(g.lep)} kg-onként` : ''}</em></button>`).join('')}
-            <button type="button" class="ez-gy-chip uj" data-ezgyuj>+ Új gyakorlat</button></div>`;
+        <div class="ez-gy-kat">${ezGyakCsopok(ezGyakLista()).map(([k, n, l]) => `<section class="ez-gy-kcs">
+            <div class="ez-gy-kf"><b>${esc(n)}</b><span>${l.length}</span><button type="button" class="ez-link" data-ezgyuj="${k}">+ ide</button></div>
+            <div class="ez-gy-lista">${l.map(g => `<button type="button" class="ez-gy-chip" data-ezgyszerk="${esc(g.id)}"><b>${esc(g.n)}</b><em>${EZ_GYAK_TIP[g.tip] || ''}${g.lep ? ` · ${ezKg(g.lep)} kg-onként` : ''}</em></button>`).join('')}</div>
+        </section>`).join('')}</div>
+        <button type="button" class="ez-gy-chip uj ez-gy-ujgomb" data-ezgyuj>+ Új gyakorlat</button>`;
 }
 
 // ---- Versenyek ----
@@ -11719,7 +11751,7 @@ function ezSablonModal(sid){
         const lib = ezGyakLista();
         const mezo = (i, f, v, egys, mod) => `<label><input data-sgi="${i}" data-sgf="${f}" value="${esc(v ? (f === 'kg' ? ezKg(v) : v) : '')}" inputmode="${mod || 'numeric'}" aria-label="${egys}"><span>${egys}</span></label>`;
         ov.querySelector('#ezsGy').innerHTML = `<div class="ez-sg">${gy.map((g, i) => { const t = (ezGyak(g.gid) || {}).tip || 'sulyism'; return `<div class="ez-sg-sor">
-            <select data-sgi="${i}" data-sgf="gid" aria-label="Gyakorlat">${lib.map(x => `<option value="${esc(x.id)}"${x.id === g.gid ? ' selected' : ''}>${esc(x.n)}</option>`).join('')}</select>
+            <select data-sgi="${i}" data-sgf="gid" aria-label="Gyakorlat">${ezGyakOpciok(lib, g.gid)}</select>
             ${mezo(i, 'sz', g.sz, 'szett')}${t === 'ido' ? mezo(i, 'mp', g.mp, 'mp') : t === 'tavido' ? mezo(i, 'm', g.m, 'm') : mezo(i, 'ism', g.ism, 'ism.')}
             ${t === 'sulyism' ? mezo(i, 'kg', g.kg, 'kg', 'decimal') : '<span></span>'}
             <button type="button" class="ez-sg-x" data-sgdel="${i}" aria-label="Gyakorlat kivétele">×</button></div>`; }).join('')}
@@ -11983,7 +12015,7 @@ function ezRogRajz(R, gorget){
         <div class="ez-rog-lista">${kartyak || `<div class="ez-rk ez-ures">Ehhez az edzéshez még nincs gyakorlat. Adj hozzá lent, vagy a Sablonok fülön tedd a sablonba.</div>`}</div>
         <div class="ez-rog-lab">
             <label class="ez-rog-uj"><span>+ Gyakorlat hozzáadása</span><select data-rujgy aria-label="Gyakorlat hozzáadása"><option value="">Válassz…</option>
-                ${ezGyakLista().map(x => `<option value="${esc(x.id)}">${esc(x.n)}${hasznalt.has(x.id) ? ' (már benne)' : ''}</option>`).join('')}</select></label>
+                ${ezGyakOpciok(ezGyakLista(), '', x => hasznalt.has(x.id) ? '(már benne)' : '')}</select></label>
             <button type="button" class="ez-rog-vege nagy" data-rvege>${lezart ? 'Mentés és bezárás' : 'Edzés befejezése'}</button>
         </div>
     </div>`;
@@ -12108,18 +12140,23 @@ function ezRogVege(R){
 }
 
 // Gyakorlat felvétele / szerkesztése (a Sablonok fülről).
-function ezGyakModal(gid){
+function ezGyakModal(gid, kat0){
     const lista = ezAdat.torzs.gyakorlatok, g = lista.find(x => x.id === gid) || null;
     const tip0 = g ? g.tip : 'sulyism';
+    let katKezi = !!(g || kat0);          // ha a kategóriát kézzel választották, a név már nem írja felül
     const ov = ezModal(g ? 'Gyakorlat szerkesztése' : 'Új gyakorlat', `
         <div class="ez-mezok2">${ezMezo('Név', 'ezgN', g ? g.n : '', ' maxlength="50" placeholder="pl. Evezés, csigás tárogatás"')}
             <label class="ez-mezo"><span>Mérés</span><select id="ezgT">${Object.entries(EZ_GYAK_TIP).map(([k, n]) => `<option value="${k}"${tip0 === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>
-        <div id="ezgLepW"${tip0 === 'sulyism' ? '' : ' hidden'}>${ezMezo('Súly lépésköze (kg)', 'ezgL', g && g.lep ? ezKg(g.lep) : '2,5', ' inputmode="decimal"')}</div>
+        <div class="ez-mezok2"><label class="ez-mezo"><span>Kategória (izomcsoport)</span><select id="ezgK">${EZ_GYAK_KAT.map(([k, n]) => `<option value="${k}"${(g ? ezGyakKat(g) : kat0 || 'egyeb') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+            <div id="ezgLepW"${tip0 === 'sulyism' ? '' : ' hidden'}>${ezMezo('Súly lépésköze (kg)', 'ezgL', g && g.lep ? ezKg(g.lep) : '2,5', ' inputmode="decimal"')}</div></div>
         <p class="ez-megj">A mérés dönti el, mit rögzítesz edzés közben: súlyt és ismétlést, csak ismétlést (saját testsúly), időt (pl. plank), vagy távot és időt (pl. evezőgép).</p>
         <div class="ez-uz" id="ezgUz"></div>`,
         `${g ? '<button type="button" class="btn ez-torol" id="ezgDel">Törlés</button>' : ''}<span class="ez-hely"></span>
          <button type="button" class="btn" data-ezx>Mégse</button><button type="button" class="btn primary ez-gb-kek" id="ezgMent">Mentés</button>`);
     ov.querySelector('#ezgT').addEventListener('change', ev => { ov.querySelector('#ezgLepW').hidden = ev.target.value !== 'sulyism'; });
+    ov.querySelector('#ezgK').addEventListener('change', () => { katKezi = true; });
+    // új gyakorlatnál a névből kitaláljuk a kategóriát, amíg kézzel nem választanak
+    ov.querySelector('#ezgN').addEventListener('input', ev => { if(!katKezi) ov.querySelector('#ezgK').value = ezGyakKatTipp(ev.target.value); });
     ov.addEventListener('click', ev => {
         if(ev.target.closest('#ezgDel')){
             if(!confirm(`Törlöd a(z) „${g.n}” gyakorlatot? A sablonokból is kikerül; a már rögzített szettjeid megmaradnak.`)) return;
@@ -12130,7 +12167,7 @@ function ezGyakModal(gid){
         if(!ev.target.closest('#ezgMent')) return;
         const n = ov.querySelector('#ezgN').value.trim(), tip = ov.querySelector('#ezgT').value, lep = ezSzam(ov.querySelector('#ezgL').value);
         if(!n){ ov.querySelector('#ezgUz').textContent = 'Adj nevet a gyakorlatnak.'; return; }
-        const uj = ezTiszta({ id: g ? g.id : 'g' + ezUjId(), n, tip, lep: tip === 'sulyism' && lep && lep !== 2.5 ? lep : undefined });
+        const uj = ezTiszta({ id: g ? g.id : 'g' + ezUjId(), n, tip, kat: ov.querySelector('#ezgK').value, lep: tip === 'sulyism' && lep && lep !== 2.5 ? lep : undefined });
         ezAdat.torzs.gyakorlatok = g ? lista.map(x => x === g ? uj : x) : [...lista, uj];
         ezMent('torzs'); ov.remove(); renderEdz();
     });
@@ -12286,7 +12323,9 @@ function ezCsucsHtml(){
 
     // Erősítés – a szettnaplóból
     const naplo = ezNaploMind(), sorrend = new Map(ezGyakLista().map((g, i) => [g.id, i]));
-    const gidek = [...new Set(naplo.map(x => x[2].gid))].sort((a, b) => (sorrend.get(a) ?? 999) - (sorrend.get(b) ?? 999));
+    const katSor = new Map(EZ_GYAK_KAT.map(([k], i) => [k, i]));
+    const gyKat = gid => katSor.get(ezGyakKat(ezGyak(gid) || (naplo.find(x => x[2].gid === gid) || [])[2])) ?? 99;
+    const gidek = [...new Set(naplo.map(x => x[2].gid))].sort((a, b) => gyKat(a) - gyKat(b) || (sorrend.get(a) ?? 999) - (sorrend.get(b) ?? 999));
     let eroT = '';
     for(const gid of gidek){
         const l = naplo.filter(x => x[2].gid === gid), gy = ezGyak(gid), tip = gy ? gy.tip : l[0][2].tip, n = gy ? gy.n : l[0][2].n;
@@ -12467,7 +12506,8 @@ window.sfShowEdzes = function(){
         if(ci){ ezCsIdo = ci.dataset.ezcsido; renderEdz(); return; }
         const gsz = e.target.closest('[data-ezgyszerk]');
         if(gsz){ ezGyakModal(gsz.dataset.ezgyszerk); return; }
-        if(e.target.closest('[data-ezgyuj]')){ ezGyakModal(null); return; }
+        const gyu = e.target.closest('[data-ezgyuj]');
+        if(gyu){ ezGyakModal(null, gyu.dataset.ezgyuj || ''); return; }
         if(e.target.closest('[data-ezsvtort]')){ ezStravaTortenet(); return; }
         if(e.target.closest('[data-ezrszfoly]')){ ezRszFolyamat(4); return; }
         if(e.target.closest('[data-ezuzx]')){ ezUz = null; renderEdz(); }
