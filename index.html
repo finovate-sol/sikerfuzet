@@ -3124,7 +3124,12 @@
         .ez-cs-sv > div:first-child { flex:1; display:flex; flex-direction:column; gap:2px; min-width:0; }
         .ez-cs-sv b { font-size:13.5px; color:#9a3412; } .ez-cs-sv span { font-size:12.5px; color:#7c2d12; } .ez-cs-sv span.hiba { color:#b91c1c; font-weight:700; }
         .ez-cs-sv .g { display:flex; align-items:center; gap:10px; }
-        .ez-cs-csop { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+        .ez-cs-csop { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+        .ez-cs-csop.card { padding:14px 16px 16px; border-top:4px solid var(--c, var(--border)); }
+        .ez-cs-csop .ez-cs { background:#fbfcfe; }
+        .ez-cs-csop .ez-cs.ures { background:#f4f6f9; }
+        .ez-cs-csop .ez-cs-cim b { font-size:16px; }
+        p.ez-cs-ures { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
         .ez-cs-cim { display:flex; align-items:center; gap:10px; padding:0 2px; }
         .ez-cs-cim .ez-ik { width:26px; height:26px; border-radius:8px; } .ez-cs-cim .ez-ik svg { width:14px; height:14px; }
         .ez-cs-cim b { font-size:14px; color:var(--navy); } .ez-cs-cim span { font-size:12px; color:var(--muted); }
@@ -11191,7 +11196,12 @@ async function renderEdz(){
     await Promise.all([ezBetolt('torzs'), ezBetolt('strava')]);
     if(ezTab === 'ma') await ezEvekBetolt(ezHet, ezPlusz(ezHet, 6), ma, ezPlusz(ma, 14));
     else if(ezTab === 'attek') await ezEvekBetolt(ezHo + '-01', ma, ezPlusz(ezHetfo(ma), -7 * 26));
-    else if(ezTab === 'csucs') await ezEvekBetolt(ma, ezPlusz(ma, -366));
+    else if(ezTab === 'csucs'){
+        // Mindenkori csúcsokhoz minden év kell, az első Strava-edzéstől (vagy a lehúzott időszak elejétől).
+        const sv = ezAdat.strava || {}, tol = sv.elso || sv.tortenet || ezPlusz(ma, -366), evek = [];
+        for(let y = Math.max(2000, +tol.slice(0, 4)); y <= +ma.slice(0, 4); y++) evek.push(y + '-06-01');
+        await ezEvekBetolt(...evek, ezPlusz(ma, -366));
+    }
     const tartalom = ezTab === 'ma' ? ezMaHtml() : ezTab === 'attek' ? ezAttekHtml() : ezTab === 'csucs' ? ezCsucsHtml()
         : ezTab === 'verseny' ? ezVersenyHtml() : ezSablonHtml();
     body.innerHTML = ezFejHtml()
@@ -11199,7 +11209,7 @@ async function renderEdz(){
         + ([...ezHiba].some(k => !ezCsakSzerver(k)) ? `<div class="ez-figy">Az edzésnaplót most nem sikerült a szerverről betölteni. Amit módosítasz, csak ezen az eszközön mentődik – frissítsd később az oldalt.</div>` : '')
         + tartalom;
     // A Csúcsok fül első megnyitásakor a hiányzó legjobb időket magától letölti.
-    if(ezTab === 'csucs' && !ezRszAutoVolt && ezStravaKapcs()){ ezRszAutoVolt = true; ezRszFolyamat(4); }
+    if(ezTab === 'csucs' && !ezRszAutoVolt && ezStravaKapcs()){ ezRszAutoVolt = true; ezRszFolyamat(5); }
 }
 function ezFejHtml(){
     const tabok = [['ma','Ma'],['attek','Áttekintés'],['csucs','Csúcsok'],['verseny','Versenyek'],['sablon','Sablonok']].map(([k, n]) =>
@@ -12134,7 +12144,7 @@ let ezCsIdo = 'mind';                 // mind | iden | 90
 let ezRszFut = false, ezRszUz = null, ezRszAutoVolt = false, ezTortFut = null;
 const ezAktToltes = new Set();
 const EZ_FUTO = ['Run', 'TrailRun', 'VirtualRun'];
-const EZ_RSZ_MEZO = ['rsz', 'be', 'kcal', 'eszk', 'desc'];
+const EZ_RSZ_MEZO = ['rsz', 'rszv', 'be', 'kcal', 'eszk', 'desc'];
 const EZ_BE = [['k1', '1 km'], ['mi1', '1 mérföld'], ['k5', '5 km'], ['k10', '10 km'], ['hm', 'Félmaraton'], ['m', 'Maraton']];
 function ezSvMind(){
     const l = [];
@@ -12143,13 +12153,16 @@ function ezSvMind(){
     return l.sort((a, b) => a[0].localeCompare(b[0]));
 }
 // Futások, amelyeknek még nincs lekérve a részlete (legjobb idők) – a legfrissebbek elöl.
-const ezRszKell = () => ezSvMind().filter(([, a]) => EZ_FUTO.includes(a.tip) && !a.rsz && (a.m || (a.km || 0) * 1000) >= 1000).reverse();
+// rszv: a részlet-lekérés változata – a 2-es előtt a Strava "1K", "5K", "10K" nevű legjobb
+// idői elvesztek (kisbetűsre számítottunk), ezért azokat a futásokat újra lekérjük.
+const EZ_RSZ_V = 2;
+const ezRszKell = () => ezSvMind().filter(([, a]) => EZ_FUTO.includes(a.tip) && (!a.rsz || (a.rszv || 1) < EZ_RSZ_V) && (a.m || (a.km || 0) * 1000) >= 1000).reverse();
 async function ezReszletLetolt(lista){
     const r = await window.sfStravaHivas('stravaReszletek', { ids: lista.map(([, a]) => a.id) });
     const evek = new Set();
     for(const [s, a] of lista){
         const x = (r.reszletek || {})[a.id]; if(!x) continue;
-        Object.assign(a, x, { rsz: 1 }); evek.add(s.slice(0, 4));
+        Object.assign(a, x, { rsz: 1, rszv: EZ_RSZ_V }); evek.add(s.slice(0, 4));
     }
     evek.forEach(y => ezMent('sv' + y));
     return r;
@@ -12169,26 +12182,42 @@ async function ezRszFolyamat(max){
     ezRszFut = false;
     if(ezTab === 'csucs') renderEdz();
 }
-// Egy év Strava-edzései 60 napos adagokban – a friss 5 hetet a sima szinkron hozza.
+// A teljes Strava-előzmény: az első aktivitásig visszafelé, évenkénti adagokban
+// (a friss 5 hetet a sima szinkron hozza). Minden adag után elmentjük, meddig
+// értünk (tortenet) – ha megszakad, onnan folytatja.
+function ezSvRegiSzerver(e){
+    const m = ezHibaSzoveg(e);
+    return /62 nap|not-found|nincs kitelepítve|nem válaszolt/i.test(m)
+        ? new Error('A Strava-szerver még a régi változat – telepítsd ki újra a függvényeket (firebase deploy --only functions), utána menni fog.') : e;
+}
 async function ezStravaTortenet(){
     if(ezSzinkronFut || ezTortFut || !ezStravaKapcs() || typeof window.sfStravaHivas !== 'function') return;
-    const ma = ezMa(), kezdo = ezPlusz(ma, -365);
-    let ig = ma, db = 0;
+    const ma = ezMa();
+    let db = 0;
     ezSzinkronFut = true;
     try {
+        ezTortFut = 'Az első Strava-edzésed keresése…'; renderEdz();
+        let elso = '';
+        try { elso = (await window.sfStravaHivas('stravaElso', {})).elso || ''; } catch(e){ throw ezSvRegiSzerver(e); }
+        const kezdo = /^\d{4}-\d{2}-\d{2}$/.test(elso) && elso < ma ? elso : ma;
+        ezAdat.strava = { ...ezAdat.strava, elso: kezdo }; ezMent('strava');
+        const tort = ezAdat.strava.tortenet;
+        let ig = tort && tort <= ma ? ezPlusz(tort, -1) : ma;
         while(ig >= kezdo){
-            const tol = ezPlusz(ig, -59) < kezdo ? kezdo : ezPlusz(ig, -59);
-            ezTortFut = `Lehúzás a Stravából: ${ezDatumR(tol)} – ${ezDatumR(ig)}…`; renderEdz();
-            const r = await window.sfStravaHivas('stravaSzinkron', { tol, ig });
+            const tol = ezPlusz(ig, -364) < kezdo ? kezdo : ezPlusz(ig, -364);
+            ezTortFut = `Lehúzás a Stravából: ${ezDatumR(tol)} – ${ezDatumR(ig)}… (${db} aktivitás eddig)`; renderEdz();
+            let r;
+            try { r = await window.sfStravaHivas('stravaSzinkron', { tol, ig }); } catch(e){ throw ezSvRegiSzerver(e); }
             await ezSvBeolvaszt(r.napok); db += r.db || 0;
+            ezAdat.strava = { ...ezAdat.strava, tortenet: tol }; ezMent('strava');
             ig = ezPlusz(tol, -1);
         }
         ezAdat.strava = { ...ezAdat.strava, tortenet: kezdo, utolsoSzinkron: new Date().toISOString() }; ezMent('strava');
-        ezUz = { t: `Kész: ${db} Strava-aktivitás az elmúlt egy évből.` };
-    } catch(e){ ezUz = { t: 'A korábbi edzések lehúzása nem sikerült: ' + ezHibaSzoveg(e), hiba: true }; }
+        ezUz = { t: `Kész: ${db} korábbi Strava-aktivitás lehúzva – megvan minden edzésed ${ezDatumR(kezdo)} óta.` };
+    } catch(e){ ezUz = { t: 'A korábbi edzések lehúzása nem sikerült: ' + ezHibaSzoveg(e) + (db ? ` (${db} aktivitás addig lejött – a gombbal onnan folytatja).` : ''), hiba: true }; }
     ezSzinkronFut = false; ezTortFut = null;
     await renderEdz();
-    ezRszFolyamat(4);
+    ezRszFolyamat(5);
 }
 const ezDatumR = s => (s.slice(0, 4) === ezMa().slice(0, 4) ? '' : s.slice(0, 4) + '. ') + ezRovidD(s);
 // A legjobb a "tol" óta (jobb: 1 = a nagyobb, -1 = a kisebb a jobb); holtversenyben a korábbi.
@@ -12217,9 +12246,13 @@ function ezCsucsHtml(){
     const METER = { fmt: v => v + ' m', delta: (a, b) => `+${a - b} m` };
     const sv = ezSvMind();
     const akt = ([s, a], v) => ({ s, v, al: `${ezDatumR(s)} · ${a.n}`, attr: `data-ezakt="${s}|${esc(a.id)}"` });
-    const csop = (sport, nev, forras, tartalom, ures) => tartalom || ures ? `<section class="ez-cs-csop">
+    const CS_SZIN = { fut: '#d97706', bri: '#2563eb', usz: '#0d9488', ero: '#7c3aed' };
+    const csop = (sport, nev, forras, tartalom, ures) => tartalom || ures ? `<section class="card ez-cs-csop" style="--c:${CS_SZIN[sport]}">
         <div class="ez-cs-cim">${ezIk(sport)}<b>${nev}</b><span>${forras}</span></div>
-        ${tartalom ? `<div class="ez-cs-racs">${tartalom}</div>` : `<div class="card ez-ures kicsi ez-cs-ures">${ures}</div>`}</section>` : '';
+        ${tartalom ? `<div class="ez-cs-racs">${tartalom}</div>` : `<p class="ez-cs-ures">${ures}</p>`}</section>` : '';
+    // Egy sportág heti összesített kilométere – a legtöbb km egy héten csempéhez.
+    const hetiKm = (l, egys) => { const h = {}; for(const [s, a] of l){ const k = ezHetfo(s), x = h[k] = h[k] || { s: k, v: 0, db: 0 }; x.v = Math.round((x.v + (a.km || 0)) * 10) / 10; x.db++; }
+        return Object.values(h).map(x => ({ ...x, al: `${x.s.slice(0, 4) === ma.slice(0, 4) ? '' : x.s.slice(0, 4) + '. '}${ezHetCim(x.s)} · ${x.db} ${egys}`, attr: `data-ezugrik="${x.s}"` })); };
 
     // Futás
     const fut = sv.filter(([, a]) => EZ_FUTO.includes(a.tip));
@@ -12227,23 +12260,29 @@ function ezCsucsHtml(){
     let futT = EZ_BE.map(([k, cim]) => csempe(cim, fut.filter(([, a]) => a.be && a.be[k]).map(x => akt(x, x[1].be[k])),
         { ...IDO, mindig: ['k1', 'k5', 'k10'].includes(k), ures: nincsBe })).join('');
     futT += csempe('Leghosszabb futás', fut.map(x => akt(x, x[1].km || 0)), KM);
-    const hetek = {};
-    for(const [s, a] of fut){ const h = ezHetfo(s), x = hetek[h] = hetek[h] || { s: h, v: 0, db: 0 }; x.v = Math.round((x.v + (a.km || 0)) * 10) / 10; x.db++; }
-    futT += csempe('Legtöbb km egy héten', Object.values(hetek).map(x => ({ ...x, al: `${x.s.slice(0, 4) === ma.slice(0, 4) ? '' : x.s.slice(0, 4) + '. '}${ezHetCim(x.s)} · ${x.db} futás`, attr: `data-ezugrik="${x.s}"` })), KM);
+    futT += csempe('Legtöbb km egy héten', hetiKm(fut, 'futás'), KM);
     futT += csempe('Legnagyobb szint', fut.map(x => akt(x, x[1].emel || 0)), METER);
     const futHtml = csop('fut', 'Futás', 'a Strava legjobb idői szerint', fut.length ? futT : '',
         ezStravaKapcs() ? 'Még nincs futás a Stravából lehúzott időszakban.' : 'Kösd össze a Stravát, és a futásaid legjobb idői (1 km, 5 km, 10 km…) itt jelennek meg.');
 
-    // Kerékpár és úszás
-    const bri = sv.filter(([, a]) => EZ_STRAVA.bri.includes(a.tip)), usz = sv.filter(([, a]) => a.tip === 'Swim');
-    let buT = csempe('Leghosszabb bringatúra', bri.map(x => akt(x, x[1].km || 0)), KM)
+    // Kerékpár
+    const bri = sv.filter(([, a]) => EZ_STRAVA.bri.includes(a.tip));
+    const briT = csempe('Leghosszabb túra', bri.map(x => akt(x, x[1].km || 0)), KM)
+        + csempe('Legtöbb km egy héten', hetiKm(bri, 'túra'), KM)
         + csempe('Legjobb átlagsebesség', bri.filter(([, a]) => (a.km || 0) >= 20 && a.sec).map(x => akt(x, Math.round((x[1].m || x[1].km * 1000) / x[1].sec * 36) / 10)),
             { fmt: v => ezKm(v) + ' km/h', delta: (a, b) => '+' + ezKm(a - b) + ' km/h' })
-        + csempe('Legnagyobb szint (bringa)', bri.map(x => akt(x, x[1].emel || 0)), METER)
-        + csempe('Legjobb átlagteljesítmény', bri.filter(([, a]) => a.wattMert && (a.sec || 0) >= 1200).map(x => akt(x, x[1].watt || 0)), { fmt: v => v + ' W', delta: (a, b) => `+${a - b} W` })
-        + csempe('Leghosszabb úszás', usz.map(x => akt(x, x[1].m || Math.round((x[1].km || 0) * 1000))), { fmt: v => v >= 1000 ? ezKm(v / 1000) + ' km' : v + ' m', delta: (a, b) => `+${a - b} m` })
-        + csempe('Legjobb 100 m-es tempó', usz.filter(([, a]) => (a.m || 0) >= 400 && a.sec).map(x => akt(x, Math.round(x[1].sec / (x[1].m / 100)))), { ...IDO, fmt: v => ezOraPerc(v) + ' /100 m' });
-    const buHtml = csop('bri', 'Kerékpár és úszás', 'a Stravából', buT, '');
+        + csempe('Legnagyobb szint', bri.map(x => akt(x, x[1].emel || 0)), METER)
+        + csempe('Legjobb átlagteljesítmény', bri.filter(([, a]) => a.wattMert && (a.sec || 0) >= 1200).map(x => akt(x, x[1].watt || 0)), { fmt: v => v + ' W', delta: (a, b) => `+${a - b} W` });
+    const briHtml = csop('bri', 'Kerékpár', 'a Stravából', bri.length ? briT : '', '');
+
+    // Úszás
+    const usz = sv.filter(([, a]) => a.tip === 'Swim');
+    const uszM = a => a.m || Math.round((a.km || 0) * 1000);
+    const uszT = csempe('Leghosszabb úszás', usz.map(x => akt(x, uszM(x[1]))), { fmt: v => v >= 1000 ? ezKm(v / 1000) + ' km' : v + ' m', delta: (a, b) => `+${a - b} m` })
+        + csempe('Legjobb 100 m-es tempó', usz.filter(([, a]) => uszM(a) >= 400 && a.sec).map(x => akt(x, Math.round(x[1].sec / (uszM(x[1]) / 100)))), { ...IDO, fmt: v => ezOraPerc(v) + ' /100 m' })
+        + csempe('Leghosszabb idő a vízben', usz.map(x => akt(x, x[1].sec || (x[1].perc || 0) * 60)), { fmt: ezOraPerc, delta: (a, b) => '+' + ezOraPerc(a - b) })
+        + csempe('Legtöbb úszás egy héten', hetiKm(usz, 'úszás').map(x => ({ ...x, v: Math.round(x.v * 1000) })), { fmt: v => v >= 1000 ? ezKm(v / 1000) + ' km' : v + ' m', delta: (a, b) => `+${a - b} m` });
+    const uszHtml = csop('usz', 'Úszás', 'a Stravából', usz.length ? uszT : '', '');
 
     // Erősítés – a szettnaplóból
     const naplo = ezNaploMind(), sorrend = new Map(ezGyakLista().map((g, i) => [g.id, i]));
@@ -12276,13 +12315,13 @@ function ezCsucsHtml(){
     if(ezStravaKapcs()){
         const kell = ezRszKell().length, tort = ezAdat.strava.tortenet;
         svSav = `<div class="card ez-cs-sv">
-            <div><b>${tort ? `Strava-edzéseid ${esc(ezDatumR(tort))} óta` : 'Most csak az elmúlt 5 hét Strava-edzései vannak meg'}</b>
+            <div><b>${tort ? `Strava-edzéseid ${esc(ezDatumR(tort))} óta${ezAdat.strava.elso && tort <= ezAdat.strava.elso ? ' – az elsőtől mind megvan' : ''}` : 'Most csak az elmúlt 5 hét Strava-edzései vannak meg'}</b>
                 <span>${ezTortFut ? esc(ezTortFut) : ezRszFut ? `A futások legjobb idejeinek letöltése… még ${kell} futás.` : ezRszUz ? '' : kell ? `${kell} futás legjobb ideje még nincs letöltve.` : 'Minden futás legjobb ideje letöltve.'}</span>
                 ${ezRszUz ? `<span class="hiba">${esc(ezRszUz)}</span>` : ''}</div>
-            <div class="g">${!tort && !ezTortFut ? '<button type="button" class="ez-sv-gomb" data-ezsvtort>Korábbi Strava-edzések lehúzása (1 év)</button>' : ''}
+            <div class="g">${!ezTortFut && !(tort && ezAdat.strava.elso && tort <= ezAdat.strava.elso) ? `<button type="button" class="ez-sv-gomb" data-ezsvtort>${tort ? 'Minden korábbi Strava-edzés lehúzása' : 'Korábbi Strava-edzések lehúzása (mind)'}</button>` : ''}
                 ${kell && !ezRszFut && !ezTortFut ? '<button type="button" class="ez-link" data-ezrszfoly>Folytatás</button>' : ''}</div></div>`;
     }
-    return svSav + (futHtml + eroHtml + buHtml || `<div class="card ez-ures">Még nincs csúcsod ebben az időszakban.</div>`);
+    return svSav + (futHtml + briHtml + uszHtml + eroHtml || `<div class="card ez-ures">Még nincs csúcsod ebben az időszakban.</div>`);
 }
 
 // ---- Strava ----

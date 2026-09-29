@@ -8,6 +8,7 @@
 //    stravaCsatol    – a Strava-visszairányításból kapott kódot tokenre cseréli
 //    stravaSzinkron  – lehúzza a megadott napok aktivitásait
 //    stravaReszletek – egy-egy aktivitás részletei (legjobb idők 1 km / 5 km / 10 km…)
+//    stravaElso      – az első Strava-aktivitás napja (a teljes előzmény lehúzásához)
 //    stravaLevalaszt – visszavonja a hozzáférést és törli a tokent
 //
 //  A szerver CSAK a tokent tárolja: strava_token/{uid} (access/refresh token).
@@ -146,7 +147,7 @@ exports.stravaSzinkron = onCall(OPTS, async req => {
         const s = d.toISOString().slice(0, 10);
         if(s > ig) break;
         napok[s] = [];
-        if(Object.keys(napok).length > 62) throw new HttpsError('invalid-argument', 'Egyszerre legfeljebb 62 nap szinkronizálható.');
+        if(Object.keys(napok).length > 400) throw new HttpsError('invalid-argument', 'Egyszerre legfeljebb 400 nap szinkronizálható.');
     }
     const token = await hozzaferes(uid);
     // A Strava UTC-ben szűr, a napot viszont a helyi kezdési idő (start_date_local)
@@ -154,7 +155,7 @@ exports.stravaSzinkron = onCall(OPTS, async req => {
     const after = Date.parse(tol + 'T00:00:00Z') / 1000 - 86400;
     const before = Date.parse(ig + 'T00:00:00Z') / 1000 + 2 * 86400;
     let db_ = 0;
-    for(let oldal = 1; oldal <= 5; oldal++){
+    for(let oldal = 1; oldal <= 15; oldal++){
         let r;
         try {
             r = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&before=${before}&per_page=100&page=${oldal}`,
@@ -179,11 +180,12 @@ exports.stravaSzinkron = onCall(OPTS, async req => {
 // lekérésében vannak benne – a Csúcsok fül ezekből dolgozik. Egy hívás
 // legfeljebb 15 aktivitást kér le; ha a Strava kerete (100 kérés / 15 perc)
 // közben elfogy, az addig lekértet adjuk vissza, limit jelzéssel.
-const BE_KULCS = { '1k': 'k1', '1 mile': 'mi1', '5k': 'k5', '10k': 'k10', 'Half-Marathon': 'hm', 'Marathon': 'm' };
+// A Strava a neveket "1K", "5K", "10K", "1 mile", "Half-Marathon" alakban adja – kisbetűsítve hasonlítjuk.
+const BE_KULCS = { '1k': 'k1', '1 mile': 'mi1', '5k': 'k5', '10k': 'k10', 'half-marathon': 'hm', 'marathon': 'm' };
 function reszlet(a){
     const be = {};
     for(const x of a.best_efforts || []){
-        const k = BE_KULCS[x.name], t = Math.round(x.elapsed_time || 0);
+        const k = BE_KULCS[String(x.name || '').trim().toLowerCase()], t = Math.round(x.elapsed_time || 0);
         if(k && t > 0 && (!be[k] || t < be[k])) be[k] = t;
     }
     const x = {
@@ -215,6 +217,21 @@ exports.stravaReszletek = onCall(OPTS, async req => {
         reszletek[id] = reszlet(await r.json());
     }
     return { reszletek, limit };
+});
+
+// Az első aktivitás napja: az "after" paraméterrel a Strava a legrégebbitől
+// kezdve, növekvő sorrendben ad vissza – az első elem a legelső edzés.
+exports.stravaElso = onCall(OPTS, async req => {
+    const uid = await engedelyezett(req);
+    const token = await hozzaferes(uid);
+    let r;
+    try { r = await fetch('https://www.strava.com/api/v3/athlete/activities?after=0&per_page=1&page=1', { headers: { Authorization: `Bearer ${token}` } }); }
+    catch(e){ throw new HttpsError('unavailable', 'A Strava most nem érhető el – próbáld újra később.'); }
+    if(r.status === 401) throw new HttpsError('failed-precondition', 'A Strava-hozzáférés lejárt vagy visszavonták – kösd össze újra.');
+    if(r.status === 429) throw new HttpsError('resource-exhausted', 'A Strava most túl sok kérést kapott – próbáld pár perc múlva.');
+    if(!r.ok) throw new HttpsError('unavailable', `A Strava hibát jelzett (${r.status}).`);
+    const l = await r.json();
+    return { elso: Array.isArray(l) && l[0] ? String(l[0].start_date_local || l[0].start_date || '').slice(0, 10) : '' };
 });
 
 exports.stravaLevalaszt = onCall(OPTS, async req => {
