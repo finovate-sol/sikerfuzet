@@ -1623,6 +1623,8 @@
         .cl-csop-f .db { font-size:12px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:2px 9px; }
         .cl-csop-f .vonal { flex:1; }
         .cl-csop-f em { font-style:normal; font-size:12px; font-weight:700; color:var(--blue); }
+        .cl-csop-f .osszeg { font-size:12.5px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+        .cl-ido-csop .cl-csop-f b { font-size:18px; font-variant-numeric:tabular-nums; }
         .cl-kgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
         .cl-kgrid.kicsi { grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); }
         .cl-k { font:inherit; text-align:left; color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; cursor:pointer; padding:0; min-width:0; }
@@ -1647,9 +1649,6 @@
         .cl-tabla td b { color:var(--navy); }
         .cl-tabla tbody tr { cursor:pointer; } .cl-tabla tbody tr:hover, .cl-tabla tbody tr:focus { background:#f7f9fc; outline:none; }
         /* idővonal */
-        .cl-ido { display:flex; flex-direction:column; gap:14px; }
-        .cl-ido-ev { display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; }
-        .cl-ido-f { display:flex; flex-direction:column; padding-top:8px; } .cl-ido-f b { font-size:20px; color:var(--navy); } .cl-ido-f em { font-style:normal; font-size:12px; color:var(--muted); }
         .cl-ido-l { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:4px 6px; }
         .cl-ido-s { width:100%; display:grid; grid-template-columns:10px minmax(0,1fr) auto auto; gap:10px; align-items:center; font:inherit; text-align:left; background:none; border:0; border-bottom:1px solid #f1f4f8; padding:9px 8px; cursor:pointer; color:var(--text); }
         .cl-ido-s:last-child { border-bottom:0; } .cl-ido-s:hover { background:#f7f9fc; }
@@ -1711,7 +1710,7 @@
             .cl-szuro select { margin-left:0; }
             .cl-kgrid, .cl-kgrid.kicsi { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
             .cl-k-fedo { height:78px; }
-            .cl-ido-ev { grid-template-columns:minmax(0,1fr); gap:6px; } .cl-ido-f { flex-direction:row; align-items:baseline; gap:8px; padding:0 2px; }
+            .cl-csop-f em { display:none; }
             .cl-ido-s { grid-template-columns:10px minmax(0,1fr) auto; } .cl-ido-s em { display:none; }
             .cl-ter-p { padding:14px; }
             /* telefonon a vízió és a területek vízszintesen görgethető sor – ne tolják le a célokat */
@@ -17485,12 +17484,21 @@ window.sfOnViewSwitch = function(){
         const csop = new Map();
         for(const g of l){ const e = clEv(g) || 'Valamikor'; if(!csop.has(e)) csop.set(e, []); csop.get(e).push(g); }
         const kulcs = [...csop.keys()].sort((a, b) => a === 'Valamikor' ? -1 : b === 'Valamikor' ? 1 : b.localeCompare(a));
-        return `<div class="cl-ido">${kulcs.map(e => `<div class="cl-ido-ev">
-            <div class="cl-ido-f"><b>${escM(e)}</b><em>${csop.get(e).length} cél</em></div>
-            <div class="cl-ido-l">${clRend(csop.get(e)).map(g => `<button type="button" class="cl-ido-s" data-clnyit="${escM(g.id)}">
-                <i style="background:${clTer(clTerek(g)[0]).szin}"></i><b>${escM(g.name || '(névtelen cél)')}</b>
-                <em>${escM(CL_TIP[g.tip] || '')}${g.due ? ' · ' + escM(clDateLabel(g.due)) : ''}</em>${clStatPill(g)}</button>`).join('')}</div>
-        </div>`).join('')}</div>`;
+        // évenként összecsukható, mint a Galéria szakaszai (a kulcs "ev:2026", ugyanabban a halmazban)
+        return kulcs.map(e => {
+            const l = csop.get(e), k = 'ev:' + e, csukva = clCsukva.has(k);
+            const osszeg = ['fut', 'nincs', 'kesz', 'arch'].map(s => [s, l.filter(g => clStat(g) === s).length]).filter(([, n]) => n)
+                .map(([s, n]) => `${n} ${CL_STAT[s][0].toLowerCase()}`).join(' · ');
+            return `<section class="cl-csop cl-ido-csop${csukva ? ' csukva' : ''}">
+                <button type="button" class="cl-csop-f" data-clcsop="${escM(k)}" aria-expanded="${!csukva}">
+                    <svg class="nyil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    <b>${escM(e)}</b><span class="db">${l.length}</span><span class="osszeg">${escM(osszeg)}</span><span class="vonal"></span>
+                    <em>${csukva ? 'megjelenítés' : 'összecsukás'}</em></button>
+                ${csukva ? '' : `<div class="cl-ido-l">${clRend(l).map(g => `<button type="button" class="cl-ido-s" data-clnyit="${escM(g.id)}">
+                    <i style="background:${clTer(clTerek(g)[0]).szin}"></i><b>${escM(g.name || '(névtelen cél)')}</b>
+                    <em>${escM(CL_TIP[g.tip] || '')}${g.due ? ' · ' + escM(clDateLabel(g.due)) : ''}</em>${clStatPill(g)}</button>`).join('')}</div>`}
+            </section>`;
+        }).join('');
     }
     function clMeroHtml(){
         const l = clRend(clSzurt().filter(clMert));
