@@ -17182,6 +17182,7 @@ window.sfOnViewSwitch = function(){
     let clPrivOk = false, clPrivHiba = '';
     let clLive = null;
     let clNezet = 'ter', clTerAkt = '', clTerSzuro = '', clStatSzuro = 'aktiv';
+    let clImportUtana = false;   // az Admin → Import fülről indított cél-import: a lap betöltése után nyílik
     let clAkciok = [];
     let clLoadedUid = null;
 
@@ -18088,6 +18089,7 @@ window.sfOnViewSwitch = function(){
         // Átköltöztetés: a korábban a közös dokumentumban tartott nem szakmai
         // célok a privát tárolóba kerülnek (előbb oda írunk, csak utána törlünk).
         if(clPrivOk && remote && clData.goals.some(g => !clSzakmai(g))) clPersist(true);
+        if(clImportUtana){ clImportUtana = false; clNotionImport(); }
     };
 
     // ===================== JEGYZETEK =====================
@@ -19139,6 +19141,17 @@ window.sfOnViewSwitch = function(){
         </div></div>
 
         <div class="card" style="margin-bottom:14px;"><div class="card-body">
+            <div class="adm-section-title">Célok – Notion Goal Planner (ZIP)</div>
+            <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 12px;">
+                A Goal Planner céljait tartalmazó adatbázis oldalán: <b>••• → Export</b>, <b>„Markdown &amp; CSV”</b>, az
+                <b>„Include content” legyen „Everything”</b>. Minden mező átjön (terület, típus, nehézség, év, státusz,
+                dátum, kapcsolódó célok, leírás). A <b>Szakmai</b> területű célokat a vezetőd is látja, minden más a privát
+                részedbe kerül. Újra behozva a meglévő célok frissülnek, nem duplázódnak.
+            </p>
+            <button class="btn primary" id="admCelImport" style="background:var(--blue);color:#fff;border-color:var(--blue);">Cél-import megnyitása</button>
+        </div></div>
+
+        <div class="card" style="margin-bottom:14px;"><div class="card-body">
             <div class="adm-section-title">Pénzügyek – tranzakciók (CSV)</div>
             <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 12px;">
                 Költések és bevételek egy másik alkalmazásból vagy a bankodból (Spendee, Wallet, Revolut, bankszámla-kivonat).
@@ -19176,6 +19189,11 @@ window.sfOnViewSwitch = function(){
             <div id="impPreview"></div>
         </div></div>`;
         document.getElementById('admJgImport').addEventListener('click', () => jgOpenImport());
+        // A cél-import a Célok oldalon fut (ott látszik utána az eredmény): átlépünk, és betöltés után nyílik.
+        document.getElementById('admCelImport').addEventListener('click', () => {
+            clImportUtana = true;
+            const a = document.querySelector('.nav a[data-page="celok"]'); if(a) a.click();
+        });
         document.getElementById('admPzTranzImport').addEventListener('click', () => {
             if(typeof window.pzOpenTranzImport === 'function') window.pzOpenTranzImport();
             else alert('A tranzakció-import most nem érhető el – tölts újra az oldalon.');
