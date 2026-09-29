@@ -1611,7 +1611,18 @@
         .cl-stat { font-size:11px; font-weight:800; border-radius:99px; padding:3px 9px; white-space:nowrap; }
         .cl-neh { font-size:11px; letter-spacing:2px; color:#b45309; }
         /* kártya (galéria, területek) */
-        .cl-csop { margin-bottom:18px; } .cl-csop-f { display:flex; align-items:center; gap:8px; margin:0 2px 9px; } .cl-csop-f em { font-style:normal; font-size:12.5px; color:var(--muted); }
+        .cl-csop { margin-bottom:26px; }
+        .cl-csop.csukva { margin-bottom:10px; }
+        .cl-csop-f { width:100%; display:flex; align-items:center; gap:10px; font:inherit; text-align:left; cursor:pointer;
+                     background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin:0 0 12px; color:var(--navy); }
+        .cl-csop-f:hover { border-color:#b9c7dc; }
+        .cl-csop-f .nyil { width:18px; height:18px; color:var(--muted); flex-shrink:0; transition:transform .15s; }
+        .cl-csop.csukva .cl-csop-f .nyil { transform:rotate(-90deg); }
+        .cl-csop-f i { width:11px; height:11px; border-radius:99px; flex-shrink:0; }
+        .cl-csop-f b { font-size:16px; font-weight:800; }
+        .cl-csop-f .db { font-size:12px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:2px 9px; }
+        .cl-csop-f .vonal { flex:1; }
+        .cl-csop-f em { font-style:normal; font-size:12px; font-weight:700; color:var(--blue); }
         .cl-kgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
         .cl-kgrid.kicsi { grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); }
         .cl-k { font:inherit; text-align:left; color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; cursor:pointer; padding:0; min-width:0; }
@@ -17182,7 +17193,9 @@ window.sfOnViewSwitch = function(){
     let clPrivOk = false, clPrivHiba = '';
     let clLive = null;
     let clNezet = 'ter', clTerAkt = '', clTerSzuro = '', clStatSzuro = 'aktiv';
-    let clImportUtana = false;   // az Admin → Import fülről indított cél-import: a lap betöltése után nyílik
+    let clImportUtana = false;
+    // A Galéria összecsukott szakaszai (státusz szerint) – ebben a böngészőben megjegyezve.
+    const clCsukva = new Set((() => { try { return store.load('sf_cl_csukva', []); } catch(e){ return []; } })());   // az Admin → Import fülről indított cél-import: a lap betöltése után nyílik
     let clAkciok = [];
     let clLoadedUid = null;
 
@@ -17449,9 +17462,13 @@ window.sfOnViewSwitch = function(){
         const l = clSzurt(); if(!l.length) return clUres();
         return ['fut', 'nincs', 'kesz', 'arch'].map(s => {
             const g = clRend(l.filter(x => clStat(x) === s)); if(!g.length) return '';
-            const [n, b, c] = CL_STAT[s];
-            return `<div class="cl-csop"><div class="cl-csop-f"><span class="cl-stat" style="background:${b};color:${c}">${n}</span><em>${g.length} cél</em></div>
-                <div class="cl-kgrid">${g.map(clKartya).join('')}</div></div>`;
+            const [n, , c] = CL_STAT[s], csukva = clCsukva.has(s);
+            return `<section class="cl-csop${csukva ? ' csukva' : ''}">
+                <button type="button" class="cl-csop-f" data-clcsop="${s}" aria-expanded="${!csukva}">
+                    <svg class="nyil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    <i style="background:${c}"></i><b>${n}</b><span class="db">${g.length}</span><span class="vonal"></span>
+                    <em>${csukva ? 'megjelenítés' : 'összecsukás'}</em></button>
+                ${csukva ? '' : `<div class="cl-kgrid">${g.map(clKartya).join('')}</div>`}</section>`;
         }).join('');
     }
     function clTablaHtml(){
@@ -17766,6 +17783,11 @@ window.sfOnViewSwitch = function(){
             const c = s => e.target.closest(s);
             let b;
             if((b = c('[data-clnez]'))){ clNezet = b.dataset.clnez; clRender(); return; }
+            if((b = c('[data-clcsop]'))){
+                const k = b.dataset.clcsop; clCsukva.has(k) ? clCsukva.delete(k) : clCsukva.add(k);
+                try { store.save('sf_cl_csukva', [...clCsukva]); } catch(err){}
+                clRender(); return;
+            }
             if((b = c('[data-clterszuro]'))){ clTerSzuro = b.dataset.clterszuro; clRender(); return; }
             if((b = c('[data-clter]'))){ clTerAkt = b.dataset.clter; clRender(); return; }
             if((b = c('[data-clarch]'))){ clNezet = 'gal'; clTerSzuro = b.dataset.clarch; clStatSzuro = 'arch'; clRender(); return; }
