@@ -137,7 +137,11 @@
         body:not(.sf-privat) [data-ter="priv"], body:not(.sf-privat) .sf-priv-csak { display:none !important; }
         body.sf-privat [data-ter="ovb"], body.sf-privat .sf-ovb-csak { display:none !important; }
         body.sf-privat .nav a[data-ter="mind"] { order:10; }
-        .sf-ter-cimke { flex-shrink:0; margin-top:4px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+.jg-cel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:4px; background:#f0f3f7; border-radius:11px; }
+        .jg-cel button { font:inherit; font-size:13px; font-weight:700; border:0; border-radius:8px; padding:9px 10px; background:transparent; color:var(--muted); cursor:pointer; }
+        .jg-cel button.on { background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(15,47,95,.15); }
+        .jg-cel button[data-jgcel="priv"].on { color:#6d28d9; }
+                .sf-ter-cimke { flex-shrink:0; margin-top:4px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
                         border-radius:99px; padding:4px 9px; background:#e9ddff; color:#3b1466; }
         .sf-ter { display:flex; align-items:center; gap:11px; margin:10px 12px; padding:11px 12px; border-radius:12px; background:rgba(255,255,255,.07); }
         .sf-ter-ik { width:18px; height:18px; flex-shrink:0; color:#9fb0cc; }
@@ -17908,6 +17912,7 @@ window.sfOnViewSwitch = function(){
                 <button class="jg-segb${jgView === "kereso" ? " on" : ""}" data-jgview="kereso">Kereső</button>
                 <button class="jg-segb${jgView === "tabla" ? " on" : ""}" data-jgview="tabla">Táblázat</button>
             </div>
+            <button class="btn" id="jgImp" title="Jegyzetek behozása Notion-exportból" style="white-space:nowrap;">Import</button>
             <button class="btn primary" id="jgNew" style="background:var(--blue);color:#fff;border-color:var(--blue);white-space:nowrap;">+ Új</button>
         </div>
         <div class="jg-filters">
@@ -17925,7 +17930,7 @@ window.sfOnViewSwitch = function(){
 
     // A) Kereső: a találat KÖRNYEZETÉVEL és a találatszámmal.
     function jgListHtml(list){
-        if(!list.length) return `<div class="jg-empty">${jgNotes.length ? "Nincs találat." : "Még nincs jegyzeted. Kezdd az „+ Új” gombbal, vagy az Admin → Import fülön hozd át a Notion-jegyzeteidet."}</div>`;
+        if(!list.length) return `<div class="jg-empty">${jgNotes.length ? "Nincs találat." : "Még nincs jegyzeted. Kezdd az „+ Új” gombbal, vagy az „Import” gombbal hozd át a Notion-jegyzeteidet."}</div>`;
         if(jgGroup) return jgGroupsOf(list).map(g => `
             <details class="jg-grp"${jgClosed.has(g.cim) ? "" : " open"} data-jggrp="${escM(g.cim)}">
                 <summary>${escM(g.cim)}<span>${g.items.length}</span></summary>
@@ -18064,6 +18069,7 @@ window.sfOnViewSwitch = function(){
         }));
         host.querySelectorAll("[data-jgopen]").forEach(b => b.addEventListener("click", () => jgOpen(b.dataset.jgopen)));
         const nw = document.getElementById("jgNew"); if(nw) nw.addEventListener("click", jgCreate);
+        const imp = document.getElementById("jgImp"); if(imp) imp.addEventListener("click", jgOpenImport);
         const rt = document.getElementById("jgRetry");
         if(rt) rt.addEventListener("click", async () => { jgLoaded = false; await window.sfShowJegyzetek(); });
 
@@ -18309,6 +18315,7 @@ window.sfOnViewSwitch = function(){
     }
 
     function jgOpenImport(){
+        let cel = jgTerem();         // hová kerüljenek: alapból a menü kapcsolójának állása
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
@@ -18328,6 +18335,11 @@ window.sfOnViewSwitch = function(){
                         munkaterület</b> exportja is jó: a Notion olyankor ZIP-be csomagolt ZIP-eket
                         ad, azokat magától kibontja.
                     </p>
+                    <div><span style="display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">Hová kerüljenek?</span>
+                        <div class="jg-cel" role="radiogroup" aria-label="Hová kerüljenek a jegyzetek">
+                            <button type="button" role="radio" data-jgcel="ovb">OVB-s jegyzetek</button>
+                            <button type="button" role="radio" data-jgcel="priv">Privát jegyzetek</button>
+                        </div></div>
                     <div><label for="jgZip">Az export ZIP-fájlja</label>
                         <input id="jgZip" type="file" accept=".zip,.md,application/zip"></div>
                     <div id="jgImpMsg" style="font-size:13px;color:var(--muted);line-height:1.6;"></div>
@@ -18342,6 +18354,10 @@ window.sfOnViewSwitch = function(){
         const msg = overlay.querySelector("#jgImpMsg");
         const go = overlay.querySelector("#jgImpGo");
         const file = overlay.querySelector("#jgZip");
+        const celRajz = () => overlay.querySelectorAll("[data-jgcel]").forEach(b => {
+            const on = b.dataset.jgcel === cel; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); });
+        celRajz();
+        overlay.querySelectorAll("[data-jgcel]").forEach(b => b.addEventListener("click", () => { if(!file.disabled){ cel = b.dataset.jgcel; celRajz(); } }));
         overlay.querySelector("#jgImpCancel").addEventListener("click", close);
         overlay.addEventListener("click", e => { if(e.target === overlay) close(); });
         file.addEventListener("change", () => { go.disabled = !file.files.length; });
@@ -18357,7 +18373,7 @@ window.sfOnViewSwitch = function(){
                 const entries = /\.zip$/i.test(f.name)
                     ? await jgUnzipDeep(buf, 0)
                     : [{ name: f.name, data: new Uint8Array(buf) }];
-                await jgRunImport(entries, say);
+                await jgRunImport(entries, say, cel);
                 jgLoaded = false;
                 await window.sfShowJegyzetek();
                 go.textContent = "Kész";
@@ -18369,7 +18385,7 @@ window.sfOnViewSwitch = function(){
         });
     }
 
-    async function jgRunImport(entries, say){
+    async function jgRunImport(entries, say, cel){
         const dec = new TextDecoder("utf-8");
         const mds = entries.filter(e => /\.md$/i.test(e.name));
         const csvs = entries.filter(e => /\.csv$/i.test(e.name));
@@ -18466,15 +18482,15 @@ window.sfOnViewSwitch = function(){
             }
 
             const nt = { title, body: body.trim(), tags: dirs, ownerUid: owner,
-                         created: jgNow(), updated: jgNow(), forras: "notion" };
-            try { nt.id = await addNote(nt); jgNotes.push(nt); kesz++; }
+                         created: jgNow(), updated: jgNow(), forras: "notion", ...(cel === "priv" ? { ter: "priv" } : {}) };
+            try { nt.id = await addNote(nt); kesz++; }
             catch(err){ console.warn("Jegyzet mentése sikertelen:", title, err); }
             say(`Jegyzetek behozása… ${kesz} / ${mds.length}`);
         }
         // Az Admin lapról indított import után a Jegyzetek lap még a régi listát
         // tartaná; a következő megnyitáskor töltsön újra a szerverről.
         jgLoaded = false;
-        say(`Kész: <b>${kesz}</b> jegyzet behozva${kepDb ? `, <b>${kepDb}</b> képpel` : ""}.`
+        say(`Kész: <b>${kesz}</b> jegyzet behozva ${cel === "priv" ? "a <b>privát</b>" : "az <b>OVB-s</b>"} jegyzetek közé${kepDb ? `, <b>${kepDb}</b> képpel` : ""}.`
             + (kepHiba ? `<br><span style="color:var(--red);">${kepHiba} kép nem jött át</span> – a szövegük helyén jelzés maradt.` : "")
             + (csvs.length ? `<br>${csvs.length} adatbázis-exportot (.csv) kihagytam – azok táblázatok.` : ""));
     }
@@ -18713,7 +18729,7 @@ window.sfOnViewSwitch = function(){
             </div>
             <div id="impPreview"></div>
         </div></div>`;
-        document.getElementById('admJgImport').addEventListener('click', jgOpenImport);
+        document.getElementById('admJgImport').addEventListener('click', () => jgOpenImport());
         document.getElementById('admPzTranzImport').addEventListener('click', () => {
             if(typeof window.pzOpenTranzImport === 'function') window.pzOpenTranzImport();
             else alert('A tranzakció-import most nem érhető el – tölts újra az oldalon.');
