@@ -2716,6 +2716,7 @@
         .ez-p-ok { background:#15803d; } .ez-p-resz { background:#f59e0b; } .ez-p-ki { background:#ef4444; }
         .ez-p-terv { border:3px solid #94a3b8; background:#fff; } .ez-p-pih { background:#e2e8f0; }
         .ez-p-ures { border:1.5px dashed #cbd5e1; background:#f7f9fc; }
+        .ez-p-extra { background:#3b82f6; }
         .ez-jelm { display:flex; flex-wrap:wrap; gap:5px 12px; font-size:11px; color:var(--muted); }
         .ez-jelm span { display:inline-flex; align-items:center; gap:5px; }
         .ez-jelm i { width:9px; height:9px; border-radius:99px; box-sizing:border-box; }
@@ -2752,6 +2753,19 @@
         .ez-n-ok { background:#15803d; color:#fff; } .ez-n-resz { background:#f59e0b; color:#3b2402; } .ez-n-ki { background:#fca5a5; color:#7f1d1d; }
         .ez-n-pih { background:#e2e8f0; color:#55657a; } .ez-n-terv { background:#fff; color:var(--text); border:1.5px dashed #94a3b8; }
         .ez-n-ures { background:#f7f9fc; color:#94a3b8; }
+        .ez-n-extra { background:#dce9fd; color:#1e3a8a; box-shadow:inset 0 0 0 1.5px #93c5fd; }
+        .ez-akt-link { background:none; border:0; padding:0; font:inherit; font-weight:800; color:#fff; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+        .ez-akt-lista { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+        .ez-akt-tov { font-style:normal; font-size:12px; font-weight:700; color:var(--blue); white-space:nowrap; margin-left:auto; }
+        .ez-akt-fej { display:flex; gap:14px; align-items:center; margin-bottom:14px; }
+        .ez-akt-fej > div > b { font-size:15px; color:var(--navy); }
+        .ez-akt-fej .ez-ik.nagy { width:52px; height:52px; border-radius:14px; } .ez-akt-fej .ez-ik.nagy svg { width:26px; height:26px; }
+        .ez-akt-cimkek { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+        .ez-akt-racs { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+        .ez-akt-racs > div { background:#f4f6f9; border-radius:10px; padding:9px 11px; display:flex; flex-direction:column; gap:2px; }
+        .ez-akt-racs span { font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+        .ez-akt-racs b { font-size:16px; color:var(--navy); font-variant-numeric:tabular-nums; }
+        .ez-modal a.ez-sv-gomb { text-decoration:none; }
         .ez-nap.ma { outline:2px solid var(--blue); outline-offset:1px; }
         .ez-megj { margin:10px 2px 0; font-size:12px; color:var(--muted); }
         .ez-sp { display:flex; flex-direction:column; gap:5px; }
@@ -10558,7 +10572,16 @@ const EZ_STRAVA = {
     ero: ['WeightTraining', 'Workout', 'Crossfit', 'HighIntensityIntervalTraining'], usz: ['Swim'], mob: ['Yoga', 'Pilates'],
 };
 const EZ_STRAVA_CLIENT_ID = '282966';
-const ezTipNev = t => String(t || '').replace(/([a-z])([A-Z])/g, '$1 $2');
+// A Strava-típusok magyarul; amit nem ismerünk, az szóközzel tagolva, eredetiben.
+const EZ_TIP_HU = { Run:'Futás', TrailRun:'Terepfutás', VirtualRun:'Virtuális futás', Walk:'Séta', Hike:'Túra',
+    Ride:'Kerékpár', VirtualRide:'Virtuális kerékpár', EBikeRide:'E-bike', GravelRide:'Gravel', MountainBikeRide:'Hegyi kerékpár',
+    EMountainBikeRide:'E-MTB', Swim:'Úszás', WeightTraining:'Súlyzós edzés', Workout:'Edzés', Crossfit:'Crossfit',
+    HighIntensityIntervalTraining:'HIIT', Yoga:'Jóga', Pilates:'Pilates', Rowing:'Evezés', VirtualRow:'Evezőgép',
+    AlpineSki:'Síelés', BackcountrySki:'Túrasí', NordicSki:'Sífutás', Snowboard:'Snowboard', IceSkate:'Korcsolya',
+    InlineSkate:'Görkorcsolya', RockClimbing:'Sziklamászás', StairStepper:'Lépcsőgép', Elliptical:'Elliptikus tréner',
+    Tennis:'Tenisz', Padel:'Padel', Squash:'Squash', Badminton:'Tollaslabda', Soccer:'Foci', Golf:'Golf',
+    Kayaking:'Kajak', Canoeing:'Kenu', StandUpPaddling:'SUP', Surfing:'Szörf', Kitesurf:'Kitesurf', Windsurf:'Windsurf' };
+const ezTipNev = t => EZ_TIP_HU[t] || String(t || '').replace(/([a-z])([A-Z])/g, '$1 $2');
 const ezTipSport = t => Object.keys(EZ_STRAVA).find(k => EZ_STRAVA[k].includes(t)) || 'egy';
 // Kezdő sablonkészlet – az első mentéskor a saját törzsedbe kerül, utána szabadon szerkeszted.
 const EZ_ALAP_SABLON = [
@@ -10695,10 +10718,14 @@ function ezEr(e, s){
 }
 const ezAll = (e, s) => ezEr(e, s).a;
 const ezAllCim = er => EZ_ALL[er.a] + (er.src === 'strava' && er.a !== 'terv' ? ' · Strava' : '');
+// A nap összesített állapota a naptárhoz és a heti pöttyökhöz. Ha nem volt
+// terv (vagy csak pihenő), de a Strava szerint edzettél: "terven felüli".
 function ezNapAll(s){
-    const l = ezNapLista(s); if(!l.length) return 'ures';
+    const l = ezNapLista(s), sv = s <= ezMa() ? ezSvNap(s) : null;
+    const extra = !!(sv && sv.extra.length);
+    if(!l.length) return extra ? 'extra' : 'ures';
     const a = l.map(e => ezAll(e, s)).filter(x => x !== 'pih');
-    if(!a.length) return 'pih';
+    if(!a.length) return extra ? 'extra' : 'pih';
     if(a.every(x => x === 'ok')) return 'ok';
     if(a.some(x => x === 'ok' || x === 'resz')) return 'resz';
     if(a.every(x => x === 'ki' || x === 'jel')) return 'ki';
@@ -10796,7 +10823,7 @@ function ezMaHtml(){
             <div class="ez-mai-strava">
                 <span class="c">Strava-ellenőrzés</span>
                 ${er.src === 'strava' && er.akt.length
-                    ? `<span class="t">${er.akt.map(x => `<b>${esc(x.n)}</b> · ${esc(ezAktSzoveg(x))}`).join('<br>')}</span>
+                    ? `<span class="t">${er.akt.map(x => `<button type="button" class="ez-akt-link" data-ezakt="${ma}|${esc(x.id)}">${esc(x.n)}</button> · ${esc(ezAktSzoveg(x))}`).join('<br>')}</span>
                        <span class="f ${a === 'ok' ? 'ok' : ''}"><i></i>${a === 'ok' ? 'A Strava igazolta az edzést.' : `A célnak ${Math.round((ezSvNap(ma).par.get(fo.id) || {}).arany * 100)}%-a – részben teljesítve.`}</span>`
                     : `<span class="t">${ezSzabaly(fo)}</span>
                        <span class="f"><i></i>${ezStravaKapcs() ? `Még nincs egyező aktivitás · szinkron: ${esc(ezSzinkIdo())}` : 'Kösd össze a Stravát, és ő igazolja – addig kézzel jelöld.'}</span>`}
@@ -10818,12 +10845,12 @@ function ezMaHtml(){
 
     // --- a hét táblázata: terv és valóság ---
     const het = ezHet7(ezHet), st = ezStat(het);
-    const extraSor = x => `<div class="ez-t-sor extra"><span></span>
-        <span class="ez-t-terv nincs">${ezIk(ezTipSport(x.tip))}<span><b>${esc(x.n)}</b><em>${esc(ezTipNev(x.tip))}</em></span></span>
+    const extraSor = (x, s) => `<div class="ez-t-sor extra"><span></span>
+        <button type="button" class="ez-t-terv" data-ezakt="${s}|${esc(x.id)}">${ezIk(ezTipSport(x.tip))}<span><b>${esc(x.n)}</b><em>${esc(ezTipNev(x.tip))}${x.ido ? ' · ' + esc(x.ido) : ''}</em></span></button>
         <span class="ez-t-teny">Strava · ${esc(ezAktSzoveg(x))}</span><span class="ez-t-er"><span class="ez-pill ez-st-extra">Terven felüli</span></span></div>`;
     const sorok = het.map((s, i) => {
         const l = ezNapLista(s), maE = s === ma, sv = ezSvNap(s);
-        const extra = sv ? sv.extra.map(extraSor).join('') : '';
+        const extra = sv ? sv.extra.map(x => extraSor(x, s)).join('') : '';
         const napCim = `<span class="ez-t-nap${maE ? ' ma' : ''}"><b>${EZ_NAP[i]}</b><em>${ezRovidD(s)}${maE ? ' · ma' : ''}</em></span>`;
         const vers = ezVersenyekNapon(s).map(v => `<div class="ez-t-sor verseny"><span></span>
             <button type="button" class="ez-t-terv" data-ezvszerk="${esc(v.id)}">${ezVersIk()}<span><b>${esc(v.n)}</b><em>${esc(ezVersCel(v))}</em></span></button>
@@ -10856,7 +10883,7 @@ function ezMaHtml(){
             <section class="card ez-kartya">
                 <div class="ez-k-fej"><b>A hét ritmusa</b><span><b>${st.ok}</b> / ${st.n} kész</span></div>
                 <div class="ez-pottyok">${pottyok}</div>
-                <div class="ez-jelm"><span><i class="ez-p-ok"></i>teljesítve</span><span><i class="ez-p-resz"></i>részben</span><span><i class="ez-p-ki"></i>kihagyva</span><span><i class="ez-p-terv"></i>tervezett</span><span><i class="ez-p-pih"></i>pihenő</span></div>
+                <div class="ez-jelm"><span><i class="ez-p-ok"></i>teljesítve</span><span><i class="ez-p-resz"></i>részben</span><span><i class="ez-p-ki"></i>kihagyva</span><span><i class="ez-p-extra"></i>terven felüli</span><span><i class="ez-p-terv"></i>tervezett</span><span><i class="ez-p-pih"></i>pihenő</span></div>
                 <button type="button" class="btn ez-hetgomb" data-ezhet>Heti terv szerkesztése</button>
             </section>
             ${ezKovVerseny() ? `<button type="button" class="card ez-kov-vers" data-ezvszerk="${esc(ezKovVerseny().id)}">${ezVersIk()}
@@ -10885,6 +10912,19 @@ function ezAttekHtml(){
     const honap = Array.from({ length: hossz }, (_, i) => `${ezHo}-${String(i + 1).padStart(2, '0')}`);
     const sh = ezStat(ezHet7(ezHetfo(ma)));
     const sm = ezStat(honap.filter(s => s <= ma));
+    // Tényleges edzésidő: minden Strava-aktivitás (tervezett és terven felüli
+    // is), plusz a kézzel jelölt edzések – a Strava által igazolt tervet nem
+    // számoljuk kétszer.
+    const teny = { perc: 0, km: 0, db: 0 };
+    for(const s of honap){
+        if(s > ma) continue;
+        const sv = ezSvNap(s);
+        if(sv) for(const x of [...[...sv.par.values()].flatMap(p => p.akt), ...sv.extra]){ teny.perc += x.perc || 0; teny.km += x.km || 0; teny.db++; }
+        for(const e of ezNapLista(s)){
+            const er = ezEr(e, s);
+            if(er.src === 'kez' && (er.a === 'ok' || er.a === 'resz')){ teny.perc += ezTenyPerc(e, er); teny.km += ezTenyKm(e, er); teny.db++; }
+        }
+    }
     // Sorozat: egymást követő hetek legalább 70%-os teljesítéssel. A folyó hét
     // csak akkor számít, ha már most megvan – különben az előzővel kezdünk.
     let sor = 0, h = ezHetfo(ma);
@@ -10898,7 +10938,7 @@ function ezAttekHtml(){
             <span class="ez-gyuru"><svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="28" class="h"/>${sh.ok ? `<circle cx="36" cy="36" r="28" class="f" stroke-dasharray="${(pHet / 100 * KOR).toFixed(1)} ${KOR.toFixed(1)}" transform="rotate(-90 36 36)"/>` : ''}</svg><b>${pHet}%</b></span>
             <span class="k"><span class="c">Ezen a héten</span><b>${sh.ok} / ${sh.n}</b><span>${sh.resz} részben · ${sh.ki} kihagyva</span></span></div>
         <div class="card ez-kpi"><span class="c">${EZ_HO[m - 1][0].toUpperCase() + EZ_HO[m - 1].slice(1)}</span><b>${sm.n ? Math.round(sm.ok / sm.n * 100) + '%' : '—'}</b><span>${sm.n ? `${sm.ok} / ${sm.n} esedékes edzés teljesítve` : 'nincs még esedékes edzés'}</span></div>
-        <div class="card ez-kpi"><span class="c">Edzésidő a hónapban</span><b>${ezIdo(sm.perc)}</b><span>${sm.km ? ezKm(sm.km) + ' km · ' : ''}${sm.ok + sm.resz} edzés</span></div>
+        <div class="card ez-kpi"><span class="c">Edzésidő a hónapban</span><b>${ezIdo(teny.perc)}</b><span>${teny.km ? ezKm(teny.km) + ' km · ' : ''}${teny.db} edzés</span></div>
         <div class="card ez-kpi"><span class="c">Sorozat</span><b>${sor} hét</b><span>egymás után legalább 70%</span></div>
     </div>`;
     // --- havi naptár ---
@@ -10906,7 +10946,9 @@ function ezAttekHtml(){
     const cellak = Array.from({ length: elso }, () => '<span class="ez-nap-x"></span>').join('')
         + honap.map(s => {
             const l = ezNapLista(s), all = ezNapAll(s), edz = l.filter(e => e.sport !== 'pih');
-            const cimke = edz.length ? esc(edz[0].n) + (edz.length > 1 ? ` +${edz.length - 1}` : '') : l.length ? 'pihenő' : '';
+            const sv = s <= ma ? ezSvNap(s) : null, ex = sv ? sv.extra : [];
+            const cimke = edz.length ? esc(edz[0].n) + (edz.length + ex.length > 1 ? ` +${edz.length + ex.length - 1}` : '')
+                : ex.length ? esc(ex[0].n) + (ex.length > 1 ? ` +${ex.length - 1}` : '') : l.length ? 'pihenő' : '';
             const vl = ezVersenyekNapon(s);
             const vcim = vl.length ? ' · Verseny: ' + vl.map(v => v.n).join(', ') : '';
             return `<button type="button" class="ez-nap ez-n-${all}${s === ma ? ' ma' : ''}" data-ezugrik="${s}" title="${ezRovidD(s)}${cimke ? ' · ' + cimke : ''}${esc(vcim)}"><b>${+s.slice(8)}${vl.length ? ezVersIk('mini') : ''}</b><span>${vl.length && !cimke ? esc(vl[0].n) : cimke}</span></button>`;
@@ -10929,11 +10971,14 @@ function ezAttekHtml(){
     for(let i = honap.length - 1; i >= 0 && legutobb.length < 6; i--){
         const s = honap[i]; if(s > ma) continue;
         for(const e of ezNapLista(s)){ const er = ezEr(e, s); if(er.a === 'ok' || er.a === 'resz') legutobb.push([s, e, er]); }
+        const sv = ezSvNap(s);
+        if(sv) sv.extra.forEach(x => legutobb.push([s, null, x]));
     }
+    legutobb.length = Math.min(legutobb.length, 6);
     return `${kpi}<div class="ez-at-lay">
         <section class="card ez-naptar">
             <div class="ez-nt-fej"><b>${y}. ${EZ_HO[m - 1]}</b>
-                <span class="ez-jelm negyzet"><span><i class="ez-p-ok"></i>teljesítve</span><span><i class="ez-p-resz"></i>részben</span><span><i class="ez-p-ki"></i>kihagyva</span><span><i class="ez-p-pih"></i>pihenő</span><span><i class="ez-p-terv"></i>tervezett</span></span></div>
+                <span class="ez-jelm negyzet"><span><i class="ez-p-ok"></i>teljesítve</span><span><i class="ez-p-resz"></i>részben</span><span><i class="ez-p-ki"></i>kihagyva</span><span><i class="ez-p-extra"></i>terven felüli</span><span><i class="ez-p-pih"></i>pihenő</span><span><i class="ez-p-terv"></i>tervezett</span></span></div>
             <div class="ez-nt-napok">${EZ_NAP_R.map(x => `<span>${x}</span>`).join('')}</div>
             <div class="ez-nt-racs">${cellak}</div>
             <p class="ez-megj">Egy napra kattintva a Ma fülön annak a hetét látod, ott tudsz tervezni és jelölni.</p>
@@ -10948,8 +10993,10 @@ function ezAttekHtml(){
             </section>
             <section class="card ez-kartya">
                 <div class="ez-k-fej"><b>Legutóbbi edzések</b></div>
-                ${legutobb.length ? legutobb.map(([s, e, er]) => `<button type="button" class="ez-kov" data-ezszerk data-ezd="${s}" data-ezid="${esc(e.id)}">${ezIk(e.sport)}
-                    <span><b>${esc(e.n)}</b><em>${ezRovidD(s)} · ${esc(ezTeny(e, er))}</em></span><span class="ez-pill ez-st-${er.a}">${EZ_ALL[er.a]}</span></button>`).join('')
+                ${legutobb.length ? legutobb.map(([s, e, er]) => e ? `<button type="button" class="ez-kov" data-ezszerk data-ezd="${s}" data-ezid="${esc(e.id)}">${ezIk(e.sport)}
+                    <span><b>${esc(e.n)}</b><em>${ezRovidD(s)} · ${esc(ezTeny(e, er))}</em></span><span class="ez-pill ez-st-${er.a}">${EZ_ALL[er.a]}</span></button>`
+                    : `<button type="button" class="ez-kov" data-ezakt="${s}|${esc(er.id)}">${ezIk(ezTipSport(er.tip))}
+                    <span><b>${esc(er.n)}</b><em>${ezRovidD(s)} · Strava · ${esc(ezAktSzoveg(er))}</em></span><span class="ez-pill ez-st-extra">Terven felüli</span></button>`).join('')
                     : `<div class="ez-ures kicsi">Még nincs teljesített edzés ebben a hónapban.</div>`}
             </section>
         </div>
@@ -11051,6 +11098,54 @@ function ezVersenyModal(id){
     });
 }
 
+// ---- Strava-aktivitás adatlapja: minden, amit a Strava listája elárul ----
+const EZ_TEMPO_TIP = ['Run', 'TrailRun', 'VirtualRun', 'Walk', 'Hike'];
+const ezAktKeres = (s, id) => (((ezAdat['sv' + s.slice(0, 4)] || {}).napok || {})[s] || []).find(x => x.id === id) || null;
+const ezOraPerc = sec => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), mp = String(sec % 60).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${mp}` : `${m}:${mp}`; };
+function ezAktModal(s, id){
+    const x = ezAktKeres(s, id); if(!x) return;
+    const futo = EZ_TEMPO_TIP.includes(x.tip), usz = x.tip === 'Swim', m = x.m || Math.round((x.km || 0) * 1000), sec = x.sec || (x.perc || 0) * 60;
+    const adatok = [];
+    const add = (cim, ertek) => { if(ertek) adatok.push([cim, ertek]); };
+    add('Kezdés', `${EZ_NAP[ezNapIdx(s)]}, ${ezRovidD(s)}${x.ido ? ' ' + x.ido : ''}`);
+    add('Táv', m ? (m >= 1000 ? ezKm(m / 1000) + ' km' : m + ' m') : '');
+    add('Mozgásidő', sec ? ezOraPerc(sec) : '');
+    add('Teljes idő', x.esec && x.esec !== x.sec ? ezOraPerc(x.esec) : '');
+    if(m && sec) add(futo || usz ? 'Átlagtempó' : 'Átlagsebesség',
+        futo ? ezOraPerc(sec / (m / 1000)) + ' /km' : usz ? ezOraPerc(sec / (m / 100)) + ' /100 m' : ezKm(m / sec * 3.6) + ' km/h');
+    add(futo ? 'Leggyorsabb tempó' : 'Max sebesség', x.mseb ? (futo ? ezOraPerc(1000 / x.mseb) + ' /km' : ezKm(x.mseb * 3.6) + ' km/h') : '');
+    add('Szintemelkedés', x.emel ? x.emel + ' m' : '');
+    add('Legmagasabb pont', x.magas ? x.magas + ' m' : '');
+    add('Átlagpulzus', x.pulz ? x.pulz + ' ütés/perc' : '');
+    add('Max pulzus', x.mpulz ? x.mpulz + ' ütés/perc' : '');
+    add('Kadencia', x.kad ? Math.round(futo ? x.kad * 2 : x.kad) + (futo ? ' lépés/perc' : ' ford./perc') : '');
+    add('Átlagteljesítmény', x.watt ? x.watt + ' W' + (x.wattMert ? '' : ' (becsült)') : '');
+    add('Max teljesítmény', x.mwatt ? x.mwatt + ' W' : '');
+    add('Energia', x.kj ? x.kj + ' kJ' : '');
+    add('Relative Effort', x.szenv ? String(x.szenv) : '');
+    add('Hőmérséklet', x.homers ? x.homers + ' °C' : '');
+    add('Egyéni csúcs (PR)', x.pr ? String(x.pr) : '');
+    add('Eredmények', x.eredm ? String(x.eredm) : '');
+    add('Kudos', x.kudos ? String(x.kudos) : '');
+    add('Hozzászólás', x.komm ? String(x.komm) : '');
+    add('Fotó', x.foto ? String(x.foto) : '');
+    const EDZES = { 1:'Verseny', 2:'Hosszú futás', 3:'Edzés', 11:'Verseny', 12:'Edzés' };
+    const cimkek = [x.edzes && EDZES[x.edzes], x.belteri && 'Beltéri / edzőgépen', x.ingazas && 'Ingázás', x.kezi && 'Kézzel rögzített', x.privat && 'Privát'].filter(Boolean);
+    // Melyik tervezett edzést igazolta?
+    const sv = ezSvNap(s);
+    let igazol = null;
+    if(sv) for(const e of ezNapLista(s)){ const p = sv.par.get(e.id); if(p && p.akt.some(a => a.id === x.id)){ igazol = [e, p]; break; } }
+    ezModal(esc(x.n), `
+        <div class="ez-akt-fej">${ezIk(ezTipSport(x.tip), 'nagy')}<div><b>${esc(ezTipNev(x.tip))}</b>
+            <div class="ez-akt-cimkek">${cimkek.map(c => `<span class="ez-pill ez-st-terv">${esc(c)}</span>`).join('')}
+                ${igazol ? `<span class="ez-pill ez-st-ok">Igazolta: ${esc(igazol[0].n)} · ${Math.round(igazol[1].arany * 100)}%</span>` : `<span class="ez-pill ez-st-extra">Terven felüli</span>`}</div></div></div>
+        <div class="ez-akt-racs">${adatok.map(([c, v]) => `<div><span>${esc(c)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+        ${x.sec ? '' : '<p class="ez-megj">A részletes adatok (tempó, pulzus, szintemelkedés…) a következő szinkronnál töltődnek le.</p>'}`,
+        `<a class="ez-sv-gomb" href="https://www.strava.com/activities/${encodeURIComponent(x.id)}" target="_blank" rel="noopener">Megnézem a Stravában ↗</a>
+         <span class="ez-hely"></span><button type="button" class="btn" data-ezx>Bezárás</button>`);
+}
+
 // ---- ablakok ----
 function ezModal(cim, body, foot, onZar){
     const ov = document.createElement('div');
@@ -11110,11 +11205,15 @@ async function ezTetelModal(s, id){
         <div class="pz-seg2 ez-st-seg">${[['terv','Tervezett'],['ok','Teljesítve'],['resz','Részben'],['ki','Kihagyva']].map(([k, n]) =>
             `<button type="button" data-ezst="${k}"${st === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
         <div class="ez-mezok2" id="eztTeny"${st === 'ok' || st === 'resz' ? '' : ' hidden'}>${ezMezo('Tényleges idő (perc)', 'eztTP', e.tp || '', ' inputmode="numeric"')}${ezMezo('Tényleges táv (km)', 'eztTK', e.tk ? ezKm(e.tk) : '', ' inputmode="decimal"')}</div>`}
+        ${(() => { const er = ezEr(e, s); return er.src === 'strava' && er.akt.length ? `<div class="ez-mezo-c">Strava-aktivitás${er.akt.length > 1 ? 'ok' : ''}${e.st === 'ok' || e.st === 'resz' || e.st === 'ki' ? ' (a kézi jelölés felülírja)' : ''}</div>
+            <div class="ez-akt-lista">${er.akt.map(x => `<button type="button" class="ez-kov" data-ezakt="${s}|${esc(x.id)}">${ezIk(ezTipSport(x.tip))}<span><b>${esc(x.n)}</b><em>${esc(ezAktSzoveg(x))}${x.ido ? ' · ' + esc(x.ido) : ''}</em></span><em class="ez-akt-tov">Részletek ›</em></button>`).join('')}</div>` : ''; })()}
         ${ezMezo('Megjegyzés', 'eztM', e.megj || '', ' maxlength="140"')}
         ${e.leiras ? `<div class="ez-mezo-c">Lépések</div><ol class="ez-lepesek sotet">${String(e.leiras).split('\n').filter(Boolean).map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}`,
         `<button type="button" class="btn ez-torol" id="eztDel">Törlés</button><span class="ez-hely"></span>
          <button type="button" class="btn" data-ezx>Mégse</button><button type="button" class="btn primary ez-gb-kek" id="eztMent">Mentés</button>`);
     ov.addEventListener('click', async ev => {
+        const ak = ev.target.closest('[data-ezakt]');
+        if(ak){ const [d, i] = ak.dataset.ezakt.split('|'); ezAktModal(d, i); return; }
         const sb = ev.target.closest('[data-ezst]');
         if(sb){
             st = sb.dataset.ezst;
@@ -11328,6 +11427,8 @@ window.sfShowEdzes = function(){
         if(e.target.closest('[data-ezhet]')){ ezHetModal(); return; }
         const ug = e.target.closest('[data-ezugrik]');
         if(ug){ ezHet = ezHetfo(ug.dataset.ezugrik); ezTab = 'ma'; renderEdz(); return; }
+        const akt = e.target.closest('[data-ezakt]');
+        if(akt){ const [d, i] = akt.dataset.ezakt.split('|'); ezAktModal(d, i); return; }
         if(e.target.closest('[data-ezsvcsat]')){ ezStravaIndit(); return; }
         if(e.target.closest('[data-ezsvszink]')){ ezStravaSzinkron(true); return; }
         if(e.target.closest('[data-ezsvle]')){ ezStravaLe(); return; }

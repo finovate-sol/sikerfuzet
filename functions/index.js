@@ -108,6 +108,34 @@ exports.stravaCsatol = onCall(OPTS, async req => {
              osszekotve: new Date().toISOString() };
 });
 
+// Egy aktivitás mindazzal, amit a Strava listája elárul róla. Rövid mezőnevek,
+// és ami üres / nulla, az kimarad – egy év így is bőven elfér egy dokumentumban.
+function aktivitas(a){
+    const x = {
+        id: String(a.id), n: String(a.name || '').slice(0, 80), tip: a.sport_type || a.type || '',
+        perc: Math.round((a.moving_time || 0) / 60), km: Math.round((a.distance || 0) / 100) / 10,
+        ido: String(a.start_date_local || '').slice(11, 16),          // kezdés, helyi idő (ÓÓ:PP)
+        sec: a.moving_time || 0, esec: a.elapsed_time || 0,           // mozgásidő / teljes idő (mp)
+        m: Math.round(a.distance || 0),                                // táv méterben (a tempóhoz)
+        emel: Math.round(a.total_elevation_gain || 0),                 // szintemelkedés (m)
+        magas: a.elev_high != null ? Math.round(a.elev_high) : 0,     // legmagasabb pont (m)
+        seb: Math.round((a.average_speed || 0) * 100) / 100,           // átlagsebesség (m/s)
+        mseb: Math.round((a.max_speed || 0) * 100) / 100,              // max sebesség (m/s)
+        pulz: Math.round(a.average_heartrate || 0), mpulz: Math.round(a.max_heartrate || 0),
+        kad: Math.round((a.average_cadence || 0) * 10) / 10,           // kadencia (futásnál lábanként)
+        watt: Math.round(a.average_watts || 0), mwatt: Math.round(a.max_watts || 0),
+        wattMert: !!a.device_watts,                                    // mért (és nem becsült) teljesítmény
+        kj: Math.round(a.kilojoules || 0),
+        szenv: Math.round(a.suffer_score || 0),                        // Relative Effort
+        homers: a.average_temp != null ? Math.round(a.average_temp) : 0,
+        kudos: a.kudos_count || 0, komm: a.comment_count || 0, foto: a.total_photo_count || 0,
+        pr: a.pr_count || 0, eredm: a.achievement_count || 0,
+        belteri: !!a.trainer, ingazas: !!a.commute, kezi: !!a.manual, privat: !!a.private,
+        edzes: a.workout_type || 0,                                    // futás: 1 verseny, 2 hosszú, 3 edzés
+    };
+    return Object.fromEntries(Object.entries(x).filter(([, v]) => v !== 0 && v !== false && v !== ''));
+}
+
 exports.stravaSzinkron = onCall(OPTS, async req => {
     const uid = await engedelyezett(req);
     const { tol, ig } = req.data || {};
@@ -138,8 +166,7 @@ exports.stravaSzinkron = onCall(OPTS, async req => {
         for(const a of lista){
             const s = String(a.start_date_local || '').slice(0, 10);
             if(!napok[s]) continue;
-            napok[s].push({ id: String(a.id), n: String(a.name || '').slice(0, 80), tip: a.sport_type || a.type || '',
-                            perc: Math.round((a.moving_time || 0) / 60), km: Math.round((a.distance || 0) / 100) / 10 });
+            napok[s].push(aktivitas(a));
             db_++;
         }
         if(lista.length < 100) break;
