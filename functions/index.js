@@ -7,6 +7,7 @@
 //
 //    stravaCsatol    – a Strava-visszairányításból kapott kódot tokenre cseréli
 //    stravaSzinkron  – lehúzza a megadott napok aktivitásait
+//    stravaReszletek – egy-egy aktivitás részletei (legjobb idők 1 km / 5 km / 10 km…)
 //    stravaLevalaszt – visszavonja a hozzáférést és törli a tokent
 //
 //  A szerver CSAK a tokent tárolja: strava_token/{uid} (access/refresh token).
@@ -172,6 +173,48 @@ exports.stravaSzinkron = onCall(OPTS, async req => {
         if(lista.length < 100) break;
     }
     return { napok, db: db_, utolsoSzinkron: new Date().toISOString() };
+});
+
+// A futások legjobb részidői (best_efforts) csak az aktivitás részletes
+// lekérésében vannak benne – a Csúcsok fül ezekből dolgozik. Egy hívás
+// legfeljebb 15 aktivitást kér le; ha a Strava kerete (100 kérés / 15 perc)
+// közben elfogy, az addig lekértet adjuk vissza, limit jelzéssel.
+const BE_KULCS = { '1k': 'k1', '1 mile': 'mi1', '5k': 'k5', '10k': 'k10', 'Half-Marathon': 'hm', 'Marathon': 'm' };
+function reszlet(a){
+    const be = {};
+    for(const x of a.best_efforts || []){
+        const k = BE_KULCS[x.name], t = Math.round(x.elapsed_time || 0);
+        if(k && t > 0 && (!be[k] || t < be[k])) be[k] = t;
+    }
+    const x = {
+        be: Object.keys(be).length ? be : null,                        // legjobb részidők (mp)
+        kcal: Math.round(a.calories || 0),
+        eszk: String(a.device_name || '').slice(0, 60),                // rögzítő eszköz (óra, telefon)
+        desc: String(a.description || '').slice(0, 200),
+    };
+    return Object.fromEntries(Object.entries(x).filter(([, v]) => v));
+}
+
+exports.stravaReszletek = onCall(OPTS, async req => {
+    const uid = await engedelyezett(req);
+    const ids = (req.data && req.data.ids) || [];
+    if(!Array.isArray(ids) || !ids.length || ids.length > 15 || !ids.every(x => /^\d{1,20}$/.test(String(x))))
+        throw new HttpsError('invalid-argument', 'Egyszerre 1–15 aktivitás kérhető le.');
+    const token = await hozzaferes(uid);
+    const reszletek = {};
+    let limit = false;
+    for(const id of ids){
+        let r;
+        try { r = await fetch(`https://www.strava.com/api/v3/activities/${id}?include_all_efforts=false`, { headers: { Authorization: `Bearer ${token}` } }); }
+        catch(e){ if(Object.keys(reszletek).length) break; throw new HttpsError('unavailable', 'A Strava most nem érhető el – próbáld újra később.'); }
+        if(r.status === 429){ limit = true; break; }
+        if(r.status === 401) throw new HttpsError('failed-precondition', 'A Strava-hozzáférés lejárt vagy visszavonták – kösd össze újra.');
+        // törölt vagy már nem látható aktivitás: üres részlettel jelezzük, hogy ne kérje újra
+        if(r.status === 404 || r.status === 403){ reszletek[id] = {}; continue; }
+        if(!r.ok){ if(Object.keys(reszletek).length) break; throw new HttpsError('unavailable', `A Strava hibát jelzett (${r.status}).`); }
+        reszletek[id] = reszlet(await r.json());
+    }
+    return { reszletek, limit };
 });
 
 exports.stravaLevalaszt = onCall(OPTS, async req => {

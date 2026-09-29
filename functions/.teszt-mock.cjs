@@ -38,6 +38,13 @@ global.fetch = async (url, o = {}) => {
             { id: 3, name: 'Régi', sport_type: 'Run', start_date_local: '2026-08-01T07:00:00Z', moving_time: 100, distance: 100 },
         ]);
     }
+    if(/\/activities\/\d+$/.test(url.split('?')[0])){
+        const id = url.split('?')[0].split('/').pop();
+        if(id === '404') return { ok: false, status: 404, json: async () => ({}) };
+        if(id === '429') return { ok: false, status: 429, json: async () => ({}) };
+        return json({ id: +id, calories: 512.4, device_name: 'Garmin Forerunner 255', description: 'Könnyű kör a parton',
+            best_efforts: [{ name: '400m', elapsed_time: 90 }, { name: '1k', elapsed_time: 252 }, { name: '1 mile', elapsed_time: 410 }, { name: '5k', elapsed_time: 1421 }] });
+    }
     if(url.includes('/deauthorize')) return json({});
     throw new Error('váratlan url ' + url);
 };
@@ -55,6 +62,10 @@ const kerd = (data, email = 'szecsimark@gmail.com') => ({ data, auth: { uid: 'u1
     console.log('Firestore-ba írt a szerver:', Object.keys(tar).join(', '));
     console.log('frissített token:', tar['strava_token/u1'].access_token);
     console.log('túl hosszú:', await hiba(f.stravaSzinkron.run(kerd({ tol: '2026-01-01', ig: '2026-09-28' }))));
+    console.log('részletek:', JSON.stringify(await f.stravaReszletek.run(kerd({ ids: ['11', '404', '12'] }))));
+    console.log('részletek, keret elfogy:', JSON.stringify(await f.stravaReszletek.run(kerd({ ids: ['13', '429', '14'] }))));
+    console.log('részletek, túl sok:', await hiba(f.stravaReszletek.run(kerd({ ids: Array.from({ length: 16 }, (_, i) => String(i + 1)) }))));
+    console.log('részletek, rossz id:', await hiba(f.stravaReszletek.run(kerd({ ids: ['../x'] }))));
     console.log('levalaszt:', JSON.stringify(await f.stravaLevalaszt.run(kerd({}))), '| maradt:', Object.keys(tar).join(', '));
     console.log('hívott Strava-címek:', [...new Set(hivasok)].join(' '));
 })();
