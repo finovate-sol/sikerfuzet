@@ -3112,6 +3112,28 @@
         .ez-sg-x { width:30px; height:30px; border:0; border-radius:8px; background:none; color:var(--muted); font-size:17px; cursor:pointer; }
         .ez-sg-x:hover { background:#fde4e4; color:var(--red); }
         .ez-sab .k span.gy { color:#6d28d9; }
+        .ez-sg-megj { grid-column:1 / -1; font:inherit; font-size:12.5px !important; height:32px !important; background:#fff !important; }
+        .ez-sab-csop { margin-bottom:14px; }
+        .ez-sab-csop .ez-sab-racs { grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); }
+        .ez-sab-gyl { list-style:none; margin:6px 0 4px; padding:0; display:flex; flex-direction:column; gap:5px; }
+        .ez-sab-gyl li { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; font-size:12.5px; line-height:1.35; padding-bottom:5px; border-bottom:1px dashed #eef1f5; }
+        .ez-sab-gyl li:last-child { border-bottom:0; padding-bottom:0; }
+        .ez-sab-gyl li b { font-size:12.5px !important; font-weight:700; color:#1c2b45 !important; }
+        .ez-sab .k .ez-sab-gyl li span { font-size:12px; font-weight:800; color:#6d28d9; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .ez-sab-gyl li em { grid-column:1 / -1; font-style:normal; font-size:11.5px !important; color:var(--muted); }
+        .ez-sab-csf { display:flex; align-items:center; gap:8px; width:100%; border:0; background:none; font:inherit; cursor:pointer; padding:6px 2px 10px; text-align:left; }
+        .ez-sab-csf i { font-style:normal; font-size:18px; color:var(--muted); transform:rotate(90deg); transition:transform .15s; width:14px; text-align:center; }
+        .ez-sab-csop.csukva .ez-sab-csf i { transform:none; }
+        .ez-sab-csf b { font-size:15px; color:var(--navy); } .ez-sab-csf span { font-size:11.5px; font-weight:800; background:#eef1f5; color:#475569; border-radius:99px; padding:1px 8px; }
+        .ez-prog-torol { margin-top:8px; font-size:12px; color:var(--muted); }
+        .ez-prog-lista { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:10px; }
+        .ez-prog { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; display:flex; gap:14px; align-items:flex-start; }
+        .ez-prog .k { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+        .ez-prog .k b { font-size:14.5px; color:var(--navy); } .ez-prog .k em { font-style:normal; font-size:12px; color:var(--muted); }
+        .ez-prog .k span { font-size:12.5px; color:#475569; line-height:1.45; margin-top:3px; }
+        .ez-prog .btn { flex:none; white-space:nowrap; }
+        .ez-prog-kesz { flex:none; font-size:12px; font-weight:800; color:#15803d; background:#dcf5e6; border-radius:99px; padding:5px 10px; white-space:nowrap; }
+        @media (max-width:560px){ .ez-prog { flex-direction:column; } }
         .ez-gy-cim { margin-top:22px; } .ez-gy-megj { margin:-4px 2px 10px; }
         .ez-gy-lista { display:flex; flex-wrap:wrap; gap:8px; }
         .ez-gy-kat { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin-bottom:10px; }
@@ -11036,6 +11058,117 @@ const ezGyakCsopok = lista => EZ_GYAK_KAT.map(([k, n]) => [k, n, lista.filter(g 
 const ezGyakOpciok = (lista, kivalasztott, jelol) => ezGyakCsopok(lista).map(([, n, l]) => `<optgroup label="${esc(n)}">${l.map(x =>
     `<option value="${esc(x.id)}"${x.id === kivalasztott ? ' selected' : ''}>${esc(x.n)}${jelol && jelol(x) ? ' ' + jelol(x) : ''}</option>`).join('')}</optgroup>`).join('');
 const EZ_ALAP_S5_GYAK = [{ gid:'g1', sz:3, ism:10 }, { gid:'g5', sz:3, ism:12 }, { gid:'g6', sz:3, ism:10 }, { gid:'g11', sz:3, mp:45 }];
+// Kész edzéstervek – egy gombbal a saját sablonjaid közé kerülnek (a hiányzó
+// gyakorlatokkal együtt), utána szabadon szerkeszted őket. Gyakorlat soronként:
+// [név, szett, ismétlés ('8-10' tartomány is lehet, 0 = szabad), megjegyzés].
+const EZ_PROG_GYAK = {
+    'Fekvenyomás':['sulyism','mell'], 'Vállból nyomás váltott karral':['sulyism','vall',1], 'Tárogatás':['sulyism','mell',1],
+    'Tricepsznyújtás ülve':['sulyism','kar',1], 'Oldalemelés':['sulyism','vall',1], 'Tolódzkodás':['ism','mell'],
+    'Lehúzás':['sulyism','hat'], 'Evezés döntött törzzsel':['sulyism','hat'], 'Döntött pados karhajlítás':['sulyism','kar',1],
+    'Húzódzkodás':['ism','hat'], 'Francia rudas bicepsz':['sulyism','kar'], 'Kitörés':['sulyism','lab',1],
+    'Román felhúzás':['sulyism','lab'], 'Csípőemelés':['sulyism','lab'], 'Ülő vádli':['sulyism','lab'],
+    'Lábhajlítás fekve':['sulyism','lab'], 'Szűk fogású fekvenyomás':['sulyism','mell'], 'Mellről nyomás állva':['sulyism','vall'],
+    'Pec deck':['sulyism','mell'], 'Tricepsznyújtás fej mögött':['sulyism','kar',1], 'Fekvőtámasz':['ism','mell'],
+    'Rack pull':['sulyism','hat'], 'Kalapács bicepsz':['sulyism','kar',1], 'Fordított fogású evezés':['sulyism','hat'],
+    'Kábeles kétkezes bicepsz':['sulyism','kar'], 'Kábeles evezés':['sulyism','hat'], 'Bicepsz állva váltott karral':['sulyism','kar',1],
+    'Guggolás':['sulyism','lab'], 'Lábtoló':['sulyism','lab',5], 'Vádli lábtolón':['sulyism','lab',5], 'Combközelítés ülve':['sulyism','lab'],
+    'Álló vádli':['sulyism','lab'], 'Lábnyújtás':['sulyism','lab'], 'Melltámaszos evezés kézisúlyzóval':['sulyism','hat',1],
+    'Evezés gépen':['sulyism','hat'], 'Vállból nyomás':['sulyism','vall'], 'Hátsó váll tárogatás':['sulyism','vall',1],
+    'Ferde pados mellnyomógép':['sulyism','mell'], 'Merevlábas felhúzás':['sulyism','lab'],
+};
+const EZ_PROG_ALIAS = { 'lábtológép':'lábtoló', 'lehúzás gépen':'lehúzás', 'pec deck gép':'pec deck' };
+const EZ_CB_KARDIO = 'Utána 25 perc kardió (futópad enyhe emelkedőn, pulzus 110–115)';
+const EZ_PROGRAMOK = [
+    { id:'cbum-ppl', n:'Chris Bumstead · Push/Pull/Legs', forras:'Shop.Builder, 2022',
+      leiras:'Heti 6 edzés: push, pull, láb, egy nap pihenő, majd újra push, pull, láb. Sosem edz olyan izmot, amelyik még izomlázas.',
+      het:['cbum-ppl-1','cbum-ppl-2','cbum-ppl-3','','cbum-ppl-4','cbum-ppl-5','cbum-ppl-6'],
+      sablonok:[
+        { k:'1', n:'CBum · Push 1', cel:'mell, váll, tricepsz', leiras:EZ_CB_KARDIO, gy:[
+            ['Fekvenyomás', 3, '5-8', 'ferde vagy egyenes pad · 2 nehéz szett, a 3. kisebb súllyal 10–12'],
+            ['Vállból nyomás váltott karral', 3, '10-12'],
+            ['Tárogatás', 3, '10-12', 'szuperszett: tricepsznyújtás ülve'],
+            ['Tricepsznyújtás ülve', 4, '7-10', 'szuperszett: tárogatás'],
+            ['Oldalemelés', 4, '10-12', '1 percnél rövidebb pihenő'],
+            ['Tolódzkodás', 3, 0, 'bukásig, egyenes testtel, tricepszre'] ] },
+        { k:'2', n:'CBum · Pull 1', cel:'hát, bicepsz', leiras:EZ_CB_KARDIO, gy:[
+            ['Lehúzás', 3, '8-10', 'gépen · előtte 2 bemelegítő szett'],
+            ['Evezés döntött törzzsel', 3, '6-8', 'előtte 2 bemelegítő · a 3. levezető szett 10–12'],
+            ['Döntött pados karhajlítás', 4, '10-12'],
+            ['Húzódzkodás', 3, 0, 'amennyi megy'],
+            ['Francia rudas bicepsz', 4, '8-10', 'a 3–4. szett 40 mp folyamatos bicepszezés'] ] },
+        { k:'3', n:'CBum · Láb 1', cel:'far, combhajlító, vádli', leiras:'Utána 15 perc lépcsőzőgép (pulzus 110–115)', gy:[
+            ['Kitörés', 3, '12-15', 'lépés lábanként · előtte 3 bemelegítő szett 10–15 lépés'],
+            ['Román felhúzás', 3, '10-12', 'előtte 2 bemelegítő · helyette sima felhúzás 6–8'],
+            ['Csípőemelés', 3, 10, 'vagy hátrarúgás'],
+            ['Ülő vádli', 6, '10-12', 'az utolsó 4 szuperszettben a lábhajlítással'],
+            ['Lábhajlítás fekve', 4, '8-10', 'a 3–4. szett 40 mp folyamatosan'] ] },
+        { k:'4', n:'CBum · Push 2', cel:'mell, váll, tricepsz', leiras:EZ_CB_KARDIO, gy:[
+            ['Szűk fogású fekvenyomás', 3, '8-10'],
+            ['Mellről nyomás állva', 3, '10-12'],
+            ['Pec deck', 3, '8-10', 'a 2–3. szett 40 mp folyamatosan'],
+            ['Tricepsznyújtás fej mögött', 3, '10-12', 'kézisúlyzóval ülve vagy rúddal fekve'],
+            ['Oldalemelés', 4, '10-12', 'szuperszett: fekvőtámasz'],
+            ['Fekvőtámasz', 3, 0, 'bukásig, padra támaszkodva · szuperszett: oldalemelés'] ] },
+        { k:'5', n:'CBum · Pull 2', cel:'hát, bicepsz', leiras:EZ_CB_KARDIO, gy:[
+            ['Húzódzkodás', 3, 0, 'bemelegítésként, rack pull-lal'],
+            ['Rack pull', 2, '8-12', 'előtte 3 bemelegítő · mérsékelt súly (alsó hát)'],
+            ['Kalapács bicepsz', 3, '10-12'],
+            ['Fordított fogású evezés', 3, '10-12', 'vagy lehúzás gépen'],
+            ['Kábeles kétkezes bicepsz', 3, '10-12'],
+            ['Kábeles evezés', 2, 20],
+            ['Bicepsz állva váltott karral', 3, 6, 'tetszőleges súly, legalább 6 karonként'] ] },
+        { k:'6', n:'CBum · Láb 2', cel:'négyfejű, vádli', leiras:'Utána 15 perc lépcsőzőgép (pulzus 110–115)', gy:[
+            ['Guggolás', 4, '8-10', 'előtte 3 bemelegítő · a 4. szett nehéz, 4–6'],
+            ['Lábtoló', 2, 0, '40 mp folyamatosan · szuperszett: vádli a lábtolón'],
+            ['Vádli lábtolón', 2, 0, 'bukásig · szuperszett: lábtolás'],
+            ['Combközelítés ülve', 4, '10-12'],
+            ['Álló vádli', 4, '10-12'],
+            ['Lábnyújtás', 4, '10-12', 'a 3–4. szett tripla vetkőzősorozat'] ] },
+      ] },
+    { id:'cbum-bro', n:'Chris Bumstead · Bro split (2020)', forras:'Shop.Builder, 2022',
+      leiras:'8 napos ciklus, izomcsoportonként egy nap. Alapgyakorlatnál bemelegítés után 2 munkaszett: az első nehéz, a második intenzitásnövelővel (vetkőző, szuperszett). Izolációnál legfeljebb 3.',
+      het:[],
+      sablonok:[
+        { k:'1', n:'CBum · Mell + tricepsz', cel:'1. nap', leiras:'Két nyomó gyakorlat, egy tárogatás, a végén 1–2 tricepsz izoláció', gy:[
+            ['Fekvenyomás', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Ferde pados mellnyomógép', 2, 0, '1 nehéz + 1 intenzitásnövelős'],
+            ['Tárogatás', 3, '10-12'], ['Tricepsznyújtás fej mögött', 3, '10-12'] ] },
+        { k:'2', n:'CBum · Négyfejű + vádli', cel:'2. nap', leiras:'Nagy súlyos guggolás és lábtoló, lábnyújtás, ülő vagy álló vádli', gy:[
+            ['Guggolás', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Lábtoló', 2, 0, '1 nehéz + 1 intenzitásnövelős'],
+            ['Lábnyújtás', 3, '10-12'], ['Ülő vádli', 3, '10-12', 'vagy álló vádli'] ] },
+        { k:'3', n:'CBum · Hát + bicepsz', cel:'3. nap', leiras:'Evező jellegű gyakorlatok a hát vastagítására, majd pár bicepsz gyakorlat', gy:[
+            ['Melltámaszos evezés kézisúlyzóval', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Evezés gépen', 3, '10-12'],
+            ['Döntött pados karhajlítás', 3, '10-12', 'a kedvenc bicepsz gyakorlata'] ] },
+        { k:'5', n:'CBum · Váll + felső mell', cel:'5. nap', leiras:'Teljes válledzés (elülső, oldalsó, hátsó), aztán 1–2 izoláció a felső mellre', gy:[
+            ['Vállból nyomás', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Oldalemelés', 3, '10-12', 'a kedvenc vállgyakorlata'],
+            ['Hátsó váll tárogatás', 3, '10-12'], ['Ferde pados mellnyomógép', 3, '10-12'], ['Pec deck', 3, '10-12'] ] },
+        { k:'6', n:'CBum · Combhajlító + hátszélesség', cel:'6. nap', leiras:'Főleg combhajlító nap nehéz merevlábas felhúzással, utána lehúzás vagy húzódzkodás', gy:[
+            ['Merevlábas felhúzás', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Lábhajlítás fekve', 3, '10-12'],
+            ['Húzódzkodás', 3, 0, 'vagy lehúzás gépen'] ] },
+        { k:'7', n:'CBum · Kar', cel:'7. nap', leiras:'Külön kar nap. A cikk nem sorolja fel a gyakorlatokat – ezek a PPL tervéből vannak, cseréld nyugodtan.', gy:[
+            ['Döntött pados karhajlítás', 3, '10-12'], ['Kalapács bicepsz', 3, '10-12'],
+            ['Szűk fogású fekvenyomás', 3, '8-10'], ['Tricepsznyújtás fej mögött', 3, '10-12'] ] },
+      ] },
+];
+const ezIsmBe = v => { const m = String(v ?? '').match(/(\d+)\s*[-–]\s*(\d+)/); if(m){ const a = +m[1], b = +m[2]; return a < b ? [a, b] : [b, 0]; } return [Math.round(ezSzam(v)) || 0, 0]; };
+const ezNevKulcs = n => { const k = String(n || '').trim().toLowerCase(); return EZ_PROG_ALIAS[k] || k; };
+// A program sablonjai a saját törzsbe – a gyakorlatokat név szerint párosítjuk, a hiányzókat felvesszük.
+function ezProgramHozzaad(pid){
+    const p = EZ_PROGRAMOK.find(x => x.id === pid); if(!p) return [0, 0];
+    const t = ezAdat.torzs, lib = t.gyakorlatok || (t.gyakorlatok = []);
+    let ujGy = 0;
+    const gid = nev => {
+        const k = ezNevKulcs(nev), van = lib.find(g => ezNevKulcs(g.n) === k);
+        if(van) return van.id;
+        const [tip, kat, lep] = EZ_PROG_GYAK[nev] || ['sulyism', ezGyakKatTipp(nev)];
+        const g = ezTiszta({ id: 'g' + ezUjId(), n: nev, tip, kat, lep }); lib.push(g); ujGy++; return g.id;
+    };
+    const ujSab = p.sablonok.filter(x => !t.sablonok.some(s => s.id === p.id + '-' + x.k)).map(x => ezTiszta({
+        id: p.id + '-' + x.k, prog: p.id, n: x.n, sport: 'ero', cel: x.cel, leiras: x.leiras,
+        gyak: x.gy.map(([nev, sz, ism, megj]) => { const [a, b] = ezIsmBe(ism); return ezTiszta({ gid: gid(nev), sz, ism: a, ism2: b, megj }); }) }));
+    t.sablonok = [...t.sablonok, ...ujSab];
+    ezMent('torzs');
+    return [ujSab.length, ujGy];
+}
 const EZ_NAP   = ['Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat','Vasárnap'];
 const EZ_NAP_R = ['H','K','Sze','Cs','P','Szo','V'];
 const EZ_HO    = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
@@ -11470,16 +11603,37 @@ function ezAttekHtml(){
 }
 
 // ---- Sablonok ----
-function ezSablonHtml(){
-    const sab = ezAdat.torzs.sablonok;
-    return `<div class="ez-sab-fej"><span>Az előre definiált edzéseid. Tervezéskor ezek közül választasz, a napon a célt felülírhatod.</span>
-            <button type="button" class="btn primary ez-gb-kek" data-ezsabuj>+ Új sablon</button></div>
-        <div class="ez-sab-racs">${sab.map(s => `<div class="card ez-sab">${ezIk(s.sport)}
+// Csoportok: a saját sablonok, majd programonként (a kész edzéstervekből hozzáadottak).
+const ezSabCsopok = sab => [['', 'Saját sablonok', sab.filter(s => !s.prog || !EZ_PROGRAMOK.some(p => p.id === s.prog))],
+    ...EZ_PROGRAMOK.map(p => [p.id, p.n, sab.filter(s => s.prog === p.id)])].filter(([, , l]) => l.length);
+let ezSabCsuk = new Set(store.load('sf_ez_sab_csuk', []));
+const ezSabKartya = s => `<div class="card ez-sab">${ezIk(s.sport)}
             <div class="k"><b>${esc(s.n)}</b><em>${esc(ezSp(s.sport)[0])} · ${esc(ezCel(s))}</em>
-                ${s.gyak && s.gyak.length ? `<span class="gy">${esc(s.gyak.map(ezGyakTervSz).filter(Boolean).join(' · '))}</span>` : ''}
+                ${s.gyak && s.gyak.length ? (s.prog ? `<ul class="ez-sab-gyl">${s.gyak.map(g => { const gy = ezGyak(g.gid); return gy ? `<li><b>${esc(gy.n)}</b>
+                    <span>${esc(ezGyakCel(g, gy.tip))}</span>${g.megj ? `<em>${esc(g.megj)}</em>` : ''}</li>` : ''; }).join('')}</ul>`
+                    : `<span class="gy">${esc(s.gyak.map(ezGyakTervSz).filter(Boolean).join(' · '))}</span>`) : ''}
                 ${s.leiras ? `<span>${esc(String(s.leiras).split('\n').filter(Boolean).join(' · '))}</span>` : ''}</div>
             <div class="g"><button type="button" class="ez-link" data-eztervez="${esc(s.id)}">Tervezés</button>
-                <button type="button" class="ez-link" data-ezsabszerk="${esc(s.id)}">Szerkesztés</button></div></div>`).join('')}</div>
+                <button type="button" class="ez-link" data-ezsabszerk="${esc(s.id)}">Szerkesztés</button></div></div>`;
+function ezSablonHtml(){
+    const sab = ezAdat.torzs.sablonok, csop = ezSabCsopok(sab), tobb = csop.length > 1;
+    const progKartya = p => {
+        const van = sab.filter(s => s.prog === p.id).length, gyDb = new Set(p.sablonok.flatMap(x => x.gy.map(g => ezNevKulcs(g[0])))).size;
+        return `<div class="ez-prog">
+            <div class="k"><b>${esc(p.n)}</b><em>${p.sablonok.length} edzésnap · ${gyDb} gyakorlat · forrás: ${esc(p.forras)}</em><span>${esc(p.leiras)}</span></div>
+            ${van >= p.sablonok.length ? '<span class="ez-prog-kesz">✓ A sablonjaid között</span>'
+                : `<button type="button" class="btn ez-gb-kek" data-ezprog="${esc(p.id)}">${van ? 'Hiányzók hozzáadása' : 'Hozzáadom'}</button>`}</div>`;
+    };
+    return `<div class="ez-sab-fej"><span>Az előre definiált edzéseid. Tervezéskor ezek közül választasz, a napon a célt felülírhatod.</span>
+            <button type="button" class="btn primary ez-gb-kek" data-ezsabuj>+ Új sablon</button></div>
+        ${csop.map(([k, n, l]) => { const cs = tobb && ezSabCsuk.has(k || '_'); return `<section class="ez-sab-csop${cs ? ' csukva' : ''}">
+            ${tobb ? `<button type="button" class="ez-sab-csf" data-ezsabcsuk="${esc(k || '_')}" aria-expanded="${!cs}"><i aria-hidden="true">›</i><b>${esc(n)}</b><span>${l.length}</span></button>` : ''}
+            ${cs ? '' : `<div class="ez-sab-racs">${l.map(ezSabKartya).join('')}</div>`}
+            ${k && !cs ? `<button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(k)}">A program sablonjainak eltávolítása</button>` : ''}
+        </section>`; }).join('')}
+        <div class="ez-vers-cim ez-gy-cim">Kész edzéstervek</div>
+        <p class="ez-megj ez-gy-megj">Egy gombbal a sablonjaid közé kerülnek, a hiányzó gyakorlatokkal együtt. Utána úgy szerkeszted őket, mint a sajátjaidat.</p>
+        <div class="ez-prog-lista">${EZ_PROGRAMOK.map(progKartya).join('')}</div>
         <div class="ez-vers-cim ez-gy-cim">Gyakorlatok · ${ezGyakLista().length}</div>
         <p class="ez-megj ez-gy-megj">A szettnapló ezekből dolgozik: a sablonba teszed őket, edzés közben súlyt és ismétlést rögzítesz, a Csúcsok fülön pedig látod a legjobbjaidat.</p>
         <div class="ez-gy-kat">${ezGyakCsopok(ezGyakLista()).map(([k, n, l]) => `<section class="ez-gy-kcs">
@@ -11750,16 +11904,20 @@ function ezSablonModal(sid){
     const gyRajz = () => {
         const lib = ezGyakLista();
         const mezo = (i, f, v, egys, mod) => `<label><input data-sgi="${i}" data-sgf="${f}" value="${esc(v ? (f === 'kg' ? ezKg(v) : v) : '')}" inputmode="${mod || 'numeric'}" aria-label="${egys}"><span>${egys}</span></label>`;
+        const ismV = g => g.ism ? (g.ism2 ? `${g.ism}-${g.ism2}` : g.ism) : '';
         ov.querySelector('#ezsGy').innerHTML = `<div class="ez-sg">${gy.map((g, i) => { const t = (ezGyak(g.gid) || {}).tip || 'sulyism'; return `<div class="ez-sg-sor">
             <select data-sgi="${i}" data-sgf="gid" aria-label="Gyakorlat">${ezGyakOpciok(lib, g.gid)}</select>
-            ${mezo(i, 'sz', g.sz, 'szett')}${t === 'ido' ? mezo(i, 'mp', g.mp, 'mp') : t === 'tavido' ? mezo(i, 'm', g.m, 'm') : mezo(i, 'ism', g.ism, 'ism.')}
+            ${mezo(i, 'sz', g.sz, 'szett')}${t === 'ido' ? mezo(i, 'mp', g.mp, 'mp') : t === 'tavido' ? mezo(i, 'm', g.m, 'm') : mezo(i, 'ism', ismV(g), 'ism.', 'text')}
             ${t === 'sulyism' ? mezo(i, 'kg', g.kg, 'kg', 'decimal') : '<span></span>'}
-            <button type="button" class="ez-sg-x" data-sgdel="${i}" aria-label="Gyakorlat kivétele">×</button></div>`; }).join('')}
+            <button type="button" class="ez-sg-x" data-sgdel="${i}" aria-label="Gyakorlat kivétele">×</button>
+            <input class="ez-sg-megj" data-sgi="${i}" data-sgf="megj" value="${esc(g.megj || '')}" maxlength="90" placeholder="Megjegyzés (pl. bukásig, szuperszett…)" aria-label="Megjegyzés"></div>`; }).join('')}
             ${lib.length ? '<button type="button" class="ez-t-plusz" data-sguj>+ gyakorlat</button>' : '<span class="ez-megj">Előbb vegyél fel gyakorlatot a Sablonok fül alján.</span>'}</div>`;
     };
     gyRajz();
     ov.addEventListener('input', e => {
         const i = e.target.dataset.sgi, f = e.target.dataset.sgf; if(i === undefined || f === 'gid') return;
+        if(f === 'megj'){ gy[i].megj = e.target.value.trim(); return; }
+        if(f === 'ism'){ [gy[i].ism, gy[i].ism2] = ezIsmBe(e.target.value); return; }
         gy[i][f] = f === 'kg' ? ezSzam(e.target.value) : Math.round(ezSzam(e.target.value));
     });
     ov.addEventListener('change', e => { if(e.target.dataset.sgf === 'gid'){ gy[e.target.dataset.sgi].gid = e.target.value; gyRajz(); } });
@@ -11774,11 +11932,12 @@ function ezSablonModal(sid){
         if(!e.target.closest('#ezsMent')) return;
         const n = ov.querySelector('#ezsN').value.trim();
         if(!n){ ov.querySelector('#ezsUz').textContent = 'Adj nevet a sablonnak.'; return; }
-        const uj = ezTiszta({ id: s ? s.id : 's' + ezUjId(), n, sport: ov.querySelector('#ezsS').value,
+        const uj = ezTiszta({ id: s ? s.id : 's' + ezUjId(), prog: s ? s.prog : '', n, sport: ov.querySelector('#ezsS').value,
             perc: ezSzam(ov.querySelector('#ezsP').value), km: ezSzam(ov.querySelector('#ezsK').value),
             cel: ov.querySelector('#ezsC').value.trim(), leiras: ov.querySelector('#ezsL').value.trim(),
             gyak: gy.filter(g => ezGyak(g.gid)).map(g => { const t = ezGyak(g.gid).tip; return ezTiszta({ gid: g.gid, sz: g.sz || 1,
-                ism: t === 'sulyism' || t === 'ism' ? g.ism : 0, kg: t === 'sulyism' ? g.kg : 0, mp: t === 'ido' ? g.mp : 0, m: t === 'tavido' ? g.m : 0 }); }) });
+                ism: t === 'sulyism' || t === 'ism' ? g.ism : 0, ism2: t === 'sulyism' || t === 'ism' ? g.ism2 : 0, kg: t === 'sulyism' ? g.kg : 0,
+                mp: t === 'ido' ? g.mp : 0, m: t === 'tavido' ? g.m : 0, megj: g.megj }); }) });
         if(!uj.gyak.length) delete uj.gyak;
         ezAdat.torzs.sablonok = s ? lista.map(x => x === s ? uj : x) : [...lista, uj];
         ezMent('torzs'); ov.remove(); renderEdz();
@@ -11790,7 +11949,8 @@ async function ezHetModal(){
     const het = ezHet7(ezHet), elozo = ezHet7(ezPlusz(ezHet, -7));
     await ezEvekBetolt(...het, ...elozo);
     const sab = ezAdat.torzs.sablonok;
-    const opciok = `<option value="">+ edzés…</option>${sab.map(s => `<option value="${esc(s.id)}">${esc(s.n)}</option>`).join('')}`;
+    const opciok = `<option value="">+ edzés…</option>${ezSabCsopok(sab).map(([, n, l]) => `<optgroup label="${esc(n)}">${l.map(s =>
+        `<option value="${esc(s.id)}">${esc(s.n)}</option>`).join('')}</optgroup>`).join('')}`;
     const ov = ezModal(`Heti terv · ${ezHetCim(ezHet)}`, '<div id="ezHm"></div>',
         `<button type="button" class="btn" id="ezHmMasol">Előző hét másolása</button><span class="ez-hely"></span><button type="button" class="btn primary ez-gb-kek" data-ezx>Kész</button>`,
         renderEdz);
@@ -11857,9 +12017,10 @@ function ezGyakCel(g, tip){
     const sz = g.sz || 1;
     if(tip === 'ido') return `${sz} × ${g.mp || 0} mp`;
     if(tip === 'tavido') return `${sz} × ${g.m || 0} m`;
-    return `${sz} × ${g.ism || 0}${tip === 'sulyism' && g.kg ? ' · ' + ezKg(g.kg) + ' kg' : ''}`;
+    const ism = g.ism ? (g.ism2 ? `${g.ism}–${g.ism2}` : g.ism) : '';
+    return `${ism ? `${sz} × ${ism}` : `${sz} szett`}${tip === 'sulyism' && g.kg ? ' · ' + ezKg(g.kg) + ' kg' : ''}`;
 }
-const ezGyakTervSz = g => { const gy = ezGyak(g.gid); return gy ? `${gy.n} · ${ezGyakCel(g, gy.tip)}` : ''; };
+const ezGyakTervSz = g => { const gy = ezGyak(g.gid); return gy ? `${gy.n} · ${ezGyakCel(g, gy.tip)}${g.megj ? ` (${g.megj})` : ''}` : ''; };
 // Az összes betöltött naplótétel [nap, edzés, gyakorlat] – időrendben, csak ahol van kész szett.
 function ezNaploMind(){
     const l = [];
@@ -11898,7 +12059,7 @@ function ezNaploTetel(gid, s, eid, t){
         return ezTiszta({ kg: gy.tip === 'sulyism' ? v('kg') : 0, ism: gy.tip === 'sulyism' || gy.tip === 'ism' ? v('ism') : 0,
                           mp: gy.tip === 'ido' || gy.tip === 'tavido' ? v('mp') : 0, m: gy.tip === 'tavido' ? v('m') : 0 });
     });
-    const cel = ezTiszta({ sz: t.sz, ism: t.ism, mp: t.mp, m: t.m, kg: t.kg });
+    const cel = ezTiszta({ sz: t.sz, ism: t.ism, ism2: t.ism2, mp: t.mp, m: t.m, kg: t.kg, megj: t.megj });
     return ezTiszta({ gid, n: gy.n, tip: gy.tip, sz, cel: Object.keys(cel).length ? cel : undefined });
 }
 function ezNaploUj(e, s){
@@ -11973,11 +12134,11 @@ function ezRogRajz(R, gorget){
     const kartyak = e.naplo.map((g, gi) => {
         const el = ezGyakElozo(g.gid, R.s, e.id), elSz = el ? ezKeszSz(el[2]) : [];
         const aktG = R.akt && R.akt.g === gi;
-        const cel = g.cel ? 'cél ' + ezGyakCel(g.cel, g.tip) + ' · ' : '';
+        const cel = g.cel ? 'cél ' + ezGyakCel(g.cel, g.tip) + (g.cel.megj ? ` (${g.cel.megj})` : '') + ' · ' : '';
         // +lépésköz javaslat: múltkor minden szett megvolt a célismétléssel
         let jav = '';
         if(g.tip === 'sulyism' && elSz.length && !ezKeszSz(g).length && !R.jav.has(gi)){
-            const celIsm = (g.cel && g.cel.ism) || Math.max(...elSz.map(x => x.ism || 0));
+            const celIsm = (g.cel && (g.cel.ism2 || g.cel.ism)) || Math.max(...elSz.map(x => x.ism || 0));
             const maxKg = Math.max(...elSz.map(x => x.kg || 0)), lep = (ezGyak(g.gid) || {}).lep || 2.5;
             if(maxKg && elSz.length >= ((g.cel && g.cel.sz) || 1) && elSz.every(x => (x.ism || 0) >= celIsm) && g.sz.every(x => (x.kg || 0) <= maxKg))
                 jav = `<div class="ez-rk-jav"><span>Múltkor minden szett megvolt – próbáld <b>${ezKg(maxKg + lep)} kg</b>-mal.</span><button type="button" data-rjav="${gi}|${maxKg + lep}">Alkalmaz</button></div>`;
@@ -12489,6 +12650,17 @@ window.sfShowEdzes = function(){
         const ss = e.target.closest('[data-ezsabszerk]');
         if(ss){ ezSablonModal(ss.dataset.ezsabszerk); return; }
         if(e.target.closest('[data-ezsabuj]')){ ezSablonModal(null); return; }
+        const pr = e.target.closest('[data-ezprog]');
+        if(pr){ const [a, b] = ezProgramHozzaad(pr.dataset.ezprog);
+            ezUz = { t: `${a} sablon${b ? ` és ${b} új gyakorlat` : ''} hozzáadva. A Tervezés gombbal vagy a Heti tervben teszed őket napokra.` };
+            ezSabCsuk.delete(pr.dataset.ezprog); renderEdz(); return; }
+        const pt = e.target.closest('[data-ezprogtorol]');
+        if(pt){ const p = EZ_PROGRAMOK.find(x => x.id === pt.dataset.ezprogtorol);
+            if(!p || !confirm(`Eltávolítod a(z) „${p.n}” sablonjait? A gyakorlatok és a már betervezett vagy rögzített edzések megmaradnak.`)) return;
+            ezAdat.torzs.sablonok = ezAdat.torzs.sablonok.filter(s => s.prog !== p.id); ezMent('torzs'); renderEdz(); return; }
+        const sc = e.target.closest('[data-ezsabcsuk]');
+        if(sc){ const k = sc.dataset.ezsabcsuk; ezSabCsuk.has(k) ? ezSabCsuk.delete(k) : ezSabCsuk.add(k);
+            store.save('sf_ez_sab_csuk', [...ezSabCsuk]); renderEdz(); return; }
         if(e.target.closest('[data-ezvuj]')){ ezVersenyModal(null); return; }
         const vsz = e.target.closest('[data-ezvszerk]');
         if(vsz){ ezVersenyModal(vsz.dataset.ezvszerk); return; }
