@@ -163,6 +163,13 @@ service cloud.firestore {
     // (functions/) válaszából.
     match /edzes/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
 
+    // Privát adatok (Privát → Célok): a nem szakmai célok, az életterületek
+    // negyedéves önértékelése és a célok borítóképei. SZIGORÚAN a gazdájáé –
+    // a vezető "ránézés" módban sem lát bele, az admin sem. (A Szakmai / OVB
+    // célok és a vízió maradnak a celok/{uid} dokumentumban, amit a vezető is
+    // lát.) A kulcs "{uid}_celok" vagy "{uid}_kep_…" alakú, a gazda az első szelet.
+    match /privat/{key} { allow read, write: if isUser() && uid() == ownerFromKey(key); }
+
     // A Strava access/refresh tokenje. A böngészőből SEM olvasni, SEM írni
     // nem lehet – csak a Cloud Function éri el (az Admin SDK megkerüli a
     // szabályokat). Így egy ellopott böngésző-munkamenetből sem szerezhető meg.

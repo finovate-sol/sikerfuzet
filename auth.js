@@ -284,6 +284,25 @@ export async function stravaHivas(nev, adat){
 // célok listája és az életterület-önértékelések; együtt is csak néhány kB.
 // Privát: a gazdája, a felettesei és az admin éri el (ugyanaz, mint a
 // pénzügyeknél) – a vezető a "ránézés" váltóval nézi meg.
+// Privát adatok – privat/{uid}_{kulcs}: a nem szakmai célok ("celok") és a
+// célok borítóképei ("kep_…"). Csak a gazdája éri el (firestore.rules).
+// A "Strict" olvasás hibánál dob, hogy a hívó meg tudja különböztetni a
+// "még nincs adat"-ot a "nem sikerült elolvasni"-tól – különben egy
+// átmeneti hiba után üres listát mentenénk a meglévő célok helyére.
+export async function getPrivatStrict(uid, kulcs){
+    if(!isConfigured || !db) return null;
+    const snap = await getDoc(doc(db, "privat", uid + "_" + kulcs));
+    return snap.exists() ? (snap.data() || null) : null;
+}
+export async function savePrivat(uid, kulcs, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "privat", uid + "_" + kulcs), data);
+}
+export async function deletePrivat(uid, kulcs){
+    if(!isConfigured || !db) return;
+    await deleteDoc(doc(db, "privat", uid + "_" + kulcs));
+}
+
 export async function getCelok(uid){
     if(!isConfigured || !db || !uid) return null;
     try { const snap = await getDoc(doc(db, "celok", uid)); return snap.exists() ? (snap.data() || null) : null; }

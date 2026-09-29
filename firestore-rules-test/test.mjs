@@ -213,6 +213,18 @@ await T('jegyzet-kép: más nevére nem hozható létre',
     setDoc(doc(other,'note_images','i2'), { ownerUid: ZSOLT, data:'x' }), 'fail');
 await T('jegyzet-kép: a gazdája törli', deleteDoc(doc(zsolt,'note_images','i1')), 'ok');
 
+// Privát célok és borítóképek (privat/{uid}_…): csak a gazdája – a felettes a
+// ránézéssel sem, az admin sem. Ide kerülnek a nem szakmai célok.
+await T('privát célok: a gazdája írja',        setDoc(doc(zsolt,'privat',ZSOLT + '_celok'), { goals:[{ id:'c1', name:'Ház' }] }), 'ok');
+await T('privát célok: a gazdája olvassa',     getDoc(doc(zsolt,'privat',ZSOLT + '_celok')), 'ok');
+await T('privát célok: A FELETTES SEM olvassa', getDoc(doc(adam,'privat',ZSOLT + '_celok')), 'fail');
+await T('privát célok: AZ ADMIN SEM olvassa',   getDoc(doc(mark,'privat',ZSOLT + '_celok')), 'fail');
+await T('privát célok: a felettes nem írja',    setDoc(doc(adam,'privat',ZSOLT + '_celok'), { goals:[] }), 'fail');
+await T('privát célok: más nevére nem írható',  setDoc(doc(other,'privat',ZSOLT + '_kep_k1'), { data:'x' }), 'fail');
+await T('privát kép: a gazdája feltölti',       setDoc(doc(zsolt,'privat',ZSOLT + '_kep_k1'), { mime:'image/jpeg', data:'AAAA' }), 'ok');
+await T('privát kép: a gazdája törli',          deleteDoc(doc(zsolt,'privat',ZSOLT + '_kep_k1')), 'ok');
+await T('privát: kívülálló nem fér hozzá',       getDoc(doc(out,'privat',ZSOLT + '_celok')), 'fail');
+
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 
