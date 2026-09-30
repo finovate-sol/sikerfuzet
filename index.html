@@ -4413,7 +4413,7 @@
         /* ===== Tranzakciók telefonon: banki app minta =====
            Kerek kereső, cash-flow összesítő, hónap-csúszka; napfejléc a kártya fölött,
            a nap tételei egy lekerekített fehér kártyában, elválasztó vonalak nélkül. */
-        .pz-mcf, .pz-mhok, .pz-sz-mob, .pz-mal, .pz-mjegy, .pz-cim-m { display:none; }
+        .pz-mcf, .pz-mhok, .pz-sz-mob, .pz-mal, .pz-mjegy, .pz-mtag, .pz-cim-m { display:none; }
         @media (max-width:760px){
             #page-penzugyek[data-pzv="naplo"] #pzFej,
             #pzNaplo .pz-b-bal, #pzNaplo .pz-b-jobb, #pzNaplo .pz-het,
@@ -4475,8 +4475,10 @@
             #pzNaplo .pz-nezet-lista .pz-mal { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; min-width:0; }
             #pzNaplo .pz-nezet-lista .pz-mal svg { width:17px; height:17px; flex:none; stroke-width:1.6; }
             #pzNaplo .pz-nezet-lista .pz-mal em { font-style:normal; margin-left:auto; padding-left:8px; color:#9ca3af; font-size:13px; }
-            #pzNaplo .pz-nezet-lista .pz-mjegy { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-                                                 font-size:13.5px; line-height:1.35; color:#6b7280; margin-top:2px; word-break:break-word; }
+            #pzNaplo .pz-nezet-lista .pz-mjegy { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                                                 font-size:13.5px; line-height:1.35; color:#6b7280; margin-top:1px; }
+            #pzNaplo .pz-nezet-lista .pz-mtag { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+            #pzNaplo .pz-nezet-lista .pz-mtag .pz-tag { font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; }
             #pzNaplo .pz-nezet-lista .pz-ntb .jobb { padding-top:2px; }
             #pzNaplo .pz-nezet-lista .pz-ntb .jobb .o { font-size:16px; font-weight:500; color:#111827; }
             #pzNaplo .pz-nezet-lista .pz-ntb .jobb .o.pz-up { color:#2f9e6e; }
@@ -8513,16 +8515,17 @@ function pzNaploSorHtml(t, tarcaSzuro, datum){
     // Telefonon (banki app minta): a hosszú banki szöveg ("From Marcell V, HU83…")
     // nem cím – ilyenkor a kategória a cím, és a szöveg alatta, halványan, tördelve.
     const memo = pzNevTiszta(t.m), hosszu = memo.length > 26 || /\d{8,}/.test(memo);
-    const cimM = hosszu ? (t.a || t.k || memo) : (memo || t.a || t.k || '—');
+    const cimM = hosszu || !memo ? (t.k || t.a || memo || '—') : memo;
     const cimD = memo || t.a || t.k || '—';
     const ism = pzIsmetlodo(t) ? `<i class="pz-ism" title="Ismétlődő – előfizetés vagy törlesztő">${pzSvg('ismetles')}</i>` : '';
     return pzSorKeret(t, `<i class="pz-nt-ik sz-${esc(ik.c)}">${pzSvg(ik.i)}</i>
-        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', hosszu ? memo : '')}</span>
+        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', hosszu ? memo : '', t.a && t.a !== cimM ? `<span class="pz-tag sz-${esc(ik.c)}">${esc(t.a)}</span>` : '')}</span>
         <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b></span>`);
 }
-// Telefonos második és harmadik sor: tárca-ikon + tárca, alatta a megjegyzés.
-function pzMobAlsor(tarca, datum, jegyzet){
-    return `<span class="pz-mal">${tarca ? pzSvg('penztarca') + esc(tarca) : ''}${datum ? `<em>${esc(datum)}</em>` : ''}</span>${jegyzet ? `<span class="pz-mjegy">${esc(jegyzet)}</span>` : ''}`;
+// Telefonos alsó sorok: tárca-ikon + tárca, alatta egy sorban a megjegyzés,
+// legalul az alkategória címkeként.
+function pzMobAlsor(tarca, datum, jegyzet, cimkek){
+    return `<span class="pz-mal">${tarca ? pzSvg('penztarca') + esc(tarca) : ''}${datum ? `<em>${esc(datum)}</em>` : ''}</span>${jegyzet ? `<span class="pz-mjegy">${esc(jegyzet)}</span>` : ''}${cimkek ? `<span class="pz-mtag">${cimkek}</span>` : ''}`;
 }
 /* A Napló keresésre való: rögzíteni a Hónap fülön lehet. Keres a megjegyzésben,
    a kategóriában, az alkategóriában, a tárca nevében és az összegben –
