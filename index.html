@@ -9496,6 +9496,20 @@ function pzCacheEllenor(){
     pzAdatAllapot = 'nincs';
     ['pzHonap','pzNaplo','pzAttek','pzTorzs'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
 }
+// A telefonra telepített app a háttérből visszatérve NEM töltődik újra – napokig is
+// futhat ugyanaz a példány. Ezért ha 30 mp-nél tovább volt a háttérben, a memóriában
+// tartott katalógust (benne a havi keretekkel), törzsadatokat és tételeket eldobjuk:
+// a helyi másolatból azonnal rajzolunk, és közben a szerverről frissül, így a gépen
+// beállított keretek és rögzített tételek telefonon is megjelennek.
+let pzRejtveOta = 0;
+document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ pzRejtveOta = Date.now(); return; }
+    if(!pzRejtveOta || Date.now() - pzRejtveOta < 30000) return;
+    pzRejtveOta = 0;
+    pzKat = null; pzTorzsData = null; pzTranz = {};
+    const pg = document.getElementById('page-penzugyek');
+    if(pg && !pg.hidden) pzFrissit();
+});
 // A tervező adatának betöltése. Az állapot azért kell, mert a Napló a tervezőbe
 // is ír (pzSyncTervezo): ha a szerverről még nem jött meg, vagy nem sikerült
 // olvasni, akkor a mentés a helyi – esetleg üres – évvel írná felül a szervert.
