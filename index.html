@@ -4405,7 +4405,7 @@
             #pzHonap .pz-ikon { border-radius:50%; background-image:radial-gradient(circle at 32% 28%, rgba(255,255,255,.75), rgba(255,255,255,0) 62%); }
             #pzHonap .pz-rail .pz-rs-sor, #pzHonap .pz-rail .pz-fix { border-top:0; }
             /* a keretek gépen több oszlopban (a szélességtől függően 2–3), a címek és a kinyitott tételek teljes szélességben */
-            #pzHonap > .pz-hk-m { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); column-gap:4px; padding:4px 8px 12px; }
+            #pzHonap > .pz-hk-m { display:grid; grid-template-columns:repeat(auto-fill, minmax(max(300px, calc((100% - 8px) / 3)), 1fr)); column-gap:4px; padding:4px 8px 12px; }
             #pzHonap > .pz-hk-m > .pz-sec-title, #pzHonap > .pz-hk-m > .pz-e-tetelek { grid-column:1 / -1; }
             #pzHonap > .pz-hk-m > .pz-sec-title { padding:18px 12px 6px; }
             #pzHonap .pz-hk-sor { padding:12px; border-radius:18px; }
@@ -4994,6 +4994,7 @@
         .ez-rog-uj select { height:50px; border:0; border-radius:999px; background:#fff; box-shadow:0 2px 10px rgba(15,23,42,.07); color:#111827; padding:0 18px; }
         .ez-rog-vege.nagy { border-radius:999px; height:56px; background:#111827; }
 
+        #pzHonap .pz-kr-szink { margin:14px 16px 4px; }
         .pz-kr-szink { font-size:12.5px; line-height:1.5; border-radius:14px; padding:10px 12px; margin:0 0 12px; background:#f3f4f6; color:#374151; }
         .pz-kr-szink.ok { background:#dcfce7; color:#14532d; }
         .pz-kr-szink.elter, .pz-kr-szink.hiba { background:#fee2e2; color:#7f1d1d; }
@@ -7442,7 +7443,13 @@ async function pzLoadKat(){
     if(uid && typeof olvas === 'function'){
         try {
             const t = await olvas(uid, 'katalogus');
-            if(t && t.kiadas) { pzKat = t; store.save(pzTKey() + '_kat', t); }
+            const keretDb = k => (k && k.kiadas ? k.kiadas.filter(x => !Array.isArray(x) && (x.k || 0) > 0).length : 0);
+            // Önjavítás: a szerveren a javítás előtti, KERET NÉLKÜLI lista van (nincs időbélyege),
+            // ezen az eszközön viszont be vannak állítva a keretek → ez a helyes, feltöltjük.
+            if(t && t.kiadas && !t.mentve && keretDb(t) === 0 && keretDb(helyi) > 0 && window.sfGetPzTranzStrict && typeof window.sfSavePzTranz === 'function'){
+                pzKat = helyi; pzSaveKat();
+            }
+            else if(t && t.kiadas) { pzKat = t; store.save(pzTKey() + '_kat', t); }
             // A szerveren még nincs katalógus, ezen az eszközön viszont van (pl. egy
             // régebbi, csak helyben sikerült mentésből) → feltöltjük, hogy a többi
             // eszköz (telefon) is lássa ugyanazokat a kategóriákat és havi kereteket.
@@ -9007,6 +9014,7 @@ async function renderPzHonap(){
     const mKeretek = katok.length ? `<section class="card pz-sec pz-hk-m">
         ${keretesek.length ? `<h4 class="pz-sec-title">Havi keretek<button type="button" class="link pz-sec-link" id="pzKeretBtn4" data-pzkeretbtn>Beállítás</button></h4>
             ${keretesek.map(k => mSor(k, koltes.get(k.n) || 0, k.k)).join('')}` : ''}
+        ${keretesek.length ? '' : '<div class="pz-kr-szink" id="pzHSzink">Keretek szinkronjának ellenőrzése…</div>'}
         ${nelkul.length ? `<h4 class="pz-sec-title">Keret nélkül<span class="pz-sec-note">${pzFt(kiKeretNelkul)} Ft</span>${keretesek.length ? '' : '<button type="button" class="link pz-sec-link" data-pzkeretbtn>Keretet adok</button>'}</h4>
             ${nelkul.map(k => mSor(k, koltes.get(k.n) || 0, 0)).join('')}` : ''}
         </section>` : '';
@@ -9032,6 +9040,14 @@ async function renderPzHonap(){
             </div>
         </div>`;
     pzMobHokGorget('pzHMhok');
+    const hsz = document.getElementById('pzHSzink');
+    if(hsz) pzKatSzinkronInfo().then(x => {
+        if(!hsz.isConnected) return;
+        hsz.className = 'pz-kr-szink ' + (x.hiba ? 'hiba' : x.szerverDb ? 'elter' : '');
+        hsz.innerHTML = x.hiba ? `<b>A kategóriák nem olvashatók a szerverről:</b> ${esc(x.hiba)}`
+            : x.szerverDb ? `<b>A szerveren ${x.szerverDb} keret van, itt mégsem látszik.</b> <span class="g"><button type="button" class="btn" data-pzszle2>Keretek letöltése</button></span>`
+            : `A szerveren ${x.szerverVan ? `nincs beállított keret (${x.szerverKat} kategória, mentve ${esc(x.szerverIdo)})` : 'még nincs mentett kategória-lista'}. Ha gépen látod a kereteidet, nyisd meg ott a Pénzügyeket – onnan felkerülnek.`;
+    });
 }
 
 /* ---- NAPLÓ NÉZET ---- */
@@ -9776,6 +9792,7 @@ window.sfShowPenzugyek = function(){
         const ho = e.target.closest('[data-pzho]');
         if(ho){ pzTHo = ho.dataset.pzho; pzCNyitva = ''; pzAKat = ''; pzFrissit(); return; }
         if(e.target.closest('#pzKatBtn, [data-pzkatbtn]')){ pzKatModal(); return; }
+        if(e.target.closest('[data-pzszle2]')){ pzKat = null; store.save(pzTKey() + '_kat', null); pzLoadKat().then(() => pzFrissit()); return; }
         const mh = e.target.closest('[data-pzmho]');
         if(mh){ pzTHo = mh.dataset.pzmho; pzKerHat = 'ho'; pzCNyitva = ''; pzAKat = ''; pzFrissit(); return; }
         if(e.target.closest('#pzAEditBtn')){ pzAEdit = !pzAEdit; renderPzFej(); renderPzAttek(); return; }
