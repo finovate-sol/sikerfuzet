@@ -4338,7 +4338,7 @@
         /* ===== Pénzügyek telefonon: a banki app minta minden nézetre =====
            Fejléc a lap hátterén (nagy cím, kerek gombok, hónap-csúszka), keret nélküli,
            nagy sugarú fehér kártyák, kerek pasztell ikonok, elválasztó vonalak nélküli sorok. */
-        .pz-torzs-m, .pz-fej-mcim, .pz-fej-burger, .pz-a-mfej, .pz-h-mfej, .pz-hk-m { display:none; }
+        .pz-torzs-m, .pz-fej-mcim, .pz-fej-burger, .pz-a-mfej, .pz-h-mfej, .pz-hk-m, .pz-t-mfej { display:none; }
         @media (max-width:760px){
             #page-penzugyek { --pz-m-arny:0 1px 3px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.035); }
             /* fejléc */
@@ -4404,6 +4404,17 @@
             #pzHonap .pz-rail .n em { font-size:13px; font-weight:400; }
             #pzHonap .pz-rail b { font-size:15.5px; font-weight:500; }
             .pz-hk-m .pz-e-tetelek { margin:0 12px 6px; border-radius:18px; background:#f9fafb; overflow:hidden; }
+            /* Pénztárcák: hős + vízszintes bankkártya-sor, alatta a lista; a régi leíró sáv és összesítő nem kell */
+            .pz-t-mfej { display:block; margin:0 0 16px; }
+            .pz-t-kartyak { display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 -11px; padding:4px 11px 10px; scroll-snap-type:x mandatory; }
+            .pz-t-kartyak::-webkit-scrollbar { display:none; }
+            .pz-t-kartyak .pz-a-szamla { flex:0 0 72%; scroll-snap-align:start; }
+            #pzTorzs:has(.pz-t-mfej) .pz-kbar, #pzTorzs .pz-tarca-ossz { display:none; }
+            #pzTerv .pz-kpis > :first-child { display:none; }
+            #pzTerv .pz-kpis .val { font-size:20px; }
+            #pzTerv .pz-kpis > :last-child { grid-column:1 / -1; }
+            #pzTerv .pz-terv-fej { flex-wrap:wrap; }
+            #pzTerv .pz-kezdo { flex:1 1 100%; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:14px; font-weight:600; color:#6b7280; }
             #pzAttek .pz-a-kpis > :first-child { display:none; }
             #pzAttek .pz-a-kpis > :last-child { grid-column:1 / -1; }
             /* a Pénzügyek saját fejléce a közös színes sávon: a sáv már a .main mögött van */
@@ -5386,6 +5397,7 @@
             <div id="pzNaplo" hidden></div>
             <div id="pzTorzs" hidden></div>
             <div id="pzTerv">
+            <div class="pz-t-mfej" id="pzTervHos"></div>
             <div class="card pz-kbar pz-terv-fej">
               <div class="seg" id="pzYearSeg"></div>
               <label class="pz-kezdo" id="pzKezdoWrap">Évnyitó vagyon<input type="text" inputmode="numeric" id="pzKezdo" placeholder="0"></label>
@@ -6790,6 +6802,10 @@ function renderPzKpis(rows){
     const felAr = felT ? Math.round(fel/felT*100) : null;
     const bevAr = bevT && bev != null ? Math.round(bev/bevT*100) : null;
     const kpi = (cls,lab,val,sub) => `<div class="pz-kpi ${cls}"><div class="lab">${lab}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
+    // Telefonos hős (C terv): az év végi vagyon nagyban, alatta a terv és az eltérés.
+    const hos = document.getElementById('pzTervHos');
+    if(hos) hos.innerHTML = `<div class="pz-a-hos"><span class="c">Vagyon az év végén</span><b>${vagyon < 0 ? '−' : ''}${pzFt(Math.abs(vagyon))}<small> Ft</small></b>
+        <span class="s">terv szerint ${pzFt(vagyonT)} Ft${diff ? ` · <b class="${diff > 0 ? 'poz' : 'neg'}">${diff > 0 ? '+' : '−'}${pzFt(Math.abs(diff))} Ft</b>` : ''}</span></div>`;
     host.innerHTML =
         kpi('', 'Vagyon az év végén', pzFt(vagyon)+' Ft',
             `Terv szerint <b>${pzFt(vagyonT)}</b>${diff?` · <span class="${diff>0?'pz-up':'pz-down'}">${diff>0?'+':''}${pzFt(diff)}</span>`:''}`)
@@ -7575,6 +7591,13 @@ function renderPzTarcak(){
         <div><b style="font-size:15px;color:var(--navy);">Pénztárcák</b>
              <div class="pz-sec-note" style="margin-top:3px;">Ahol a pénz fizikailag van. A tranzakciók rögzítésekor az egyenleg magától mozdul.</div></div>
     </div>
+    <div class="pz-t-mfej"><div class="pz-a-hos"><span class="c">Összesen a tárcákban</span>
+        <b>${pzTarcaOssz() < 0 ? '−' : ''}${pzFt(Math.abs(pzTarcaOssz()))}<small> Ft</small></b>
+        <button type="button" class="pz-a-hos-gomb" id="pzTarcaUj3">${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}Új tárca</button></div>
+        ${lista.length ? `<div class="pz-a-szamla-sor pz-t-kartyak">${lista.map((w, i) => `
+            <button type="button" class="pz-a-szamla" data-pztarca="${i}" title="${esc(w.n)} – szerkesztés" style="--k:${['#2563eb','#0f766e','#7c3aed','#b45309','#be185d','#15803d'][i % 6]}">
+                <span class="f"><i>${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i><em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
+                <span class="n">${esc(w.n)}</span><b>${(w.o || 0) < 0 ? '−' : ''}${pzFt(Math.abs(w.o || 0))} Ft</b></button>`).join('')}</div>` : ''}</div>
     <div class="pz-tarcak">
         ${lista.map(pzTarcaKartyaHtml).join('')}
         <button type="button" class="pz-tarca pz-tarca-uj" id="pzTarcaUj2">+ Új pénztárca hozzáadása</button>
@@ -9411,7 +9434,7 @@ window.sfShowPenzugyek = function(){
         const nw = e.target.closest('[data-pzntarca]');
         if(nw){ pzNTarca = nw.dataset.pzntarca; renderPzNaplo(); return; }
         if(e.target.closest('#pzTorzsUj')){ pzTorzsModal(null); return; }
-        if(e.target.closest('#pzTarcaUj') || e.target.closest('#pzTarcaUj2')){ pzTarcaModal(null); return; }
+        if(e.target.closest('#pzTarcaUj, #pzTarcaUj2, #pzTarcaUj3')){ pzTarcaModal(null); return; }
         const wk = e.target.closest('[data-pztarca]');
         if(wk){ pzTarcaModal(+wk.dataset.pztarca); return; }
         const tdel = e.target.closest('[data-pztorzsdel]');
