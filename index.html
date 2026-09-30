@@ -4994,6 +4994,15 @@
         .ez-rog-uj select { height:50px; border:0; border-radius:999px; background:#fff; box-shadow:0 2px 10px rgba(15,23,42,.07); color:#111827; padding:0 18px; }
         .ez-rog-vege.nagy { border-radius:999px; height:56px; background:#111827; }
 
+        .pz-kr-szink { font-size:12.5px; line-height:1.5; border-radius:14px; padding:10px 12px; margin:0 0 12px; background:#f3f4f6; color:#374151; }
+        .pz-kr-szink.ok { background:#dcfce7; color:#14532d; }
+        .pz-kr-szink.elter, .pz-kr-szink.hiba { background:#fee2e2; color:#7f1d1d; }
+        .pz-kr-szink .g { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .pz-kr-szink .btn { border-radius:999px; font-size:12px; padding:7px 12px; }
+        .pz-hibasav { position:fixed; left:12px; right:12px; bottom:calc(96px + var(--sf-alul, 0px)); z-index:2000; background:#7f1d1d; color:#fff; border-radius:16px;
+                      padding:12px 16px; display:flex; flex-direction:column; gap:2px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,.25); max-width:560px; margin:0 auto; }
+        .pz-hibasav span { opacity:.85; font-size:12px; word-break:break-word; }
+
         /* ===== Új tétel (C terv) ===== */
         .modal.pz-uj-c { max-width:480px; background:#f0f3f7; border:0; border-radius:28px; overflow:hidden; position:relative; }
         .modal.pz-uj-c::before { content:""; position:absolute; left:0; right:0; top:0; height:360px; background:var(--sf-sav); pointer-events:none; }
@@ -7296,9 +7305,14 @@ const pzTKey = () => 'sf_pztranz_' + pzUid();
 // A korábbi verzió tömbként tárolta a kategóriát ([név, alkategóriák, cél]).
 // Aki már mentett ilyet, annak se boruljon fel a lapja: felismerjük és
 // átalakítjuk. Új mentés már mindig objektum.
-const pzKatSor = x => Array.isArray(x)
-    ? { n:x[0], al:x[1] || [], cel:x[2], i:'cimke', c:'szurke' }
-    : { n:x.n, al:x.al || [], cel:x.cel, i:pzIkonKulcs(x.i), c:x.c || 'szurke', ...(x.k ? { k:x.k } : {}) };
+// Helyben igazít (nem másol): ha minden hívás új objektumokat adna, a nyitott
+// ablakok (pl. Havi keretek) a már eldobott példányokba írnának, és a keret elveszne.
+const pzKatSor = x => {
+    if(Array.isArray(x)) return { n:x[0], al:x[1] || [], cel:x[2], i:'cimke', c:'szurke' };
+    x.al = x.al || []; x.i = pzIkonKulcs(x.i); x.c = x.c || 'szurke';
+    if(!x.k) delete x.k;
+    return x;
+};
 function pzKatalogus(){
     if(!pzKat) pzKat = JSON.parse(JSON.stringify(PZ_KAT_ALAP));
     pzKat.kiadas  = (pzKat.kiadas  || []).map(pzKatSor);
@@ -7439,11 +7453,34 @@ async function pzLoadKat(){
     return pzKatalogus();
 }
 function pzSaveKat(){
+    pzKatalogus().mentve = new Date().toISOString();
     store.save(pzTKey() + '_kat', pzKatalogus());
     const uid = pzUid();
     if(uid && typeof window.sfSavePzTranz === 'function')
-        window.sfSavePzTranz(uid, 'katalogus', pzKatalogus())
-            .catch(e => console.warn('Kategóriák mentése sikertelen:', e));
+        return window.sfSavePzTranz(uid, 'katalogus', pzKatalogus())
+            .catch(e => { console.warn('Kategóriák mentése sikertelen:', e); pzHibaJelzes('A kategóriák / keretek mentése a szerverre nem sikerült', e); return false; });
+    return Promise.resolve();
+}
+// Jól látható hibasáv a képernyő alján – a szerverre mentés hibája ne maradjon rejtve.
+function pzHibaJelzes(cim, e){
+    const d = document.createElement('div');
+    d.className = 'pz-hibasav';
+    d.innerHTML = `<b>${esc(cim)}</b><span>${esc((e && (e.code || e.message)) || String(e || ''))}</span>`;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 9000);
+}
+// Szinkron-ellenőrzés: mit lát a szerver, és mit ez az eszköz a kategóriákból és a keretekből.
+async function pzKatSzinkronInfo(){
+    const uid = pzUid(), helyi = pzKatalogus();
+    const db = k => (k && k.kiadas ? k.kiadas.filter(x => (x.k || 0) > 0).length : 0);
+    const ido = k => k && k.mentve ? new Date(k.mentve).toLocaleString('hu-HU', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'ismeretlen időpontban';
+    const olvas = window.sfGetPzTranzStrict || window.sfGetPzTranz;
+    let szerver = null, hiba = '';
+    if(!uid) hiba = 'nincs bejelentkezve';
+    else if(typeof olvas !== 'function') hiba = 'a szerver nem érhető el';
+    else { try { szerver = await olvas(uid, 'katalogus'); } catch(e){ hiba = (e && (e.code || e.message)) || String(e); } }
+    return { helyiDb: db(helyi), helyiKat: (helyi.kiadas || []).length, helyiIdo: ido(helyi),
+             szerverVan: !!(szerver && szerver.kiadas), szerverDb: db(szerver), szerverKat: szerver && szerver.kiadas ? szerver.kiadas.length : 0, szerverIdo: ido(szerver), hiba };
 }
 
 // A hónap heteire bontás HÉTFŐVEL kezdve – a hét így nem lóg át a szomszéd
@@ -9438,6 +9475,7 @@ async function pzKeretModal(){
         <div class="modal-head"><h3>Havi keretek</h3><button class="modal-x" data-pzx>&times;</button></div>
         <div class="modal-body">
             <p class="pz-sec-note" style="margin:0 0 12px;">Mennyit szánsz egy hónapban az egyes kategóriákra. Az üresen hagyott kategóriának nincs kerete. A keretek összege lesz a Tervező havi költség-terve is, ahol nem írtál be mást.</p>
+            <div class="pz-kr-szink" id="pzKrSzink">Szinkron ellenőrzése…</div>
             <div class="pz-kr-lista">${katok.map((k, i) => { const a = atlag(k.n); return `
                 <div class="pz-kr">
                     ${pzIk(k.i, k.c)}
@@ -9454,6 +9492,27 @@ async function pzKeretModal(){
     </div>`;
     document.body.appendChild(ov);
     const zar = () => ov.remove();
+    const szinkRajz = async () => {
+        const el = ov.querySelector('#pzKrSzink'); if(!el) return;
+        const x = await pzKatSzinkronInfo();
+        const egyezik = !x.hiba && x.szerverVan && x.szerverDb === x.helyiDb;
+        el.className = 'pz-kr-szink ' + (x.hiba ? 'hiba' : egyezik ? 'ok' : 'elter');
+        el.innerHTML = x.hiba ? `<b>A szerver nem olvasható:</b> ${esc(x.hiba)}<br>Ezen az eszközön ${x.helyiDb} keret van.`
+            : `<b>${egyezik ? '✓ Szinkronban' : 'Eltérés!'}</b> Szerveren: ${x.szerverVan ? `${x.szerverDb} keret (${x.szerverKat} kategória, mentve ${esc(x.szerverIdo)})` : 'nincs mentett katalógus'} · Ezen az eszközön: ${x.helyiDb} keret (${x.helyiKat} kategória)
+               ${egyezik ? '' : `<span class="g"><button type="button" class="btn" data-pzszfel>Ennek az eszköznek a keretei → szerver</button>${x.szerverVan ? '<button type="button" class="btn" data-pzszle>Szerver → erre az eszközre</button>' : ''}</span>`}`;
+    };
+    szinkRajz();
+    ov.addEventListener('click', async e => {
+        if(e.target.closest('[data-pzszfel]')){
+            if(!confirm('Ennek az eszköznek a kategóriái és keretei felülírják a szerveren lévőket. Mehet?')) return;
+            await pzSaveKat();
+            szinkRajz(); pzFrissit(); return;
+        }
+        if(e.target.closest('[data-pzszle]')){
+            pzKat = null; store.save(pzTKey() + '_kat', null);
+            await pzLoadKat(); zar(); pzFrissit(); pzKeretModal(); return;
+        }
+    });
     const osszeg = () => { ov.querySelector('#pzKrOssz').innerHTML = `Összesen: <b>${pzFt([...ov.querySelectorAll('[data-pzkr]')].reduce((s,x) => s + (pzNum(x.value) || 0), 0))} Ft</b> / hó`; };
     osszeg();
     ov.addEventListener('input', osszeg);
@@ -9468,7 +9527,7 @@ async function pzKeretModal(){
     });
     ov.querySelector('#pzKrMent').addEventListener('click', () => {
         ov.querySelectorAll('[data-pzkr]').forEach(inp => {
-            const k = katok[+inp.dataset.pzkr], v = pzNum(inp.value);
+            const k = pzKatOf('ki', katok[+inp.dataset.pzkr].n) || katok[+inp.dataset.pzkr], v = pzNum(inp.value);
             if(v && v > 0) k.k = Math.round(v); else delete k.k;
         });
         pzSaveKat(); zar(); pzFrissit();
