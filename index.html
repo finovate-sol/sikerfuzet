@@ -3227,6 +3227,18 @@
             .ez-kk-racs { grid-template-columns:1fr; }
             .ez-fiok { padding:16px 16px 24px; }
         }
+        .ez-kcs-terv { margin-left:auto; }
+        .ez-pt-fej { margin:0 0 12px; display:flex; flex-direction:column; gap:2px; } .ez-pt-fej b { font-size:15px; color:var(--navy); } .ez-pt-fej span { font-size:12.5px; color:var(--muted); }
+        .ez-modal label.ez-pt-cs { display:flex; flex-direction:row; align-items:flex-start; gap:9px; font-size:13px; font-weight:500; letter-spacing:0; text-transform:none; color:#334155; margin:2px 0 12px; line-height:1.4; cursor:pointer; }
+        .ez-modal label.ez-pt-cs input { flex:none; width:17px; height:17px; margin:1px 0 0; accent-color:var(--blue); }
+        .ez-pt-l { border:1px solid #eef1f5; border-radius:12px; overflow:hidden; }
+        .ez-pt-sor { display:grid; grid-template-columns:110px minmax(0,1fr); gap:10px; align-items:center; padding:7px 12px; border-top:1px solid #eef1f5; }
+        .ez-pt-sor:first-child { border-top:0; }
+        .ez-pt-sor .n { display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+        .ez-pt-sor .n .ez-ik { width:26px; height:26px; border-radius:8px; } .ez-pt-sor .n .ez-ik svg { width:14px; height:14px; }
+        .ez-pt-sor .n b { font-size:13.5px; color:var(--navy); } .ez-pt-sor .n em { font-style:normal; font-size:11.5px; color:var(--muted); flex-basis:100%; padding-left:34px; }
+        .ez-pt-sor.ki { background:#fafbfc; } .ez-pt-sor.ki .n b { color:#94a3b8; font-weight:600; }
+        @media (max-width:560px){ .ez-pt-sor { grid-template-columns:78px minmax(0,1fr); } }
         /* Sablon részletei – jobbról kinyíló panel */
         .ez-fiok-h { position:fixed; inset:0; z-index:900; background:rgba(10,37,71,0); transition:background .2s; }
         .ez-fiok-h.nyitva { background:rgba(10,37,71,.35); }
@@ -11279,7 +11291,7 @@ const EZ_PROGRAMOK = [
       ] },
     { id:'cbum-bro', n:'Chris Bumstead · Bro split (2020)', forras:'Shop.Builder, 2022',
       al:'8 napos ciklus', leiras:'8 napos ciklus, izomcsoportonként egy nap. Alapgyakorlatnál bemelegítés után 2 munkaszett: az első nehéz, a második intenzitásnövelővel (vetkőző, szuperszett). Izolációnál legfeljebb 3.',
-      het:[],
+      ciklus:true, het:['cbum-bro-1','cbum-bro-2','cbum-bro-3','','cbum-bro-5','cbum-bro-6','cbum-bro-7',''],
       sablonok:[
         { k:'1', n:'CBum · Mell + tricepsz', cel:'1. nap', leiras:'Két nyomó gyakorlat, egy tárogatás, a végén 1–2 tricepsz izoláció', gy:[
             ['Fekvenyomás', 2, 0, '1 nehéz + 1 intenzitásnövelős'], ['Ferde pados mellnyomógép', 2, 0, '1 nehéz + 1 intenzitásnövelős'],
@@ -11828,13 +11840,73 @@ function ezSabTorol(sid){
 function ezProgInfo(p, l){
     if(!p) return '';
     const gyDb = new Set(p.sablonok.flatMap(x => x.gy.map(g => ezNevKulcs(g[0])))).size;
-    const het = (p.het || []).length ? `<div class="ez-tip-het">${p.het.map((sid, i) => { const s = l.find(x => x.id === sid);
-        return `<span${sid ? '' : ' class="pih"'}><em>${EZ_NAP_R[i]}</em>${sid ? esc(s ? s.n.replace(/^CBum · /, '') : '—') : 'pihenő'}</span>`; }).join('')}</div>` : '';
+    const het = (p.het || []).length ? `<div class="ez-tip-het" style="grid-template-columns:repeat(${p.het.length},minmax(0,1fr))">${p.het.map((sid, i) => { const s = l.find(x => x.id === sid);
+        return `<span${sid ? '' : ' class="pih"'}><em>${p.ciklus ? i + 1 + '.' : EZ_NAP_R[i]}</em>${sid ? esc(s ? s.n.replace(/^CBum · /, '') : '—') : 'pihenő'}</span>`; }).join('')}</div>` : '';
     return `<span class="ez-tipw"><button type="button" class="ez-info" data-ezinfo aria-expanded="false" aria-label="A programról">i</button>
         <span class="ez-tip" role="dialog" aria-label="${esc(p.n)}"><b>${esc(p.n)}</b>
             <em>${p.sablonok.length} edzésnap · ${gyDb} gyakorlat · forrás: ${esc(p.forras)}</em>
             <span>${esc(p.leiras)}</span>${het}
             <button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(p.id)}">A program sablonjainak eltávolítása</button></span></span>`;
+}
+// A program napjai a naptárba: hetes programnál a választott hét hétfőjétől, ciklusnál
+// a kezdőnaptól, 1–4 ismétlésben. Múltbeli napra nem tervez, és ugyanazt a sablont
+// nem teszi kétszer ugyanarra a napra.
+function ezProgTervModal(pid){
+    const p = EZ_PROGRAMOK.find(x => x.id === pid); if(!p || !(p.het || []).length) return;
+    const sab = ezAdat.torzs.sablonok, ma = ezMa(), hetfo = ezHetfo(ma), n = p.het.length;
+    const hetek = [0, 1, 2, 3].map(i => ezPlusz(hetfo, 7 * i));
+    const hetCim = h => `${ezRovidD(h)} – ${ezRovidD(ezPlusz(h, 6))}`;
+    const ov = ezModal(`Program betervezése`, `
+        <p class="ez-pt-fej"><b>${esc(p.n)}</b><span>${esc(p.al || '')}</span></p>
+        <div class="ez-mezok2">${p.ciklus
+            ? ezMezo('Kezdőnap', 'ezptK', ma, ` type="date" min="${ma}"`)
+            : `<label class="ez-mezo"><span>Hét</span><select id="ezptK">${hetek.map((h, i) => `<option value="${h}"${i === 1 ? ' selected' : ''}>${['Ez a hét', 'Jövő hét', '2 hét múlva', '3 hét múlva'][i]} · ${hetCim(h)}</option>`).join('')}</select></label>`}
+            <label class="ez-mezo"><span>${p.ciklus ? 'Hány ciklus' : 'Hány hét'}</span><select id="ezptN">${[1, 2, 3, 4].map(i => `<option value="${i}">${i} ${p.ciklus ? 'ciklus' : 'hét'} (${i * n} nap)</option>`).join('')}</select></label></div>
+        <label class="ez-pt-cs"><input type="checkbox" id="ezptCs"> A napokon már betervezett, még nem teljesített edzéseket cserélje le</label>
+        <div id="ezptL" class="ez-pt-l"></div>
+        <div class="ez-uz" id="ezptUz"></div>`,
+        `<button type="button" class="btn" data-ezx>Mégse</button><span class="ez-hely"></span><button type="button" class="btn primary ez-gb-kek" id="ezptOk">Betervezem</button>`);
+    const napok = () => {
+        const k = ov.querySelector('#ezptK').value || ma, db = +ov.querySelector('#ezptN').value;
+        return Array.from({ length: n * db }, (_, i) => [ezPlusz(k, i), p.het[i % n]]);
+    };
+    const rajz = async () => {
+        const l = napok(); await ezEvekBetolt(...l.map(([d]) => d));
+        const cs = ov.querySelector('#ezptCs').checked;
+        let db = 0;
+        ov.querySelector('#ezptL').innerHTML = l.map(([d, sid]) => {
+            const t = sid && sab.find(x => x.id === sid), mult = d < ma, van = ezNapLista(d);
+            const marad = cs ? van.filter(e => e.st !== 'terv' || (e.naplo && e.naplo.length)) : van;
+            const dupla = t && marad.some(e => e.sid === t.id);
+            const megy = t && !mult && !dupla; if(megy) db++;
+            const megj = mult ? 'elmúlt nap, kimarad' : !sid ? '' : !t ? 'ez a sablon hiányzik – a Kész programok fülön pótolhatod' : dupla ? 'már be van tervezve'
+                : van.length ? (cs && marad.length < van.length ? `helyette: ${van.filter(e => !marad.includes(e)).map(e => e.n).join(', ')}` : `mellette: ${van.map(e => e.n).join(', ')}`) : '';
+            return `<div class="ez-pt-sor${megy ? '' : ' ki'}"><span class="ez-t-nap"><b>${EZ_NAP[ezNapIdx(d)]}</b><em>${ezRovidD(d)}</em></span>
+                <span class="n">${t ? ezIk(t.sport) : ''}<b>${sid ? esc(t ? t.n.replace(/^CBum · /, '') : 'hiányzó sablon') : 'pihenő'}</b>${megj ? `<em>${esc(megj)}</em>` : ''}</span></div>`;
+        }).join('');
+        const ok = ov.querySelector('#ezptOk'); ok.disabled = !db; ok.textContent = db ? `Betervezem (${db} edzés)` : 'Nincs mit betervezni';
+    };
+    ov.addEventListener('change', rajz); ov.addEventListener('input', e => { if(e.target.type === 'date') rajz(); });
+    rajz();
+    ov.querySelector('#ezptOk').addEventListener('click', async () => {
+        const l = napok(), cs = ov.querySelector('#ezptCs').checked;
+        await ezEvekBetolt(...l.map(([d]) => d));
+        const evek = new Set(); let db = 0, elso = '', utolso = '';
+        for(const [d, sid] of l){
+            const t = sid && sab.find(x => x.id === sid); if(!t || d < ma) continue;
+            let lista = ezNapLista(d);
+            if(cs) lista = lista.filter(e => e.st !== 'terv' || (e.naplo && e.naplo.length));
+            if(lista.some(e => e.sid === t.id)){ if(cs) ezNapSet(d, lista); continue; }
+            ezNapSet(d, [...lista, ezTetelSablonbol(t)]); evek.add(d.slice(0, 4)); db++;
+            elso = elso || d; utolso = d;
+        }
+        if(cs) l.forEach(([d]) => evek.add(d.slice(0, 4)));
+        evek.forEach(ezMent);
+        ov.remove();
+        if(!db) return;
+        ezUz = { t: `${db} edzés betervezve: ${ezRovidD(elso)} – ${ezRovidD(utolso)} (${p.n}).` };
+        ezHet = ezHetfo(elso); ezTab = 'ma'; renderEdz();
+    });
 }
 const ezTipZar = () => document.querySelectorAll('.ez-tipw.nyitva').forEach(x => { x.classList.remove('nyitva'); x.firstElementChild.setAttribute('aria-expanded', 'false'); });
 document.addEventListener('click', e => { if(!e.target.closest('.ez-tipw')) ezTipZar(); });
@@ -11931,7 +12003,7 @@ function ezSablonHtml(){
                 <div class="k"><b>${esc(p.n)}</b><em>${p.sablonok.length} edzésnap · ${gyN} gyakorlat · forrás: ${esc(p.forras)}</em><span>${esc(p.leiras)}</span>
                     ${van ? `<span class="ez-prog-van">✓ ${mind ? 'A sablonjaid között' : `${van} / ${p.sablonok.length} nap a sablonjaid között`}</span>` : ''}</div>
                 <div class="ez-prog-g">${mind ? '' : `<button type="button" class="btn primary ez-gb-kek" data-ezprog="${esc(p.id)}">${van ? 'Hiányzók hozzáadása' : 'Hozzáadom'}</button>`}
-                    ${van ? `<button type="button" class="btn" data-ezprogmutat="${esc(p.id)}">Megnézem</button><button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(p.id)}">Eltávolítás</button>` : ''}</div></div>`;
+                    ${van ? `<button type="button" class="btn primary ez-gb-kek" data-ezprogterv="${esc(p.id)}">Betervezem</button><button type="button" class="btn" data-ezprogmutat="${esc(p.id)}">Megnézem</button><button type="button" class="ez-link ez-prog-torol" data-ezprogtorol="${esc(p.id)}">Eltávolítás</button>` : ''}</div></div>`;
         }).join('')}</div>`;
     // Sablonok fül: sportág-szűrő, csoportosítás, tömör kártyák
     const sportok = Object.keys(EZ_SPORT).map(k => [k, sab.filter(s => s.sport === k).length]).filter(([, n]) => n);
@@ -11944,7 +12016,7 @@ function ezSablonHtml(){
     return fej + `<div class="ez-szuresor"><div class="ez-sp-chipek">${chip('', 'Mind', sab.length)}${sportok.map(([k, n]) => chip(k, ezSp(k)[0], n)).join('')}</div>
             <label class="ez-csop-val">Csoportosítás: <select data-ezsabcsop>${[['forras', 'Forrás'], ['sport', 'Sportág'], ['nincs', 'Nincs']].map(([k, n]) => `<option value="${k}"${ezSabCsop === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>
         ${csoportok.filter(([, , , l]) => l.length).map(([pid, n, al, l]) => `<section class="ez-kcs">
-            ${n ? `<div class="ez-kcs-fej"><b>${esc(n)}</b><span class="ez-db">${l.length}</span>${al ? `<em>${esc(al)}</em>` : ''}${pid ? ezProgInfo(EZ_PROGRAMOK.find(p => p.id === pid), l) : ''}</div>` : ''}
+            ${n ? `<div class="ez-kcs-fej"><b>${esc(n)}</b><span class="ez-db">${l.length}</span>${al ? `<em>${esc(al)}</em>` : ''}${pid ? ezProgInfo(EZ_PROGRAMOK.find(p => p.id === pid), l) + `<button type="button" class="ez-kk-terv ez-kcs-terv" data-ezprogterv="${esc(pid)}">Betervezem</button>` : ''}</div>` : ''}
             <div class="ez-kk-racs">${l.map(ezSabKartya).join('')}</div></section>`).join('') || '<p class="ez-megj">Ebben a sportágban még nincs sablonod.</p>'}`;
 }
 
@@ -13064,6 +13136,8 @@ window.sfShowEdzes = function(){
         if(ssp){ ezSabSport = ssp.dataset.ezsabsport; renderEdz(); return; }
         const sny = e.target.closest('[data-ezsabnyit]');
         if(sny){ ezSabReszlet(sny.dataset.ezsabnyit); return; }
+        const pt2 = e.target.closest('[data-ezprogterv]');
+        if(pt2){ ezProgTervModal(pt2.dataset.ezprogterv); return; }
         const pm = e.target.closest('[data-ezprogmutat]');
         if(pm){ ezSabFul = 'sab'; ezSabCsop = 'forras'; ezSabSport = ''; store.save('sf_ez_sab_ful', 'sab'); store.save('sf_ez_sab_csop', 'forras'); renderEdz();
             const cs = [...document.querySelectorAll('.ez-kcs-fej b')].find(b => b.textContent === (EZ_PROGRAMOK.find(p => p.id === pm.dataset.ezprogmutat) || {}).n);
