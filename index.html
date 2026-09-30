@@ -3925,6 +3925,37 @@
         .pz-a-tarca.pz-a-kpi .pz-a-kpi-ik svg { width:22px; height:22px; }
         .pz-a-kpi .c { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         @container (max-width:900px){ .pz-a-kpis, .pz-a-tarcak { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        /* számlák: bankkártya-szerű lapok, hogy ne keveredjenek az összesítő csempékkel */
+        .pz-a-szamlak { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:14px 16px 16px; }
+        .pz-a-szamlak-fej { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+        .pz-a-szamlak-fej h4 { margin:0; font-size:15px; color:var(--navy); }
+        .pz-a-szamlak-fej span { font-size:12.5px; color:var(--muted); } .pz-a-szamlak-fej span b { color:var(--navy); font-variant-numeric:tabular-nums; }
+        .pz-a-szamlak-fej .link { margin-left:auto; font-size:12.5px; }
+        .pz-a-szamla-sor { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+        .pz-a-szamla { position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:108px; padding:12px 14px;
+            border:0; border-radius:14px; text-align:left; font-family:inherit; cursor:pointer; color:#fff;
+            background:linear-gradient(135deg, var(--k) 0%, color-mix(in srgb, var(--k) 62%, #0b1220) 100%);
+            box-shadow:0 6px 14px color-mix(in srgb, var(--k) 28%, transparent); transition:transform .12s, box-shadow .12s; }
+        .pz-a-szamla::before, .pz-a-szamla::after { content:''; position:absolute; border-radius:50%; background:rgba(255,255,255,.1); pointer-events:none; }
+        .pz-a-szamla::before { width:120px; height:120px; right:-38px; top:-50px; }
+        .pz-a-szamla::after { width:80px; height:80px; right:24px; bottom:-46px; background:rgba(255,255,255,.07); }
+        .pz-a-szamla:hover { transform:translateY(-2px); box-shadow:0 10px 20px color-mix(in srgb, var(--k) 36%, transparent); }
+        .pz-a-szamla:focus-visible { outline:3px solid #9cc0f5; outline-offset:2px; }
+        .pz-a-szamla .f { display:flex; align-items:center; gap:7px; width:100%; }
+        .pz-a-szamla .f i { width:26px; height:26px; border-radius:8px; background:rgba(255,255,255,.18); display:inline-flex; align-items:center; justify-content:center; font-style:normal; }
+        .pz-a-szamla .f i svg { width:14px; height:14px; }
+        .pz-a-szamla .f em { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; opacity:.85; }
+        .pz-a-szamla .n { margin-top:auto; font-size:13px; font-weight:700; opacity:.92; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pz-a-szamla b { font-size:20px; font-weight:800; letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pz-a-szamla b.minusz::after { content:' tartozás'; font-size:10.5px; font-weight:700; opacity:.8; letter-spacing:0; }
+        /* telefonon: vízszintesen görgethető kártyasor */
+        @container (max-width:430px){
+            .pz-a-szamlak { padding:12px 12px 14px; }
+            .pz-a-szamla-sor { display:flex; overflow-x:auto; gap:10px; scroll-snap-type:x mandatory; margin:0 -12px; padding:2px 12px 6px; scrollbar-width:none; }
+            .pz-a-szamla-sor::-webkit-scrollbar { display:none; }
+            .pz-a-szamla { flex:0 0 150px; min-height:96px; padding:11px 12px; scroll-snap-align:start; }
+            .pz-a-szamla b { font-size:16.5px; }
+        }
         /* keskeny kártyán (telefon): két oszlop, tömör csempe – ikon a felirat mellett, kisebb szám */
         @container (max-width:430px){
             .pz-a-kpis, .pz-a-tarcak { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -7479,10 +7510,15 @@ async function renderPzAttek(){
         ${csempe('#f0645f', 'taska', 'Kiadás · ' + honev, pzFt(ki) + ' Ft', `${pzValtozas(ki, kiE, false)} az előző hónaphoz`)}
         ${csempe('#7c5cff', 'erme', 'Megtakarítás', jel(megt) + ' Ft', `${be ? Math.round(megt / be * 100) : 0}% a bevételből · ${pzValtozas(megt, megtE, true)}`)}
     </div>`,
-        tarca: torzs.penztarca.length ? `<div class="pz-a-tarcak">${torzs.penztarca.map((w, i) => `
-        <button type="button" class="pz-a-kpi pz-a-tarca" data-pztarca="${i}" title="Szerkesztés">
-            <i class="pz-a-kpi-ik" style="--k:${['#3b82f6','#14b8a6','#8b5cf6','#f59e0b','#ec4899','#22a55a'][i % 6]}">${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i>
-            <div><span class="c">${esc(w.n)}</span><b class="${(w.o || 0) < 0 ? 'pz-down' : ''}">${jel(w.o || 0)} Ft</b><span class="s">${esc(pzTarcaTip(w.tipus)[1])}</span></div></button>`).join('')}</div>`
+        // A számlák más kinézetet kapnak, mint a kimutatások: bankkártya-szerű lapok a tárca színében.
+        tarca: torzs.penztarca.length ? `<section class="pz-a-szamlak">
+            <div class="pz-a-szamlak-fej"><h4>Számlák</h4><span>${torzs.penztarca.length} tárca · <b>${jel(pzTarcaOssz())} Ft</b></span>
+                <a class="link" href="#" data-pzview="tarca">Kezelés ↗</a></div>
+            <div class="pz-a-szamla-sor">${torzs.penztarca.map((w, i) => `
+            <button type="button" class="pz-a-szamla" data-pztarca="${i}" title="${esc(w.n)} – szerkesztés" style="--k:${['#2563eb','#0f766e','#7c3aed','#b45309','#be185d','#15803d'][i % 6]}">
+                <span class="f"><i>${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i><em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
+                <span class="n">${esc(w.n)}</span>
+                <b class="${(w.o || 0) < 0 ? 'minusz' : ''}">${jel(w.o || 0)} Ft</b></button>`).join('')}</div></section>`
             : `<section class="card pz-a-kartya"><div class="pz-ures">Még nincs pénztárca. <a class="link" href="#" data-pzview="tarca">Felvétel ↗</a></div></section>`,
         aram: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Havi pénzáramlás</h4><span>${ev} · a naplóból és a tervezőből</span></div>
