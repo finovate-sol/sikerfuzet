@@ -3842,13 +3842,16 @@
         .pz-a-tip span em { margin-left:auto; font-style:normal; font-weight:700; font-variant-numeric:tabular-nums; padding-left:12px; }
         /* fánk */
         .pz-a-fankwrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:center; }
-        .pz-fank { position:relative; width:100%; max-width:300px; margin:0 auto; aspect-ratio:1; }
+        .pz-fank { position:relative; width:100%; max-width:300px; margin:0 auto; aspect-ratio:1; container-type:inline-size; }
         .pz-fank svg { width:100%; height:100%; display:block; overflow:visible; }
         .pz-fank-sz { cursor:pointer; transition:stroke-width .15s; }
         .pz-fank-sz:hover { stroke-width:32; }
         .pz-fank-koz { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
         .pz-fank-koz span { font-size:11.5px; font-weight:700; color:var(--muted); max-width:46%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .pz-fank-koz b { font-size:18px; font-weight:800; color:var(--navy); letter-spacing:-.3px; font-variant-numeric:tabular-nums; }
+        /* az összeg a gyűrű belsejéhez igazodik (ikonos fánknál a lyuk a szélesség ~46%-a) */
+        .pz-fank-koz b { font-size:min(18px, 8.4cqi); font-weight:800; color:var(--navy); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pz-fank.ikonos .pz-fank-koz b { font-size:min(18px, 6.4cqi); }
+        .pz-fank.ikonos .pz-fank-koz span { max-width:40%; }
         .pz-fank-koz em { font-style:normal; font-size:12px; font-weight:700; color:var(--muted); }
         .pz-fank-bub { position:absolute; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
         .pz-fank-bub .pz-ikon { width:30px; height:30px; border-radius:50%; box-shadow:0 0 0 2px #fff; }
@@ -7486,8 +7489,14 @@ function pzFank(szeletek, kozep, opt = {}){
         ofs += hossz; szog += x.v / ossz * 360;
         return { el, kozepSzog, x };
     });
-    // Ikon-buborékok a gyűrű körül, a szelet közepénél – a kicsiknél nincs, hogy ne torlódjanak.
-    const buborek = opt.ikonok ? iv.filter(s => s.x.v / ossz >= 0.035).map(s => {
+    // Ikon-buborékok a gyűrű körül, a szelet közepénél. Hogy ne torlódjanak: a nagyobb szelet
+    // kap elsőbbséget, és csak az kerül ki, amelyik legalább 30°-ra van a már kitett buborékoktól
+    // (a kicsik a lenti listában ugyanúgy megvannak).
+    const szogTav = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+    const kint = [];
+    for(const s of iv.filter(s => s.x.v / ossz >= 0.035).sort((a, b) => b.x.v - a.x.v))
+        if(kint.every(k => szogTav(k.kozepSzog, s.kozepSzog) >= 30)) kint.push(s);
+    const buborek = opt.ikonok ? kint.map(s => {
         const rad = s.kozepSzog * Math.PI / 180, rr = R + vast / 2 + 30;
         const bx = 50 + (rr * Math.cos(rad)) / 240 * 100 * (240 / 300) , by = 50 + (rr * Math.sin(rad)) / 240 * 100 * (240 / 300);
         return `<span class="pz-fank-bub" style="left:${bx.toFixed(1)}%;top:${by.toFixed(1)}%;--sz:${s.x.szin}">
