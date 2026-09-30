@@ -239,6 +239,13 @@ export async function getPzTranz(uid, kulcs){
     try { const snap = await getDoc(doc(db, "pz_tranz", uid + "_" + kulcs)); return snap.exists() ? (snap.data() || null) : null; }
     catch(e){ console.warn("Költésnapló olvasása sikertelen:", e); return null; }
 }
+// Mint a getPzTranz, de olvasási hibánál KIVÉTELT dob (nem null-t): így meg lehet
+// különböztetni a "nincs ilyen dokumentum" esetet a "nem sikerült lehozni"-tól.
+export async function getPzTranzStrict(uid, kulcs){
+    if(!isConfigured || !db) return null;
+    const snap = await getDoc(doc(db, "pz_tranz", uid + "_" + kulcs));
+    return snap.exists() ? (snap.data() || null) : null;
+}
 export async function savePzTranz(uid, kulcs, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "pz_tranz", uid + "_" + kulcs), data);

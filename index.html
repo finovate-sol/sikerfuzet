@@ -7364,10 +7364,14 @@ async function pzLoadTorzs(){
     const helyi = store.load(pzTKey() + '_torzs', null);
     if(helyi) pzTorzsData = helyi;
     const uid = pzUid();
-    if(uid && typeof window.sfGetPzTranz === 'function'){
+    const olvas = window.sfGetPzTranzStrict || window.sfGetPzTranz;
+    if(uid && typeof olvas === 'function'){
         try {
-            const t = await window.sfGetPzTranz(uid, 'torzs');
+            const t = await olvas(uid, 'torzs');
             if(t){ pzTorzsData = t; store.save(pzTKey() + '_torzs', t); }
+            // ugyanaz, mint a katalógusnál: a csak helyben meglévő tárcák, előfizetések felkerülnek
+            else if(helyi && window.sfGetPzTranzStrict && typeof window.sfSavePzTranz === 'function')
+                window.sfSavePzTranz(uid, 'torzs', pzTorzsGet()).catch(e => console.warn('Törzsadatok feltöltése sikertelen:', e));
         } catch(e){ console.warn('Törzsadatok betöltése sikertelen:', e); }
     }
     return pzTorzsGet();
@@ -7420,10 +7424,16 @@ async function pzLoadKat(){
     const helyi = store.load(pzTKey() + '_kat', null);
     if(helyi) pzKat = helyi;
     const uid = pzUid();
-    if(uid && typeof window.sfGetPzTranz === 'function'){
+    const olvas = window.sfGetPzTranzStrict || window.sfGetPzTranz;
+    if(uid && typeof olvas === 'function'){
         try {
-            const t = await window.sfGetPzTranz(uid, 'katalogus');
+            const t = await olvas(uid, 'katalogus');
             if(t && t.kiadas) { pzKat = t; store.save(pzTKey() + '_kat', t); }
+            // A szerveren még nincs katalógus, ezen az eszközön viszont van (pl. egy
+            // régebbi, csak helyben sikerült mentésből) → feltöltjük, hogy a többi
+            // eszköz (telefon) is lássa ugyanazokat a kategóriákat és havi kereteket.
+            else if(!t && helyi && helyi.kiadas && window.sfGetPzTranzStrict && typeof window.sfSavePzTranz === 'function')
+                window.sfSavePzTranz(uid, 'katalogus', pzKatalogus()).catch(e => console.warn('Kategóriák feltöltése sikertelen:', e));
         } catch(e){ console.warn('Kategóriák betöltése sikertelen:', e); }
     }
     return pzKatalogus();
@@ -14204,7 +14214,7 @@ window.sfOnViewSwitch = function(){
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=73";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc } from "./auth.js?v=74";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -14221,6 +14231,7 @@ window.sfOnViewSwitch = function(){
     window.sfGetPenzugyekStrict = getPenzugyekStrict;
     window.sfSavePenzugyek = savePenzugyek;
     window.sfGetPzTranz = getPzTranz;
+    window.sfGetPzTranzStrict = getPzTranzStrict;
     window.sfSavePzTranz = savePzTranz;
     window.sfGetEdzesStrict = getEdzesStrict;
     window.sfSaveEdzes = saveEdzes;
