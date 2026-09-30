@@ -3377,6 +3377,21 @@
         /* ===== PÉNZÜGYEK – HÓNAP ÉS NAPLÓ ===== */
         .pz-nyilvseg { width:max-content; max-width:100%; overflow-x:auto; margin-bottom:12px; }
         .pz-ma { font-size:12px !important; font-weight:700; padding:6px 10px !important; margin-left:4px; }
+        /* --- lebegő + gomb: új tétel a Pénzügyek minden rögzítős fülén --- */
+        .pz-fab { position:fixed; right:max(24px, env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom)); z-index:50;
+                  width:58px; height:58px; border-radius:18px; border:0; background:var(--blue); color:#fff; cursor:pointer;
+                  display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(31,95,208,.38), 0 2px 6px rgba(15,47,95,.18);
+                  transition:transform .12s, box-shadow .12s; }
+        .pz-fab[hidden] { display:none; }
+        .pz-fab svg { width:28px; height:28px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; }
+        .pz-fab:hover { transform:translateY(-1px); box-shadow:0 14px 28px rgba(31,95,208,.42), 0 3px 8px rgba(15,47,95,.2); }
+        .pz-fab:active { transform:scale(.96); }
+        .pz-fab:focus-visible { outline:3px solid #9cc0f5; outline-offset:3px; }
+        body.sf-privat .pz-fab { background:#7c3aed; box-shadow:0 10px 24px rgba(124,58,237,.38), 0 2px 6px rgba(15,47,95,.18); }
+        #page-penzugyek.pz-fab-van .page-wrap { padding-bottom:96px; }
+        @media (max-width:760px){ .pz-fab { right:calc(16px + env(safe-area-inset-right)); bottom:calc(18px + env(safe-area-inset-bottom)); width:56px; height:56px; border-radius:17px; } }
+        @media print { .pz-fab { display:none !important; } }
+        .pz-ures-uj { font-weight:700; margin-top:6px; }
         /* --- gyors rögzítés: egy sor, ami mindig nyitva van --- */
         /* Rendezett űrlap: fejléc → mezősor → címkézett kategória/alkategória sorok. */
         .pz-gyors { padding:0; margin-bottom:12px; display:flex; flex-direction:column; overflow:hidden; }
@@ -4894,6 +4909,7 @@
           <div class="page-wrap">
             <!-- Egyetlen sáv: cím, fülek, Tervező, hónap és a fülhöz tartozó gombok (renderPzFej). -->
             <div class="card pz-fej" id="pzFej"></div>
+            <button type="button" class="pz-fab" id="pzFab" data-pzuj aria-label="Új tétel felvétele" title="Új tétel" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
             <div id="pzHonap" hidden></div>
             <div id="pzAttek" hidden></div>
             <div id="pzNaplo" hidden></div>
@@ -7636,6 +7652,8 @@ function pzAramIgazit(){
 const PZ_HO_ROV = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
 function renderPzFej(){
     const host = document.getElementById('pzFej'); if(!host) return;
+    const fab = document.getElementById('pzFab');
+    if(fab){ const van = ['attek', 'honap', 'naplo'].includes(pzView); fab.hidden = !van; document.getElementById('page-penzugyek').classList.toggle('pz-fab-van', van); }
     const hoFul = ['attek','honap'].includes(pzView) || (pzView === 'naplo' && pzKerHat !== 'idoszak');
     const ikon = (id, ik, cim) => `<button type="button" class="pz-fej-ik" id="${id}" title="${cim}" aria-label="${cim}">${pzSvg(ik)}</button>`;
     const gombok = pzView === 'attek'
@@ -8309,7 +8327,7 @@ async function renderPzNaplo(){
                 ${szuro ? `<div class="pz-szuro">Csak: <b>${esc(szuro)}</b> <button type="button" class="pz-chip" data-pzntarca="">× Összes</button></div>` : ''}
                 <div class="pz-feed-lista pz-nezet-${pzNezet}" id="pzFeedLista">
                 ${!lista.length ? `<div class="pz-ures">${keres ? 'Nincs a keresésnek megfelelő tétel.' : `${szuro ? 'Ebben a tárcában' : (pzKerHat === 'ev' ? 'Ebben az évben' : pzKerHat === 'idoszak' ? 'Ebben az időszakban' : 'Ebben a hónapban')} még nincs tétel.`}
-                    ${pzTHo === pzMaHo() && !keres ? '<br><a class="link" href="#" data-pzview="honap">Új tételt a Hónap fülön rögzíthetsz ↗</a>' : ''}</div>`
+                    ${!keres ? '<br><button type="button" class="link pz-ures-uj" data-pzuj>+ Új tétel felvétele</button>' : ''}</div>`
                   : pzNezet === 'tabla' ? tablaHtml() : feed}
                 </div>
             </section>
@@ -8655,6 +8673,13 @@ window.sfShowPenzugyek = function(){
         if(e.target.id === 'pzGyHovaSel'){ pzGyHova = e.target.value; }
     });
     page.addEventListener('click', e => {
+        if(e.target.closest('[data-pzuj]')){
+            e.preventDefault();
+            // a Tranzakciókon a kiválasztott tárca és típus előre beállítva
+            const elo = pzView === 'naplo' ? { ...(pzNTarca ? { p:pzNTarca } : {}), ...(['ki', 'bev', 'atu'].includes(pzKerTip) ? { t:pzKerTip } : {}) } : null;
+            Promise.all([pzLoadTorzs(), pzLoadTranz(pzTHo)]).then(() => pzTetelModal(null, elo));
+            return;
+        }
         const y = e.target.closest('[data-pzyear]');
         if(y){ pzYear = +y.dataset.pzyear; renderPenzugyek(); return; }
         if(e.target.closest('#pzChartToggle')) document.getElementById('pzChartPanel').classList.toggle('open');
