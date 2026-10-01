@@ -398,6 +398,25 @@ export async function deleteNoteImageDoc(id){
     catch(e){ console.warn("Jegyzet-kép törlése sikertelen:", e); }
 }
 
+// --- Pénzügyek: tranzakciókhoz csatolt számlák / blokkok (kép vagy PDF) ---
+// Ugyanúgy, mint a jegyzet-képek: dokumentumonként egy fájl base64-ben
+// (legfeljebb ~1 MB), a tétel csak az azonosítóját tárolja.
+export async function addPzSzamla(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const ref = await addDoc(collection(db, "pz_szamlak"), data);
+    return ref.id;
+}
+export async function getPzSzamla(id){
+    if(!isConfigured || !db || !id) return null;
+    const snap = await getDoc(doc(db, "pz_szamlak", id));
+    return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+}
+export async function deletePzSzamla(id){
+    if(!isConfigured || !db || !id) return;
+    try { await deleteDoc(doc(db, "pz_szamlak", id)); }
+    catch(e){ console.warn("Számla törlése sikertelen:", e); }
+}
+
 // A Storage-alapú változat megmarad arra az esetre, ha egyszer mégis Blaze
 // csomagra váltanál – a célfal ugyanezt használja.
 export async function uploadNoteImage(uid, blob, name){

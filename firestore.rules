@@ -272,6 +272,16 @@ service cloud.firestore {
       allow delete: if isUser() && resource.data.ownerUid == uid();
     }
 
+    // A pénzügyi tételekhez csatolt számlák, blokkok (kép vagy PDF, base64).
+    // Szigorúan a gazdájáé – ugyanaz a zártság, mint a jegyzet-képeknél.
+    match /pz_szamlak/{szId} {
+      allow read:   if isUser() && resource.data.ownerUid == uid();
+      allow create: if isUser() && request.resource.data.ownerUid == uid();
+      allow update: if isUser() && resource.data.ownerUid == uid()
+                    && request.resource.data.ownerUid == uid();
+      allow delete: if isUser() && resource.data.ownerUid == uid();
+    }
+
     // ========================================================================
     //  MINDEN MÁS TILOS
     // ========================================================================
