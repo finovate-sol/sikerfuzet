@@ -4963,7 +4963,7 @@
             .modal-overlay > .modal { max-height:calc(100dvh - 24px - var(--sf-felul)); }
         }
 
-        /* ===== Privát: Ma · Szokások · Fontos emberek · Testsúly (C stílus) ===== */
+        /* ===== Privát: Ma · Szokások · Események · Testsúly (C stílus) ===== */
         .sf-hos { display:block; text-align:center; padding:14px 0 20px; }
         .sf-hos > .c { display:block; font-size:13px; font-weight:500; color:#6b7280; }
         .sf-hos > b { display:block; font-size:43px; font-weight:800; letter-spacing:-.035em; line-height:1.1; color:#111827; margin-top:2px; font-variant-numeric:tabular-nums; }
@@ -5032,7 +5032,22 @@
         .sz-javas button { display:inline-flex; align-items:center; gap:8px; border:0; border-radius:999px; background:var(--b); color:#111827; font:inherit; font-size:13px; font-weight:600; padding:6px 14px 6px 6px; cursor:pointer; }
         .sz-javas i { width:28px; height:28px; border-radius:50%; background:#fff; color:var(--c); display:flex; align-items:center; justify-content:center; }
         .sz-javas svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-        /* emberek */
+        /* események */
+        .em-ik { --c:#7c3aed; width:44px; height:44px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                 color:var(--c); background:color-mix(in srgb, var(--c) 13%, #fff); }
+        .em-ik svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .em-ik.kicsi { width:40px; height:40px; } .em-ik.kicsi svg { width:19px; height:19px; }
+        .em-szuro { padding:0 2px 12px; }
+        .em-szuro button { background:#fff; }
+        .em-mult .em-sor { opacity:.6; }
+        .em-tipok { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin:0 0 16px; }
+        .em-tipg { display:flex; flex-direction:column; align-items:center; gap:6px; border:0; border-radius:18px; background:#f9fafb; padding:10px 4px; font:inherit; font-size:12.5px; font-weight:600; color:#374151; cursor:pointer; }
+        .em-tipg.on { background:color-mix(in srgb, var(--c) 10%, #fff); box-shadow:inset 0 0 0 2px var(--c); color:#111827; }
+        .em-2 { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:10px; }
+        .em-modal .pv-mezo input[type="date"], .em-modal .pv-mezo input[type="time"] { height:44px; border:0; border-radius:14px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:15px; color:#111827; box-sizing:border-box; width:100%; min-width:0; }
+        .em-pipa { display:flex; align-items:center; gap:10px; margin:-6px 0 14px; font-size:13px; color:#4b5563; cursor:pointer; }
+        .em-pipa input { width:18px; height:18px; accent-color:#7c3aed; }
+        .ma-sor-g { width:100%; border:0; background:none; font:inherit; text-align:left; cursor:pointer; }
         .em-sor { display:flex; align-items:center; gap:14px; width:100%; padding:10px 18px; border:0; background:none; font:inherit; text-align:left; cursor:pointer; }
         .em-sor:hover { background:#f9fafb; }
         .em-av { --c:#7c3aed; width:44px; height:44px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700;
@@ -5346,9 +5361,9 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4M8.5 14.5l2 2 4-4"/></svg>
                 <span class="nav-label">Szokások</span>
             </a>
-            <a href="#" data-ter="priv" data-page="emberek" title="Fontos emberek">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/></svg>
-                <span class="nav-label">Fontos emberek</span>
+            <a href="#" data-ter="priv" data-page="emberek" title="Események">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="m12 12.2.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></svg>
+                <span class="nav-label">Események</span>
             </a>
         </nav>
         <nav class="nav sidebar-extlinks" data-ter="ovb">
@@ -14911,73 +14926,122 @@ async function szModal(id, javaslat){
 }
 window.sfShowSzokasok = function(){ szNap = ezMa(); szHo = ezMa().slice(0, 7); renderSzokasok(); };
 
-// ===================== FONTOS EMBEREK =====================
-// Ember: { id, n, kapcs, esem: [{ t: 'szul'|'nevnap'|'evf'|'egyeb', nev?, h, nap, ev? }], elore (nap), megj }
-const EM_KAPCS = [['csalad','Család'], ['par','Pár'], ['barat','Barát'], ['kolléga','Kolléga'], ['egyeb','Egyéb']];
-const EM_TIP = { szul:'Születésnap', nevnap:'Névnap', evf:'Évforduló', egyeb:'Esemény' };
-const EM_SZIN = ['#7c3aed','#db2777','#ea580c','#0891b2','#16a34a','#2563eb','#b45309','#4f46e5'];
-const emSzin = e => EM_SZIN[[...String(e.id || e.n)].reduce((a, c) => a + c.charCodeAt(0), 0) % EM_SZIN.length];
-const emMono = n => String(n || '?').trim().split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
-// Egy esemény következő előfordulása a mai naptól (ma is számít).
+// ===================== ESEMÉNYEK =====================
+// A privat/{uid}_emberek dokumentum "esem" tömbje. Esemény:
+// { id, n, t, h, nap, ev?, ism (évente-e), ido? 'HH:MM', ki? (kihez kötődik), elore (nap), megj }
+// A régi, emberenkénti lista ({ n, esem:[…] }) első betöltéskor eseményekké alakul.
+const EM_TIP = {
+    szul:   ['Születésnap', '#db2777', 'M4 21h16M6 21v-8h12v8M6 16.5c2 1.2 4 1.2 6 0s4-1.2 6 0M12 13V9.5M12 6.5v.01'],
+    nevnap: ['Névnap',      '#7c3aed', 'M20 12 12 20 4 12V4h8zM8 8h.01'],
+    evf:    ['Évforduló',   '#e11d48', 'M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z'],
+    unnep:  ['Ünnep',       '#16a34a', 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z'],
+    prog:   ['Program',     '#2563eb', 'M3 5h18v16H3zM3 9h18M8 3v4M16 3v4'],
+    egyeb:  ['Egyéb',       '#64748b', 'M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M6.3 17.7l2.1-2.1M15.6 8.4l2.1-2.1'],
+};
+const EM_EVENTE = new Set(['szul', 'nevnap', 'evf', 'unnep']);     // ezek alapból évente ismétlődnek
+const EM_ELORE = [[0, 'Aznap'], [1, '1 nappal'], [3, '3 nappal'], [7, '1 héttel'], [14, '2 héttel'], [30, '1 hónappal']];
+const emTip = t => EM_TIP[t] || EM_TIP.egyeb;
+const emIk = (t, cls) => `<span class="em-ik${cls ? ' ' + cls : ''}" style="--c:${emTip(t)[1]}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${emTip(t)[2]}"/></svg></span>`;
+function emAtalakit(lista){
+    const ki = [];
+    for(const e of lista || []) (e.esem || []).forEach(ev => {
+        if(!ev.h || !ev.nap) return;
+        const t = EM_TIP[ev.t] ? ev.t : 'egyeb', nev = String(e.n || '').trim();
+        const n = t === 'szul' ? `${nev} születésnapja` : t === 'nevnap' ? `${nev} névnapja`
+            : ev.nev ? ev.nev + (nev ? ` – ${nev}` : '') : `${nev} – ${emTip(t)[0].toLowerCase()}`;
+        ki.push({ id: prvUjId() + ki.length, n, t, h: ev.h, nap: ev.nap, ...(ev.ev ? { ev: ev.ev } : {}), ism: true,
+            ...(nev ? { ki: nev } : {}), elore: e.elore ?? 7, megj: e.megj || '' });
+    });
+    return ki;
+}
+function emEsemenyek(d){
+    if(!Array.isArray(d.esem)){ d.esem = emAtalakit(d.lista); if(d.esem.length) prvMent('emberek'); }
+    return d.esem;
+}
+// A következő előfordulás (évente ismétlődőnél a mai naptól; egyszerinél maga a
+// dátum, ami múltbeli is lehet – akkor a nap negatív).
 function emKov(ev){
     const ma = ezD(ezMa()), y = ma.getFullYear();
-    let d = new Date(y, ev.h - 1, Math.min(ev.nap, new Date(y, ev.h, 0).getDate()));
-    if(d < ma) d = new Date(y + 1, ev.h - 1, Math.min(ev.nap, new Date(y + 1, ev.h, 0).getDate()));
+    const nap0 = (yy) => new Date(yy, ev.h - 1, Math.min(ev.nap, new Date(yy, ev.h, 0).getDate()));
+    let d;
+    if(ev.ism === false) d = nap0(ev.ev || y);
+    else { d = nap0(y); if(d < ma) d = nap0(y + 1); }
     const nap = Math.round((d - ma) / 86400000);
-    const hanyadik = ev.ev ? d.getFullYear() - ev.ev : null;
+    const hanyadik = ev.ism !== false && ev.ev ? d.getFullYear() - ev.ev : null;
     return { d, s: ezS(d), nap, hanyadik };
 }
-const emNapSzo = n => n === 0 ? 'ma!' : n === 1 ? 'holnap' : `${n} nap`;
-const emEsemNev = ev => ev.t === 'egyeb' || ev.t === 'evf' ? (ev.nev || EM_TIP[ev.t]) : EM_TIP[ev.t];
-const emEsemAl = (ev, k) => ev.t === 'szul' && k.hanyadik != null ? `${k.hanyadik} éves lesz` : ev.t === 'evf' && k.hanyadik != null ? `${k.hanyadik}. évforduló` : '';
+const emNapSzo = n => n === 0 ? 'ma!' : n === 1 ? 'holnap' : n < 0 ? `${-n} napja` : `${n} nap`;
+const emAl = (ev, k) => ev.t === 'szul' && k.hanyadik > 0 ? `${k.hanyadik} éves lesz` : ev.t === 'evf' && k.hanyadik > 0 ? `${k.hanyadik}. évforduló` : '';
+const emDatSzo = (ev, k) => `${prvDatumSzo(k.s)}${k.nap >= 0 && k.nap < 7 ? ' ' + PRV_NAP[k.d.getDay()] : ''}${ev.ido ? ', ' + ev.ido : ''}`;
+const emReszl = (ev, k) => [emTip(ev.t)[0], emDatSzo(ev, k), emAl(ev, k), ev.ki && !ev.n.includes(ev.ki) ? ev.ki : ''].filter(Boolean).join(' · ');
 function emOsszes(d){
-    const l = [];
-    for(const e of d.lista || []) for(const ev of e.esem || []) if(ev.h && ev.nap) l.push({ e, ev, k: emKov(ev) });
-    return l.sort((a, b) => a.k.nap - b.k.nap);
+    return emEsemenyek(d).filter(ev => ev.h && ev.nap).map(ev => ({ ev, k: emKov(ev) }));
 }
+const emKozelgo = d => emOsszes(d).filter(x => x.k.nap >= 0).sort((a, b) => a.k.nap - b.k.nap || String(a.ev.ido || '').localeCompare(String(b.ev.ido || '')));
+let emSzuro = 'mind';
 async function renderEmberek(){
     const host = document.getElementById('emberekBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Ez a lista privát – ránézés módban nem látszik.</div>`; return; }
     if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
     const d = await prvBetolt('emberek');
-    const l = emOsszes(d), kov = l[0];
-    const sor = x => `<button type="button" class="em-sor" data-emszerk="${esc(x.e.id)}">
-        <span class="em-av" style="--c:${emSzin(x.e)}">${esc(emMono(x.e.n))}</span>
-        <span class="em-t"><b>${esc(x.e.n)}</b><span>${esc(emEsemNev(x.ev))} · ${esc(prvDatumSzo(x.k.s))}${emEsemAl(x.ev, x.k) ? ' · ' + esc(emEsemAl(x.ev, x.k)) : ''}</span></span>
-        <span class="em-nap${x.k.nap <= (x.e.elore ?? 7) ? ' kozel' : ''}">${emNapSzo(x.k.nap)}</span></button>`;
-    const esemNelkul = (d.lista || []).filter(e => !(e.esem || []).some(ev => ev.h && ev.nap));
+    const osszes = emOsszes(d), kov = emKozelgo(d)[0];
+    const tipusok = Object.keys(EM_TIP).filter(t => osszes.some(x => x.ev.t === t));
+    if(emSzuro !== 'mind' && !tipusok.includes(emSzuro)) emSzuro = 'mind';
+    const lat = osszes.filter(x => emSzuro === 'mind' || x.ev.t === emSzuro);
+    const jovo = lat.filter(x => x.k.nap >= 0).sort((a, b) => a.k.nap - b.k.nap || String(a.ev.ido || '').localeCompare(String(b.ev.ido || '')));
+    const mult = lat.filter(x => x.k.nap < 0).sort((a, b) => b.k.nap - a.k.nap).slice(0, 10);
+    const sor = x => `<button type="button" class="em-sor" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t)}
+        <span class="em-t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span>
+        <span class="em-nap${x.k.nap >= 0 && x.k.nap <= (x.ev.elore ?? 7) ? ' kozel' : ''}">${emNapSzo(x.k.nap)}</span></button>`;
+    // Hónapok szerint csoportosítva (a következő előfordulás hónapja).
+    const ev0 = ezD(ezMa()).getFullYear(), csop = [];
+    for(const x of jovo){
+        const c = PRV_HO[x.k.d.getMonth()] + (x.k.d.getFullYear() !== ev0 ? ' ' + x.k.d.getFullYear() : '');
+        const cim = x.k.nap <= 6 ? 'A következő 7 napban' : c.charAt(0).toUpperCase() + c.slice(1);
+        if(!csop.length || csop[csop.length - 1][0] !== cim) csop.push([cim, []]);
+        csop[csop.length - 1][1].push(x);
+    }
     host.innerHTML = `
-        <div class="sf-hos">${kov ? `<span class="c">${esc(kov.e.n)} · ${esc(emEsemNev(kov.ev).toLowerCase())}</span><b>${kov.k.nap === 0 ? 'Ma!' : kov.k.nap === 1 ? 'Holnap' : `${kov.k.nap}<small> nap</small>`}</b>
-            <span class="s">${esc(prvDatumSzo(kov.k.s))}${emEsemAl(kov.ev, kov.k) ? ' · ' + esc(emEsemAl(kov.ev, kov.k)) : ''}</span>`
-            : `<span class="c">Fontos emberek</span><b>${(d.lista || []).length}</b><span class="s">születésnapok, évfordulók, névnapok – időben szólok</span>`}
-            <span class="sf-hos-gombok"><button type="button" class="sf-hos-gomb" data-emuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új ember</button>
-            ${l.length ? '<button type="button" class="sf-hos-gomb" data-emics title="Az összes esemény a telefon naptárába, emlékeztetővel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg>Naptárba</button>' : ''}</span></div>
-        ${l.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Következő események</h4>${l.map(sor).join('')}</section>` : ''}
-        ${esemNelkul.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Dátum nélkül</h4>${esemNelkul.map(e => `<button type="button" class="em-sor" data-emszerk="${esc(e.id)}"><span class="em-av" style="--c:${emSzin(e)}">${esc(emMono(e.n))}</span><span class="em-t"><b>${esc(e.n)}</b><span>adj meg egy születésnapot vagy évfordulót</span></span></button>`).join('')}</section>` : ''}
-        ${!(d.lista || []).length ? `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kiket ne felejts el?</h4><p>Vedd fel a családod, a barátaid, a fontos kollégáid születésnapját és a ti évfordulóitokat. A Ma oldalon időben szólok, és egy gombbal a telefon naptárába is bekerülnek, emlékeztetővel.</p></section>` : ''}`;
+        <div class="sf-hos">${kov ? `<span class="c">${esc(emTip(kov.ev.t)[0])}${kov.ev.ki ? ' · ' + esc(kov.ev.ki) : ''}</span><b>${kov.k.nap === 0 ? 'Ma!' : kov.k.nap === 1 ? 'Holnap' : `${kov.k.nap}<small> nap</small>`}</b>
+            <span class="s">${esc(kov.ev.n)} · ${esc(emDatSzo(kov.ev, kov.k))}${emAl(kov.ev, kov.k) ? ' · ' + esc(emAl(kov.ev, kov.k)) : ''}</span>`
+            : `<span class="c">Események</span><b>${osszes.length}</b><span class="s">születésnapok, évfordulók, programok – időben szólok</span>`}
+            <span class="sf-hos-gombok"><button type="button" class="sf-hos-gomb" data-emuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új esemény</button>
+            ${osszes.length ? '<button type="button" class="sf-hos-gomb" data-emics title="A közelgő események a telefon naptárába, emlékeztetővel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg>Naptárba</button>' : ''}</span></div>
+        ${tipusok.length > 1 ? `<div class="pv-chipek em-szuro"><button type="button" class="${emSzuro === 'mind' ? 'on' : ''}" data-emszuro="mind">Mind</button>${tipusok.map(t => `<button type="button" class="${emSzuro === t ? 'on' : ''}" style="--c:${emTip(t)[1]}" data-emszuro="${t}">${emTip(t)[0]}</button>`).join('')}</div>` : ''}
+        ${csop.map(([cim, l]) => `<section class="card pv-kartya"><h4 class="pv-cim">${esc(cim)}</h4>${l.map(sor).join('')}</section>`).join('')}
+        ${mult.length ? `<section class="card pv-kartya em-mult"><h4 class="pv-cim">Elmúlt</h4>${mult.map(sor).join('')}</section>` : ''}
+        ${!osszes.length ? `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Mit ne felejts el?</h4><p>Vedd fel a születésnapokat, névnapokat, évfordulókat, de az egyszeri programokat is (koncert, utazás, esküvő). A Ma oldalon időben szólok, és egy gombbal a telefon naptárába is bekerülnek, emlékeztetővel.</p></section>` : ''}`;
 }
-async function emModal(id){
+async function emModal(id, elotolt){
     const d = await prvBetolt('emberek');
-    const e = id ? d.lista.find(x => x.id === id) : null;
-    const x = e ? JSON.parse(JSON.stringify(e)) : { n: '', kapcs: 'csalad', esem: [{ t: 'szul', h: 0, nap: 0 }], elore: 7, megj: '' };
+    const lista = emEsemenyek(d);
+    const e = id ? lista.find(x => x.id === id) : null;
+    const maD = ezD(ezMa());
+    const x = e ? JSON.parse(JSON.stringify(e)) : { n: '', t: 'szul', h: maD.getMonth() + 1, nap: maD.getDate(), ism: true, elore: 7, megj: '', ...(elotolt || {}) };
+    let ismKezi = !!e;                     // a felhasználó maga állította-e az ismétlődést
+    let evIsmeretlen = !!e && x.ism !== false && !x.ev && (x.t === 'szul' || x.t === 'evf');
+    const kiLista = [...new Set(lista.map(y => y.ki).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'hu'));
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
-    const esemSor = (ev, i) => `<div class="em-es">
-        <select data-emt="${i}" aria-label="Esemény típusa">${Object.entries(EM_TIP).map(([k, n]) => `<option value="${k}"${ev.t === k ? ' selected' : ''}>${n}</option>`).join('')}</select>
-        ${ev.t === 'evf' || ev.t === 'egyeb' ? `<input type="text" data-emnev="${i}" value="${esc(ev.nev || '')}" placeholder="${ev.t === 'evf' ? 'Pl. házassági évforduló' : 'Megnevezés'}" maxlength="40">` : ''}
-        <span class="em-dat"><select data-emh="${i}" aria-label="Hónap"><option value="0">hónap</option>${PRV_HO.map((m, j) => `<option value="${j + 1}"${ev.h === j + 1 ? ' selected' : ''}>${m}</option>`).join('')}</select>
-            <input type="number" data-emnap="${i}" min="1" max="31" value="${ev.nap || ''}" placeholder="nap" aria-label="Nap">
-            ${ev.t === 'szul' || ev.t === 'evf' ? `<input type="number" data-emev="${i}" min="1900" max="2100" value="${ev.ev || ''}" placeholder="év (ha tudod)" aria-label="Év">` : ''}</span>
-        <button type="button" class="em-es-x" data-emesdel="${i}" aria-label="Esemény törlése">×</button></div>`;
+    const datumErtek = () => `${x.ev || maD.getFullYear()}-${String(x.h).padStart(2, '0')}-${String(x.nap).padStart(2, '0')}`;
     const rajz = () => {
-        ov.innerHTML = `<div class="modal pv-modal">
-            <div class="modal-head"><h3>${e ? esc(e.n) : 'Új ember'}</h3><button class="modal-x" data-pvx aria-label="Bezárás">&times;</button></div>
+        const evKell = x.t === 'szul' || x.t === 'evf';
+        const pl = { szul:'Pl. Anya születésnapja', nevnap:'Pl. Péter névnapja', evf:'Pl. Házassági évforduló', unnep:'Pl. Karácsony', prog:'Pl. Koncert, utazás, esküvő', egyeb:'Megnevezés' }[x.t];
+        ov.innerHTML = `<div class="modal pv-modal em-modal">
+            <div class="modal-head"><h3>${e ? 'Esemény szerkesztése' : 'Új esemény'}</h3><button class="modal-x" data-pvx aria-label="Bezárás">&times;</button></div>
             <div class="modal-body">
-                <label class="pv-mezo"><span>Név</span><input type="text" data-f="n" value="${esc(x.n)}" placeholder="Pl. Anya" maxlength="60"></label>
-                <div class="pv-mezo"><span>Kapcsolat</span><div class="pv-chipek">${EM_KAPCS.map(([k, n]) => `<button type="button" class="${x.kapcs === k ? 'on' : ''}" data-emkapcs="${k}">${n}</button>`).join('')}</div></div>
-                <div class="pv-mezo"><span>Dátumok</span>${x.esem.map(esemSor).join('')}<button type="button" class="pv-link" data-emesuj>+ újabb dátum (névnap, évforduló…)</button></div>
-                <label class="pv-mezo"><span>Hány nappal előtte szóljak?</span><select data-f="elore">${[1,3,7,14,30].map(n => `<option value="${n}"${+x.elore === n ? ' selected' : ''}>${n} nappal</option>`).join('')}</select></label>
-                <label class="pv-mezo"><span>Megjegyzés <i>pl. ajándékötletek</i></span><textarea data-f="megj" rows="3" maxlength="600">${esc(x.megj || '')}</textarea></label>
+                <div class="em-tipok">${Object.entries(EM_TIP).map(([k, [nev]]) => `<button type="button" class="em-tipg${x.t === k ? ' on' : ''}" data-emtip="${k}" style="--c:${emTip(k)[1]}">${emIk(k)}<span>${nev}</span></button>`).join('')}</div>
+                <label class="pv-mezo"><span>Megnevezés</span><input type="text" data-f="n" value="${esc(x.n)}" placeholder="${pl}" maxlength="80"></label>
+                <div class="em-2">
+                    <label class="pv-mezo"><span>Dátum</span><input type="date" data-emdat value="${datumErtek()}"></label>
+                    <label class="pv-mezo"><span>Időpont <i>nem kötelező</i></span><input type="time" data-f="ido" value="${esc(x.ido || '')}"></label>
+                </div>
+                ${evKell && x.ism !== false ? `<label class="em-pipa"><input type="checkbox" data-emevism${evIsmeretlen ? ' checked' : ''}><span>Az évszámot nem tudom ${x.t === 'szul' ? '(nem írom ki, hány éves lesz)' : '(nem írom ki, hányadik)'}</span></label>` : ''}
+                <div class="pv-mezo"><span>Ismétlődés</span><div class="pv-chipek"><button type="button" class="${x.ism !== false ? 'on' : ''}" data-emism="1">Minden évben</button><button type="button" class="${x.ism === false ? 'on' : ''}" data-emism="0">Egyszeri</button></div></div>
+                <label class="pv-mezo"><span>Kihez kötődik? <i>nem kötelező</i></span><input type="text" data-f="ki" value="${esc(x.ki || '')}" placeholder="Pl. Anya, Kata és Peti" maxlength="60" list="emKiLista"><datalist id="emKiLista">${kiLista.map(k => `<option value="${esc(k)}">`).join('')}</datalist></label>
+                <div class="pv-mezo"><span>Mikor szóljak?</span><div class="pv-chipek">${EM_ELORE.map(([n, c]) => `<button type="button" class="${+x.elore === n ? 'on' : ''}" data-emelore="${n}">${c}${n ? ' előtte' : ''}</button>`).join('')}</div></div>
+                <label class="pv-mezo"><span>Megjegyzés <i>pl. ajándékötlet, helyszín</i></span><textarea data-f="megj" rows="3" maxlength="600">${esc(x.megj || '')}</textarea></label>
+                <div class="pz-hiba" data-emhiba></div>
             </div>
             <div class="modal-foot">
                 ${e ? '<button class="btn pv-torol" data-emtorol>Törlés</button><button class="btn" data-emics1>Naptárba</button>' : ''}
@@ -14989,52 +15053,66 @@ async function emModal(id){
     const zar = () => ov.remove();
     const olvas = () => {
         ov.querySelectorAll('[data-f]').forEach(i => x[i.dataset.f] = i.value);
-        x.elore = +x.elore || 7;
-        ov.querySelectorAll('[data-emh]').forEach(i => x.esem[+i.dataset.emh].h = +i.value);
-        ov.querySelectorAll('[data-emnap]').forEach(i => x.esem[+i.dataset.emnap].nap = Math.min(31, Math.max(0, parseInt(i.value) || 0)));
-        ov.querySelectorAll('[data-emev]').forEach(i => { const v = parseInt(i.value); if(v > 1900) x.esem[+i.dataset.emev].ev = v; else delete x.esem[+i.dataset.emev].ev; });
-        ov.querySelectorAll('[data-emnev]').forEach(i => x.esem[+i.dataset.emnev].nev = i.value.trim());
+        const dv = (ov.querySelector('[data-emdat]') || {}).value;
+        if(dv){ const [y, m, n] = dv.split('-').map(Number); x.h = m; x.nap = n; x.ev = y; }
+        const evi = ov.querySelector('[data-emevism]'); if(evi) evIsmeretlen = evi.checked;
     };
-    ov.addEventListener('change', ev => { const t = ev.target.closest('[data-emt]'); if(t){ olvas(); x.esem[+t.dataset.emt].t = t.value; rajz(); } });
     ov.addEventListener('click', ev => {
         if(ev.target === ov || ev.target.closest('[data-pvx]')) return zar();
-        const k = ev.target.closest('[data-emkapcs]'); if(k){ olvas(); x.kapcs = k.dataset.emkapcs; rajz(); return; }
-        if(ev.target.closest('[data-emesuj]')){ olvas(); x.esem.push({ t: 'evf', h: 0, nap: 0 }); rajz(); return; }
-        const del = ev.target.closest('[data-emesdel]'); if(del){ olvas(); x.esem.splice(+del.dataset.emesdel, 1); rajz(); return; }
+        const t = ev.target.closest('[data-emtip]');
+        if(t){ olvas(); x.t = t.dataset.emtip; if(!ismKezi) x.ism = EM_EVENTE.has(x.t); rajz(); return; }
+        const is = ev.target.closest('[data-emism]'); if(is){ olvas(); x.ism = is.dataset.emism === '1'; ismKezi = true; rajz(); return; }
+        const el = ev.target.closest('[data-emelore]'); if(el){ olvas(); x.elore = +el.dataset.emelore; rajz(); return; }
         if(ev.target.closest('[data-emtorol]')){
             if(!confirm(`Törlöd: ${e.n}?`)) return;
-            d.lista = d.lista.filter(y => y.id !== e.id); prvMent('emberek'); zar(); prvFrissit(); return;
+            d.esem = lista.filter(y => y.id !== e.id); prvMent('emberek'); zar(); prvFrissit(); return;
         }
-        if(ev.target.closest('[data-emics1]')){ olvas(); emIcs([{ ...x, id: e.id }], x.n); return; }
-        if(ev.target.closest('[data-emment]')){
+        const kesz = () => {
             olvas();
-            if(!String(x.n || '').trim()){ ov.querySelector('[data-f="n"]').focus(); return; }
-            const uj = { id: e ? e.id : prvUjId(), n: x.n.trim(), kapcs: x.kapcs, elore: x.elore, megj: (x.megj || '').trim(),
-                esem: x.esem.filter(ev => ev.h && ev.nap).map(ev => ({ t: ev.t, h: ev.h, nap: ev.nap, ...(ev.ev ? { ev: ev.ev } : {}), ...(ev.nev ? { nev: ev.nev } : {}) })) };
-            if(e) Object.assign(e, uj); else d.lista.push(uj);
+            const tip = emTip(x.t)[0];
+            const n = String(x.n || '').trim() || (x.ki ? `${x.ki.trim()} – ${tip.toLowerCase()}` : tip);
+            const evKell = x.t === 'szul' || x.t === 'evf';
+            const evTart = x.ism === false || (evKell && !evIsmeretlen);
+            return { id: e ? e.id : prvUjId(), n, t: x.t, h: x.h, nap: x.nap, ...(evTart && x.ev ? { ev: x.ev } : {}), ism: x.ism !== false,
+                ...(x.ido ? { ido: x.ido } : {}), ...(String(x.ki || '').trim() ? { ki: x.ki.trim() } : {}), elore: +x.elore || 0, megj: String(x.megj || '').trim() };
+        };
+        if(ev.target.closest('[data-emics1]')){ emIcs([kesz()], e.n); return; }
+        if(ev.target.closest('[data-emment]')){
+            const uj = kesz();
+            if(!uj.h || !uj.nap){ ov.querySelector('[data-emhiba]').textContent = 'Add meg a dátumot.'; return; }
+            if(e) Object.assign(e, uj); else lista.push(uj);
+            for(const k of ['ev', 'ido', 'ki']) if(e && !(k in uj)) delete e[k];
             prvMent('emberek'); zar(); prvFrissit();
         }
     });
     if(!e) setTimeout(() => { const i = ov.querySelector('[data-f="n"]'); if(i && pzFinom()) i.focus(); }, 30);
 }
-// .ics: évente ismétlődő, egész napos esemény, a beállított nappal előtte emlékeztetővel.
-// A telefon (iPhone Naptár, Google Naptár) megnyitja és egy koppintással felveszi.
-function emIcs(emberek, nev){
-    const tiszt = s => String(s || '').replace(/[\\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
+// .ics: évente ismétlődő vagy egyszeri esemény, a beállított nappal előtte és
+// aznap reggel emlékeztetővel. A telefon naptára egy koppintással felveszi.
+function emIcs(esemenyek, nev){
+    const tiszt = s => String(s || '').replace(/[\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
     const most = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-    const sorok = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Sikerfuzet//Fontos emberek//HU', 'CALSCALE:GREGORIAN'];
-    for(const e of emberek) (e.esem || []).forEach((ev, i) => {
-        if(!ev.h || !ev.nap) return;
-        const kezd = `${ev.ev || new Date().getFullYear()}${String(ev.h).padStart(2, '0')}${String(ev.nap).padStart(2, '0')}`;
-        sorok.push('BEGIN:VEVENT', `UID:${e.id}-${i}@sikerfuzet`, `DTSTAMP:${most}`, `DTSTART;VALUE=DATE:${kezd}`, 'RRULE:FREQ=YEARLY',
-            `SUMMARY:${tiszt(e.n + ' – ' + emEsemNev(ev).toLowerCase())}`, ...(e.megj ? [`DESCRIPTION:${tiszt(e.megj)}`] : []),
-            'BEGIN:VALARM', `TRIGGER:-P${e.elore || 7}D`, 'ACTION:DISPLAY', `DESCRIPTION:${tiszt(e.n + ' – ' + emEsemNev(ev).toLowerCase() + ' ' + (e.elore || 7) + ' nap múlva')}`, 'END:VALARM',
-            'BEGIN:VALARM', 'TRIGGER:PT9H', 'ACTION:DISPLAY', `DESCRIPTION:${tiszt('Ma: ' + e.n + ' – ' + emEsemNev(ev).toLowerCase())}`, 'END:VALARM', 'END:VEVENT');
-    });
+    const p2 = n => String(n).padStart(2, '0');
+    const sorok = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Sikerfuzet//Esemenyek//HU', 'CALSCALE:GREGORIAN'];
+    for(const ev of esemenyek){
+        if(!ev.h || !ev.nap) continue;
+        const k = emKov(ev);
+        if(ev.ism === false && k.nap < 0) continue;              // elmúlt egyszeri esemény nem kell
+        const datum = `${ev.ism === false ? k.d.getFullYear() : (ev.ev || k.d.getFullYear())}${p2(ev.h)}${p2(ev.nap)}`;
+        const cim = ev.n + (ev.ki && !ev.n.includes(ev.ki) ? ` (${ev.ki})` : '');
+        let kezd, veg = [];
+        if(ev.ido){ const [hh, mm] = ev.ido.split(':').map(Number); kezd = `DTSTART:${datum}T${p2(hh)}${p2(mm)}00`;
+            veg = [`DTEND:${datum}T${p2((hh + 1) % 24)}${p2(mm)}00`]; }
+        else kezd = `DTSTART;VALUE=DATE:${datum}`;
+        sorok.push('BEGIN:VEVENT', `UID:${ev.id}@sikerfuzet`, `DTSTAMP:${most}`, kezd, ...veg, ...(ev.ism === false ? [] : ['RRULE:FREQ=YEARLY']),
+            `SUMMARY:${tiszt(cim)}`, ...(ev.megj ? [`DESCRIPTION:${tiszt(ev.megj)}`] : []));
+        if(ev.elore > 0) sorok.push('BEGIN:VALARM', `TRIGGER:-P${ev.elore}D`, 'ACTION:DISPLAY', `DESCRIPTION:${tiszt(cim + ' – ' + ev.elore + ' nap múlva')}`, 'END:VALARM');
+        sorok.push('BEGIN:VALARM', ev.ido ? 'TRIGGER:-PT30M' : 'TRIGGER:PT9H', 'ACTION:DISPLAY', `DESCRIPTION:${tiszt('Ma: ' + cim)}`, 'END:VALARM', 'END:VEVENT');
+    }
     sorok.push('END:VCALENDAR');
     const blob = new Blob([sorok.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = (nev ? nev.replace(/[^\wÀ-ž]+/g, '-') : 'fontos-emberek') + '.ics';
+    a.href = URL.createObjectURL(blob); a.download = (nev ? nev.replace(/[^\wÀ-ž]+/g, '-') : 'esemenyek') + '.ics';
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 window.sfShowEmberek = function(){ renderEmberek(); };
@@ -15122,11 +15200,11 @@ async function renderPrivMa(){
     const hossz = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate(), hatra = hossz - dt.getDate() + 1;
     const maradt = keret - kolt;
     const fiz = pzFixek().map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, ho) })).filter(x => !x.kesz && x.h <= 7).sort((a, b) => a.h - b.h).slice(0, 4);
-    // emberek
-    const esem = emOsszes(em).filter(x => x.k.nap <= Math.max(14, x.e.elore || 7)).slice(0, 4);
+    // események
+    const esem = emKozelgo(em).filter(x => x.k.nap <= Math.max(14, x.ev.elore ?? 7)).slice(0, 4);
     // testsúly
     const mer = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), utM = mer[mer.length - 1];
-    const osszesito = [szl.length ? `${szKeszDb}/${szl.length} szokás` : '', edz.length ? `${edz.length} edzés` : '', fiz.length ? `${fiz.length} fizetés a héten` : '', esem.length && esem[0].k.nap <= 7 ? `${esem[0].e.n}: ${emNapSzo(esem[0].k.nap)}` : ''].filter(Boolean);
+    const osszesito = [szl.length ? `${szKeszDb}/${szl.length} szokás` : '', edz.length ? `${edz.length} edzés` : '', fiz.length ? `${fiz.length} fizetés a héten` : '', esem.length && esem[0].k.nap <= 7 ? `${esem[0].ev.n}: ${emNapSzo(esem[0].k.nap)}` : ''].filter(Boolean);
     const kartya = (cim, lap, belso, cls) => `<section class="card pv-kartya ${cls || ''}"><h4 class="pv-cim">${cim}${lap ? `<button type="button" class="pv-link" data-mamenj="${lap}">${lap === 'szokasok' || lap === 'emberek' ? 'Mind' : 'Megnyitás'} ›</button>` : ''}</h4>${belso}</section>`;
     const edzHtml = edz.length ? edz.map(e => { const er = ezEr(e, ma);
         return `<div class="ma-edz">${ezIk(e.sport)}<span class="t"><b>${esc(e.n)}</b><span>${esc(ezCel(e))}</span></span>
@@ -15146,8 +15224,8 @@ async function renderPrivMa(){
         ${kartya('Célok, amiken dolgozol', 'celok', celok.length ? `<div class="ma-lista">${celok.slice(0, 4).map(c => `<div class="ma-sor"><span class="ma-ter" style="--c:${c.szin};--b:${c.hat}">${c.ikon || ''}</span>
                 <span class="t"><b>${esc(c.name)}</b><span>${esc(c.terNev)}${c.due ? ' · ' + esc(c.dueSzo) : ''}</span>${c.pct != null ? `<span class="ma-csik kicsi"><i style="width:${c.pct}%"></i></span>` : ''}</span>${c.pct != null ? `<span class="o">${c.pct}%</span>` : ''}</div>`).join('')}</div>`
             : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>')}
-        ${esem.length ? kartya('Közelgő', 'emberek', `<div class="ma-lista">${esem.map(x => `<div class="ma-sor"><span class="em-av kicsi" style="--c:${emSzin(x.e)}">${esc(emMono(x.e.n))}</span>
-                <span class="t"><b>${esc(x.e.n)}</b><span>${esc(emEsemNev(x.ev))} · ${esc(prvDatumSzo(x.k.s))}${emEsemAl(x.ev, x.k) ? ' · ' + esc(emEsemAl(x.ev, x.k)) : ''}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></div>`).join('')}</div>`) : ''}
+        ${esem.length ? kartya('Közelgő események', 'emberek', `<div class="ma-lista">${esem.map(x => `<button type="button" class="ma-sor ma-sor-g" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t, 'kicsi')}
+                <span class="t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></button>`).join('')}</div>`) : ''}
         ${kartya('Testsúly', 'meres', `<div class="ma-suly"><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
                 <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`)}
         </div>`;
@@ -15170,7 +15248,8 @@ document.addEventListener('click', e => {
     const ss = e.target.closest('[data-szszerk]'); if(ss){ szModal(ss.dataset.szszerk); return; }
     if(e.target.closest('[data-emuj]')){ emModal(null); return; }
     const es = e.target.closest('[data-emszerk]'); if(es){ emModal(es.dataset.emszerk); return; }
-    if(e.target.closest('[data-emics]')){ emIcs((PRV.emberek || {}).lista || []); return; }
+    if(e.target.closest('[data-emics]')){ emIcs(PRV.emberek ? emEsemenyek(PRV.emberek) : []); return; }
+    const esz = e.target.closest('[data-emszuro]'); if(esz){ emSzuro = esz.dataset.emszuro; renderEmberek(); return; }
     const mm = e.target.closest('[data-mamenj]');
     if(mm){
         const c = mm.dataset.mamenj;
