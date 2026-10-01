@@ -24,6 +24,11 @@ export { isConfigured };
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 // A PG modulhoz: Google Tasks (feladatlisták olvasása/írása).
 const TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
+// A naptár-átfedéshez: a fiók naptárainak listája (csak olvasás). Külön,
+// gombnyomásra kérjük (connectCalendarList), és csak utána kerül be a néma
+// token-kérésekbe – különben a még meg nem adott jog miatt elbukna.
+const CALLIST_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+function hasCalListGrant() { try { return localStorage.getItem("sf_gcal_lista") === "1"; } catch (e) { return false; } }
 // Ebbe a kollekcióba kerülnek a belépni jogosult emailek (doc-id = email).
 const ALLOWLIST = "allowed_users";
 // Admin (info-időpontok beállítása)
@@ -692,7 +697,7 @@ export async function silentCalendarToken() {
         try {
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: googleClientId,
-                scope: CALENDAR_SCOPE + " " + TASKS_SCOPE,
+                scope: CALENDAR_SCOPE + " " + TASKS_SCOPE + (hasCalListGrant() ? " " + CALLIST_SCOPE : ""),
                 prompt: "",                       // néma: csak már megadott jognál
                 login_hint: (user && user.email) || "",
                 callback: resp => {
@@ -713,6 +718,8 @@ export async function reconnectCalendar() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
+    if (hasCalListGrant()) provider.addScope(CALLIST_SCOPE);
+    provider.setCustomParameters({ include_granted_scopes: "true" });
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
@@ -733,6 +740,23 @@ export async function connectTasks() {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
     if (token) { try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {} }
+    return token;
+}
+
+// --- Naptárlista jog kérése (az összes Google-naptár megjelenítéséhez) ---
+export async function connectCalendarList() {
+    if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    const provider = new GoogleAuthProvider();
+    provider.addScope(CALENDAR_SCOPE);
+    provider.addScope(CALLIST_SCOPE);
+    provider.setCustomParameters({ include_granted_scopes: "true" });
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential && credential.accessToken;
+    if (token) {
+        try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {}
+        try { localStorage.setItem("sf_gcal_lista", "1"); } catch (e) {}
+    }
     return token;
 }
 
