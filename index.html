@@ -2509,6 +2509,7 @@
         .jg-item mark, .jg-table mark { background:#ffe9a3; color:#4a3600; border-radius:3px; padding:0 2px; }
         .jg-item b { display:flex; gap:7px; align-items:baseline; justify-content:space-between; }
         .jg-item > span { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.4; }
+        .jg-item b .jg-ct { display:inline; min-width:0; font-size:inherit; color:inherit; white-space:normal; overflow:visible; }
         .jg-n { flex:none; font-size:9.5px; font-weight:800; color:var(--blue); background:var(--blue-light); border-radius:999px; padding:1px 7px; }
         .jg-wrap { grid-template-columns:400px 1fr; }
         @media (max-width:900px){ .jg-wrap { grid-template-columns:1fr; } }
@@ -5064,6 +5065,14 @@
             #edzBody .ez-fej { background:none; box-shadow:none; padding:0; margin-bottom:6px; justify-content:center; }
             #edzBody .ez-fej .ez-cim { display:none; }
             /* Jegyzetek: kerek kereső, hős a jegyzetszámmal, címke-kapszulák; a lista kártyákban */
+            /* a kereső a fejléc jobb felső ikonjából nyílik le */
+            body:has(#page-jegyzetek:not([hidden])):not(.jg-mlap-on) #mbKereso { display:flex; }
+            .mb-ker { display:none; margin-left:auto; width:46px; height:46px; flex:none; align-items:center; justify-content:center; padding:0; border:0; border-radius:50%; background:#fff; color:#1f2937; box-shadow:0 2px 10px rgba(15,23,42,.07); cursor:pointer; }
+            .mb-ker svg { width:21px; height:21px; } .mb-ker .x { display:none; }
+            .mb-ker.on .k { display:none; } .mb-ker.on .x { display:block; }
+            #page-jegyzetek .jg-tools:not(.ker-nyit) { display:none; }
+            #page-jegyzetek .jg-tools.ker-nyit { animation:jgKerLe .18s ease-out; }
+            @keyframes jgKerLe { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
             #page-jegyzetek .jg-tools input { height:50px; border:0; border-radius:999px; background:#fff; box-shadow:0 2px 10px rgba(15,23,42,.07); padding:0 20px; font-size:15px; }
             #page-jegyzetek .jg-count { display:none; }
             #page-jegyzetek .jg-mhos { padding:10px 0 14px; }
@@ -5880,6 +5889,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
             <span class="mb-title" id="mbTitle">Sikerfüzet</span>
+            <button type="button" class="mb-ker" id="mbKereso" aria-label="Keresés" aria-expanded="false" hidden>
+                <svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>
+                <svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
         </div>
 
         <!-- KEZDŐOLDAL -->
@@ -24001,7 +24014,7 @@ document.addEventListener('keydown', e => {
         const pg = document.getElementById("page-jegyzetek");
         if(jgLoaded && pg && !pg.hidden) renderJegyzetek();
     });
-    let jgView = "kereso", jgEv = "", jgOkt = "", jgSort = { mezo: "d", irany: -1 };
+    let jgView = "kereso", jgEv = "", jgOkt = "", jgSort = { mezo: "d", irany: -1 }, jgKerNyit = false;
     let jgGroup = "", jgClosed = new Set();
     let jgEditing = false, jgSaveTimer = null, jgDirty = false, jgSearchTimer = null;
 
@@ -24211,6 +24224,9 @@ document.addEventListener('keydown', e => {
         const list = jgMatched();
         const tags = [...new Set(jgNotes.flatMap(nt => nt.tags || []))].sort((a,b)=>a.localeCompare(b,'hu'));
         const open = jgOpenId ? jgById(jgOpenId) : null;
+        document.body.classList.toggle("jg-mlap-on", !!(open && jgMobil()));
+        const kb = document.getElementById("mbKereso");
+        if(kb){ kb.hidden = false; const ny = jgKerNyit || !!jgSearch.trim(); kb.classList.toggle("on", ny); kb.setAttribute("aria-expanded", String(ny)); kb.setAttribute("aria-label", ny ? "Keresés bezárása" : "Keresés"); }
         // Telefonon a megnyitott jegyzet a lista HELYÉN, teljes képernyőn jelenik meg
         // (nem a lista alatt, ahova le kellene görgetni); a "vissza" a listára visz.
         if(open && jgMobil()){
@@ -24260,6 +24276,14 @@ document.addEventListener('keydown', e => {
         const pg = document.getElementById("page-jegyzetek"); if(!pg || pg.hidden) return;
         await jgFlush(); jgOpenId = null; jgEditing = false; renderJegyzetek();
     });
+    // A fejléc jobb felső kereső-ikonja (telefonon): lenyitja / bezárja a keresőmezőt.
+    document.getElementById("mbKereso")?.addEventListener("click", () => {
+        const nyitva = jgKerNyit || !!jgSearch.trim();
+        jgKerNyit = !nyitva;
+        if(nyitva) jgSearch = "";
+        renderJegyzetek();
+        if(jgKerNyit){ window.scrollTo(0, 0); const i = document.getElementById("jgSearch"); if(i) i.focus(); }
+    });
     const jgElozmeny = id => { if(jgMobil()) try { history.pushState({ sfJg: id }, ""); } catch(e){} };
 
     // A keresősáv, a nézetváltó és a szűrők – mindkét nézet fölött ugyanaz.
@@ -24267,7 +24291,7 @@ document.addEventListener('keydown', e => {
         const evek = jgYears();
         const okts = [...new Set(jgNotes.flatMap(nt => jgIx(nt).okt))].sort((a, b) => a.localeCompare(b, "hu"));
         return `
-        <div class="jg-tools">
+        <div class="jg-tools${jgKerNyit || jgSearch.trim() ? " ker-nyit" : ""}">
             <input type="search" id="jgSearch" placeholder="Keresés a jegyzetekben…" value="${escM(jgSearch)}">
             <div class="jg-seg">
                 <button class="jg-segb${jgView === "kereso" ? " on" : ""}" data-jgview="kereso">Kereső</button>
@@ -24306,7 +24330,7 @@ document.addEventListener('keydown', e => {
         return list.map(({ nt, db }) => {
             const ix = jgIx(nt);
             return `<button class="jg-item${nt.id === jgOpenId ? " on" : ""}" data-jgopen="${escM(nt.id)}">
-                <b>${jgTitleHtml(nt, ts)}${db ? `<span class="jg-n">${db}</span>` : ""}</b>
+                <b><span class="jg-ct">${jgTitleHtml(nt, ts)}</span>${db ? `<span class="jg-n">${db}</span>` : ""}</b>
                 <span>${jgContext(nt, ts) || "üres"}</span>
                 <i>${escM(jgDateHu(ix.date))}${ix.okt.length ? " · " + escM(ix.okt.join(", ")) : ""}${(nt.tags || []).length ? " · " + escM((nt.tags || []).join(", ")) : ""}</i>
             </button>`;
