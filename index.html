@@ -15,7 +15,21 @@
     })();
     </script>
     <title>Sikerfüzet</title>
-    <link rel="manifest" href="manifest.json">
+    <script>
+    // A manifestet a betöltéskor már a helyes app (Sikerfüzet / Életfüzet) szerint
+    // tesszük ki: az iPhone Safari a kezdőképernyőhöz adáskor a nevet és a
+    // kezdőcímet a betöltéskor látott manifestből veszi, a későbbi cserét nem követi.
+    (function(){
+        var priv = false, ek = 'elet-lotusz', sk = null;
+        try {
+            priv = new URLSearchParams(location.search).get('app') === 'elet' || JSON.parse(localStorage.getItem('sf_ter') || 'null') === 'priv';
+            var x = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); if(x === 'elet-vegtelen') ek = x;
+            sk = JSON.parse(localStorage.getItem('sf_app_icon') || 'null');
+        } catch(e){}
+        var href = priv ? 'manifest-' + ek + '.json' : (sk === 'fuzet' ? 'manifest-fuzet.json' : 'manifest.json');
+        document.write('<link rel="manifest" href="' + href + '">');
+    })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="icons/emelkedo/icon.svg?v=14">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/emelkedo/icon-32.png?v=14">
     <link rel="icon" type="image/png" sizes="16x16" href="icons/emelkedo/icon-16.png?v=14">
@@ -7185,6 +7199,13 @@ renderMoney(); renderCareer(); renderInfo();
     window.sfTerValt = function(uj){
         if(uj === ter) return;
         ter = uj; alkalmaz();
+        // iPhone Safari (nem a kirakott app): az új manifestet csak egy friss betöltés
+        // után veszi figyelembe a "Hozzáadás a kezdőképernyőhöz" – ezért újratöltünk.
+        if('standalone' in navigator && !navigator.standalone){
+            try { if(window.sfLeaveJegyzetek) window.sfLeaveJegyzetek(); } catch(e){}
+            setTimeout(() => location.replace(location.pathname + (ter === 'priv' ? '?app=elet' : '') + location.hash), 60);
+            return;
+        }
         const t = lapTer(aktLap());
         if(t && t !== ter) menj(ter);
     };
