@@ -5828,6 +5828,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>
                 <span class="nav-label">Edzések</span>
             </a>
+            <a href="#" data-ter="priv" data-page="egeszseg" title="Egészség">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 .7-.1 1.37-.3 2"/><path d="M3 13h4l2-3 3 6 2-3h7"/></svg>
+                <span class="nav-label">Egészség</span>
+            </a>
             <a href="#" data-ter="priv" data-page="szokasok" title="Szokások">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4M8.5 14.5l2 2 4-4"/></svg>
                 <span class="nav-label">Szokások</span>
@@ -6400,6 +6404,11 @@
         <!-- EDZÉSEK -->
         <div id="page-edzes" class="page" hidden>
           <div class="page-wrap"><div id="edzBody"></div></div>
+        </div>
+
+        <!-- EGÉSZSÉG (privát): alvás, víz, testsúly -->
+        <div id="page-egeszseg" class="page" hidden>
+          <div class="page-wrap"><div id="egBody"></div></div>
         </div>
 
         <!-- FELADATOK -->
@@ -7079,6 +7088,7 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'edzes' && typeof window.sfShowEdzes === 'function') window.sfShowEdzes();
         if(p === 'privma' && typeof window.sfShowPrivMa === 'function') window.sfShowPrivMa();
         if(p === 'szokasok' && typeof window.sfShowSzokasok === 'function') window.sfShowSzokasok();
+        if(p === 'egeszseg' && typeof window.sfShowEgeszseg === 'function') window.sfShowEgeszseg();
         if(p === 'emberek' && typeof window.sfShowEmberek === 'function') window.sfShowEmberek();
         if(p === 'konyvek' && typeof window.sfShowKonyvek === 'function') window.sfShowKonyvek();
         if(p === 'enaplo' && typeof window.sfShowNaplo === 'function') window.sfShowNaplo();
@@ -14201,20 +14211,20 @@ async function renderEdz(){
     }
     if(ezTab === 'sablon') await ezGyakInfoBetolt();
     const tartalom = ezTab === 'ma' ? ezMaHtml() : ezTab === 'attek' ? ezAttekHtml() : ezTab === 'csucs' ? ezCsucsHtml()
-        : ezTab === 'verseny' ? ezVersenyHtml() : ezTab === 'meres' ? ezMeresHtml() : ezSablonHtml();
+        : ezTab === 'verseny' ? ezVersenyHtml() : ezSablonHtml();
     body.innerHTML = ezFejHtml()
         + (ezUz ? `<div class="ez-uzenet${ezUz.hiba ? ' hiba' : ''}"><span>${esc(ezUz.t)}</span><button type="button" data-ezuzx aria-label="Üzenet bezárása">×</button></div>` : '')
         + ([...ezHiba].some(k => !ezCsakSzerver(k)) ? `<div class="ez-figy">Az edzésnaplót most nem sikerült a szerverről betölteni. Amit módosítasz, csak ezen az eszközön mentődik – frissítsd később az oldalt.</div>` : '')
         + tartalom
-        + sfAlsoHtml({ id: 'ezTobb', cim: 'Edzések fülei', tobbOn: ['verseny', 'sablon', 'meres'].includes(ezTab),
+        + sfAlsoHtml({ id: 'ezTobb', cim: 'Edzések fülei', tobbOn: ['verseny', 'sablon'].includes(ezTab),
             bal: [['data-eztab="ma"', 'Ma', 'ma', ezTab === 'ma'], ['data-eztab="attek"', 'Áttekintés', 'naptar', ezTab === 'attek']],
             jobb: ['data-eztab="csucs"', 'Csúcsok', 'csucs', ezTab === 'csucs'], plusz: { attr: `data-ezuj="${ma}"`, cim: 'Új edzés mára' },
-            tobb: [['Továbbiak', [['data-eztab="verseny"', 'Versenyek', 'verseny', '', ezTab === 'verseny'], ['data-eztab="sablon"', 'Sablonok', 'sablon', 'és gyakorlatok', ezTab === 'sablon'], ['data-eztab="meres"', 'Testsúly', 'suly', 'és mérések', ezTab === 'meres']]]] });
+            tobb: [['Továbbiak', [['data-eztab="verseny"', 'Versenyek', 'verseny', '', ezTab === 'verseny'], ['data-eztab="sablon"', 'Sablonok', 'sablon', 'és gyakorlatok', ezTab === 'sablon']]]] });
     // A Csúcsok fül első megnyitásakor a hiányzó legjobb időket magától letölti.
     if(ezTab === 'csucs' && !ezRszAutoVolt && ezStravaKapcs()){ ezRszAutoVolt = true; ezRszFolyamat(5); }
 }
 function ezFejHtml(){
-    const tabok = [['ma','Ma'],['attek','Áttekintés'],['csucs','Csúcsok'],['verseny','Versenyek'],['sablon','Sablonok'],['meres','Testsúly']].map(([k, n]) =>
+    const tabok = [['ma','Ma'],['attek','Áttekintés'],['csucs','Csúcsok'],['verseny','Versenyek'],['sablon','Sablonok']].map(([k, n]) =>
         `<button type="button" data-eztab="${k}"${ezTab === k ? ' class="on"' : ''}>${n}</button>`).join('');
     let lep = '';
     if(ezTab === 'ma') lep = `<button type="button" class="ez-lep" data-ezlep="-1" aria-label="Előző hét">‹</button><b>${ezHetCim(ezHet)}</b>
@@ -16015,7 +16025,7 @@ window.sfShowEdzes = function(){
             ezAdat.torzs.naptar = { ki: true }; ezMent('torzs'); renderEdz(); return;
         }
         const t = e.target.closest('[data-eztab]');
-        if(t){ ezTab = t.dataset.eztab; renderEdz(); return; }
+        if(t){ ezTab = t.dataset.eztab === 'meres' ? 'ma' : t.dataset.eztab; renderEdz(); return; }
         const l = e.target.closest('[data-ezlep]');
         if(l){
             const n = +l.dataset.ezlep;
@@ -16171,6 +16181,7 @@ document.addEventListener('visibilitychange', () => {
     for(const k in PRV) delete PRV[k];
     if(prvLap('privma')) renderPrivMa();
     if(prvLap('szokasok')) renderSzokasok();
+    if(prvLap('egeszseg')) renderEgeszseg();
     if(prvLap('emberek')) renderEmberek();
     if(prvLap('konyvek')) renderKonyvek();
     if(prvLap('enaplo')) renderNaplo();
@@ -17836,7 +17847,7 @@ window.sfSzokasElore = () => ezMasNezet() ? Promise.resolve() : prvBetolt('szoka
 // ===================== TESTSÚLY (az Edzések alatt) =====================
 const ezMeresek = () => { const t = ezAdat.torzs || {}; if(!Array.isArray(t.meresek)) t.meresek = []; return t.meresek; };
 const ezMKg = x => x == null ? '—' : String(Math.round(x * 10) / 10).replace('.', ',');
-function ezMeresHtml(){
+function ezMeresHtml(kozepe){
     const l = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), ut = l[l.length - 1], cel = (ezAdat.torzs || {}).sulyCel;
     const ma = ezMa(), regi = l.filter(x => x.d <= ezPlusz(ma, -30)).pop() || l[0];
     const valt = ut && regi && regi !== ut ? Math.round((ut.kg - regi.kg) * 10) / 10 : null;
@@ -17860,8 +17871,9 @@ function ezMeresHtml(){
     return `
         <div class="sf-hos"><span class="c">Testsúly${ut ? ' · ' + esc(ut.d === ma ? 'ma' : prvDatumSzo(ut.d)) : ''}</span><b>${ut ? ezMKg(ut.kg) : '—'}<small> kg</small></b>
             <span class="s">${valt != null ? `<b class="${valt <= 0 ? 'poz' : 'neg'}">${valt > 0 ? '+' : valt < 0 ? '−' : '±'}${ezMKg(Math.abs(valt))} kg</b> az elmúlt ~30 napban` : 'rögzítsd az első mérést'}${cel ? ` · cél ${ezMKg(cel)} kg${ut ? ` (még ${ezMKg(Math.abs(ut.kg - cel))} kg)` : ''}` : ''}</span></div>
+        ${kozepe || ''}
         <section class="card pv-kartya ez-mform">
-            <h4 class="pv-cim">Új mérés</h4>
+            <h4 class="pv-cim">Új testsúly-mérés</h4>
             <div class="ez-mmezok">
                 <label><span>Dátum</span><input type="date" data-ezm="d" value="${ma}" max="${ma}"></label>
                 <label><span>Testsúly (kg)</span><input type="text" inputmode="decimal" data-ezm="kg" placeholder="${ut ? ezMKg(ut.kg) : 'pl. 82,4'}"></label>
@@ -17878,7 +17890,7 @@ function ezMeresHtml(){
             <button type="button" class="em-es-x" data-ezmdel="${esc(x.d)}" aria-label="Mérés törlése">×</button></div>`).join('')}</section>` : ''}`;
 }
 function ezMeresMent(gyors){
-    const b = document.querySelector(gyors ? '#privMaBody' : '#edzBody'); if(!b) return false;
+    const b = document.querySelector(gyors ? '#privMaBody' : '#egBody'); if(!b) return false;
     const v = k => (b.querySelector(`[data-ezm="${k}"]`) || {}).value || '';
     const kg = ezSzam(v('kg')); if(!kg || kg < 20 || kg > 400){ const i = b.querySelector('[data-ezm="kg"]'); if(i){ i.focus(); i.classList.add('hibas'); } return false; }
     const d = v('d') || ezMa();
@@ -17888,6 +17900,50 @@ function ezMeresMent(gyors){
     ezMent('torzs');
     return true;
 }
+
+// ===================== EGÉSZSÉG (külön oldal) =====================
+// Alvás és víz (a napló év-dokumentumaiban, nlYYYY.eg), testsúly (ezAdat.torzs.meresek).
+function egTortHtml(){
+    const ma = ezMa(), napok = Array.from({ length: 30 }, (_, i) => ezPlusz(ma, i - 29));
+    const alv = napok.map(nlNapAlv), viz = napok.map(nlNapViz), av = alv.filter(Boolean), vv = viz.filter(Boolean);
+    if(!av.length && !vv.length) return `<section class="card pv-kartya" data-egtort><h4 class="pv-cim">Alvás és víz</h4><p class="pv-megj">A fenti léptetőkkel rögzítsd naponta – itt látod majd az elmúlt 30 napot.</p></section>`;
+    const W = 340, H = 130, B = 6, A = 20, maxA = Math.max(600, ...av), bw = (W - B * 2) / 30, gy = v => H - A - (H - A - 6) * v / maxA;
+    const oszl = alv.map((v, i) => v ? `<rect x="${(B + i * bw + 1).toFixed(1)}" y="${gy(v).toFixed(1)}" width="${Math.max(2, bw - 2).toFixed(1)}" height="${(H - A - gy(v)).toFixed(1)}" rx="2" class="${v >= 420 ? 'ok' : 'keves'}"><title>${esc(prvDatumSzo(napok[i]))}: ${nlOraSzo(v)}</title></rect>` : '').join('');
+    const pont = viz.map((v, i) => v ? `<circle cx="${(B + i * bw + bw / 2).toFixed(1)}" cy="${H - 8}" r="${v >= NL_VIZ_CEL ? 3.2 : 2.2}" class="viz${v >= NL_VIZ_CEL ? ' meg' : ''}"><title>${esc(prvDatumSzo(napok[i]))}: ${v} pohár víz</title></circle>` : '').join('');
+    return `<section class="card pv-kartya" data-egtort><h4 class="pv-cim">Alvás és víz<span class="pv-megj">elmúlt 30 nap</span></h4>
+        <div class="nl-eg-kpi"><span><b>${av.length ? nlOraSzo(nlAtlag(av)) : '—'}</b><em>átlag alvás · ${av.filter(v => v >= 420).length}/${av.length} napon 7+ óra</em></span>
+            <span><b>${vv.length ? nlSzam(nlAtlag(vv)) : '—'}</b><em>pohár víz naponta · ${vv.filter(v => v >= NL_VIZ_CEL).length} napon megvolt</em></span></div>
+        <svg class="nl-eg-graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Alvás és víz az elmúlt 30 napban"><line x1="${B}" x2="${W - B}" y1="${gy(420).toFixed(1)}" y2="${gy(420).toFixed(1)}" class="h7"/>
+            <text x="${W - B}" y="${(gy(420) - 4).toFixed(1)}" text-anchor="end" class="h7t">7 óra</text>${oszl}${pont}</svg>
+        <p class="pv-megj">Oszlop: alvás (lila = legalább 7 óra) · pont: víz (kék = megvolt a napi ${NL_VIZ_CEL} pohár)</p></section>`;
+}
+async function renderEgeszseg(){
+    const host = document.getElementById('egBody'); if(!host) return;
+    if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Az egészség-adatok privátak – ránézés módban nem látszanak.</div>`; return; }
+    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    const ma = ezMa();
+    await Promise.all([ezBetolt('torzs'), nlBeall(), nlEv(+ma.slice(0, 4)), nlEv(+ezPlusz(ma, -29).slice(0, 4))]).catch(() => null);
+    if(!prvLap('egeszseg')) return;
+    const mai = `<section class="card pv-kartya ma-eg-k"><h4 class="pv-cim">Ma</h4><div class="ma-eg" data-maeghost>${maEgHtml()}</div></section>`;
+    host.innerHTML = ezMeresHtml(mai + egTortHtml());
+}
+window.sfShowEgeszseg = function(){ renderEgeszseg(); };
+document.addEventListener('click', e => {
+    if(!e.target.closest('#page-egeszseg')) return;
+    const eg = e.target.closest('[data-maeg]'); if(eg){ const [m, i] = eg.dataset.maeg.split('|'); maEgValt(m, +i); return; }
+    if(e.target.closest('[data-ezmment]')){ if(ezMeresMent()) renderEgeszseg(); return; }
+    const md = e.target.closest('[data-ezmdel]');
+    if(md){ if(!confirm('Törlöd ezt a mérést?')) return; ezAdat.torzs.meresek = ezMeresek().filter(x => x.d !== md.dataset.ezmdel); ezMent('torzs'); renderEgeszseg(); return; }
+    if(e.target.closest('[data-ezmcel]')){
+        const v = prompt('Célsúly (kg) – üresen hagyva törlöd:', ezAdat.torzs.sulyCel ? ezMKg(ezAdat.torzs.sulyCel) : '');
+        if(v === null) return;
+        const n = ezSzam(v); if(n) ezAdat.torzs.sulyCel = Math.round(n * 10) / 10; else delete ezAdat.torzs.sulyCel;
+        ezMent('torzs'); renderEgeszseg();
+    }
+});
+document.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target.matches && e.target.matches('#egBody [data-ezm]')){ e.preventDefault(); if(ezMeresMent()) renderEgeszseg(); }
+});
 
 // ===================== MA (privát kezdőlap) =====================
 async function renderPrivMa(){
@@ -17968,7 +18024,7 @@ async function renderPrivMa(){
             : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>')}
         ${esem.length ? kartya('Közelgő események', 'emberek', `<div class="ma-lista">${esem.map(x => `<button type="button" class="ma-sor ma-sor-g" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t, 'kicsi')}
                 <span class="t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></button>`).join('')}</div>`) : ''}
-        ${kartya('Egészség', 'meres', `<div class="ma-eg" data-maeghost>${maEgHtml()}</div>
+        ${kartya('Egészség', 'egeszseg', `<div class="ma-eg" data-maeghost>${maEgHtml()}</div>
             <div class="ma-suly"><span class="ma-eg-cim">⚖️ Testsúly</span><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
                 <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`, 'ma-eg-k')}
         </div>`;
@@ -17995,13 +18051,15 @@ function maEgValt(mit, irany){
     if(mit === 'alv'){ x.alv = Math.max(0, Math.min(16 * 60, (nlNapAlv(ma) || 420) + irany * 30)); if(!x.alv) delete x.alv; }
     else { x.viz = Math.max(0, Math.min(30, (x.viz || 0) + irany)); if(!x.viz) delete x.viz; }
     if(!Object.keys(x).length) delete eg[ma];
-    const h = document.querySelector('#privMaBody [data-maeghost]'); if(h) h.innerHTML = maEgHtml();
+    document.querySelectorAll('[data-maeghost]').forEach(h => { h.innerHTML = maEgHtml(); });
+    if(prvLap('egeszseg')){ const t = document.querySelector('#egBody [data-egtort]'); if(t) t.outerHTML = egTortHtml(); }
     try { if(irany > 0 && navigator.vibrate) navigator.vibrate(8); } catch(e){}
     clearTimeout(maEgIdozito); maEgIdozito = setTimeout(() => prvMent(nlEvKulcs(y)), 600);
 }
 function prvFrissit(){
     if(prvLap('privma')) renderPrivMa();
     if(prvLap('szokasok')) renderSzokasok();
+    if(prvLap('egeszseg')) renderEgeszseg();
     if(prvLap('emberek')) renderEmberek();
     if(prvLap('konyvek')) renderKonyvek();
     if(prvLap('enaplo')) renderNaplo();
@@ -18027,7 +18085,7 @@ document.addEventListener('click', e => {
     const mm = e.target.closest('[data-mamenj]');
     if(mm){
         const c = mm.dataset.mamenj;
-        if(c === 'meres') prvMenj('edzes', () => { ezTab = 'meres'; renderEdz(); });
+        if(c === 'meres') prvMenj('egeszseg');
         else if(c === 'penzugyek') prvMenj('penzugyek', () => { pzView = 'honap'; pzFrissit(); });
         else prvMenj(c);
         return;
