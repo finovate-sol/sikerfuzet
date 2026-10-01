@@ -2562,6 +2562,36 @@
         .jg-meta .grow { margin-left:auto; }
         .jg-img-missing { display:inline-block; color:var(--muted); font-size:11.5px; font-style:normal; }
         .jg-view img.jg-img:not([src]) { display:none; }
+        /* formázó szerkesztő */
+        .jg-tb { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:2px; padding:5px; margin:0 0 10px; background:#f5f7fa; border:1px solid var(--border); border-radius:12px; overflow-x:auto; scrollbar-width:none; }
+        .jg-tb::-webkit-scrollbar { display:none; }
+        .jg-tb button { flex:none; min-width:36px; height:36px; padding:0 8px; border:0; border-radius:9px; background:none; color:#374151; cursor:pointer; display:flex; align-items:center; justify-content:center; font:inherit; }
+        .jg-tb button:hover { background:#e8edf4; } .jg-tb button.on { background:var(--navy); color:#fff; }
+        .jg-tb button svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .jg-tb button .t { font-size:14px; font-weight:800; font-style:normal; }
+        .jg-tb button i.t { font-style:italic; }
+        .jg-tb-v { flex:none; width:1px; height:22px; background:#dbe2ea; margin:0 4px; }
+        .jg-tb .grow { flex:1; min-width:6px; }
+        .jg-tb .jg-tb-md { font-size:12px; font-weight:700; color:#6b7280; padding:0 10px; }
+        .jg-tb .jg-tb-md.on { background:#e8edf4; color:var(--navy); }
+        .jg-rte { min-height:48vh; padding:12px 14px; border:1px solid var(--border); border-radius:10px; outline:none; background:#fff; -webkit-user-select:text; user-select:text; overflow-wrap:anywhere; }
+        .jg-rte:focus { border-color:var(--blue); }
+        .jg-rte.ures::before { content:attr(data-ures); color:#9ca3af; pointer-events:none; position:absolute; }
+        .jg-rte ul.md-todo li { display:block; position:relative; padding-left:26px; }
+        .jg-rte ul.md-todo li::before { content:""; position:absolute; left:0; top:4px; width:16px; height:16px; border:1.5px solid #9aa7b8; border-radius:5px; background:#fff; cursor:pointer; }
+        .jg-rte ul.md-todo li.done::before { content:"✓"; background:var(--green); border-color:var(--green); color:#fff; font-size:11px; font-weight:800; line-height:16px; text-align:center; }
+        .jg-rte img { max-width:100%; }
+        .jg-view .md-todo .md-box { cursor:pointer; }
+        /* telefonon a megnyitott jegyzet teljes képernyőn */
+        .jg-mlap-fej { display:flex; align-items:center; gap:8px; margin:0 0 10px; }
+        .jg-mlap-fej .grow { flex:1; }
+        .jg-mvissza { display:inline-flex; align-items:center; gap:4px; height:42px; padding:0 16px 0 10px; border:0; border-radius:999px; background:#fff; box-shadow:0 2px 10px rgba(15,23,42,.08); font:inherit; font-size:15px; font-weight:700; color:var(--navy); cursor:pointer; }
+        .jg-mvissza svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+        .jg-mlap .card-body { padding:14px; }
+        .jg-mlap .jg-title { font-size:20px; padding:6px 4px; flex-basis:100%; }
+        .jg-mlap .jg-view { font-size:15px; line-height:1.65; min-height:55vh; }
+        .jg-mlap .jg-tb { top:calc(env(safe-area-inset-top, 0px) + 64px); }
+        .jg-mlap .jg-meta { flex-wrap:wrap; }
         .jg-err { border-color:#f6c9c5; background:#fdeaea; margin-bottom:14px; }
         .jg-err .card-body { color:#b42318; font-size:12px; line-height:1.6; }
         .jg-err code { background:#fff; border-radius:5px; padding:1px 6px; }
@@ -24170,6 +24200,16 @@ document.addEventListener('keydown', e => {
         const list = jgMatched();
         const tags = [...new Set(jgNotes.flatMap(nt => nt.tags || []))].sort((a,b)=>a.localeCompare(b,'hu'));
         const open = jgOpenId ? jgById(jgOpenId) : null;
+        // Telefonon a megnyitott jegyzet a lista HELYÉN, teljes képernyőn jelenik meg
+        // (nem a lista alatt, ahova le kellene görgetni); a "vissza" a listára visz.
+        if(open && jgMobil()){
+            host.innerHTML = `<div class="jg-mlap"><div class="jg-mlap-fej"><button type="button" class="jg-mvissza" id="jgBack" aria-label="Vissza a jegyzetekhez">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Jegyzetek</button><span class="grow"></span></div>
+                <div class="card"><div class="card-body">${jgDetailHtml(open)}</div></div></div>`;
+            wireJegyzetek();
+            jgLoadImages(host.querySelector(".jg-view"));
+            return;
+        }
         // Ha az olvasás elhasalt, azt MEG KELL MONDANI. A jogosultsági hiba
         // ugyanis némán üres listának látszik, és az ember a saját jegyzetét
         // keresi hiába – pont ez történt a task_meta-nál is.
@@ -24200,6 +24240,16 @@ document.addEventListener('keydown', e => {
         wireJegyzetek();
         jgLoadImages(host.querySelector(".jg-view"));
     }
+
+    const jgMobil = () => { try { return matchMedia("(max-width:900px)").matches; } catch(e){ return false; } };
+    // Telefonon a jegyzet megnyitása előzmény-bejegyzést kap, így a rendszer
+    // "vissza" gesztusa / gombja a listára visz, nem az előző oldalra.
+    window.addEventListener("popstate", async () => {
+        if(!jgOpenId || (history.state && history.state.sfJg)) return;
+        const pg = document.getElementById("page-jegyzetek"); if(!pg || pg.hidden) return;
+        await jgFlush(); jgOpenId = null; jgEditing = false; renderJegyzetek();
+    });
+    const jgElozmeny = id => { if(jgMobil()) try { history.pushState({ sfJg: id }, ""); } catch(e){} };
 
     // A keresősáv, a nézetváltó és a szűrők – mindkét nézet fölött ugyanaz.
     function jgToolsHtml(tags, n){
@@ -24293,7 +24343,10 @@ document.addEventListener('keydown', e => {
                 <button class="btn" id="jgToggle">${jgEditing ? "Megnézem" : "Szerkesztem"}</button>
             </div>
             ${jgEditing ? `<input type="text" class="jg-tagin" id="jgTags" value="${escM((nt.tags||[]).join(", "))}" placeholder="Címkék vesszővel elválasztva – pl. ügyfél, ötlet, képzés">
-            <textarea class="jg-body" id="jgBody" placeholder="Írd ide… Formázás: # címsor, **félkövér**, - lista, - [ ] teendő, > idézet, [link](cím)">${escM(nt.body || "")}</textarea>`
+            ${jgEszkoztarHtml()}
+            ${jgNyers ? `<textarea class="jg-body" id="jgBody" placeholder="Írd ide… Formázás: # címsor, **félkövér**, - lista, - [ ] teendő, > idézet, [link](cím)">${escM(nt.body || "")}</textarea>`
+                : `<div class="jg-view jg-rte" id="jgRte" contenteditable="true" role="textbox" aria-multiline="true" aria-label="A jegyzet szövege" data-ures="Írd ide a jegyzetet…">${mdToHtml(nt.body || "")}</div>`}
+            <input type="file" accept="image/*" multiple hidden id="jgKepF">`
             : `<div class="jg-view" id="jgView">${mdToHtml(nt.body || "") || '<p style="color:var(--muted);">Ez a jegyzet még üres.</p>'}</div>`}
             <div class="jg-meta">
                 <span id="jgState">${jgDirty ? "Mentés…" : "Mentve"}</span>
@@ -24302,6 +24355,235 @@ document.addEventListener('keydown', e => {
                 <button class="btn" id="jgTer" title="A jegyzet átkerül a másik részbe, és ott látszik">${jgTerje(nt) === "priv" ? "Áthelyezés az OVB-részbe" : "Áthelyezés a privát részbe"}</button>
                 <button class="btn" id="jgDel" style="color:var(--red);border-color:#f6c9c5;">Törlés</button>
             </div>`;
+    }
+
+    // ===================== FORMÁZÓ SZERKESZTŐ =====================
+    // A jegyzet Markdownként tárolódik (kereső, Notion-import, könyv-jegyzetek
+    // mind erre épülnek). A szerkesztő a mdToHtml() kimenetét szerkeszti
+    // (contenteditable), és minden változáskor visszaalakítja Markdownná.
+    let jgNyers = false, jgRteRange = null, jgKepTolt = 0;
+    const JG_TB = [
+        ["p", "Normál szöveg", "<b class='t'>Aa</b>"], ["h1", "Címsor 1", "<b class='t'>H1</b>"], ["h2", "Címsor 2", "<b class='t'>H2</b>"], ["h3", "Címsor 3", "<b class='t'>H3</b>"], ["|"],
+        ["b", "Félkövér", "<b class='t'>B</b>"], ["i", "Dőlt", "<i class='t' style='font-family:Georgia,serif'>I</i>"], ["s", "Áthúzott", "<s class='t'>S</s>"], ["|"],
+        ["ul", "Felsorolás", '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>'],
+        ["ol", "Számozott lista", '<svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 13.5c.4-1 2.6-1 2.5.4 0 .9-2.5 1.8-2.5 3.1h2.7"/></svg>'],
+        ["todo", "Teendőlista", '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.5 16 1.5 1.5 3-3M12 7h9M12 16h9"/></svg>'],
+        ["q", "Idézet", '<svg viewBox="0 0 24 24"><path d="M5 5v14M10 8h9M10 12h9M10 16h6"/></svg>'], ["|"],
+        ["link", "Link", '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>'],
+        ["kep", "Kép beszúrása", '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 9"/></svg>'],
+        ["hr", "Elválasztó vonal", '<svg viewBox="0 0 24 24"><path d="M3 12h18"/></svg>'], ["|"],
+        ["undo", "Visszavonás", '<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>'],
+        ["redo", "Újra", '<svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>'],
+    ];
+    function jgEszkoztarHtml(){
+        return `<div class="jg-tb" role="toolbar" aria-label="Formázás">${jgNyers ? "" : JG_TB.map(([k, cim, ik]) => k === "|" ? '<span class="jg-tb-v"></span>'
+                : `<button type="button" data-jgtb="${k}" title="${cim}" aria-label="${cim}">${ik}</button>`).join("")}
+            <span class="grow"></span><button type="button" class="jg-tb-md${jgNyers ? " on" : ""}" data-jgtb="nyers" title="${jgNyers ? "Vissza a formázott szerkesztőhöz" : "Markdown-forrás szerkesztése"}">${jgNyers ? "Formázott" : "Markdown"}</button></div>`;
+    }
+    const JG_BLOKK = /^(P|DIV|H[1-6]|UL|OL|LI|BLOCKQUOTE|PRE|HR|TABLE|THEAD|TBODY|TR|SECTION|ARTICLE|HEADER|FOOTER|FIGURE|ASIDE|NAV)$/;
+    // HTML → Markdown (a szerkesztő tartalmából, és a beillesztett formázott szövegből)
+    function jgHtmlMd(root){
+        const ki = [];
+        const wrap = (x, m) => { const r = x.match(/^(\s*)([\s\S]*?)(\s*)$/); return r[2] ? r[1] + m + r[2] + m + r[3] : x; };
+        const imgMd = el => {
+            const alt = String(el.getAttribute("alt") || "").replace(/[\[\]\n]/g, "");
+            if(el.dataset && el.dataset.noteimg) return `![${alt}](noteimg:${el.dataset.noteimg})`;
+            const src = String(el.getAttribute("src") || "");
+            return /^https?:\/\//i.test(src) ? `![${alt}](${src.replace(/\)/g, "%29").replace(/\s/g, "%20")})` : "";
+        };
+        function inl(n){
+            if(n.nodeType === 3) return n.nodeValue.replace(/\u00a0/g, " ").replace(/[ \t\r\n]+/g, " ");
+            if(n.nodeType !== 1) return "";
+            const t = n.tagName;
+            if(t === "BR") return "\n";
+            if(t === "IMG") return imgMd(n);
+            if(t === "SCRIPT" || t === "STYLE" || n.classList.contains("md-box")) return "";
+            const b = [...n.childNodes].map(inl).join("");
+            if(t === "B" || t === "STRONG") return wrap(b, "**");
+            if(t === "I" || t === "EM") return wrap(b, "*");
+            if(t === "S" || t === "STRIKE" || t === "DEL") return wrap(b, "~~");
+            if(t === "CODE") return b.trim() ? "`" + b.replace(/`/g, "") + "`" : b;
+            if(t === "A"){
+                const h = String(n.getAttribute("href") || "");
+                if(!/^(https?:|mailto:|tel:)/i.test(h)) return b;
+                const tx = b.trim().replace(/[\[\]]/g, "");
+                return !tx || tx === h ? h : `[${tx}](${h.replace(/\)/g, "%29").replace(/\s/g, "%20")})`;
+            }
+            if(t === "SPAN" || t === "FONT"){
+                let r = b; const st = n.style || {};
+                if(/bold|^[6-9]00$/.test(st.fontWeight || "")) r = wrap(r, "**");
+                if(st.fontStyle === "italic") r = wrap(r, "*");
+                if(/line-through/.test((st.textDecorationLine || "") + (st.textDecoration || ""))) r = wrap(r, "~~");
+                return r;
+            }
+            if(JG_BLOKK.test(t)) return "\n" + b + "\n";
+            return b;
+        }
+        const sorok = x => x.split("\n").map(y => y.replace(/\s+/g, " ").trim()).filter(Boolean);
+        const bekezd = x => sorok(x).forEach(y => ki.push({ k: "p", s: y }));
+        function kont(el){
+            let buf = [];
+            const urit = () => { if(buf.length){ bekezd(buf.map(inl).join("")); buf = []; } };
+            for(const c of el.childNodes){
+                if(c.nodeType === 1 && JG_BLOKK.test(c.tagName)){ urit(); blk(c); } else buf.push(c);
+            }
+            urit();
+        }
+        function blk(n){
+            const t = n.tagName;
+            if(/^H[1-6]$/.test(t)){ const x = sorok(inl(n)).join(" "); if(x) ki.push({ k: "h", s: "#".repeat(+t[1]) + " " + x }); return; }
+            if(t === "HR"){ ki.push({ k: "hr", s: "---" }); return; }
+            if(t === "PRE"){ ki.push({ k: "pre", s: "```\n" + n.textContent.replace(/\n$/, "") + "\n```" }); return; }
+            if(t === "BLOCKQUOTE"){ const l = sorok([...n.childNodes].map(inl).join("")); if(l.length) ki.push({ k: "q", s: l.map(y => "> " + y).join("\n") }); return; }
+            if(t === "UL" || t === "OL"){
+                const todo = n.classList.contains("md-todo"); let i = 0;
+                for(const li of n.children){
+                    if(li.tagName !== "LI"){ blk(li); continue; }
+                    const sajat = [...li.childNodes].filter(c => !(c.nodeType === 1 && /^(UL|OL)$/.test(c.tagName)));
+                    const x = sorok(sajat.map(inl).join("")).join(" ");
+                    const jel = todo ? `- [${li.classList.contains("done") ? "x" : " "}] ` : t === "OL" ? `${++i}. ` : "- ";
+                    if(x) ki.push({ k: "li", f: todo ? "todo" : t, s: jel + x });
+                    [...li.children].filter(c => /^(UL|OL)$/.test(c.tagName)).forEach(blk);
+                }
+                return;
+            }
+            if(t === "TABLE"){
+                const rows = [...n.querySelectorAll("tr")].map(tr => [...tr.children].map(c => sorok(inl(c)).join(" ").replace(/\|/g, "/")));
+                if(rows.length){
+                    const w = Math.max(...rows.map(r => r.length));
+                    const sor = r => "| " + Array.from({ length: w }, (_, j) => r[j] || "").join(" | ") + " |";
+                    ki.push({ k: "t", s: [sor(rows[0]), "| " + Array(w).fill("---").join(" | ") + " |", ...rows.slice(1).map(sor)].join("\n") });
+                }
+                return;
+            }
+            kont(n);
+        }
+        kont(root);
+        let md = "";
+        ki.forEach((b, i) => { const e = ki[i - 1]; if(i) md += b.k === "li" && e.k === "li" && b.f === e.f ? "\n" : "\n\n"; md += b.s; });
+        return md;
+    }
+    // Szerkesztés közben a teendő-négyzetet CSS rajzolja (::before), hogy az új sorok is kapjanak.
+    function jgRteElokeszit(rte){ rte.querySelectorAll(".md-box").forEach(b => b.remove()); }
+    function jgRteValt(){
+        const rte = document.getElementById("jgRte"), nt = jgById(jgOpenId); if(!rte || !nt) return;
+        rte.classList.toggle("ures", !rte.textContent.trim() && !rte.querySelector("img,hr,li"));
+        const md = jgHtmlMd(rte);
+        if(md === (nt.body || "")) return;
+        nt.body = md; nt.updated = jgNow(); jgDirty2(nt); jgQueueSave();
+    }
+    const jgEx = (c, v) => { try { document.execCommand(c, false, v); } catch(e){} };
+    function jgRteBlokk(rte){
+        const sel = getSelection(); if(!sel.rangeCount) return null;
+        let n = sel.anchorNode; if(n && n.nodeType === 3) n = n.parentNode;
+        while(n && n !== rte && !JG_BLOKK.test(n.tagName)) n = n.parentNode;
+        return n && n !== rte ? n : null;
+    }
+    function jgRteVissza(rte){
+        rte.focus();
+        if(jgRteRange && rte.contains(jgRteRange.startContainer)){ const sel = getSelection(); sel.removeAllRanges(); sel.addRange(jgRteRange); }
+    }
+    function jgRteParancs(k, rte){
+        jgRteVissza(rte);
+        const b = jgRteBlokk(rte), ul = b && b.closest ? b.closest("ul, ol") : null;
+        if(/^(p|h1|h2|h3)$/.test(k)) jgEx("formatBlock", `<${k}>`);
+        else if(k === "q") jgEx("formatBlock", b && b.closest("blockquote") ? "<p>" : "<blockquote>");
+        else if(k === "b") jgEx("bold"); else if(k === "i") jgEx("italic"); else if(k === "s") jgEx("strikeThrough");
+        else if(k === "ul"){ if(ul && ul.classList.contains("md-todo")) ul.classList.remove("md-todo"); else jgEx("insertUnorderedList"); }
+        else if(k === "ol") jgEx("insertOrderedList");
+        else if(k === "todo"){
+            if(ul && ul.tagName === "UL"){ ul.classList.toggle("md-todo"); }
+            else if(b){
+                // saját listát rakunk a bekezdés helyére – az execCommand a szomszédos listába olvasztaná
+                const ujUl = document.createElement("ul"); ujUl.className = "md-todo";
+                const li = document.createElement("li"); li.innerHTML = b.innerHTML || "<br>"; ujUl.appendChild(li);
+                b.replaceWith(ujUl);
+                const r = document.createRange(); r.selectNodeContents(li); r.collapse(false);
+                const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+            }
+        }
+        else if(k === "hr") jgEx("insertHorizontalRule");
+        else if(k === "undo") jgEx("undo"); else if(k === "redo") jgEx("redo");
+        else if(k === "link"){
+            const sel = getSelection(), vanSzoveg = sel.rangeCount && !sel.isCollapsed;
+            let url = (prompt("A link címe (URL):", "https://") || "").trim();
+            if(!url || url === "https://") return;
+            if(!/^(https?:|mailto:|tel:)/i.test(url)) url = "https://" + url;
+            jgRteVissza(rte);
+            if(vanSzoveg) jgEx("createLink", url); else jgEx("insertHTML", `<a href="${escM(url).replace(/"/g, "&quot;")}">${escM(url)}</a>&nbsp;`);
+        }
+        else if(k === "kep"){ const f = document.getElementById("jgKepF"); if(f) f.click(); return; }
+        jgRteValt(); jgTbAllapot(rte);
+    }
+    function jgTbAllapot(rte){
+        const tb = document.querySelector(".jg-tb"); if(!tb || !rte) return;
+        const b = jgRteBlokk(rte), tag = b ? b.tagName : "P", ul = b && b.closest ? b.closest("ul, ol") : null;
+        const q = c => { try { return document.queryCommandState(c); } catch(e){ return false; } };
+        const on = { b: q("bold"), i: q("italic"), s: q("strikeThrough"), h1: tag === "H1", h2: tag === "H2", h3: tag === "H3",
+            ul: !!ul && ul.tagName === "UL" && !ul.classList.contains("md-todo"), ol: !!ul && ul.tagName === "OL", todo: !!ul && ul.classList.contains("md-todo"),
+            q: !!(b && b.closest && b.closest("blockquote")) };
+        tb.querySelectorAll("[data-jgtb]").forEach(x => x.classList.toggle("on", !!on[x.dataset.jgtb]));
+    }
+    async function jgKepBeszur(fajlok, rte){
+        const nt = jgById(jgOpenId); if(!nt) return;
+        const st = document.getElementById("jgState");
+        for(const f of fajlok){
+            if(!/^image\//.test(f.type || "")) continue;
+            jgKepTolt++; if(st) st.textContent = "Kép feltöltése…";
+            try {
+                const k = await sfKepToB64(f, f.name || "kep.jpg");
+                const id = await addNoteImage({ ownerUid: nt.ownerUid || jgOwner(), mime: k.mime, data: k.data, nev: k.nev, created: jgNow() });
+                const url = `data:${k.mime};base64,${k.data}`; jgImgCache.set(id, url);
+                const el = document.getElementById("jgRte");
+                if(el && jgOpenId === nt.id){ jgRteVissza(el); jgEx("insertHTML", `<p><img class="jg-img" data-noteimg="${id}" src="${url}" alt=""></p><p><br></p>`); jgRteValt(); }
+                else { nt.body = (nt.body ? nt.body + "\n\n" : "") + `![](noteimg:${id})`; nt.updated = jgNow(); jgDirty2(nt); jgDirty = true; jgFlush(); }
+            } catch(e){ alert("A kép beszúrása nem sikerült: " + (e.message || e)); }
+            jgKepTolt--;
+        }
+        if(st && !jgKepTolt) st.textContent = jgDirty ? "Mentés…" : "Mentve";
+    }
+    function jgRteBekot(rte){
+        jgRteElokeszit(rte);
+        rte.classList.toggle("ures", !rte.textContent.trim() && !rte.querySelector("img,hr,li"));
+        jgEx("defaultParagraphSeparator", "p");
+        rte.addEventListener("input", e => {
+            // Markdown-rövidítések a sor elején: "# ", "## ", "- ", "1. ", "[] ", "> "
+            if(e.inputType === "insertText" && e.data === " "){
+                const b = jgRteBlokk(rte);
+                if(b && /^(P|DIV)$/.test(b.tagName) && !b.closest("li, blockquote")){
+                    const m = b.textContent.replace(/\u00a0/g, " ").match(/^(#{1,3}|[-*]|1[.)]|\[ ?\]|>) $/);
+                    if(m){
+                        b.innerHTML = "<br>"; const r = document.createRange(); r.setStart(b, 0); r.collapse(true); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+                        const j = m[1]; jgRteRange = r;
+                        jgRteParancs(j[0] === "#" ? "h" + j.length : j === "-" || j === "*" ? "ul" : j[0] === "1" ? "ol" : j === ">" ? "q" : "todo", rte);
+                        return;
+                    }
+                }
+            }
+            jgRteValt();
+        });
+        rte.addEventListener("blur", () => jgFlush());
+        // teendő kipipálása: a sor elején lévő négyzetre koppintva
+        rte.addEventListener("click", e => {
+            const li = e.target.closest && e.target.closest("ul.md-todo > li");
+            if(li && e.target === li && e.offsetX < 26){ li.classList.toggle("done"); jgRteValt(); }
+        });
+        rte.addEventListener("paste", e => {
+            const cd = e.clipboardData; if(!cd) return;
+            const kepek = [...(cd.files || [])].filter(f => /^image\//.test(f.type));
+            if(kepek.length){ e.preventDefault(); jgKepBeszur(kepek, rte); return; }
+            const html = cd.getData("text/html"), txt = cd.getData("text/plain");
+            e.preventDefault();
+            // A formázott beillesztést Markdownon át "mossuk": ami nem a mi formázásunk, az kiesik.
+            if(html){ const d = new DOMParser().parseFromString(html, "text/html"); jgEx("insertHTML", mdToHtml(jgHtmlMd(d.body))); }
+            else if(txt) jgEx("insertText", txt);
+            jgRteElokeszit(rte); jgRteValt();
+        });
+        document.addEventListener("selectionchange", function figy(){
+            if(!rte.isConnected){ document.removeEventListener("selectionchange", figy); return; }
+            const sel = getSelection();
+            if(sel.rangeCount && rte.contains(sel.anchorNode)){ jgRteRange = sel.getRangeAt(0).cloneRange(); jgTbAllapot(rte); }
+        });
     }
 
     // A mentés késleltetett: gépelés közben nem küldünk minden leütésnél.
@@ -24365,7 +24647,11 @@ document.addEventListener('keydown', e => {
             await jgFlush(); jgSearch = ""; jgTag = ""; jgEv = ""; jgOkt = ""; jgGroup = ""; jgClosed.clear(); renderJegyzetek();
         });
         const bk = document.getElementById("jgBack");
-        if(bk) bk.addEventListener("click", async () => { await jgFlush(); jgOpenId = null; renderJegyzetek(); });
+        if(bk) bk.addEventListener("click", async () => {
+            await jgFlush();
+            if(history.state && history.state.sfJg){ history.back(); return; }   // a popstate zárja be
+            jgOpenId = null; jgEditing = false; renderJegyzetek();
+        });
         host.querySelectorAll("[data-jgtag]").forEach(b => b.addEventListener("click", async () => {
             await jgFlush(); jgTag = b.dataset.jgtag; renderJegyzetek();
         }));
@@ -24400,6 +24686,36 @@ document.addEventListener('keydown', e => {
         if(bd) bd.addEventListener("input", () => {
             const nt = jgById(jgOpenId); if(!nt) return;
             nt.body = bd.value; nt.updated = jgNow(); jgDirty2(nt); jgQueueSave();
+        });
+        const rte = document.getElementById("jgRte");
+        if(rte) jgRteBekot(rte);
+        host.querySelectorAll("[data-jgtb]").forEach(b => {
+            // a gomb ne vegye el a fókuszt (és a kijelölést) a szövegtől
+            b.addEventListener("mousedown", e => e.preventDefault());
+            b.addEventListener("click", async () => {
+                if(b.dataset.jgtb === "nyers"){ await jgFlush(); jgNyers = !jgNyers; renderJegyzetek(); return; }
+                const r = document.getElementById("jgRte"); if(r) jgRteParancs(b.dataset.jgtb, r);
+            });
+        });
+        const kf = document.getElementById("jgKepF");
+        if(kf) kf.addEventListener("change", () => { const l = [...kf.files]; kf.value = ""; const r = document.getElementById("jgRte"); if(r && l.length) jgKepBeszur(l, r); });
+        // nézet módban a teendő négyzetére koppintva ki-be pipálható
+        const vw = document.getElementById("jgView");
+        if(vw) vw.addEventListener("click", async e => {
+            const box = e.target.closest(".md-todo .md-box");
+            // telefonon a szövegre koppintva rögtön szerkeszthető (linkre, képre nem)
+            if(!box){
+                if(jgMobil() && !e.target.closest("a, img, .md-todo") && !(getSelection() || {}).toString()){
+                    await jgFlush(); jgEditing = true; renderJegyzetek();
+                    const r = document.getElementById("jgRte"); if(r){ r.focus(); const rg = document.createRange(); rg.selectNodeContents(r); rg.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(rg); }
+                }
+                return;
+            }
+            const nt = jgById(jgOpenId); if(!nt) return;
+            const idx = [...vw.querySelectorAll(".md-todo .md-box")].indexOf(box); let n = -1;
+            nt.body = String(nt.body || "").replace(/^(\s*[-*+]\s+\[)([ xX])(\]\s+)/gm, (m, a, x, c) => ++n === idx ? a + (x === " " ? "x" : " ") + c : m);
+            nt.updated = jgNow(); jgDirty2(nt); jgQueueSave();
+            const li = box.closest("li"); const kesz = li.classList.toggle("done"); box.textContent = kesz ? "✓" : "";
         });
         const tg = document.getElementById("jgTags");
         if(tg) tg.addEventListener("input", () => {
@@ -24439,8 +24755,11 @@ document.addEventListener('keydown', e => {
 
     async function jgOpen(id){
         await jgFlush();
+        const volt = jgOpenId;
         jgOpenId = id; jgEditing = false;
+        if(!volt) jgElozmeny(id);
         renderJegyzetek();
+        if(jgMobil()) window.scrollTo(0, 0);
     }
     async function jgCreate(){
         await jgFlush();
@@ -24448,8 +24767,11 @@ document.addEventListener('keydown', e => {
                      ...(jgTerem() === "priv" ? { ter: "priv" } : {}) };
         try { nt.id = await addNote(nt); }
         catch(e){ alert("Nem sikerült létrehozni a jegyzetet: " + (e.message || e)); return; }
+        const volt = jgOpenId;
         jgMind.push(nt); jgNotes.push(nt); jgOpenId = nt.id; jgEditing = true;
+        if(!volt) jgElozmeny(nt.id);
         renderJegyzetek();
+        if(jgMobil()) window.scrollTo(0, 0);
         const ti = document.getElementById("jgTitle"); if(ti) ti.focus();
     }
     // Egy jegyzet átrakása a másik részbe (OVB ⇄ privát).
