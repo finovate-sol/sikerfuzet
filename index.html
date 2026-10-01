@@ -5285,6 +5285,8 @@
         .nl-imp-f { display:flex; align-items:center; justify-content:center; height:52px; border:2px dashed #c4b5fd; border-radius:16px; color:#6d28d9; font-weight:700; cursor:pointer; margin:0 0 12px; }
         .nl-imp-f input { display:none; }
         .nl-imp-ossz { background:#f0fdf4; color:#14532d; border-radius:14px; padding:10px 12px; font-size:13.5px; line-height:1.5; margin:0 0 12px; }
+        .nl-imp-cellista { display:flex; flex-direction:column; gap:4px; margin:-4px 0 12px 28px; font-size:13px; color:#374151; }
+        .nl-imp-cellista span.lez { color:#9ca3af; } .nl-imp-cellista i { font-style:normal; color:#6b7280; }
         .nl-imp-cel { background:#f9fafb; border-radius:14px; padding:10px 12px; margin:0 0 8px; display:flex; flex-direction:column; gap:8px; }
         .nl-imp-cel > b { font-size:14px; color:#111827; }
         .nl-imp-cel select { height:34px; border:0; border-radius:999px; background:#eef2ff; color:#3730a3; padding:0 10px; font:inherit; font-size:13px; font-weight:600; }
@@ -17146,10 +17148,13 @@ async function nlDaylioBont(f){
         const napok = new Set(ge.filter(e => (e.goalId ?? e.goal_id) === (g.goal_id ?? g.id) || (e.goalId ?? e.goal_id) === g.id)
             .map(e => e.year != null ? `${e.year}-${String(e.month + 1 - alapG).padStart(2, '0')}-${String(e.day).padStart(2, '0')}` : nlDs(new Date(e.createdAt))));
         const kezd = g.created_at || g.createdAt ? nlDs(new Date(g.created_at || g.createdAt)) : [...napok].sort()[0];
-        return { n, napok, kezd, aktiv: g.state == null || g.state === 1 || g.state === 0 };
+        // A Daylio-ban a 0 az aktív cél, az 1 a lezárt (befejezett, archivált).
+        return { n, napok, kezd, aktiv: g.state == null || g.state === 0 };
     });
     return { tipus: 'daylio', bej, celok, tevCsop, hangNevek, fotok: fajlok.filter(x => /\.(jpe?g|png|webp)$/i.test(x.name) || /assets\//i.test(x.name)) };
 }
+// Cél-név kulcsa az összevonáshoz: ékezet, emoji és írásjel nélkül ("Sport 🏃‍♂️" = "Sport", "Kerüld az alkoholt ‼️‼️" = "Kerüld az alkoholt").
+const nlCelKulcs = n => nlNorm(n).replace(/[^a-z0-9]+/g, ' ').trim();
 const nlCelIk = n => { const s = nlNorm(n); return /alkohol|ital|sor\b|bor\b/.test(s) ? 'alkohol' : /dohany|cigi/.test(s) ? 'cigi' : /ejjel|ejszak|alvas|lefekv/.test(s) ? 'ejjel' : /fekvo|guggol|huzodzk/.test(s) ? 'fekvo'
     : /sport|edz|fut|kondi/.test(s) ? 'zaszlo' : /olvas|konyv/.test(s) ? 'konyv' : /viz/.test(s) ? 'viz' : /medit/.test(s) ? 'medit' : /seta/.test(s) ? 'seta' : 'pipa'; };
 function nlImportModal(){
@@ -17185,7 +17190,12 @@ function nlImportModal(){
                                     <select data-nlceladd="${esc(h.id)}" aria-label="Tevékenység hozzáadása"><option value="">+ tevékenység…</option>${tevek.filter(t => !c.tev.includes(t)).map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
                                 ${c.tev.length ? `<label class="em-pipa"><input type="checkbox" data-nlcelford="${esc(h.id)}"${c.ford ? ' checked' : ''}><span>${c.ford ? 'Teljesült azokon a napokon, amikor <b>nem</b> jelölted (csak a kitöltött napok)' : 'Teljesült, ha aznap jelölted – pipáld be, ha fordítva: akkor teljesült, ha nem'}</span></label>` : ''}</div>`; }).join('')}</div>`;
                     })() : ''}
-                    ${adat.celok.length ? `<label class="em-pipa"><input type="checkbox" data-nlimpcel checked><span>A célok felvétele a Szokásokba, a teljesítésekkel együtt (${adat.celok.map(c => esc(c.n)).join(', ')})</span></label>` : ''}
+                    ${adat.celok.length ? (() => {
+                        const cs = new Map(); for(const c of adat.celok){ const k = nlCelKulcs(c.n); const x = cs.get(k) || { n: [], db: 0, aktiv: false }; x.n.push(c.n); x.db += c.napok.size; x.aktiv = x.aktiv || c.aktiv; cs.set(k, x); }
+                        return `<label class="em-pipa"><input type="checkbox" data-nlimpcel checked><span>A célok felvétele a Szokásokba, a teljesítésekkel együtt:</span></label>
+                        <div class="nl-imp-cellista">${[...cs.values()].sort((a, b) => b.aktiv - a.aktiv || b.db - a.db).map(x => `<span class="${x.aktiv ? '' : 'lez'}"><b>${esc(x.n[x.n.length - 1])}</b>${x.n.length > 1 ? ` <i>(${x.n.length} időszak összevonva)</i>` : ''} · ${x.db} teljesítés${x.aktiv ? '' : ' · lezárt'}</span>`).join('')}</div>
+                        <label class="em-pipa"><input type="checkbox" data-nlimpcsere checked><span>A meglévő szokások korábbi pipáit (pl. a tevékenységekből visszatöltötteket) a mentés pontos adataira cserélem – a mentés napja utáni pipák megmaradnak.</span></label>`;
+                    })() : ''}
                     ${adat.fotok && adat.fotok.length ? `<label class="em-pipa"><input type="checkbox" data-nlimpfoto><span>A fotók átvétele is (lassabb – képenként tömörítve töltődik fel)</span></label>` : ''}
                     <p class="pv-megj">Ami már bent van (ugyanaz a nap, időpont és hangulat), azt kihagyja – az import nyugodtan megismételhető.</p>`;
                 })() : ''}
@@ -17218,7 +17228,7 @@ function nlImportModal(){
         if(cx){ const [hid, t] = cx.dataset.nlcelx.split('|'); const c = celTev[hid]; if(c) c.tev = c.tev.filter(x => x !== t); rajz(); return; }
         const go = e.target.closest('[data-nlimpgo]'); if(!go || !adat) return;
         go.disabled = true;
-        const celok = !!ov.querySelector('[data-nlimpcel]:checked'), fotok = !!ov.querySelector('[data-nlimpfoto]:checked');
+        const celok = !!ov.querySelector('[data-nlimpcel]:checked'), fotok = !!ov.querySelector('[data-nlimpfoto]:checked'), csere = !!ov.querySelector('[data-nlimpcsere]:checked');
         const all = t => { const p = ov.querySelector('.nl-imp-all') || (() => { const x = document.createElement('p'); x.className = 'nl-imp-all pv-megj'; ov.querySelector('.modal-body').appendChild(x); return x; })(); p.textContent = t; };
         try {
             const B = await nlBeall();
@@ -17239,18 +17249,27 @@ function nlImportModal(){
             all('A meglévő évek betöltése…');
             const docs = {}; for(const y of evek) docs[y] = await nlEv(y);
             if(evek.some(y => prvHiba.has(nlEvKulcs(y)))) throw new Error('Az évek egy részét most nem sikerült a szerverről betölteni – próbáld újra később, hogy ne írjunk felül semmit.');
-            let uj = 0, kihagy = 0, kepDb = 0;
+            let uj = 0, kihagy = 0, kepDb = 0, frissit = 0;
             const fotoTalal = a => adat.fotok && adat.fotok.find(x => a.checksum && x.name.includes(a.checksum));
             for(const [i, b] of adat.bej.entries()){
                 const h = adat.tipus === 'csv' ? (hangPar[b.hNev] || NL_HANG_TIPP(b.hNev) || 3) : b.h;
                 const doc = docs[b.d.slice(0, 4)];
-                if(doc.bej.some(x => x.d === b.d && (x.ido || '') === b.ido && (x.h || 0) === (h || 0) && (x.megj || '').slice(0, 60) === (b.megj || '').slice(0, 60))){ kihagy++; continue; }
+                // Egyezés: nap, időpont, hangulat és a jegyzet eleje – szóköz, sortörés, írásjel nélkül
+                // (a CSV a sortöréseket szóközre cseréli, a mentés megtartja őket).
+                const jk = t => nlNorm(t).replace(/[^a-z0-9]+/g, '').slice(0, 40);
+                const meglevo = doc.bej.find(x => x.d === b.d && (x.ido || '') === b.ido && (x.h || 0) === (h || 0) && jk(x.megj) === jk(b.megj));
                 const kep = [];
+                // Ha a bejegyzés már bent van (pl. a CSV-ből), a mentésből a sortöréses jegyzetet és a fotókat kapja meg.
+                if(meglevo && (adat.tipus === 'csv' || (meglevo.kep || []).length || !(fotok && b.kep.length))){
+                    if(adat.tipus !== 'csv' && b.megj && meglevo.megj !== b.megj){ meglevo.megj = b.megj; frissit++; }
+                    kihagy++; continue;
+                }
                 if(fotok && window.sfNlKep) for(const a of b.kep){
                     const fa = fotoTalal(a); if(!fa) continue;
                     try { const d = await pzSzamlaFajlbol(new File([fa.data], 'daylio.jpg', { type: 'image/jpeg' })); kep.push(await window.sfNlKep.add({ mime: d.mime, data: d.data, nev: d.nev })); kepDb++; } catch(_){ }
                     if(kepDb % 5 === 0) all(`Fotók feltöltése… ${kepDb}`);
                 }
+                if(meglevo){ if(kep.length) meglevo.kep = kep; if(b.megj) meglevo.megj = b.megj; frissit++; kihagy++; continue; }
                 doc.bej.push({ id: prvUjId() + i.toString(36), d: b.d, ido: b.ido, ...(h ? { h } : {}), tev: b.tev.map(n => tevId.get(nlNorm(n))).filter(Boolean),
                     ...(b.cim ? { cim: b.cim } : {}), ...(b.megj ? { megj: b.megj } : {}), ...(kep.length ? { kep } : {}) });
                 uj++;
@@ -17282,16 +17301,34 @@ function nlImportModal(){
             }
             if(celok && adat.celok.length){
                 const sz = await prvBetolt('szokasok');
+                if(prvHiba.has('szokasok')) throw new Error('A szokásokat most nem sikerült a szerverről betölteni – próbáld újra később.');
                 sz.lista = sz.lista || []; sz.napok = sz.napok || {};
+                // Ugyanaz a cél több időszakban (pl. "Sport" 2023–25 és "Sport 🏃‍♂️" 2025-től) egy szokás lesz.
+                const csop = new Map();
                 for(const c of adat.celok){
-                    let h = sz.lista.find(x => nlNorm(x.n) === nlNorm(c.n));
-                    if(!h){ h = { id: prvUjId() + celUj, n: c.n, ik: nlCelIk(c.n), ter: 'eg', cel: '', napok: [], uj: c.kezd || ezMa(), ...(c.aktiv ? {} : { arch: true }) }; sz.lista.push(h); celUj++; }
-                    else if(c.kezd && (!h.uj || c.kezd < h.uj)) h.uj = c.kezd;
-                    for(const s of c.napok){ const l = sz.napok[s] || (sz.napok[s] = []); if(!l.includes(h.id)){ l.push(h.id); pipa++; } }
+                    const k = nlCelKulcs(c.n), x = csop.get(k) || { nevek: [], napok: new Set(), kezd: '', aktiv: false, aktivNev: '' };
+                    x.nevek.push(c.n); c.napok.forEach(s => x.napok.add(s));
+                    const elso = [c.kezd, ...c.napok].filter(Boolean).sort()[0];
+                    if(elso && (!x.kezd || elso < x.kezd)) x.kezd = elso;
+                    if(c.aktiv){ x.aktiv = true; x.aktivNev = c.n; }
+                    csop.set(k, x);
+                }
+                const utolsoNap = [...csop.values()].flatMap(x => [...x.napok]).sort().pop() || ezMa();
+                for(const [k, x] of csop){
+                    let h = sz.lista.find(y => nlCelKulcs(y.n) === k);
+                    const nev = x.aktivNev || x.nevek[x.nevek.length - 1];
+                    if(!h){ h = { id: prvUjId() + celUj, n: nev, ik: nlCelIk(nev), ter: 'eg', cel: '', napok: [], uj: x.kezd || ezMa(), ...(x.aktiv ? {} : { arch: true }) }; sz.lista.push(h); celUj++; }
+                    // Cserénél a mentés valódi kezdőnapja számít (a közelítő pipák korábbra húzhatták).
+                    else { if(x.kezd && (csere || !h.uj || x.kezd < h.uj)) h.uj = x.kezd; if(x.aktiv && h.arch) delete h.arch; }
+                    if(csere) for(const s of Object.keys(sz.napok)){
+                        if(s > utolsoNap || x.napok.has(s)) continue;
+                        const l = sz.napok[s]; const i = l.indexOf(h.id); if(i >= 0){ l.splice(i, 1); if(!l.length) delete sz.napok[s]; }
+                    }
+                    for(const s of x.napok){ const l = sz.napok[s] || (sz.napok[s] = []); if(!l.includes(h.id)){ l.push(h.id); pipa++; } }
                 }
                 prvMent('szokasok');
             }
-            ov.querySelector('.modal-body').innerHTML = `<div class="pz-im-kesz"><b>✓ Kész</b><span>${uj} új bejegyzés${kihagy ? `, ${kihagy} már bent volt` : ''}${kepDb ? `, ${kepDb} fotó` : ''}.</span>
+            ov.querySelector('.modal-body').innerHTML = `<div class="pz-im-kesz"><b>✓ Kész</b><span>${uj} új bejegyzés${kihagy ? `, ${kihagy} már bent volt` : ''}${frissit ? ` (ebből ${frissit} kiegészítve: jegyzet sortörésekkel${kepDb ? ', fotók' : ''})` : ''}${kepDb ? `, ${kepDb} fotó` : ''}.</span>
                 ${(celok && adat.celok.length) || pipa ? `<span>${celUj ? celUj + ' új cél a Szokásokban, ' : ''}${pipa} teljesítés került a célokhoz.</span>` : ''}</div>`;
             ov.querySelector('.modal-foot').innerHTML = '<button class="pv-ment" data-nlx>Bezárás</button>';
             nlHo = ezMa().slice(0, 7); prvFrissit();
