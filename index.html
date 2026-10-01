@@ -5278,7 +5278,10 @@
         .nl-cel-ik svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
         .nl-cel-t { flex:1; min-width:0; display:grid; grid-template-columns:1fr auto; align-items:center; border:0; background:none; padding:0; font:inherit; text-align:left; cursor:pointer; }
         .nl-cel-t b { font-size:15.5px; color:#111827; grid-column:1; } .nl-cel-t span { font-size:12.5px; color:#6b7280; grid-column:1; } .nl-cel-t i { grid-column:2; grid-row:1 / span 2; font-style:normal; color:#9ca3af; font-size:20px; }
-        .nl-cel-mind { margin:4px 16px 10px; }
+        .nl-cel.szunet { opacity:.55; }
+        .nl-cel-pipa.ures { border-style:dashed; cursor:default; }
+        .nl-cel-t em.sz-hetdb { margin-right:4px; }
+        .sz-lista { margin-bottom:14px; }
         .nl-ota { text-align:center; color:#6b7280; font-size:13px; margin:14px 0; }
         .nl-k { padding:0; margin:0 0 12px; overflow:hidden; }
         .nl-k-fo { display:flex; gap:14px; width:100%; border:0; background:none; padding:16px 18px; font:inherit; text-align:left; cursor:pointer; }
@@ -16297,11 +16300,12 @@ async function renderSzokasok(){
     const napGomb = s => { const a = szNapiAllas(d, s), p = a.es ? a.kesz / a.es : 0, dt = ezD(s);
         return `<button type="button" class="sz-nap${s === szNap ? ' on' : ''}" data-szvalnap="${s}" aria-pressed="${s === szNap}">
             <em>${['V','H','K','Sze','Cs','P','Szo'][dt.getDay()]}</em><span class="gy" style="--p:${Math.round(p * 100)}"><b>${dt.getDate()}</b></span></button>`; };
-    const sor = h => { const t = prvTer(h.ter), sr = szSorozat(d, h), ar = szArany(d, h), es = szEsedekes(h, szNap);
-        return `<div class="sz-sor${es ? '' : ' szunet'}">${es ? szPipaHtml(d, h, szNap) : `<span class="sz-pipa ures" style="--c:${t.c};--b:${t.b}"><i>${szIkSvg(h.ik)}</i></span>`}
-            <button type="button" class="sz-sor-t" data-szreszl="${esc(h.id)}"><b>${esc(h.n)}</b>
-                <span>${szHeti(h) ? `<i class="sz-hetdb${szHetDb(d, h, szNap) >= h.het ? ' meg' : ''}">${szHetDb(d, h, szNap)}/${h.het} a héten</i> · ` : ''}${sr ? `<i class="sz-lang">${szSorSzo(h, sr)}</i>` : 'még nincs sorozat'} · <em style="color:${t.c}">${esc(t.n)}</em>${es ? '' : ' · ma szünnap'}</span></button>
-            <span class="sz-ar">${ar == null ? '—' : ar + '%'}<em>${szHeti(h) ? '4 hét' : '30 nap'}</em></span></div>`; };
+    // Daylio-szerű sor: pipa-kör, ikon, név, sorozat 🔥, nyíl (a nyílra a részletek nyílnak)
+    const sor = h => { const t = prvTer(h.ter), sr = szSorozat(d, h), es = szEsedekes(h, szNap), on = szKesz(d, h, szNap);
+        return `<div class="nl-cel${es ? '' : ' szunet'}">${es ? `<button type="button" class="nl-cel-pipa${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${szNap}" aria-pressed="${on}" aria-label="${esc(h.n)}${on ? ' – kész' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>`
+                : '<span class="nl-cel-pipa ures" aria-hidden="true"></span>'}
+            <span class="nl-cel-ik" style="color:${t.c}">${szIkSvg(h.ik)}</span>
+            <button type="button" class="nl-cel-t" data-szreszl="${esc(h.id)}"><b>${esc(h.n)}</b><span>${szHeti(h) ? `<em class="sz-hetdb${szHetDb(d, h, szNap) >= h.het ? ' meg' : ''}">${szHetDb(d, h, szNap)}/${h.het} a héten</em> ` : ''}${sr ? `${szSorSzo(h, sr)} 🔥` : 'Kezdd el a sorozatod 🔥'}${es ? '' : ' · ma szünnap'}</span><i>›</i></button></div>`; };
     // havi hőtérkép: a nap színe annál erősebb, minél több esedékes szokás teljesült
     const [hy, hm] = szHo.split('-').map(Number), elso = new Date(hy, hm - 1, 1), hossz = new Date(hy, hm, 0).getDate();
     const ures = (elso.getDay() + 6) % 7;
@@ -16314,7 +16318,7 @@ async function renderSzokasok(){
             <span class="s">${all.es ? (all.kesz === all.es ? '<b class="poz">Minden megvan – szép munka!</b>' : 'szokás kész') : 'erre a napra nincs esedékes szokás'}${legj ? ` · leghosszabb sorozat: <b>${legj} nap</b>` : ''}</span>
             <button type="button" class="sf-hos-gomb" data-szuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új szokás</button></div>
         <div class="sz-het" role="group" aria-label="Nap kiválasztása">${het.map(napGomb).join('')}</div>
-        ${lista.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Szokásaim</h4>${lista.map(sor).join('')}</section>`
+        ${lista.length ? `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div><section class="card nl-celok sz-lista">${lista.map(sor).join('')}</section>`
             : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p></section>`}
         ${(() => {
             // Az ajánlások mindig látszanak – csak azok, amelyek még nincsenek felvéve (név szerint, ékezet nélkül).
@@ -16962,7 +16966,7 @@ const NL_IK_SZO = [[/fut/, '🏃'], [/kondi|edz|gym|súly/, '🏋️'], [/sport|
     [/laza/, '🕶️'], [/építő/, '👷'], [/semleges/, '😐'], [/önismeret/, '🪞'], [/önuralom/, '🧠'], [/házi/, '🏠'], [/zene/, '🎵'], [/utaz/, '✈️'], [/tanul/, '🎓']];
 const nlIkTipp = n => { const s = String(n || '').toLowerCase(); const t = NL_IK_SZO.find(([re]) => re.test(s)); return t ? t[1] : '🏷️'; };
 const nlNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
-let nlNezet = 'bej', nlHo = null, nlKer = '', nlKerNyit = false, nlCelMind = false, nlStatTev = '', nlStatHang = 5, nlGrafTip = 'vonal', nlEvPix = null, nlTevMind = false;
+let nlNezet = 'bej', nlHo = null, nlKer = '', nlKerNyit = false, nlStatTev = '', nlStatHang = 5, nlGrafTip = 'vonal', nlEvPix = null, nlTevMind = false;
 
 // Arcocska a hangulathoz: színes, lekerekített négyzet, fehér arccal.
 function nlArc(h, cls){
@@ -17177,25 +17181,6 @@ function nlKartya(b, B, sz, napElso){
         </span></button>
         ${cel.length ? `<div class="nl-k-cel"><span class="nl-k-celik">🚀</span><span><b>Teljesített célok</b><span>${cel.map(h => esc(h.n)).join(' <b>•</b> ')}</span></span></div>` : ''}</div>`;
 }
-// ---- Célok kártya (a Szokások mai pipái, sorozattal) ----
-function nlCelokHtml(sz){
-    const ma = ezMa();
-    const l = szAktiv(sz).filter(h => szEsedekes(h, ma));
-    const nincs = !szAktiv(sz).length;
-    if(nincs){
-        const jav = SZ_JAVASLAT.slice(0, 5);
-        return `<div class="nl-cel-fej"><span>🚀 Célok</span></div><section class="card nl-celok"><p class="pv-megj">Még nincs célod. Vedd fel a megszokottakat egy koppintással:</p>
-            <div class="sz-javas">${jav.map(([n, ik, ter], i) => `<button type="button" data-szjav="${i}" style="--c:${prvTer(ter).c};--b:${prvTer(ter).b}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div>
-            <button type="button" class="pv-kapsz nl-cel-mind" data-nlceljav>Mind az 5 felvétele</button></section>`;
-    }
-    const lat = nlCelMind ? l : l.slice(0, 3);
-    return `<div class="nl-cel-fej"><span>🚀 Célok</span>${l.length > 3 ? `<button type="button" class="pv-link" data-nlcelmind>${nlCelMind ? 'Kevesebb mutatása' : `Mind (${l.length})`}</button>` : ''}</div>
-        <section class="card nl-celok">${lat.map(h => { const on = szKesz(sz, h, ma), sr = szSorozat(sz, h);
-            return `<div class="nl-cel"><button type="button" class="nl-cel-pipa${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${ma}" aria-pressed="${on}" aria-label="${esc(h.n)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>
-                <span class="nl-cel-ik" style="color:${prvTer(h.ter).c}">${szIkSvg(h.ik)}</span>
-                <button type="button" class="nl-cel-t" data-szreszl="${esc(h.id)}"><b>${esc(h.n)}</b><span>${szHeti(h) ? `${szHetDb(sz, h, ma)}/${h.het} a héten · ` : ''}${sr ? `${szSorSzo(h, sr)} 🔥` : 'Kezdd el a sorozatod 🔥'}</span><i>›</i></button></div>`; }).join('')}
-            ${!l.length ? '<p class="pv-megj">Mára nincs esedékes célod.</p>' : ''}</section>`;
-}
 // ---- fő nézet ----
 const NL_NEZET = [['bej', 'Bejegyzések', 'jegyzet'], ['stat', 'Statisztika', 'attek'], ['naptar', 'Naptár', 'naptar'], ['tev', 'Tevékenységek', 'cimke']];
 async function renderNaplo(){
@@ -17240,7 +17225,6 @@ function nlBejHtml(B, sz){
     const ota = utolso ? Math.round((ezD(ma) - ezD(utolso)) / 864e5) : null;
     const elso = new Set();
     return `${nlKer.trim() ? '' : `<button type="button" class="nl-cta" data-nluj><span>+</span><b>Ne hagyj egy üres lapot se a naplódban. ✌️</b></button>
-        ${sz && nlHo === ma.slice(0, 7) ? nlCelokHtml(sz) : ''}
         <p class="nl-ota">${ota == null ? 'Még nincs bejegyzésed.' : ota === 0 ? 'Ma már írtál – szép! ✓' : `${ota} nap a legutóbbi bejegyzés óta`}</p>`}
         ${lista.length ? lista.map(b => { const e1 = !elso.has(b.d); elso.add(b.d); return nlKartya(b, B, sz, e1); }).join('')
             : `<div class="card pv-ures">${nlKer.trim() ? 'Nincs találat.' : 'Ebben a hónapban még nincs bejegyzés.'}</div>`}`;
@@ -17744,12 +17728,6 @@ document.addEventListener('click', async e => {
     const hl = e.target.closest('[data-nlho]'); if(hl){ nlHo = pzHoLep(nlHo, +hl.dataset.nlho); renderNaplo(); return; }
     if(e.target.closest('[data-nlkerg]')){ nlKerNyit = !nlKerNyit; if(!nlKerNyit) nlKer = ''; renderNaplo(); return; }
     const nn = e.target.closest('[data-nlnap]'); if(nn && !nn.disabled){ nlNapLap(nn.dataset.nlnap); return; }
-    if(e.target.closest('[data-nlcelmind]')){ nlCelMind = !nlCelMind; renderNaplo(); return; }
-    if(e.target.closest('[data-nlceljav]')){
-        const d = await prvBetolt('szokasok'); d.lista = d.lista || [];
-        for(const [n, ik, ter] of SZ_JAVASLAT.slice(0, 5)) if(!d.lista.some(h => nlNorm(h.n) === nlNorm(n))) d.lista.push({ id: prvUjId() + d.lista.length, n, ik, ter, cel: '', napok: [], uj: ezMa() });
-        prvMent('szokasok'); renderNaplo(); return;
-    }
     const sr = e.target.closest('[data-szreszl]'); if(sr){ szReszlet(sr.dataset.szreszl); return; }
     const sp = e.target.closest('[data-szpipa]'); if(sp){ const d = await prvBetolt('szokasok'); szValt(d, sp.dataset.szpipa, sp.dataset.sznap); renderNaplo(); return; }
     const sj = e.target.closest('[data-szjav]'); if(sj){ szModal(null, SZ_JAVASLAT[+sj.dataset.szjav]); return; }
