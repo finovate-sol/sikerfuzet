@@ -8,6 +8,7 @@
 //    stravaCsatol    – a Strava-visszairányításból kapott kódot tokenre cseréli
 //    stravaSzinkron  – lehúzza a megadott napok aktivitásait
 //    stravaReszletek – egy-egy aktivitás részletei (legjobb idők 1 km / 5 km / 10 km…)
+//    stravaZonak     – pulzuszónák és km-enkénti tempó egy aktivitáshoz
 //    stravaElso      – az első Strava-aktivitás napja (a teljes előzmény lehúzásához)
 //    stravaLevalaszt – visszavonja a hozzáférést és törli a tokent
 //
@@ -217,6 +218,46 @@ exports.stravaReszletek = onCall(OPTS, async req => {
         reszletek[id] = reszlet(await r.json());
     }
     return { reszletek, limit };
+});
+
+// Pulzuszónák és km-enkénti tempó egy aktivitáshoz. A zónahatárokat a
+// sportoló Strava-beállításából vesszük (/athlete/zones), az időt a
+// pulzus- és távadatfolyamból (/streams) számoljuk: melyik zónában hány
+// másodpercet töltött, és mennyi idő alatt futotta le az egyes kilométereket.
+exports.stravaZonak = onCall(OPTS, async req => {
+    const uid = await engedelyezett(req);
+    const id = String((req.data && req.data.id) || '');
+    if(!/^\d{1,20}$/.test(id)) throw new HttpsError('invalid-argument', 'Hibás aktivitás-azonosító.');
+    const token = await hozzaferes(uid);
+    const get = async url => {
+        let r;
+        try { r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
+        catch(e){ throw new HttpsError('unavailable', 'A Strava most nem érhető el – próbáld újra később.'); }
+        if(r.status === 401) throw new HttpsError('failed-precondition', 'A Strava-hozzáférés lejárt vagy visszavonták – kösd össze újra.');
+        if(r.status === 429) throw new HttpsError('resource-exhausted', 'A Strava most túl sok kérést kapott – próbáld pár perc múlva.');
+        if(r.status === 404 || r.status === 403) return null;
+        if(!r.ok) throw new HttpsError('unavailable', `A Strava hibát jelzett (${r.status}).`);
+        return r.json();
+    };
+    const [zonak, fo] = await Promise.all([
+        get('https://www.strava.com/api/v3/athlete/zones'),
+        get(`https://www.strava.com/api/v3/activities/${id}/streams?keys=heartrate,time,distance&key_by_type=true`),
+    ]);
+    const hat = (((zonak || {}).heart_rate || {}).zones || []).map(z => [Math.round(z.min || 0), Math.round(z.max || -1)]).slice(0, 5);
+    const ido = ((fo || {}).time || {}).data || [], hr = ((fo || {}).heartrate || {}).data || [], tav = ((fo || {}).distance || {}).data || [];
+    const zon = hat.length && hr.length ? hat.map(() => 0) : null;
+    const km = [];
+    let kovKm = 1000, kmKezd = 0;
+    for(let i = 1; i < ido.length; i++){
+        const dt = Math.min(30, Math.max(0, ido[i] - ido[i - 1]));      // megállásnál ne szaladjon el
+        if(zon && hr[i]){
+            let z = hat.findIndex(([mn, mx]) => hr[i] >= mn && (mx < 0 || hr[i] < mx));
+            if(z < 0) z = hr[i] < hat[0][0] ? 0 : hat.length - 1;
+            zon[z] += dt;
+        }
+        if(tav.length && tav[i] >= kovKm){ km.push(Math.round(ido[i] - kmKezd)); kmKezd = ido[i]; kovKm += 1000; }
+    }
+    return { zon: zon ? zon.map(Math.round) : null, zhat: hat.length ? hat : null, kmSec: km.length ? km.slice(0, 100) : null };
 });
 
 // Az első aktivitás napja: az "after" paraméterrel a Strava a legrégebbitől
