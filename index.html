@@ -5161,6 +5161,7 @@
         .ma-ter svg { width:19px; height:19px; }
         .ma-sor .o { font-size:14px; font-weight:600; color:#111827; white-space:nowrap; font-variant-numeric:tabular-nums; }
         .ma-sor .o.neg { color:#be185d; }
+        .ma-uj-kolt { margin:6px 18px 10px; }
         .ma-suly { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; padding:4px 18px 10px; }
         .ma-suly > b { font-size:30px; font-weight:800; color:#111827; letter-spacing:-.02em; }
         .ma-suly > b small { font-size:16px; color:#374151; }
@@ -9071,6 +9072,7 @@ function pzSyncTervezo(ho){
 
 // Újrarajzolja azt a nézetet, amelyik éppen látszik.
 function pzFrissit(){
+    if(typeof prvLap === 'function' && prvLap('privma')) renderPrivMa();
     renderPzFej();
     if(pzView === 'attek') return renderPzAttek();
     if(pzView === 'honap') return renderPzHonap();
@@ -15788,6 +15790,18 @@ async function renderPrivMa(){
     const hossz = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate(), hatra = hossz - dt.getDate() + 1;
     const maradt = keret - kolt;
     const fiz = pzFixek().map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, ho) })).filter(x => !x.kesz && x.h <= 7).sort((a, b) => a.h - b.h).slice(0, 4);
+    // mai költések: a mai kiadás-tételek, és a nap elején elkölthető összeg (a mai keretes költés előtti maradék / hátralévő napok)
+    const maTet = lista.filter(t => pzKi(t) && t.d === ma).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+    const maOssz = maTet.reduce((a, t) => a + (t.o || 0), 0);
+    const maKeretes = maTet.reduce((a, t) => a + (keretesKat.has(t.k || 'Egyéb') ? (t.o || 0) : 0), 0);
+    const napiKeret = keret ? Math.max(0, maradt + maKeretes) / hatra : 0;
+    const maKoltHtml = `<div class="ma-penz"><b class="${keret && maKeretes > napiKeret ? 'neg' : ''}">${pzFt(maOssz)} Ft</b>
+            <span>${maTet.length ? `${maTet.length} tétel ma` : 'Ma még nem rögzítettél költést'}${keret ? ` · a napi kb. <b>${pzFt(napiKeret)} Ft</b>-ból` : ''}</span>
+            ${keret ? `<span class="ma-csik"><i style="width:${Math.min(100, napiKeret ? maKeretes / napiKeret * 100 : 0).toFixed(0)}%" class="${maKeretes > napiKeret ? 'tul' : maKeretes > napiKeret * .85 ? 'fig' : ''}"></i></span>` : ''}</div>
+        ${maTet.length ? `<div class="ma-lista">${maTet.slice(0, 6).map(t => { const k = pzKatOf('ki', t.k) || {}; return `<button type="button" class="ma-sor ma-sor-g" data-matetel="${esc(t.id)}">${pzIk(k.i || 'cimke', k.c || 'szurke')}
+            <span class="t"><b>${esc(t.m || t.a || t.k || 'Kiadás')}</b><span>${esc([t.k, t.a].filter(Boolean).join(' › ') || 'Egyéb')}${t.p && pzTarcaOf(t.p) ? ' · ' + esc(pzTarcaOf(t.p).n) : ''}</span></span><span class="o">−${pzFt(t.o)} Ft</span></button>`; }).join('')}
+            ${maTet.length > 6 ? `<p class="pv-megj">+${maTet.length - 6} további tétel</p>` : ''}</div>` : ''}
+        <button type="button" class="pv-kapsz ma-uj-kolt" data-mauj>+ Költés rögzítése</button>`;
     // események
     const esem = emKozelgo(em).filter(x => x.k.nap <= Math.max(14, x.ev.elore ?? 7)).slice(0, 4);
     // testsúly
@@ -15809,6 +15823,7 @@ async function renderPrivMa(){
         ${kartya('Pénz', 'penzugyek', `${keret ? `<div class="ma-penz"><b class="${maradt < 0 ? 'neg' : ''}">${maradt < 0 ? '−' : ''}${pzFt(Math.abs(maradt))} Ft</b><span>${maradt < 0 ? 'túllépés a havi keretekben' : `maradt a havi keretekből · kb. <b>${pzFt(Math.max(0, maradt) / hatra)} Ft</b> naponta`}</span>
                 <span class="ma-csik"><i style="width:${Math.min(100, keret ? kolt / keret * 100 : 0).toFixed(0)}%" class="${kolt > keret ? 'tul' : kolt > keret * .85 ? 'fig' : ''}"></i></span></div>` : '<p class="pv-megj">Nincs beállított havi keret.</p>'}
             ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${pzIk(x.ik, x.c)}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`)}
+        ${kartya('Mai költések', 'penzugyek', maKoltHtml, 'ma-kolt-k')}
         ${kartya('Célok, amiken dolgozol', 'celok', celok.length ? `<div class="ma-lista">${celok.slice(0, 4).map(c => `<div class="ma-sor"><span class="ma-ter" style="--c:${c.szin};--b:${c.hat}">${c.ikon || ''}</span>
                 <span class="t"><b>${esc(c.name)}</b><span>${esc(c.terNev)}${c.due ? ' · ' + esc(c.dueSzo) : ''}</span>${c.pct != null ? `<span class="ma-csik kicsi"><i style="width:${c.pct}%"></i></span>` : ''}</span>${c.pct != null ? `<span class="o">${c.pct}%</span>` : ''}</div>`).join('')}</div>`
             : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>')}
@@ -15838,6 +15853,9 @@ document.addEventListener('click', e => {
     const es = e.target.closest('[data-emszerk]'); if(es){ emModal(es.dataset.emszerk); return; }
     if(e.target.closest('[data-emics]')){ emIcs(PRV.emberek ? emEsemenyek(PRV.emberek) : []); return; }
     const esz = e.target.closest('[data-emszuro]'); if(esz){ emSzuro = esz.dataset.emszuro; renderEmberek(); return; }
+    const mt = e.target.closest('[data-matetel]');
+    if(mt){ const ho = pzMaHo(), t = (pzTranz[ho] || []).find(x => x.id === mt.dataset.matetel); if(t){ pzTHo = ho; pzTetelModal(t); } return; }
+    if(e.target.closest('[data-mauj]')){ pzTHo = pzMaHo(); pzTetelModal(null, { t: 'ki' }); return; }
     const mm = e.target.closest('[data-mamenj]');
     if(mm){
         const c = mm.dataset.mamenj;
