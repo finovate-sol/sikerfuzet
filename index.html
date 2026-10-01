@@ -5106,7 +5106,9 @@
         .sz-pipa.ures { cursor:default; opacity:.45; }
         .sz-pipa span { font-size:12px; font-weight:600; color:#374151; text-align:center; line-height:1.2; max-width:78px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
         .sz-pipa.on span { color:#111827; }
-        .ma-szok { display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:14px 4px; padding:6px 12px 8px; justify-items:center; }
+        .ma-szok { display:flex; flex-wrap:nowrap; gap:4px; padding:6px 12px 10px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scroll-padding-inline:12px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+        .ma-szok::-webkit-scrollbar { display:none; }
+        .ma-szok > .sz-pipa { width:76px; scroll-snap-align:start; }
         .sz-het { display:flex; justify-content:space-between; gap:4px; margin:0 0 14px; }
         .sz-nap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; border:0; background:none; font:inherit; cursor:pointer; padding:6px 0; border-radius:16px; }
         .sz-nap em { font-style:normal; font-size:11.5px; font-weight:600; color:#6b7280; }
@@ -17579,6 +17581,7 @@ async function renderPrivMa(){
         return `<div class="ma-edz">${ezIk(e.sport)}<span class="t"><b>${esc(e.n)}</b><span>${esc(ezCel(e))}</span></span>
             ${er.a === 'terv' ? `<button type="button" class="pv-kapsz" data-maedzok="${esc(e.id)}">Kész ✓</button>` : `<span class="ez-pill ez-st-${er.a}">${ezAllCim(er)}</span>`}</div>`; }).join('')
         : `<p class="pv-megj">${pih ? 'Pihenőnap – a regeneráció is az edzés része.' : 'Mára nincs betervezett edzés.'}</p>`;
+    const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
             <span class="s">${osszesito.length ? esc(osszesito.join(' · ')) : 'Nyugodt nap – semmi sem sürget.'}</span></div>
@@ -17603,6 +17606,7 @@ async function renderPrivMa(){
         ${kartya('Testsúly', 'meres', `<div class="ma-suly"><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
                 <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`)}
         </div>`;
+    if(szGorg){ const g = host.querySelector('.ma-szok'); if(g) g.scrollLeft = szGorg; }
 }
 window.sfShowPrivMa = function(){ renderPrivMa(); };
 function prvFrissit(){
