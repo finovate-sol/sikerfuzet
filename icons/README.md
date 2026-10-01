@@ -26,3 +26,18 @@ váltáskor ugyanannak az appnak a két arca legyen, ne két különböző appé
 A PNG-k az SVG-kből származnak, fejetlen Chromiummal renderelve. A rajz
 forrása maga az `icon.svg` / `icon-maskable.svg` – azokat kell átírni,
 a PNG-ket utána újra kell renderelni ugyanabban a hét méretben.
+
+## Életfüzet (a privát rész külön appként)
+
+Privát módban a lap neve, ikonja és manifestje Életfüzetre vált, a cím
+`?app=elet`-et kap. Ha innen adják a kezdőképernyőhöz, az ikon mindig a privát
+részre nyílik. Az ikon a privát rész beállításaiban (fogaskerék a Privát mód
+kapcsoló mellett) választható, eszközönként (`localStorage: sf_elet_icon`).
+
+| mappa            | név           | manifest                      |
+|------------------|---------------|-------------------------------|
+| `elet-lotusz/`   | Aurora-lótusz | `manifest-elet-lotusz.json`   |
+| `elet-vegtelen/` | Végtelen      | `manifest-elet-vegtelen.json` |
+
+Fehér alapúak; a fájlok szerepe ugyanaz, mint fent (az `icon-180.png` teli
+négyzet, a maskable változatban a rajz 0,8×-re húzva).
