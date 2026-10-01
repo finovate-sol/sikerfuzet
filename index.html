@@ -5285,6 +5285,10 @@
         .nl-imp-f { display:flex; align-items:center; justify-content:center; height:52px; border:2px dashed #c4b5fd; border-radius:16px; color:#6d28d9; font-weight:700; cursor:pointer; margin:0 0 12px; }
         .nl-imp-f input { display:none; }
         .nl-imp-ossz { background:#f0fdf4; color:#14532d; border-radius:14px; padding:10px 12px; font-size:13.5px; line-height:1.5; margin:0 0 12px; }
+        .nl-imp-cel { background:#f9fafb; border-radius:14px; padding:10px 12px; margin:0 0 8px; display:flex; flex-direction:column; gap:8px; }
+        .nl-imp-cel > b { font-size:14px; color:#111827; }
+        .nl-imp-cel select { height:34px; border:0; border-radius:999px; background:#eef2ff; color:#3730a3; padding:0 10px; font:inherit; font-size:13px; font-weight:600; }
+        .nl-imp-cel .em-pipa { margin:0; }
         .nl-imp-par { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 0; } .nl-imp-par select { height:36px; border:0; border-radius:10px; background:#f3f4f6; padding:0 10px; font:inherit; }
         /* cél részletei */
         .sz-r .modal-head h3 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; } .sz-r .modal-head h3 small { width:100%; font-size:12px; font-weight:500; color:#6b7280; }
@@ -17072,7 +17076,9 @@ async function nlExport(){
 const NL_DAYLIO_HANG = { 1: 5, 2: 4, 3: 3, 4: 2, 5: 1 };            // mood_group_id → szint
 const NL_HANG_TIPP = n => { const s = nlNorm(n); return /kiraly|rad|szuper|nagyszer|fantaszt/.test(s) ? 5 : /^jo|good|^ok/.test(s) ? 4 : /meh|semleges|kozepes|atlag/.test(s) ? 3 : /vacak|bad|rossz/.test(s) ? 2 : /szorny|awful|borzaszt|pocsek/.test(s) ? 1 : 0; };
 const nlB64Szoveg = b64 => { const bin = atob(String(b64).replace(/\s+/g, '')); const u = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new TextDecoder('utf-8').decode(u); };
-const nlHtmlSzoveg = s => String(s || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+const nlHtmlSzoveg = s => String(s || '').replace(/<li[^>]*>/gi, '\n• ').replace(/<\/li>/gi, '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|ul|ol|h\d)>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .split('\n').map(x => x.trim()).filter(x => x !== '•').join('\n').replace(/\n{3,}/g, '\n\n').trim();
 const nlDs = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function nlHonapAlap(l){
     // l: [{ month, ts }] – eldönti, hogy a hónap 0-tól vagy 1-től számozódik.
@@ -17148,7 +17154,16 @@ const nlCelIk = n => { const s = nlNorm(n); return /alkohol|ital|sor\b|bor\b/.te
     : /sport|edz|fut|kondi/.test(s) ? 'zaszlo' : /olvas|konyv/.test(s) ? 'konyv' : /viz/.test(s) ? 'viz' : /medit/.test(s) ? 'medit' : /seta/.test(s) ? 'seta' : 'pipa'; };
 function nlImportModal(){
     const ov = document.createElement('div'); ov.className = 'modal-overlay';
-    let adat = null, hangPar = {};
+    let adat = null, hangPar = {}, szokL = [], celTev = {};
+    // CSV-nél a célok nincsenek benne: a meglévő szokások a tevékenységekből tölthetők vissza.
+    const celTipp = (h, tevek) => {
+        const n = nlNorm(h.n), van = re => tevek.filter(t => re.test(nlNorm(t)));
+        if(/alkohol|ital/.test(n)) return { tev: van(/alkohol|ital|buli/).filter(t => /alkohol/.test(nlNorm(t))), ford: true };
+        if(/dohany|cigi/.test(n)) return { tev: van(/cigi|dohany/), ford: true };
+        if(/sport|edz|mozg/.test(n)) return { tev: van(/^(sport|futas|kondi|uszas|bicikli|edzes|joga|seta)$/), ford: false };
+        if(/ejjelez|lefekv|alvas/.test(n)) return { tev: (van(/korai lefekves/).length ? van(/korai lefekves/) : van(/pihentet/)).slice(0, 1), ford: false };
+        return { tev: tevek.filter(t => nlNorm(t) === n), ford: false };
+    };
     const rajz = (allapot) => {
         ov.innerHTML = `<div class="modal pv-modal nl-imp"><div class="modal-head"><h3>Daylio-import</h3><button class="modal-x" data-nlx>&times;</button></div>
             <div class="modal-body">
@@ -17162,6 +17177,14 @@ function nlImportModal(){
                     return `<div class="nl-imp-ossz"><b>${adat.bej.length} bejegyzés</b> (${Object.entries(evek).sort().map(([y, n]) => `${y}: ${n}`).join(', ')}) · ${tevek.size} tevékenység
                         ${adat.celok.length ? ` · <b>${adat.celok.length} cél</b> ${adat.celok.reduce((a, c) => a + c.napok.size, 0)} teljesítéssel` : ''}${adat.fotok && adat.fotok.length ? ` · ${adat.fotok.length} fotó` : ''}</div>
                     ${hnevek.length ? `<div class="pv-mezo"><span>Hangulatok párosítása</span>${hnevek.map(n => `<label class="nl-imp-par"><b>${esc(n)}</b><select data-nlhpar="${esc(n)}">${[5,4,3,2,1].map(h => `<option value="${h}"${(hangPar[n] || NL_HANG_TIPP(n) || 3) === h ? ' selected' : ''}>${esc(NL_HANG_SZO[h])}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
+                    ${adat.tipus === 'csv' && szokL.length ? (() => {
+                        const tevek = [...new Set(adat.bej.flatMap(b => b.tev))].sort((a, b) => a.localeCompare(b, 'hu'));
+                        return `<div class="pv-mezo nl-imp-celok"><span>Célok visszatöltése a tevékenységekből <i>a CSV-ben nincsenek célok – ha egy célhoz tartozik tevékenység, a napjaiból visszaépíthető</i></span>
+                            ${szokL.map(h => { const c = celTev[h.id] || { tev: [], ford: false }; return `<div class="nl-imp-cel"><b>${esc(h.n)}</b>
+                                <div class="nl-tchip">${c.tev.map(t => `<button type="button" class="on" data-nlcelx="${esc(h.id)}|${esc(t)}">${esc(t)} ×</button>`).join('')}
+                                    <select data-nlceladd="${esc(h.id)}" aria-label="Tevékenység hozzáadása"><option value="">+ tevékenység…</option>${tevek.filter(t => !c.tev.includes(t)).map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
+                                ${c.tev.length ? `<label class="em-pipa"><input type="checkbox" data-nlcelford="${esc(h.id)}"${c.ford ? ' checked' : ''}><span>${c.ford ? 'Teljesült azokon a napokon, amikor <b>nem</b> jelölted (csak a kitöltött napok)' : 'Teljesült, ha aznap jelölted – pipáld be, ha fordítva: akkor teljesült, ha nem'}</span></label>` : ''}</div>`; }).join('')}</div>`;
+                    })() : ''}
                     ${adat.celok.length ? `<label class="em-pipa"><input type="checkbox" data-nlimpcel checked><span>A célok felvétele a Szokásokba, a teljesítésekkel együtt (${adat.celok.map(c => esc(c.n)).join(', ')})</span></label>` : ''}
                     ${adat.fotok && adat.fotok.length ? `<label class="em-pipa"><input type="checkbox" data-nlimpfoto><span>A fotók átvétele is (lassabb – képenként tömörítve töltődik fel)</span></label>` : ''}
                     <p class="pv-megj">Ami már bent van (ugyanaz a nap, időpont és hangulat), azt kihagyja – az import nyugodtan megismételhető.</p>`;
@@ -17172,14 +17195,27 @@ function nlImportModal(){
     rajz(); document.body.appendChild(ov);
     ov.addEventListener('change', async e => {
         if(e.target.matches('[data-nlhpar]')){ hangPar[e.target.dataset.nlhpar] = +e.target.value; return; }
+        if(e.target.matches('[data-nlceladd]')){ const c = celTev[e.target.dataset.nlceladd] || (celTev[e.target.dataset.nlceladd] = { tev: [], ford: false }); if(e.target.value) c.tev.push(e.target.value); rajz(); return; }
+        if(e.target.matches('[data-nlcelford]')){ celTev[e.target.dataset.nlcelford].ford = e.target.checked; rajz(); return; }
         if(!e.target.matches('[data-nlimpf]')) return;
         const f = e.target.files[0]; if(!f) return;
         rajz('<p class="pv-megj">Beolvasás…</p>');
-        try { adat = await nlDaylioBont(f); if(!adat.bej.length && !adat.celok.length) throw new Error('A fájlban nem találtam bejegyzést.'); rajz(); }
+        try {
+            adat = await nlDaylioBont(f); if(!adat.bej.length && !adat.celok.length) throw new Error('A fájlban nem találtam bejegyzést.');
+            if(adat.tipus === 'csv'){
+                const sz = await prvBetolt('szokasok').catch(() => null);
+                szokL = sz ? szAktiv(sz) : [];
+                const tevek = [...new Set(adat.bej.flatMap(b => b.tev))];
+                celTev = {}; for(const h of szokL) celTev[h.id] = celTipp(h, tevek);
+            }
+            rajz();
+        }
         catch(err){ adat = null; rajz(`<p class="pz-hibaszo">Nem sikerült beolvasni: ${esc(err.message || String(err))}</p>`); }
     });
     ov.addEventListener('click', async e => {
         if(e.target === ov || e.target.closest('[data-nlx]')) return ov.remove();
+        const cx = e.target.closest('[data-nlcelx]');
+        if(cx){ const [hid, t] = cx.dataset.nlcelx.split('|'); const c = celTev[hid]; if(c) c.tev = c.tev.filter(x => x !== t); rajz(); return; }
         const go = e.target.closest('[data-nlimpgo]'); if(!go || !adat) return;
         go.disabled = true;
         const celok = !!ov.querySelector('[data-nlimpcel]:checked'), fotok = !!ov.querySelector('[data-nlimpfoto]:checked');
@@ -17208,7 +17244,7 @@ function nlImportModal(){
             for(const [i, b] of adat.bej.entries()){
                 const h = adat.tipus === 'csv' ? (hangPar[b.hNev] || NL_HANG_TIPP(b.hNev) || 3) : b.h;
                 const doc = docs[b.d.slice(0, 4)];
-                if(doc.bej.some(x => x.d === b.d && (x.ido || '') === b.ido && (x.h || 0) === (h || 0))){ kihagy++; continue; }
+                if(doc.bej.some(x => x.d === b.d && (x.ido || '') === b.ido && (x.h || 0) === (h || 0) && (x.megj || '').slice(0, 60) === (b.megj || '').slice(0, 60))){ kihagy++; continue; }
                 const kep = [];
                 if(fotok && window.sfNlKep) for(const a of b.kep){
                     const fa = fotoTalal(a); if(!fa) continue;
@@ -17225,6 +17261,25 @@ function nlImportModal(){
             }
             // célok → Szokások
             let celUj = 0, pipa = 0;
+            const csvCel = adat.tipus === 'csv' ? Object.entries(celTev).filter(([, c]) => c.tev.length) : [];
+            if(csvCel.length){
+                const sz = await prvBetolt('szokasok'); sz.napok = sz.napok || {};
+                const napTev = new Map();
+                for(const b of adat.bej){ const l = napTev.get(b.d) || new Set(); b.tev.forEach(t => l.add(t)); napTev.set(b.d, l); }
+                for(const [hid, c] of csvCel){
+                    const h = (sz.lista || []).find(x => x.id === hid); if(!h) continue;
+                    let elso = null;
+                    for(const [d, l] of napTev){
+                        const van = c.tev.some(t => l.has(t));
+                        if(van === c.ford) continue;
+                        const x = sz.napok[d] || (sz.napok[d] = []);
+                        if(!x.includes(h.id)){ x.push(h.id); pipa++; }
+                        if(!elso || d < elso) elso = d;
+                    }
+                    if(elso && (!h.uj || elso < h.uj)) h.uj = elso;
+                }
+                prvMent('szokasok');
+            }
             if(celok && adat.celok.length){
                 const sz = await prvBetolt('szokasok');
                 sz.lista = sz.lista || []; sz.napok = sz.napok || {};
@@ -17237,7 +17292,7 @@ function nlImportModal(){
                 prvMent('szokasok');
             }
             ov.querySelector('.modal-body').innerHTML = `<div class="pz-im-kesz"><b>✓ Kész</b><span>${uj} új bejegyzés${kihagy ? `, ${kihagy} már bent volt` : ''}${kepDb ? `, ${kepDb} fotó` : ''}.</span>
-                ${celok && adat.celok.length ? `<span>${celUj} új cél a Szokásokban, ${pipa} teljesítés átvéve.</span>` : ''}</div>`;
+                ${(celok && adat.celok.length) || pipa ? `<span>${celUj ? celUj + ' új cél a Szokásokban, ' : ''}${pipa} teljesítés került a célokhoz.</span>` : ''}</div>`;
             ov.querySelector('.modal-foot').innerHTML = '<button class="pv-ment" data-nlx>Bezárás</button>';
             nlHo = ezMa().slice(0, 7); prvFrissit();
         } catch(err){ go.disabled = false; all('Az import megszakadt: ' + (err.message || err)); }
