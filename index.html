@@ -193,6 +193,7 @@
         .sf-zar-pin input::placeholder { color:#bba9dd; letter-spacing:normal; font-size:15px; }
         .sf-zar-pin button { height:52px; padding:0 18px; border:0; border-radius:999px; background:#a78bfa; color:#1e0b3d; font:inherit; font-weight:800; cursor:pointer; }
         .sf-zar-hiba { min-height:18px; font-size:13px; color:#fecaca; }
+        .sf-zar-tipp { margin-top:-8px; font-size:12.5px; color:#bba9dd; }
         .sf-zar-mas { border:0; background:none; color:#d8ccf2; font:inherit; font-size:14px; text-decoration:underline; cursor:pointer; padding:6px; }
         .zb-sor { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f2f4; }
         .zb-sor:last-of-type { border-bottom:0; }
@@ -7177,6 +7178,7 @@ renderMoney(); renderCareer(); renderInfo();
             ${cfg && cfg.bio ? '<button type="button" class="sf-zar-fo" data-zbio>Feloldás arccal / ujjlenyomattal</button>' : ''}
             ${cfg && cfg.pin ? `<form class="sf-zar-pin" data-zpinf><input type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN-kód" aria-label="PIN-kód" data-zpin><button type="submit">Feloldás</button></form>` : ''}
             <span class="sf-zar-hiba" role="alert">${esc(hiba || '')}</span>
+            ${cfg && cfg.bio ? '<span class="sf-zar-tipp">vagy koppints bárhova a képernyőn</span>' : ''}
             <button type="button" class="sf-zar-mas" data-zovb>Vissza az OVB részre</button>
             <button type="button" class="sf-zar-mas" data-zfelejt>Nem sikerül feloldani?</button></div>`;
     }
@@ -7203,7 +7205,9 @@ renderMoney(); renderCareer(); renderInfo();
             const f = ov.querySelector('[data-zfelejt]'); if(f){ f.textContent = 'Kijelentkezés'; f.removeAttribute('data-zfelejt'); f.setAttribute('data-zki', ''); }
             return;
         }
-        if(e.target.closest('[data-zki]')){ store.save('sf_zar_kilepett', 1); const lb = document.getElementById('logoutBtn'); if(lb) lb.click(); }
+        if(e.target.closest('[data-zki]')){ store.save('sf_zar_kilepett', 1); const lb = document.getElementById('logoutBtn'); if(lb) lb.click(); return; }
+        // A képernyő bármely pontja feloldó gomb (ahol a rendszer koppintást kér az arcfelismeréshez).
+        if(!e.target.closest('form, button, input, a')) bioProba();
     });
     ov.addEventListener('submit', async e => {
         e.preventDefault();
@@ -7222,9 +7226,16 @@ renderMoney(); renderCareer(); renderInfo();
         if(e.detail === 'priv' && zarva && be() && cfg.bio) bioProba();
     });
     document.addEventListener('visibilitychange', () => {
-        if(document.hidden){ rejtve = Date.now(); return; }
+        if(document.hidden){
+            rejtve = Date.now();
+            // "azonnal": már elrejtéskor zárunk, így az appváltó képén sem látszik a tartalom
+            if(be() && (cfg.perc ?? 1) === 0){ zarva = true; frissit(); }
+            return;
+        }
         if(be() && rejtve && Date.now() - rejtve >= (cfg.perc ?? 1) * 60000){ zarva = true; frissit(); }
         rejtve = 0;
+        // visszatéréskor rögtön kérjük az arcot / ujjat (ahol a rendszer engedi gesztus nélkül is)
+        if(!ov.hidden && cfg && cfg.bio) setTimeout(bioProba, 300);
     });
     // Kijelentkezés után (a "Nem sikerül feloldani?" úton) az újbóli belépés kikapcsolja a zárat.
     (function figyel(){
