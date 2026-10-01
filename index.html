@@ -2907,6 +2907,7 @@
         .ez-st-ki   { background:#fde4e4; color:#b91c1c; }
         .ez-st-jel  { background:#fff1e0; color:#9a3412; }
         .ez-st-terv { background:#eef1f5; color:#55657a; }
+        .ez-st-var  { background:#fff4e0; color:#b45309; }
         .ez-st-pih  { background:transparent; color:var(--muted); }
         /* Ma */
         .ez-ma-lay { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:14px; align-items:start; }
@@ -12711,7 +12712,7 @@ const EZ_NAP   = ['Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat','
 const EZ_NAP_R = ['H','K','Sze','Cs','P','Szo','V'];
 const EZ_HO    = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 const EZ_HO_R  = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
-const EZ_ALL   = { ok:'Teljesítve', resz:'Részben', ki:'Kihagyva', jel:'Nincs jelölve', terv:'Tervezett', pih:'Pihenő' };
+const EZ_ALL   = { ok:'Teljesítve', resz:'Részben', ki:'Kihagyva', jel:'Nincs jelölve', terv:'Tervezett', pih:'Pihenő', var:'Strava-igazolásra vár' };
 
 const ezUid = () => (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
 const ezMasNezet = () => !!(window.sfViewedUid && window.sfViewedUid !== ezUid());
@@ -12919,20 +12920,28 @@ function ezSvNap(s){
     }
     return { par, extra: akt.filter(a => !hasznalt.has(a.id)) };
 }
-// Egy tervezett edzés eredménye. Sorrend: a kézi jelölés mindig nyer; utána a
-// Strava dönt; ha az sincs, és a nap elmúlt: "Nincs jelölve" (a statisztikában
-// kihagyottnak számít).
+// Egy tervezett edzés eredménye. A "kihagyom" jelölés mindig nyer. A kézi
+// "kész/részben" csak ott áll meg magában, ahol a Strava nem tud igazolni
+// (nincs összekötve, a nap nincs leszinkronizálva, a sportágat nem méri, vagy
+// az edzést szettenként az appban rögzítetted); egyébként a Strava dönt, és
+// egyező aktivitás nélkül a jelölés "igazolásra vár" (múlt napnál: kihagyva).
+// Jelölés nélkül: Strava, ha az sincs, és a nap elmúlt: "Nincs jelölve".
+const ezAppRogzitve = e => !!(e.vege && Array.isArray(e.naplo) && e.naplo.length);
 function ezEr(e, s){
     if(e.sport === 'pih') return { a: 'pih' };
-    if(e.st === 'ok' || e.st === 'resz' || e.st === 'ki') return { a: e.st, src: 'kez', tp: e.tp, tk: e.tk };
+    if(e.st === 'ki') return { a: 'ki', src: 'kez', tp: e.tp, tk: e.tk };
+    const kezi = e.st === 'ok' || e.st === 'resz';
     const mult = s < ezMa(), sv = ezSvNap(s), p = sv && sv.par.get(e.id);
+    if(kezi && !(sv && EZ_STRAVA[e.sport] && !ezAppRogzitve(e))) return { a: e.st, src: 'kez', tp: e.tp, tk: e.tk };
+    const nincs = kezi ? (mult ? 'ki' : 'var') : (mult ? 'ki' : 'terv');
     if(p && p.akt.length)
-        return { a: p.arany >= 0.8 ? 'ok' : p.arany >= 0.5 ? 'resz' : mult ? 'ki' : 'terv', src: 'strava', tp: p.perc, tk: p.km, akt: p.akt };
+        return { a: p.arany >= 0.8 ? 'ok' : p.arany >= 0.5 ? 'resz' : nincs, src: 'strava', tp: p.perc, tk: p.km, akt: p.akt, kezi };
+    if(kezi) return { a: nincs, src: 'strava', akt: [], kezi };
     if(sv && mult) return { a: 'ki', src: 'strava', akt: [] };
     return { a: mult ? 'jel' : 'terv' };
 }
 const ezAll = (e, s) => ezEr(e, s).a;
-const ezAllCim = er => EZ_ALL[er.a] + (er.src === 'strava' && er.a !== 'terv' ? ' · Strava' : '');
+const ezAllCim = er => EZ_ALL[er.a] + (er.src === 'strava' && er.a !== 'terv' && er.a !== 'var' ? ' · Strava' : '');
 // A nap összesített állapota a naptárhoz és a heti pöttyökhöz. Ha nem volt
 // terv (vagy csak pihenő), de a Strava szerint edzettél: "terven felüli".
 function ezNapAll(s){
@@ -12950,7 +12959,7 @@ function ezStat(napok){
     const r = { n:0, ok:0, resz:0, ki:0, terv:0, perc:0, km:0 };
     for(const s of napok) for(const e of ezNapLista(s)){
         const er = ezEr(e, s), a = er.a; if(a === 'pih') continue;
-        r.n++; r[a === 'jel' ? 'ki' : a]++;
+        r.n++; r[a === 'jel' ? 'ki' : a === 'var' ? 'terv' : a]++;
         if(a === 'ok' || a === 'resz'){ r.perc += ezTenyPerc(e, er); r.km += ezTenyKm(e, er); }
     }
     return r;
@@ -12966,7 +12975,8 @@ function ezTeny(e, er){
 }
 function ezTeny0(e, er){
     const a = er.a;
-    if(er.src === 'strava') return er.akt.length ? `Strava · ${ezAktSzoveg({ perc: er.tp, km: er.tk }) || er.akt[0].n}` : 'nincs Strava-aktivitás';
+    if(er.src === 'strava') return er.akt.length ? `Strava · ${ezAktSzoveg({ perc: er.tp, km: er.tk }) || er.akt[0].n}`
+        : er.kezi ? 'kézzel jelölve · nincs egyező Strava-aktivitás' : 'nincs Strava-aktivitás';
     if(a === 'ok' || a === 'resz'){
         const t = ezAktSzoveg({ perc: er.tp, km: er.tk });
         return t ? `kézzel · ${t}` : 'kézzel jelölve';
@@ -13054,7 +13064,7 @@ function ezMaHtml(){
                 ${lepesek.length ? `<ol class="ez-lepesek">${lepesek.map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}
                 <div class="ez-mai-gombok">
                     ${a === 'terv' ? (naplo ? rogGomb('ez-gb1') + jelGomb(fo, 'ok', 'ez-gb2', 'Kész, teljesítettem') : jelGomb(fo, 'ok', 'ez-gb1', 'Kész, teljesítettem') + jelGomb(fo, 'resz', 'ez-gb2', 'Részben')) + jelGomb(fo, 'ki', 'ez-gb3', 'Kihagyom')
-                        : `<span class="ez-pill ez-st-${a}">${ezAllCim(er)}</span>` + (er.src === 'kez' && !fo.vege ? jelGomb(fo, 'terv', 'ez-gb2', 'Visszavonás') : '') + rogGomb('ez-gb2')}
+                        : `<span class="ez-pill ez-st-${a}">${ezAllCim(er)}</span>` + ((er.src === 'kez' || er.kezi) && !fo.vege ? jelGomb(fo, 'terv', 'ez-gb2', 'Visszavonás') : '') + rogGomb('ez-gb2')}
                     <button type="button" class="ez-gb3" data-ezszerk data-ezd="${ma}" data-ezid="${esc(fo.id)}">Módosítás</button>
                 </div>
             </div>
@@ -13136,7 +13146,7 @@ function ezMaHtml(){
                 <span>Utolsó szinkron: ${esc(ezSzinkIdo())}. Megnyitáskor magától frissül (legfeljebb 10 percenként), az elmúlt 5 hétre.</span>
                 <div class="ez-sv-gombok"><button type="button" class="ez-sv-gomb" data-ezsvszink>Szinkron most</button><button type="button" class="ez-link" data-ezsvle>Leválasztás</button></div>` : `
                 <b>Strava</b>
-                <span>Kösd össze, és a Strava igazolja, hogy a tervezett edzés megvalósult – a kézi jelölés ettől még mindig elsőbbséget kap.</span>
+                <span>Kösd össze, és a Strava igazolja, hogy a tervezett edzés megvalósult – utána a kézi „kész” jelölés csak egyező Strava-aktivitással számít teljesítettnek.</span>
                 <div class="ez-sv-gombok"><button type="button" class="ez-sv-gomb" data-ezsvcsat>Összekötés a Stravával</button></div>`}
             </section>
             ${ezMasNezet() ? '' : ezGcKartya()}
@@ -13698,7 +13708,7 @@ async function ezTetelModal(s, id){
         <div class="pz-seg2 ez-st-seg">${[['terv','Tervezett'],['ok','Teljesítve'],['resz','Részben'],['ki','Kihagyva']].map(([k, n]) =>
             `<button type="button" data-ezst="${k}"${st === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
         <div class="ez-mezok2" id="eztTeny"${st === 'ok' || st === 'resz' ? '' : ' hidden'}>${ezMezo('Tényleges idő (perc)', 'eztTP', e.tp || '', ' inputmode="numeric"')}${ezMezo('Tényleges táv (km)', 'eztTK', e.tk ? ezKm(e.tk) : '', ' inputmode="decimal"')}</div>`}
-        ${(() => { const er = ezEr(e, s); return er.src === 'strava' && er.akt.length ? `<div class="ez-mezo-c">Strava-aktivitás${er.akt.length > 1 ? 'ok' : ''}${e.st === 'ok' || e.st === 'resz' || e.st === 'ki' ? ' (a kézi jelölés felülírja)' : ''}</div>
+        ${(() => { const er = ezEr(e, s); return er.src === 'strava' && er.akt.length ? `<div class="ez-mezo-c">Strava-aktivitás${er.akt.length > 1 ? 'ok' : ''}${e.st === 'ki' ? ' (a „kihagyva” jelölés felülírja)' : ''}</div>
             <div class="ez-akt-lista">${er.akt.map(x => `<button type="button" class="ez-kov" data-ezakt="${s}|${esc(x.id)}">${ezIk(ezTipSport(x.tip))}<span><b>${esc(x.n)}</b><em>${esc(ezAktSzoveg(x))}${x.ido ? ' · ' + esc(x.ido) : ''}</em></span><em class="ez-akt-tov">Részletek ›</em></button>`).join('')}</div>` : ''; })()}
         ${e.sport === 'pih' ? '' : `<div class="ez-mezo-c">Szettnapló</div>
         ${e.naplo && e.naplo.length ? `<div class="ez-naplo-ossz">${e.naplo.map(g => `<div><b>${esc(g.n)}</b><span>${esc(ezKeszSz(g).length ? ezSzettekRovid(g.tip, ezKeszSz(g)) : 'még nincs kész szett')}</span></div>`).join('')}</div>`
