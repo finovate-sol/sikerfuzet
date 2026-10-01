@@ -15989,8 +15989,14 @@ async function renderSzokasok(){
             <button type="button" class="sf-hos-gomb" data-szuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új szokás</button></div>
         <div class="sz-het" role="group" aria-label="Nap kiválasztása">${het.map(napGomb).join('')}</div>
         ${lista.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Szokásaim</h4>${lista.map(sor).join('')}</section>`
-            : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p>
-                <div class="sz-javas">${SZ_JAVASLAT.map(([n, ik, ter], i) => `<button type="button" data-szjav="${i}" style="--c:${prvTer(ter).c};--b:${prvTer(ter).b}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div></section>`}
+            : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p></section>`}
+        ${(() => {
+            // Az ajánlások mindig látszanak – csak azok, amelyek még nincsenek felvéve (név szerint, ékezet nélkül).
+            const van = new Set((d.lista || []).map(h => nlNorm(h.n)));
+            const jav = SZ_JAVASLAT.map((x, i) => [x, i]).filter(([[n]]) => !van.has(nlNorm(n)));
+            return jav.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Ajánlások<span class="pv-szam">${jav.length}</span></h4>
+                <div class="sz-javas">${jav.map(([[n, ik, ter], i]) => `<button type="button" data-szjav="${i}" style="--c:${prvTer(ter).c};--b:${prvTer(ter).b}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div></section>` : '';
+        })()}
         <section class="card pv-kartya">
             <h4 class="pv-cim">${hy}. ${PRV_HO[hm - 1]}<span class="pv-lep"><button type="button" data-szho="-1" aria-label="Előző hónap">‹</button><button type="button" data-szho="1" aria-label="Következő hónap"${szHo >= ma.slice(0, 7) ? ' disabled' : ''}>›</button></span></h4>
             <div class="sz-hoterkep"><span class="f">H</span><span class="f">K</span><span class="f">Sze</span><span class="f">Cs</span><span class="f">P</span><span class="f">Szo</span><span class="f">V</span>${cellak}</div>
