@@ -8222,10 +8222,39 @@ function pzTetelModal(letezo, elotolt){
     // Enterrel is menthető – a leggyakoribb művelet ne kívánjon egérutat.
     ov.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); ment(); } });
     // A nagy összeg középen marad: a mező mindig pont akkora, mint a beírt szám.
+    // A szélességet egy láthatatlan tükör-elem méri ugyanazzal a betűvel – a
+    // becsült karakterszélesség nagy, félkövér számjegyeknél levágta a végét.
     const oInp = ov.querySelector('#pzfO');
-    const oSzel = () => { const v = oInp.value || oInp.placeholder; oInp.style.width = (v.replace(/\s/g, '').length * 0.56 + (v.match(/\s/g) || []).length * 0.3 + 0.15) + 'em'; };
+    const tukor = document.createElement('span');
+    tukor.setAttribute('aria-hidden', 'true');
+    tukor.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;';
+    ov.appendChild(tukor);
+    const oSzel = () => {
+        const cs = getComputedStyle(oInp);
+        for(const k of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontStretch', 'fontVariantNumeric', 'letterSpacing']) tukor.style[k] = cs[k];
+        tukor.textContent = oInp.value || oInp.placeholder || '0';
+        oInp.style.width = Math.ceil(tukor.getBoundingClientRect().width + 6) + 'px';
+    };
     oInp.addEventListener('input', oSzel); oSzel();
-    setTimeout(() => oInp.focus(), 30);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(ov.isConnected) oSzel(); });
+    // Új tételnél az összeg azonnal aktív. Telefonon a billentyűzet csak a
+    // koppintással egy lépésben nyílhat meg: ha a megnyitó egy előtét-mezőre már
+    // ráállt (pzBillentyuElo), onnan vesszük át a fókuszt.
+    if(!letezo || pzFinom()){
+        try { oInp.focus({ preventScroll: true }); } catch(_){ oInp.focus(); }
+        const elo = document.getElementById('pzBillElo'); if(elo) elo.remove();
+        setTimeout(() => { if(ov.isConnected && document.activeElement !== oInp && !ov.contains(document.activeElement)) oInp.focus(); }, 60);
+    } else { const elo = document.getElementById('pzBillElo'); if(elo) elo.remove(); }
+}
+// iOS-en a billentyűzet csak a felhasználói koppintás alatt kért fókusznál nyílik
+// meg. Ha az Új tétel ablak betöltés után (aszinkron) nyílik, a koppintáskor egy
+// láthatatlan mezőre állunk rá, és az ablak onnan veszi át a fókuszt.
+function pzBillentyuElo(){
+    let i = document.getElementById('pzBillElo');
+    if(!i){ i = document.createElement('input'); i.id = 'pzBillElo'; i.type = 'text'; i.inputMode = 'numeric'; i.setAttribute('aria-hidden', 'true'); i.tabIndex = -1;
+        i.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0;'; document.body.appendChild(i); }
+    try { i.focus({ preventScroll: true }); } catch(_){ i.focus(); }
+    setTimeout(() => { const x = document.getElementById('pzBillElo'); if(x) x.remove(); }, 4000);
 }
 
 // Kategória-szerkesztő: név, ikon, szín, alkategóriák. Az ikon szabad
@@ -10401,7 +10430,8 @@ window.sfShowPenzugyek = function(){
             e.preventDefault();
             // a Tranzakciókon a kiválasztott tárca és típus előre beállítva
             const elo = pzView === 'naplo' ? { ...(pzNTarca ? { p:pzNTarca } : {}), ...(['ki', 'bev', 'atu'].includes(pzKerTip) ? { t:pzKerTip } : {}) } : null;
-            Promise.all([pzLoadTorzs(), pzLoadTranz(pzTHo)]).then(() => pzTetelModal(null, elo));
+            if(pzTorzsData && pzTranz[pzTHo]) pzTetelModal(null, elo);
+            else { pzBillentyuElo(); Promise.all([pzLoadTorzs(), pzLoadTranz(pzTHo)]).then(() => pzTetelModal(null, elo)); }
             return;
         }
         const y = e.target.closest('[data-pzyear]');
