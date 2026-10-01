@@ -5378,6 +5378,9 @@
         .kv-q-add .em-pipa { margin:0; }
         .kv-modal .pv-mezo input[type="date"] { height:44px; border:0; border-radius:14px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:15px; color:#111827; box-sizing:border-box; width:100%; min-width:0; }
         .kv-kezd { flex:none; }
+        .kv-imp-elo { display:flex; flex-direction:column; gap:6px; margin:0 0 12px; }
+        .kv-imp-elo > div { display:flex; flex-direction:column; background:#f9fafb; border-radius:12px; padding:8px 12px; }
+        .kv-imp-elo b { font-size:14px; color:#111827; } .kv-imp-elo span { font-size:12px; color:#6b7280; }
         /* események */
         .em-ik { --c:#7c3aed; width:44px; height:44px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
                  color:var(--c); background:color-mix(in srgb, var(--c) 13%, #fff); }
@@ -16299,6 +16302,7 @@ async function renderKonyvek(){
             <span class="s">${ideiKesz.length >= cel ? 'Megvan az idei cél! 🎉' : ideiKesz.length >= kellene ? 'Jól állsz – tartod a tempót' : `${kellene - ideiKesz.length} könyvvel le vagy maradva a tervhez képest`} · ${hetOldal} oldal a héten · ${hoOldal} a hónapban</span>`
             : `<span class="c">Olvasás · ${ev}</span><b>${ideiKesz.length}<small> könyv</small></b><span class="s">${hetOldal} oldal a héten · ${hoOldal} a hónapban</span>`}
             <span class="sf-hos-gombok"><button type="button" class="sf-hos-gomb" data-kvuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új könyv</button>
+                <button type="button" class="sf-hos-gomb" data-kvimport><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Notion-import</button>
                 <button type="button" class="sf-hos-gomb" data-kvcel><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0"/></svg>${cel ? 'Éves cél: ' + cel : 'Éves cél'}</button></span></div>
         ${cel ? `<div class="kv-cel-sav" role="img" aria-label="${ideiKesz.length} / ${cel} könyv">${Array.from({ length: Math.min(cel, 60) }, (_, i) => `<i class="${i < ideiKesz.length ? 'kesz' : i < kellene ? 'kell' : ''}"></i>`).join('')}</div>` : ''}
         ${olvas.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Most olvasom</h4>${olvas.map(kvOlvasKartya).join('')}</section>` : ''}
@@ -16395,6 +16399,169 @@ async function kvModal(id){
     });
     if(!e) setTimeout(() => { const i = ov.querySelector('[data-f="c"]'); if(i && pzFinom()) i.focus(); }, 30);
 }
+// ---- Notion-import: a könyv-adatbázis "Markdown & CSV" exportja (ZIP) vagy maga a CSV ----
+// Az oszlopokat a nevükből ismerjük fel (magyar és angol sablonok is), de az
+// ablakban átállíthatók. Az oldalak tartalmából (jegyzetek, idézetek) kiemelt
+// gondolat lesz. Ami cím alapján már megvan, azt csak kiegészítjük.
+const KV_OSZ = [
+    ['c', 'Cím', /^(name|title|cím|cim|könyv|konyv|book|könyv címe|könyvcím)$/],
+    ['szerzo', 'Szerző', /(author|szerző|szerzo|író|iro|writer)/],
+    ['st', 'Állapot', /(status|állapot|allapot|státusz|statusz|state)/],
+    ['oldal', 'Oldalszám', /(pages|page count|total pages|oldalszám|oldalszam|oldalak|oldal$)/],
+    ['most', 'Hol tartok', /(current page|aktuális oldal|aktualis oldal|hol tartok|progress|haladás|haladas|olvasott oldal)/],
+    ['ert', 'Értékelés', /(rating|értékelés|ertekeles|stars|csillag|pontszám|pontszam|score)/],
+    ['kezd', 'Kezdés', /(start|kezd|began)/],
+    ['vege', 'Befejezés', /(finish|end|befejez|completed|done date|kész|kesz dátum|elolvasva)/],
+];
+const kvNorm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+function kvAllapotTipp(v){
+    const s = kvNorm(v);
+    if(!s) return '';
+    if(/(abandon|dropp|felbe|felhagy|nem fejez)/.test(s)) return 'felb';
+    if(/(reading|olvasom|olvasas alatt|in progress|folyamat|current)/.test(s)) return 'olvas';
+    if(/(done|^read$|finished|complete|elolvas|kesz|befejez|olvastam)/.test(s)) return 'kesz';
+    if(/(to read|want|kovetkezo|olvasando|not started|tervez|kivansag|wishlist|later|kesobb|queue)/.test(s)) return 'kov';
+    return '';
+}
+const KV_HO = { jan:1, january:1, januar:1, feb:2, febr:2, february:2, februar:2, mar:3, march:3, marc:3, marcius:3, apr:4, april:4, aprilis:4, may:5, maj:5, majus:5,
+    jun:6, june:6, junius:6, jul:7, july:7, julius:7, aug:8, august:8, augusztus:8, sep:9, sept:9, szept:9, september:9, szeptember:9, oct:10, okt:10, october:10, oktober:10,
+    nov:11, november:11, dec:12, december:12 };
+// Notion-dátumok: "September 5, 2025", "2025/09/05", "2025-09-05", "2025. szeptember 5.", "05/09/2025"; tartománynál ("A → B") az első vagy az utolsó.
+function kvDatum(v, utolso){
+    let s = String(v || '').trim(); if(!s) return '';
+    if(s.includes('→')){ const r = s.split('→').map(x => x.trim()); s = utolso ? r[r.length - 1] : r[0]; }
+    s = s.replace(/\s+\d{1,2}:\d{2}.*$/, '').replace(/\(.*?\)/g, '').trim();
+    const p2 = n => String(n).padStart(2, '0'), ok = (y, m, d) => y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31 ? `${y}-${p2(m)}-${p2(d)}` : '';
+    let m;
+    if((m = s.match(/^(\d{4})[-/.]\s*(\d{1,2})[-/.]\s*(\d{1,2})/))) return ok(+m[1], +m[2], +m[3]);
+    if((m = s.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/))) return +m[1] > 12 ? ok(+m[3], +m[2], +m[1]) : ok(+m[3], +m[1], +m[2]);
+    const n = kvNorm(s).replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+    const y = n.find(x => /^\d{4}$/.test(x)), mo = n.map(x => KV_HO[x]).find(Boolean), d = n.find(x => /^\d{1,2}$/.test(x));
+    return y && mo ? ok(+y, mo, +(d || 1)) : '';
+}
+function kvErtTipp(v){
+    const s = String(v || '').trim(); if(!s) return 0;
+    const cs = (s.match(/[⭐★]/g) || []).length; if(cs) return Math.min(5, cs);
+    const m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:\/\s*(\d+))?/); if(!m) return 0;
+    let x = parseFloat(m[1].replace(',', '.')), max = m[2] ? +m[2] : (x > 5 ? 10 : 5);
+    return Math.max(0, Math.min(5, Math.round(x / max * 5)));
+}
+// Az oldal .md tartalmából a tulajdonság-sorok (Név: érték) utáni részt vesszük; bekezdésenként egy gondolat.
+function kvMdGondolatok(md){
+    const sorok = String(md || '').replace(/\r/g, '').split('\n');
+    let i = 0;
+    if(/^#\s/.test(sorok[0] || '')) i = 1;
+    while(i < sorok.length && (/^\s*$/.test(sorok[i]) || /^[^:\n]{1,40}:\s/.test(sorok[i]))) i++;
+    const blokk = sorok.slice(i).join('\n').split(/\n\s*\n/).map(b => b.split('\n').map(x => x.replace(/^\s*(?:>|[-*+]|\d+\.)\s?/, '').replace(/\*\*|__|`/g, '').trim()).filter(Boolean).join(' '))
+        .map(x => x.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim()).filter(x => x.length > 2 && !/^#+\s/.test(x));
+    return blokk.slice(0, 50).map(t => ({ id: prvUjId() + Math.random().toString(36).slice(2, 5), t: t.slice(0, 1000) }));
+}
+function kvImportModal(){
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    let fej = [], sorok = [], par = {}, mdk = new Map(), hiba = '';
+    const ertek = (r, k) => par[k] >= 0 ? String(r[par[k]] ?? '').trim() : '';
+    const konyvek = () => sorok.map(r => {
+        const c = ertek(r, 'c').replace(/\s+[0-9a-f]{32}$/i, '').trim(); if(!c) return null;
+        const oldal = parseInt(ertek(r, 'oldal').replace(/\D/g, ''), 10) || 0;
+        // A "Progress" a Notion-sablonokban gyakran százalék (45% vagy 0.45) – ilyenkor az oldalszámból számolunk.
+        const mv = ertek(r, 'most').replace(',', '.'), mf = parseFloat(mv);
+        const most = /%/.test(mv) ? Math.round(oldal * (mf || 0) / 100) : (mf > 0 && mf <= 1 && /\./.test(mv)) ? Math.round(oldal * mf) : (parseInt(mv.replace(/\D/g, ''), 10) || 0);
+        const kezd = kvDatum(ertek(r, 'kezd')), vege = kvDatum(ertek(r, 'vege'), true);
+        let st = kvAllapotTipp(ertek(r, 'st')) || (vege ? 'kesz' : kezd ? 'olvas' : 'kov');
+        return { c, szerzo: ertek(r, 'szerzo').replace(/\s*\(https?:[^)]*\)/g, ''), st, oldal, most: st === 'kesz' && oldal ? oldal : Math.min(most, oldal || most), kezd, vege: st === 'kesz' ? vege : '', ert: kvErtTipp(ertek(r, 'ert')) };
+    }).filter(Boolean);
+    const rajz = () => {
+        const l = fej.length ? konyvek() : [];
+        const db = st => l.filter(k => k.st === st).length;
+        ov.innerHTML = `<div class="modal pv-modal nl-imp"><div class="modal-head"><h3>Könyvek importálása Notionből</h3><button class="modal-x" data-kvix>&times;</button></div>
+            <div class="modal-body">
+                <p class="pv-megj" style="margin-top:0">Notionben a könyv-adatbázis oldalán: <b>••• → Export → Markdown &amp; CSV</b>, az <b>Include content</b> legyen <b>Everything</b>, ha a könyvek oldalain lévő jegyzeteket is át szeretnéd hozni. A kapott ZIP-et (vagy csak a CSV-t) válaszd ki itt.</p>
+                <label class="nl-imp-f"><input type="file" data-kvif accept=".zip,.csv,application/zip,text/csv"><span>${fej.length ? 'Másik fájl…' : 'Fájl kiválasztása…'}</span></label>
+                ${hiba ? `<p class="pz-hibaszo">${esc(hiba)}</p>` : ''}
+                ${fej.length ? `<div class="nl-imp-ossz"><b>${l.length} könyv</b> · olvasom: ${db('olvas')} · elolvasva: ${db('kesz')} · következő: ${db('kov')} · félbehagyva: ${db('felb')}${mdk.size ? ` · ${mdk.size} oldal jegyzetekkel` : ''}</div>
+                    <div class="pv-mezo"><span>Oszlopok <i>ha valamit rosszul ismert fel, állítsd át</i></span>
+                        ${KV_OSZ.map(([k, cim]) => `<label class="nl-imp-par"><b>${cim}</b><select data-kvipar="${k}"><option value="-1">— nincs —</option>${fej.map((h, i) => `<option value="${i}"${par[k] === i ? ' selected' : ''}>${esc(h)}</option>`).join('')}</select></label>`).join('')}</div>
+                    <div class="kv-imp-elo">${l.slice(0, 6).map(k => `<div><b>${esc(k.c)}</b><span>${esc([k.szerzo, KV_ALL[k.st], k.oldal ? k.oldal + ' oldal' : '', k.ert ? '★'.repeat(k.ert) : '', k.vege || k.kezd].filter(Boolean).join(' · '))}</span></div>`).join('')}${l.length > 6 ? `<div><span>… és még ${l.length - 6}</span></div>` : ''}</div>
+                    ${mdk.size ? `<label class="em-pipa"><input type="checkbox" data-kvimd checked><span>A könyvek oldalain lévő jegyzetek kiemelt gondolatként (Jegyzetekbe is)</span></label>` : ''}
+                    <p class="pv-megj">Ami cím alapján már szerepel, azt nem duplázza – csak a hiányzó adatait (szerző, oldalszám, értékelés, dátumok) tölti ki.</p>` : ''}
+            </div>
+            <div class="modal-foot"><button class="btn" data-kvix>Mégse</button><button class="pv-ment" data-kvigo${fej.length && l.length ? '' : ' disabled'}>Importálás</button></div></div>`;
+    };
+    rajz(); document.body.appendChild(ov);
+    ov.addEventListener('change', async e => {
+        if(e.target.matches('[data-kvipar]')){ par[e.target.dataset.kvipar] = +e.target.value; rajz(); return; }
+        if(!e.target.matches('[data-kvif]')) return;
+        const f = e.target.files[0]; if(!f) return;
+        hiba = ''; fej = []; sorok = []; mdk = new Map();
+        try {
+            let csv = '';
+            const buf = await f.arrayBuffer(), u = new Uint8Array(buf);
+            if(u[0] === 0x50 && u[1] === 0x4b){
+                if(typeof window.sfUnzip !== 'function') throw new Error('A ZIP-kibontó nem érhető el.');
+                let fajlok = await window.sfUnzip(buf);
+                // A teljes munkaterület exportja ZIP-be csomagolt ZIP-eket tartalmaz.
+                for(const z of fajlok.filter(x => /\.zip$/i.test(x.name))) fajlok = fajlok.concat(await window.sfUnzip(z.data.buffer.slice(z.data.byteOffset, z.data.byteOffset + z.data.byteLength)));
+                const dec = new TextDecoder('utf-8');
+                const csvk = fajlok.filter(x => /\.csv$/i.test(x.name));
+                // A "_all.csv" a teljes adatbázis (a nézet szűrése nélkül); ha több adatbázis van, a könyv-szerűt választjuk.
+                const pont = x => (/_all\.csv$/i.test(x.name) ? 2 : 0) + (/(k[oö]nyv|book|olvas|read)/i.test(x.name) ? 5 : 0) + (/(author|szerz|pages|oldal)/i.test(dec.decode(x.data.slice(0, 600))) ? 4 : 0);
+                const legj = csvk.sort((a, b) => pont(b) - pont(a))[0];
+                if(!legj) throw new Error('A ZIP-ben nincs CSV – a Notion-exportnál a "Markdown & CSV" formátumot válaszd.');
+                csv = dec.decode(legj.data);
+                for(const x of fajlok.filter(x => /\.md$/i.test(x.name))){
+                    const nev = x.name.split('/').pop().replace(/\s+[0-9a-f]{32}\.md$/i, '').replace(/\.md$/i, '');
+                    const g = kvMdGondolatok(dec.decode(x.data));
+                    if(g.length) mdk.set(kvNorm(nev), g);
+                }
+            } else csv = new TextDecoder('utf-8').decode(u);
+            const t = pzCsvSorok(csv).sorok.filter(r => r.some(x => String(x).trim()));
+            if(t.length < 2) throw new Error('A CSV-ben nincs adatsor.');
+            fej = t[0].map(h => String(h).replace(/^\ufeff/, '').trim()); sorok = t.slice(1);
+            par = {};
+            const nf = fej.map(kvNorm);
+            for(const [k, , re] of KV_OSZ){ const i = nf.findIndex((h, j) => re.test(h) && !Object.values(par).includes(j)); par[k] = i; }
+            if(par.c < 0) par.c = 0;
+        } catch(err){ hiba = 'Nem sikerült beolvasni: ' + (err.message || err); }
+        rajz();
+    });
+    ov.addEventListener('click', async e => {
+        if(e.target === ov || e.target.closest('[data-kvix]')) return ov.remove();
+        if(!e.target.closest('[data-kvigo]')) return;
+        const d = await prvBetolt('konyvek'), lista = kvLista(d);
+        if(prvHiba.has('konyvek') && !confirm('Az olvasási listát most nem sikerült a szerverről betölteni – csak ezen az eszközön mentem. Folytatod?')) return;
+        const gondolat = !!ov.querySelector('[data-kvimd]:checked');
+        let uj = 0, frissit = 0;
+        const jegyzetre = [];
+        for(const k of konyvek()){
+            const g = gondolat ? (mdk.get(kvNorm(k.c)) || []) : [];
+            const van = lista.find(x => kvNorm(x.c) === kvNorm(k.c));
+            if(van){
+                let v = false;
+                for(const f of ['szerzo', 'oldal', 'ert', 'kezd', 'vege']) if(!van[f] && k[f]){ van[f] = k[f]; v = true; }
+                if(g.length && !(van.kiemel || []).length){ van.kiemel = g; jegyzetre.push(van); v = true; }
+                if(v) frissit++;
+                continue;
+            }
+            const x = { id: prvUjId() + uj, c: k.c, st: k.st, ...(k.szerzo ? { szerzo: k.szerzo } : {}), ...(k.oldal ? { oldal: k.oldal } : {}), ...(k.most ? { most: k.most } : {}),
+                ...(k.kezd ? { kezd: k.kezd } : {}), ...(k.vege ? { vege: k.vege } : {}), ...(k.ert ? { ert: k.ert } : {}), kiemel: g };
+            lista.push(x); uj++;
+            if(g.length) jegyzetre.push(x);
+        }
+        prvMent('konyvek');
+        // A gondolatok a Jegyzetekbe is (könyvenként egy jegyzet), sorban, hogy a Firestore ne torlódjon.
+        if(jegyzetre.length && typeof window.sfKonyvJegyzet === 'function'){
+            const foot = ov.querySelector('.modal-foot'); foot.innerHTML = '<span class="pv-megj">Jegyzetek létrehozása…</span>';
+            for(const [i, k] of jegyzetre.entries()){
+                try { k.jg = await window.sfKonyvJegyzet(k); } catch(_){}
+                foot.innerHTML = `<span class="pv-megj">Jegyzetek: ${i + 1} / ${jegyzetre.length}</span>`;
+            }
+            prvMent('konyvek');
+        }
+        ov.querySelector('.modal-body').innerHTML = `<div class="pz-im-kesz"><b>✓ Kész</b><span>${uj} új könyv${frissit ? `, ${frissit} meglévő kiegészítve` : ''}${jegyzetre.length ? `, ${jegyzetre.length} könyv jegyzete a Jegyzetekben` : ''}.</span></div>`;
+        ov.querySelector('.modal-foot').innerHTML = '<button class="pv-ment" data-kvix>Bezárás</button>';
+        prvFrissit();
+    });
+}
 window.sfShowKonyvek = function(){ renderKonyvek(); };
 // Oldal-mentés és "Kezdem" – a Könyvek és a Ma oldalról is.
 document.addEventListener('click', async e => {
@@ -16411,6 +16578,7 @@ document.addEventListener('click', async e => {
         k.st = 'olvas'; k.kezd = ezMa(); k.most = k.most || 0; prvMent('konyvek'); prvFrissit(); return; }
     if(lap.id !== 'page-konyvek') { const sz = e.target.closest('[data-kvszerk]'); if(sz){ kvModal(sz.dataset.kvszerk); } return; }
     if(e.target.closest('[data-kvuj]')){ kvModal(null); return; }
+    if(e.target.closest('[data-kvimport]')){ kvImportModal(); return; }
     const sz = e.target.closest('[data-kvszerk]'); if(sz){ kvModal(sz.dataset.kvszerk); return; }
     if(e.target.closest('[data-kvcel]')){
         const d = await prvBetolt('konyvek'), ev = ezMa().slice(0, 4);
