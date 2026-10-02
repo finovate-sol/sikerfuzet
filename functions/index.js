@@ -287,3 +287,68 @@ exports.stravaLevalaszt = onCall(OPTS, async req => {
     }
     return { ok: true };
 });
+
+// ============================================================================
+//  LINK-ADATOK a Mentésekhez: egy elmentett link címe, leírása, képe.
+//  A böngésző idegen oldalt nem olvashat (CORS), ezért ezt a szerver kéri le.
+//  Védelem: csak http(s); belső / magán címre (localhost, 10.x, 192.168.x,
+//  169.254.x – a felhő metaadat-szervere –, ::1 stb.) nem megy, átirányításnál
+//  sem; legfeljebb 600 KB-ot olvas, 8 mp után feladja.
+// ============================================================================
+const dnsP = require('node:dns').promises;
+const net = require('node:net');
+const LINK_OPTS = { region: 'europe-west1', maxInstances: 3, timeoutSeconds: 20 };
+function belsoIp(ip){
+    if(net.isIPv4(ip)){
+        const [a, b] = ip.split('.').map(Number);
+        return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+    }
+    const x = ip.toLowerCase();
+    return x === '::1' || x === '::' || x.startsWith('fc') || x.startsWith('fd') || x.startsWith('fe80') || x.startsWith('::ffff:') && belsoIp(x.slice(7));
+}
+async function biztonsagosCim(u){
+    let url;
+    try { url = new URL(u); } catch(e){ throw new HttpsError('invalid-argument', 'Érvénytelen link.'); }
+    if(!/^https?:$/.test(url.protocol)) throw new HttpsError('invalid-argument', 'Csak http(s) link menthető.');
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    if(/^(localhost|metadata(\.google\.internal)?)$/i.test(host) || /\.(local|internal)$/i.test(host)) throw new HttpsError('invalid-argument', 'Belső cím.');
+    const cimek = net.isIP(host) ? [{ address: host }] : await dnsP.lookup(host, { all: true }).catch(() => []);
+    if(!cimek.length || cimek.some(c => belsoIp(c.address))) throw new HttpsError('invalid-argument', 'A link nem érhető el.');
+    return url;
+}
+const entit = s => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16))).replace(/\s+/g, ' ').trim();
+function meta(html, nevek){
+    for(const n of nevek){
+        const re1 = new RegExp(`<meta[^>]+(?:property|name)=["']${n}["'][^>]*content=["']([^"']*)["']`, 'i');
+        const re2 = new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${n}["']`, 'i');
+        const m = html.match(re1) || html.match(re2);
+        if(m && m[1].trim()) return entit(m[1]);
+    }
+    return '';
+}
+exports.linkInfo = onCall(LINK_OPTS, async req => {
+    await engedelyezett(req);
+    let url = await biztonsagosCim(String((req.data && req.data.url) || '').slice(0, 2000));
+    const ctl = new AbortController(), ido = setTimeout(() => ctl.abort(), 8000);
+    try {
+        let res;
+        for(let i = 0; i < 5; i++){
+            res = await fetch(url, { redirect: 'manual', signal: ctl.signal,
+                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Eletfuzet/1.0; +link-elonezet)', 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'hu,en;q=0.8' } });
+            if(res.status >= 300 && res.status < 400 && res.headers.get('location')){ url = await biztonsagosCim(new URL(res.headers.get('location'), url).href); continue; }
+            break;
+        }
+        if(!res || !res.ok || !/html/i.test(res.headers.get('content-type') || '')) return { url: url.href };
+        const olvaso = res.body.getReader(); let html = '', meret = 0; const dek = new TextDecoder('utf-8');
+        while(meret < 600000){ const { done, value } = await olvaso.read(); if(done) break; meret += value.length; html += dek.decode(value, { stream: true }); if(/<\/head>/i.test(html)) break; }
+        try { olvaso.cancel(); } catch(e){}
+        const cim = meta(html, ['og:title', 'twitter:title']) || entit((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
+        let kep = meta(html, ['og:image', 'og:image:url', 'twitter:image']);
+        if(kep){ try { kep = new URL(kep, url).href; if(!/^https:/.test(kep)) kep = ''; } catch(e){ kep = ''; } }
+        return { url: url.href, cim: cim.slice(0, 300), leiras: meta(html, ['og:description', 'description', 'twitter:description']).slice(0, 500), kep: kep.slice(0, 1000), oldal: meta(html, ['og:site_name']).slice(0, 100) };
+    } catch(e){
+        if(e instanceof HttpsError) throw e;
+        return { url: url.href };
+    } finally { clearTimeout(ido); }
+});
