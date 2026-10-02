@@ -901,12 +901,17 @@
         .cal-ly-modal { max-width:420px; }
         .cal-ly-sub { color:var(--muted); font-size:12px; margin:0 0 10px; }
         .cal-ly-ures { color:var(--muted); font-size:12.5px; margin:0 0 12px; }
-        .cal-ly-sor { display:flex; align-items:center; gap:12px; padding:10px 4px; border-bottom:1px solid var(--border); cursor:pointer; }
+        /* kompakt sor: szín · név (+ kis felirat) · kapcsoló – egy sorban (a .modal-body label blokk-szabálya felett) */
+        .cal-ly-sor, .modal-body label.cal-ly-sor { display:flex; flex-direction:row; align-items:center; gap:10px; padding:7px 6px; margin:0; border-bottom:1px solid #f1f3f7; cursor:pointer; font-size:inherit; font-weight:400; color:inherit; border-radius:8px; }
+        .cal-ly-sor:hover { background:#f8fafc; }
+        .cal-ly-modal .modal-body { padding-top:12px; padding-bottom:8px; }
+        .cal-ly-cs { margin:10px 6px 2px; font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
         .cal-ly-sor:last-child { border-bottom:none; }
         .cal-ly-pont { width:14px; height:14px; border-radius:5px; flex:none; }
-        .cal-ly-nev { flex:1; min-width:0; display:flex; flex-direction:column; }
-        .cal-ly-nev b { font-size:13px; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .cal-ly-nev small { font-size:11px; color:var(--muted); }
+        .cal-ly-nev { flex:1; min-width:0; display:flex; align-items:baseline; gap:8px; }
+        .cal-ly-nev b { font-size:13px; font-weight:700; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+        .cal-ly-nev small { flex:none; font-size:10.5px; font-weight:600; color:var(--muted); }
+        .cal-ly-sor .ev-switch { transform:scale(.85); transform-origin:right center; }
         .cal-ly-sor.akt { opacity:.75; cursor:default; }
         @media (max-width:700px){ .cal-layers-t { display:none; } }
         /* Admin → Naptár: a közös naptárak listája. */
@@ -21470,15 +21475,19 @@ document.addEventListener('keydown', e => {
                 return;
             }
             const aktiv = calOwnId || "";
-            body.innerHTML = `<p class="cal-ly-sub">A bekapcsolt naptárak eseményei a saját színükkel jelennek meg. Új esemény a felül kiválasztott naptárba kerül.</p>`
-                + calLista.map(c => {
-                    const akt = aktiv ? c.id === aktiv : c.primary;
-                    return `<label class="cal-ly-sor${akt ? " akt" : ""}">
-                        <span class="cal-ly-pont" style="background:${escM(c.szin)}"></span>
-                        <span class="cal-ly-nev"><b>${escM(c.nev)}</b><small>${akt ? "Aktív naptár" : c.primary ? "Saját naptár" : c.iras ? "Szerkeszthető" : "Csak olvasható"}</small></span>
-                        <span class="ev-switch"><input type="checkbox" data-lyid="${escM(c.id)}"${akt || calBe(c) ? " checked" : ""}${akt ? " disabled" : ""}><span></span></span>
-                    </label>`;
-                }).join("");
+            const sor = c => {
+                const akt = aktiv ? c.id === aktiv : c.primary;
+                const cimke = akt ? "aktív" : c.primary ? "saját" : c.iras ? "" : "csak olvasható";
+                return `<label class="cal-ly-sor${akt ? " akt" : ""}" title="${escM(c.nev)}">
+                    <span class="cal-ly-pont" style="background:${escM(c.szin)}"></span>
+                    <span class="cal-ly-nev"><b>${escM(c.nev)}</b>${cimke ? `<small>${cimke}</small>` : ""}</span>
+                    <span class="ev-switch"><input type="checkbox" data-lyid="${escM(c.id)}"${akt || calBe(c) ? " checked" : ""}${akt ? " disabled" : ""}><span></span></span>
+                </label>`;
+            };
+            const be = calLista.filter(c => (aktiv ? c.id === aktiv : c.primary) || calBe(c)), ki = calLista.filter(c => !be.includes(c));
+            body.innerHTML = `<p class="cal-ly-sub">A bekapcsolt naptárak a saját színükkel jelennek meg; új esemény az aktív naptárba kerül.</p>`
+                + (be.length ? `<div class="cal-ly-cs">Látszik · ${be.length}</div>${be.map(sor).join("")}` : "")
+                + (ki.length ? `<div class="cal-ly-cs">Rejtett · ${ki.length}</div>${ki.map(sor).join("")}` : "");
         };
         overlay.addEventListener("click", async e => {
             if (e.target === overlay || e.target.closest("[data-lyok]")) return bezar();
