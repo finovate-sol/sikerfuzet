@@ -3226,6 +3226,9 @@
         .ezw-st.jovo { border:2px solid #e5e7eb; }
         .ezw-st.ures { border:1.5px dashed #d1d5db; color:#9ca3af; font-weight:500; cursor:pointer; }
         .ezw-sor.jovo .ezw-k > b { color:#4b5563; }
+        .ezw-ido { font-style:normal; font-weight:800; color:#6d28d9; margin-right:6px; font-variant-numeric:tabular-nums; }
+        .ez-gc-ido { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; margin:6px 0; }
+        .ez-gc-ido input { height:32px; border:1px solid var(--border); border-radius:8px; padding:0 8px; font:inherit; }
         .ezw-ossz { display:flex; gap:8px; margin-top:12px; }
         .ezw-ossz span { flex:1; background:#f8fafc; border-radius:12px; padding:8px 4px; text-align:center; font-size:11.5px; color:var(--muted); }
         .ezw-ossz b { display:block; font-size:15.5px; color:var(--navy); }
@@ -14352,6 +14355,7 @@ function ezMent(k){
 // nincs választva, az "edz" nevű, írható naptárat magától kiválasztjuk.
 // Az ablak: 7 nap vissza, 60 nap előre – a régebbi bejegyzésekhez nem nyúlunk.
 const EZ_GC_VISSZA = 7, EZ_GC_ELORE = 60;
+const EZ_GC_ALAPIDO = '18:00';             // ha az edzésnek nincs időpontja (a kártyán átállítható)
 let ezGcAllapot = '', ezGcFut = null, ezGcUjra = false, ezGcUtolso = 0, ezGcTimer = null;
 const ezGcNaptar = () => (ezAdat.torzs && ezAdat.torzs.naptar) || null;
 function ezGcIdozit(){
@@ -14378,8 +14382,12 @@ async function ezGcSzinkron(kezi){
             if(e.sport === 'pih' || !e.id) continue;
             const a = ezAll(e, d);
             const jel = { ok: '✅ ', resz: '◐ ', ki: '❌ ' }[a] || '';
-            const cel = ezCel(e);
-            tetelek.push({ kulcs: d + '|' + e.id, datum: d, cim: jel + (e.n || 'Edzés'),
+            const cel = ezCel(e), er = ezEr(e, d);
+            // Időpont: a Strava-aktivitás valódi kezdete és hossza, ha igazolta; különben a tervezett idő, végül az alapidőpont.
+            const akt = er.src === 'strava' && er.akt && er.akt.length ? er.akt[0] : null;
+            const ido = ezIdoOk(akt && akt.ido) || ezIdoOk(e.ido) || ezIdoOk(n.ido) || EZ_GC_ALAPIDO;
+            const perc = Math.max(10, Math.round((akt && (er.tp || akt.perc)) || e.perc || 60));
+            tetelek.push({ kulcs: d + '|' + e.id, datum: d, ido, perc, cim: jel + (e.n || 'Edzés'),
                 leiras: [cel !== '—' ? cel : '', e.leiras || '', 'Sikerfüzet · edzésnapló'].filter(Boolean).join('\n') });
         }
         try {
@@ -14403,10 +14411,11 @@ function ezGcKartya(){
     const n = ezGcNaptar();
     return `<section class="ez-gc-k">
         <b>Google Naptár${n && n.id ? ' · ' + esc(n.nev || '') : ''}</b>
-        <span>${n && n.id ? `Az edzéseid egész napos eseményként kerülnek ebbe a naptárba (7 nap vissza, 60 nap előre), és követik a változásokat.`
+        <span>${n && n.id ? `Az edzéseid időpontra kerülnek ebbe a naptárba (7 nap vissza, 60 nap előre), és követik a változásokat. A Strava által igazolt edzés a valódi kezdési idővel és hosszal.`
             : n && n.ki ? 'Kikapcsolva – az edzések nem kerülnek a Google Naptárba.'
             : 'Az edzéseid bekerülhetnek a Google „Edzés” naptáradba. Válaszd ki a naptárat.'}</span>
-        ${n && n.id ? `<span id="ezGcAll">${esc(ezGcAllapot)}</span>` : ''}
+        ${n && n.id ? `<label class="ez-gc-ido">Ha az edzésnek nincs időpontja: <input type="time" data-ezgcido value="${esc(n.ido || EZ_GC_ALAPIDO)}" aria-label="Alapidőpont"></label>
+            <span id="ezGcAll">${esc(ezGcAllapot)}</span>` : ''}
         <div class="ez-sv-gombok">${n && n.id
             ? `<button type="button" class="ez-sv-gomb ez-gc-gomb" data-ezgcszink>Szinkron most</button><button type="button" class="ez-link" data-ezgcval>Másik naptár</button><button type="button" class="ez-link" data-ezgcki>Kikapcsolás</button>`
             : `<button type="button" class="ez-sv-gomb ez-gc-gomb" data-ezgcval>Naptár kiválasztása</button>`}</div>
@@ -14446,9 +14455,13 @@ function ezNapSet(s, lista){
     const ev = ezAdat[s.slice(0, 4)]; if(!ev) return;
     if(lista.length) ev.napok[s] = lista; else delete ev.napok[s];
 }
+// Edzés időpontja ("HH:MM"); a nap edzései idő szerint rendezve (idő nélküliek a végén).
+const ezIdoOk = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : '';
+const ezIdoRend = l => l.map((e, i) => [e, i]).sort((a, b) => (a[0].ido || '99') .localeCompare(b[0].ido || '99') || a[1] - b[1]).map(x => x[0]);
 const ezTetelSablonbol = (s, fel) => ezTiszta({
     id: ezUjId(), sid: s.id, n: s.n, sport: s.sport, st: 'terv',
     perc: fel ? fel.perc : s.perc, km: fel ? fel.km : s.km, cel: fel ? fel.cel : s.cel, leiras: s.leiras,
+    ido: fel && fel.ido !== undefined ? (fel.ido || undefined) : s.ido,
     gyak: s.gyak && s.gyak.length ? s.gyak.map(x => ({ ...x })) : undefined,
 });
 
@@ -14627,12 +14640,12 @@ function ezHetBlokk(het, st, ma){
 }
 // "Nap": a kiválasztott nap edzései – terv és Strava egymás mellett, nagy gombokkal.
 function ezNapReszlet(s, ma){
-    const l = ezNapLista(s).filter(e => e.sport !== 'pih'), pih = ezNapLista(s).some(e => e.sport === 'pih');
+    const l = ezIdoRend(ezNapLista(s).filter(e => e.sport !== 'pih')), pih = ezNapLista(s).some(e => e.sport === 'pih');
     const sv = s <= ma ? ezSvNap(s) : null, d = ezD(s);
     const fej = `<div class="ezw-nfej"><b>${EZ_NAP[ezNapIdx(s)]}, ${EZ_HO_R[d.getMonth()]} ${d.getDate()}.</b>${s === ma ? '<span class="ma">ma</span>' : s < ma ? '<span>elmúlt</span>' : '<span>előttünk</span>'}</div>`;
     const kartya = e => { const er = ezEr(e, s), a = er.a, teny = ezTeny(e, er), van = a === 'ok' || a === 'resz' || (er.akt && er.akt.length);
         return `<div class="ezw-ed">
-            <div class="ezw-ed-f">${ezIk(e.sport, 'nagy')}<span class="t"><b>${esc(e.n)}</b><em>${esc(e.cel || ezCel(e))}</em></span><span class="ez-pill ez-st-${a}">${esc(ezAllCim(er))}</span></div>
+            <div class="ezw-ed-f">${ezIk(e.sport, 'nagy')}<span class="t"><b>${e.ido ? `<em class="ezw-ido">${esc(e.ido)}</em>` : ''}${esc(e.n)}</b><em>${esc(e.cel || ezCel(e))}</em></span><span class="ez-pill ez-st-${a}">${esc(ezAllCim(er))}</span></div>
             <div class="ezw-vs"><div><em>Terv</em><b>${esc(ezTervSzo(e))}</b></div>
                 <div class="${van ? 'van' : 'ures'}"><em>${er.src === 'strava' ? 'Strava' : 'Tény'}</em><b>${van ? esc(teny.replace(/^Strava · /, '')) : s > ma ? 'még előtted' : 'még nincs'}</b></div></div>
             <div class="ezw-gombok">${(a === 'terv' && s <= ma) || a === 'jel' ? `<button type="button" class="g1" data-ezjel="ok" data-ezd="${s}" data-ezid="${esc(e.id)}">✓ Kész</button>` : ''}
@@ -14647,7 +14660,7 @@ function ezNapReszlet(s, ma){
 // "Hét": naponta egy kompakt sor – balra a nap, középen terv + tény, jobbra az állapot.
 function ezHetSorok(het, ma){
     return `<div class="ezw-lista">${het.map((s, i) => {
-        const l = ezNapLista(s).filter(e => e.sport !== 'pih'), pih = ezNapLista(s).some(e => e.sport === 'pih');
+        const l = ezIdoRend(ezNapLista(s).filter(e => e.sport !== 'pih')), pih = ezNapLista(s).some(e => e.sport === 'pih');
         const sv = s <= ma ? ezSvNap(s) : null, extra = sv ? sv.extra : [], vers = ezVersenyekNapon(s);
         const nap = `<button type="button" class="ezw-np${s === ma ? ' ma' : ''}" data-ezhetnap="${s}" aria-label="${EZ_NAP[i]} részletei"><em>${EZ_NAP_R[i]}</em><b>${+s.slice(8)}</b></button>`;
         const chipek = [...vers.map(v => `<button type="button" class="ezw-chip vers" data-ezvszerk="${esc(v.id)}">🏁 ${esc(v.n)}</button>`),
@@ -14657,7 +14670,7 @@ function ezHetSorok(het, ma){
             <button type="button" class="ezw-st ures" data-ezuj="${s}" aria-label="Edzés hozzáadása – ${EZ_NAP[i]}">+</button></div>`;
         return l.map((e, j) => { const er = ezEr(e, s), a = er.a, teny = ezTeny(e, er), van = a === 'ok' || a === 'resz';
             return `<div class="ezw-sor${s > ma ? ' jovo' : ''}">${j ? '<span class="ezw-np ures"></span>' : nap}
-                <button type="button" class="ezw-k" data-ezszerk data-ezd="${s}" data-ezid="${esc(e.id)}"><b>${ezIk(e.sport)}<span>${esc(e.n)}</span></b>
+                <button type="button" class="ezw-k" data-ezszerk data-ezd="${s}" data-ezid="${esc(e.id)}"><b>${ezIk(e.sport)}<span>${e.ido ? `<em class="ezw-ido">${esc(e.ido)}</em>` : ''}${esc(e.n)}</span></b>
                     <span class="ezw-cel">${esc(ezCel(e))}</span>
                     ${van ? `<span class="ezw-teny ${a}">✓ ${esc(teny)}</span>` : a === 'ki' ? '<span class="ezw-teny ki">kihagyva</span>' : a === 'var' ? `<span class="ezw-teny var">${esc(EZ_ALL.var)}</span>` : ''}
                     ${j === l.length - 1 && chipek ? `<span class="ezw-chipek">${chipek}</span>` : ''}</button>
@@ -15498,7 +15511,8 @@ function ezUjModal(datum, sid){
     const sab = ezAdat.torzs.sablonok;
     let val = sab.find(x => x.id === sid) || null;
     const ov = ezModal('Edzés hozzáadása', `
-        <div class="ez-mezok2"><label class="ez-mezo"><span>Nap</span><input type="date" id="ezuD" value="${esc(datum)}"></label>
+        <div class="ez-mezok3"><label class="ez-mezo"><span>Nap</span><input type="date" id="ezuD" value="${esc(datum)}"></label>
+            <label class="ez-mezo"><span>Időpont</span><input type="time" id="ezuT" value="${esc((val && val.ido) || '')}"></label>
             <label class="ez-mezo"><span>Ismétlés</span><select id="ezuI"><option value="1">Csak ezen a napon</option>${[2,4,6,8,12].map(n => `<option value="${n}">Hetente, ${n} héten át</option>`).join('')}</select></label></div>
         <div class="ez-mezo-c">Előre definiált edzések</div>
         ${ezValaszto(sab, val && val.id)}
@@ -15509,6 +15523,7 @@ function ezUjModal(datum, sid){
         ov.querySelector('#ezuP').value = val && val.perc ? val.perc : '';
         ov.querySelector('#ezuK').value = val && val.km ? ezKm(val.km) : '';
         ov.querySelector('#ezuC').value = val && val.cel ? val.cel : '';
+        if(val && val.ido) ov.querySelector('#ezuT').value = val.ido;
     };
     tolt();
     ov.addEventListener('click', async e => {
@@ -15519,7 +15534,7 @@ function ezUjModal(datum, sid){
         const d0 = ov.querySelector('#ezuD').value;
         if(!val){ uz.textContent = 'Válassz egy edzést a listából.'; return; }
         if(!/^\d{4}-\d{2}-\d{2}$/.test(d0)){ uz.textContent = 'Adj meg egy napot.'; return; }
-        const fel = { perc: ezSzam(ov.querySelector('#ezuP').value), km: ezSzam(ov.querySelector('#ezuK').value), cel: ov.querySelector('#ezuC').value.trim() };
+        const fel = { perc: ezSzam(ov.querySelector('#ezuP').value), km: ezSzam(ov.querySelector('#ezuK').value), cel: ov.querySelector('#ezuC').value.trim(), ido: ezIdoOk(ov.querySelector('#ezuT').value) };
         const napok = Array.from({ length: +ov.querySelector('#ezuI').value || 1 }, (_, i) => ezPlusz(d0, 7 * i));
         await ezEvekBetolt(...napok);
         for(const s of napok) ezNapSet(s, [...ezNapLista(s), ezTetelSablonbol(val, fel)]);
@@ -15533,7 +15548,8 @@ async function ezTetelModal(s, id){
     const e = ezNapLista(s).find(x => x.id === id); if(!e) return;
     let st = ['ok','resz','ki'].includes(e.st) ? e.st : 'terv';
     const ov = ezModal(esc(e.n), `
-        <div class="ez-mezok2">${ezMezo('Név', 'eztN', e.n, ' maxlength="60"')}<label class="ez-mezo"><span>Nap</span><input type="date" id="eztD" value="${esc(s)}"></label></div>
+        <div class="ez-mezok3">${ezMezo('Név', 'eztN', e.n, ' maxlength="60"')}<label class="ez-mezo"><span>Nap</span><input type="date" id="eztD" value="${esc(s)}"></label>
+            <label class="ez-mezo"><span>Időpont</span><input type="time" id="eztI" value="${esc(e.ido || '')}"></label></div>
         <div class="ez-mezok3">${ezMezo('Időtartam (perc)', 'eztP', e.perc || '', ' inputmode="numeric"')}${ezMezo('Táv (km)', 'eztK', e.km ? ezKm(e.km) : '', ' inputmode="decimal"')}${ezMezo('Cél / intenzitás', 'eztC', e.cel || '', ' maxlength="80"')}</div>
         ${e.sport === 'pih' ? '' : `<div class="ez-mezo-c">Eredmény</div>
         <div class="pz-seg2 ez-st-seg">${[['terv','Tervezett'],['ok','Teljesítve'],['resz','Részben'],['ki','Kihagyva']].map(([k, n]) =>
@@ -15572,7 +15588,7 @@ async function ezTetelModal(s, id){
         const v = id => { const x = ov.querySelector('#' + id); return x ? x.value : ''; };
         const t = ezTiszta({ ...e, n: v('eztN').trim() || e.n, perc: ezSzam(v('eztP')) || undefined, km: ezSzam(v('eztK')) || undefined,
             cel: v('eztC').trim() || undefined, st, tp: kesz ? ezSzam(v('eztTP')) : undefined, tk: kesz ? ezSzam(v('eztTK')) : undefined,
-            megj: v('eztM').trim() || undefined });
+            megj: v('eztM').trim() || undefined, ido: ezIdoOk(v('eztI')) || undefined });
         await ezEvekBetolt(uj);
         if(uj === s) ezNapSet(s, ezNapLista(s).map(x => x.id === id ? t : x));
         else { ezNapSet(s, ezNapLista(s).filter(x => x.id !== id)); ezNapSet(uj, [...ezNapLista(uj), t]); ezMent(uj.slice(0, 4)); }
@@ -15587,6 +15603,7 @@ function ezSablonModal(sid){
         <div class="ez-mezok2">${ezMezo('Név', 'ezsN', s ? s.n : '', ' maxlength="60" placeholder="pl. Könnyű futás"')}
             <label class="ez-mezo"><span>Sportág</span><select id="ezsS">${Object.entries(EZ_SPORT).map(([k, x]) => `<option value="${k}"${(s ? s.sport : 'fut') === k ? ' selected' : ''}>${x[0]}</option>`).join('')}</select></label></div>
         <div class="ez-mezok3">${ezMezo('Időtartam (perc)', 'ezsP', s && s.perc ? s.perc : '', ' inputmode="numeric"')}${ezMezo('Táv (km)', 'ezsK', s && s.km ? ezKm(s.km) : '', ' inputmode="decimal"')}${ezMezo('Cél / intenzitás', 'ezsC', s ? s.cel || '' : '', ' maxlength="80"')}</div>
+        <label class="ez-mezo ez-mezo-fel"><span>Szokásos időpont <i>nem kötelező – betervezéskor ez lesz az edzés ideje</i></span><input type="time" id="ezsT" value="${esc(s ? s.ido || '' : '')}"></label>
         <div class="ez-mezo-c">Gyakorlatok a szettnaplóhoz (nem kötelező)</div>
         <div id="ezsGy"></div>
         <label class="ez-mezo"><span>Lépések (soronként egy, nem kötelező)</span><textarea id="ezsL" rows="3" maxlength="600">${esc(s ? s.leiras || '' : '')}</textarea></label>
@@ -15627,7 +15644,7 @@ function ezSablonModal(sid){
         if(!n){ ov.querySelector('#ezsUz').textContent = 'Adj nevet a sablonnak.'; return; }
         const uj = ezTiszta({ id: s ? s.id : 's' + ezUjId(), prog: s ? s.prog : '', n, sport: ov.querySelector('#ezsS').value,
             perc: ezSzam(ov.querySelector('#ezsP').value), km: ezSzam(ov.querySelector('#ezsK').value),
-            cel: ov.querySelector('#ezsC').value.trim(), leiras: ov.querySelector('#ezsL').value.trim(),
+            cel: ov.querySelector('#ezsC').value.trim(), leiras: ov.querySelector('#ezsL').value.trim(), ido: ezIdoOk(ov.querySelector('#ezsT').value) || undefined,
             gyak: gy.filter(g => ezGyak(g.gid)).map(g => { const t = ezGyak(g.gid).tip; return ezTiszta({ gid: g.gid, sz: g.sz || 1,
                 ism: t === 'sulyism' || t === 'ism' ? g.ism : 0, ism2: t === 'sulyism' || t === 'ism' ? g.ism2 : 0, kg: t === 'sulyism' ? g.kg : 0,
                 mp: t === 'ido' ? g.mp : 0, m: t === 'tavido' ? g.m : 0, megj: g.megj }); }) });
@@ -15649,7 +15666,7 @@ async function ezHetModal(){
         renderEdz);
     const rajz = () => {
         ov.querySelector('#ezHm').innerHTML = het.map((s, i) => `<div class="ez-hm-sor"><span class="ez-t-nap"><b>${EZ_NAP[i]}</b><em>${ezRovidD(s)}</em></span>
-            <div class="ez-hm-l">${ezNapLista(s).map(e => `<span class="ez-hm-c">${ezIk(e.sport)}${esc(e.n)}<button type="button" data-ezhmdel="${s}|${esc(e.id)}" aria-label="${esc(e.n)} törlése">×</button></span>`).join('')}
+            <div class="ez-hm-l">${ezIdoRend(ezNapLista(s)).map(e => `<span class="ez-hm-c">${ezIk(e.sport)}${e.ido ? `<em class="ezw-ido">${esc(e.ido)}</em>` : ''}${esc(e.n)}<button type="button" data-ezhmdel="${s}|${esc(e.id)}" aria-label="${esc(e.n)} törlése">×</button></span>`).join('')}
                 <select data-ezhmadd="${s}" aria-label="Edzés hozzáadása: ${EZ_NAP[i]}">${opciok}</select></div></div>`).join('');
     };
     const mentHet = () => new Set([...het, ...elozo].map(s => s.slice(0, 4))).forEach(ezMent);
@@ -16413,7 +16430,16 @@ window.sfShowEdzes = function(){
 (function(){
     const page = document.getElementById('page-edzes'); if(!page) return;
     page.addEventListener('input', e => { if(e.target.matches('[data-ezgykeres]')){ ezGyKeres = e.target.value; ezGySzur(); } });
-    page.addEventListener('change', e => { if(e.target.matches('[data-ezsabcsop]')){ ezSabCsop = e.target.value; store.save('sf_ez_sab_csop', ezSabCsop); renderEdz(); } });
+    page.addEventListener('change', e => {
+        if(e.target.matches('[data-ezsabcsop]')){ ezSabCsop = e.target.value; store.save('sf_ez_sab_csop', ezSabCsop); renderEdz(); return; }
+        if(e.target.matches('[data-ezgcido]')){
+            const n = ezGcNaptar(); if(!n || !n.id) return;
+            const ido = ezIdoOk(e.target.value) || EZ_GC_ALAPIDO;
+            e.target.value = ido;
+            if(ido === (n.ido || EZ_GC_ALAPIDO)) return;
+            ezAdat.torzs.naptar = { ...n, ido }; ezMent('torzs'); ezGcIdozit();
+        }
+    });
     page.addEventListener('click', e => {
         if(e.target.closest('[data-ezgcval]')){ ezGcValaszt(); return; }
         const fk = e.target.closest('[data-ezfelk]'); if(fk){ const v = (ezAdat.torzs.versenyek || []).find(x => x.id === fk.dataset.ezfelk); if(v) ezFelkModal(v); return; }
@@ -18570,7 +18596,7 @@ async function renderPrivMa(){
     const osszesito = [szAll.es ? `${szKeszDb}/${szAll.es} szokás` : '', edz.length ? `${edz.length} edzés` : '', fiz.length ? `${fiz.length} fizetés a héten` : '', esem.length && esem[0].k.nap <= 7 ? `${esem[0].ev.n}: ${emNapSzo(esem[0].k.nap)}` : ''].filter(Boolean);
     const kartya = (cim, lap, belso, cls) => `<section class="card pv-kartya ${cls || ''}"><h4 class="pv-cim">${cim}${lap ? `<button type="button" class="pv-link" data-mamenj="${lap}">${lap === 'szokasok' || lap === 'emberek' || lap === 'konyvek' || lap === 'enaplo' ? 'Mind' : 'Megnyitás'} ›</button>` : ''}</h4>${belso}</section>`;
     const edzHtml = edz.length ? edz.map(e => { const er = ezEr(e, ma);
-        return `<div class="ma-edz">${ezIk(e.sport)}<span class="t"><b>${esc(e.n)}</b><span>${esc(ezCel(e))}</span></span>
+        return `<div class="ma-edz">${ezIk(e.sport)}<span class="t"><b>${e.ido ? `<em class="ezw-ido">${esc(e.ido)}</em>` : ''}${esc(e.n)}</b><span>${esc(ezCel(e))}</span></span>
             ${er.a === 'terv' ? `<button type="button" class="pv-kapsz" data-maedzok="${esc(e.id)}">Kész ✓</button>` : `<span class="ez-pill ez-st-${er.a}">${ezAllCim(er)}</span>`}</div>`; }).join('')
         : `<p class="pv-megj">${pih ? 'Pihenőnap – a regeneráció is az edzés része.' : 'Mára nincs betervezett edzés.'}</p>`;
     // A Ma oldal kártyái: azonosító → HTML (üres, ha nincs mit mutatni). A sorrend és a
@@ -21409,7 +21435,6 @@ document.addEventListener('keydown', e => {
             if (!res.ok && !(opt.method === "DELETE" && (res.status === 404 || res.status === 410))) throw await apiError(res, "Edzés naptár");
             return res.status === 204 || opt.method === "DELETE" ? null : res.json();
         };
-        const kovNap = d => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + 1); return ymd(x); };
         const meglevo = {};
         let pt = "";
         do {
@@ -21424,13 +21449,22 @@ document.addEventListener('keydown', e => {
         } while (pt);
         const er = { uj: 0, mod: 0, tor: 0 };
         const feladat = [];
+        // Időpontos esemény a magyar időzónában; a végét a perc adja. A "helyi" idő-szöveget
+        // a böngésző naptárával számoljuk, az időzónát a Google kapja meg mellé.
+        const p2 = n => String(n).padStart(2, "0");
+        const helyi = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`;
         for (const t of tetelek){
-            const body = { summary: t.cim, description: t.leiras, start: { date: t.datum }, end: { date: kovNap(t.datum) },
-                transparency: "transparent", extendedProperties: { private: { sfEdzes: "1", sfKulcs: t.kulcs } } };
+            const kezd = new Date(t.datum + "T" + (t.ido || "18:00") + ":00"), vege = new Date(kezd.getTime() + (t.perc || 60) * 60000);
+            const idoJel = (t.ido || "") + "|" + (t.perc || 60);
+            const body = { summary: t.cim, description: t.leiras,
+                start: { dateTime: helyi(kezd), timeZone: "Europe/Budapest" }, end: { dateTime: helyi(vege), timeZone: "Europe/Budapest" },
+                transparency: "opaque", extendedProperties: { private: { sfEdzes: "1", sfKulcs: t.kulcs, sfIdo: idoJel } } };
             const m = meglevo[t.kulcs]; delete meglevo[t.kulcs];
             if (!m) feladat.push(() => hiv(alap, { method: "POST", body: JSON.stringify(body) }).then(() => er.uj++));
-            else if (m.summary !== body.summary || (m.description || "") !== body.description || (m.start || {}).date !== t.datum)
-                feladat.push(() => hiv(alap + "/" + encodeURIComponent(m.id), { method: "PATCH", body: JSON.stringify(body) }).then(() => er.mod++));
+            // a régi (egész napos) eseményt is lecseréli – a teljes cserét a PUT végzi (a PATCH a start.date-et megtartaná)
+            else if (m.summary !== body.summary || (m.description || "") !== body.description || (m.start || {}).date
+                     || ((m.extendedProperties || {}).private || {}).sfIdo !== idoJel)
+                feladat.push(() => hiv(alap + "/" + encodeURIComponent(m.id), { method: "PUT", body: JSON.stringify(body) }).then(() => er.mod++));
         }
         for (const ev of Object.values(meglevo))
             feladat.push(() => hiv(alap + "/" + encodeURIComponent(ev.id), { method: "DELETE" }).then(() => er.tor++));
