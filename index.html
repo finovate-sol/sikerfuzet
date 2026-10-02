@@ -4331,6 +4331,23 @@
         .pz-a-szamlak-fej h4 { margin:0; font-size:14px; color:var(--navy); }
         .pz-a-szamlak-fej span { font-size:11.5px; color:var(--muted); } .pz-a-szamlak-fej span b { color:var(--navy); font-variant-numeric:tabular-nums; }
         .pz-a-szamlak-fej .link { margin-left:auto; font-size:11.5px; }
+        .pz-egy-g { position:relative; margin-left:auto; border:1px solid var(--border); background:#fff; border-radius:999px; padding:5px 12px; font:inherit; font-size:12px; font-weight:700; color:var(--navy); cursor:pointer; }
+        .pz-egy-pont { position:absolute; top:-2px; right:-2px; width:9px; height:9px; border-radius:50%; background:#f59e0b; border:2px solid #fff; }
+        .pz-egy-gombok { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+        .pz-egy-sor { display:grid; grid-template-columns:36px 1fr 140px; grid-template-areas:"ik t in" "ik k k"; gap:4px 12px; align-items:center; padding:12px 0; border-bottom:1px solid #f1f2f4; }
+        .pz-egy-sor:last-of-type { border-bottom:0; }
+        .pz-egy-ik { grid-area:ik; width:36px; height:36px; border-radius:10px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#475569; align-self:start; }
+        .pz-egy-ik svg { width:19px; height:19px; }
+        .pz-egy-t { grid-area:t; min-width:0; display:flex; flex-direction:column; gap:2px; } .pz-egy-t b { font-size:14.5px; color:var(--navy); } .pz-egy-t em { font-style:normal; font-size:12px; color:var(--muted); }
+        .pz-egy-sor input { grid-area:in; width:100%; height:40px; box-sizing:border-box; border:1px solid var(--border); border-radius:10px; padding:0 10px; font:inherit; font-size:15px; text-align:right; }
+        .pz-egy-ok, .pz-egy-kul, .pz-egy-tetel { grid-column:2 / 4; justify-self:start; }
+        .pz-egy-ok { border:0; background:none; color:#16a34a; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; padding:2px 0; }
+        .pz-egy-kul { font-size:14px; font-weight:800; } .pz-egy-kul.nulla { color:#16a34a; font-size:12.5px; }
+        .pz-egy-tetel { border:0; background:none; color:var(--blue); font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; padding:0; text-align:left; }
+        .pz-egy-ossz { margin-top:10px; padding:10px 12px; border-radius:10px; background:#f8fafc; font-size:13px; color:var(--text); }
+        .pz-korr-lista { margin-top:10px; border-top:1px solid var(--border); padding-top:8px; font-size:12.5px; }
+        .pz-korr-lista > b { display:block; margin-bottom:4px; color:var(--navy); }
+        .pz-korr-lista div { display:flex; gap:10px; padding:3px 0; } .pz-korr-lista span { color:var(--muted); min-width:110px; } .pz-korr-lista em { font-style:normal; font-weight:700; min-width:90px; } .pz-korr-lista i { font-style:normal; color:var(--muted); }
         .pz-a-szamla-sor { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
         .pz-a-szamla { position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:108px; padding:12px 14px;
             border:0; border-radius:14px; text-align:left; font-family:inherit; cursor:pointer; color:#fff;
@@ -9284,9 +9301,80 @@ function pzTarcaKartyaHtml(w, i){
     return `<button type="button" class="pz-tarca" data-pztarca="${i}" title="Szerkesztés">
         <i class="pz-tarca-ikon">${pzSvg(w.ikon || ikon)}</i>
         <span class="nev">${esc(w.n || '—')}</span>
-        <span class="tip">${esc(cim)}</span>
+        <span class="tip">${esc(cim)} · ${esc(pzEgySzo(w))}</span>
         <b class="${neg ? 'pz-down' : 'pz-up'}">${neg ? '−' : '+'}${pzFt(Math.abs(w.o || 0))} Ft</b>
     </button>`;
+}
+// ===== Egyenleg-egyeztetés (korrekció) =====
+// A tárca egyenlege a tételekből mozdul; ha elcsúszott a valóságtól (elfelejtett
+// tétel, banki díj, kerekítés), itt igazítható. A korrekció NEM tétel – a költés-
+// statisztikába nem számít –, hanem a tárca előzményébe kerül: w.korr = [{ d, regi, uj }],
+// w.egy = az utolsó egyeztetés ideje. Ha a különbség egy elfelejtett kiadás / bevétel,
+// tételként is rögzíthető – akkor a tétel maga hozza helyre az egyenleget.
+const PZ_EGY_NAP = 30;
+const pzKorrDatum = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getFullYear()}. ${PZ_HO_ROV[d.getMonth()]} ${d.getDate()}.`; };
+function pzEgySzo(w){
+    if(!w || !w.egy) return 'még nem egyeztetted';
+    const n = Math.floor((Date.now() - new Date(w.egy).getTime()) / 864e5);
+    return n <= 0 ? 'ma egyeztetve' : n === 1 ? 'tegnap egyeztetve' : `${n} napja egyeztetve`;
+}
+const pzEgyRegi = () => pzTorzsGet().penztarca.some(w => !w.egy || Date.now() - new Date(w.egy).getTime() > PZ_EGY_NAP * 864e5);
+function pzKorrNaplo(w, regi, uj){
+    const most = new Date().toISOString();
+    w.korr = [...(w.korr || []), { d: most, regi, uj }].slice(-40);
+    w.egy = most;
+}
+function pzEgyeztetModal(){
+    const lista = pzTorzsGet().penztarca; if(!lista.length) return;
+    const ert = {};                                           // tárca-id → beírt valós egyenleg (szám) vagy undefined
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    const kul = w => ert[w.id] == null ? null : ert[w.id] - (w.o || 0);
+    const rajz = () => {
+        const fo = ov.querySelector('.modal-body'), gorg = fo ? fo.scrollTop : 0;
+        const db = lista.filter(w => kul(w)).length, ossz = lista.reduce((s, w) => s + (kul(w) || 0), 0);
+        ov.innerHTML = `<div class="modal pz-modal" style="max-width:560px;">
+            <div class="modal-head"><h3>Egyenlegek egyeztetése</h3><button class="modal-x" data-pzx>&times;</button></div>
+            <div class="modal-body">
+                <p class="pz-sec-note" style="margin:0 0 12px;">Nézd meg a bankodban / pénztárcádban, mennyi van <b>most</b> az egyes helyeken, és írd be. Ahol eltér, a különbség korrekcióként igazodik – a költéseidbe nem számít bele.</p>
+                ${lista.map(w => { const k = kul(w);
+                    return `<div class="pz-egy-sor">
+                        <span class="pz-egy-ik">${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</span>
+                        <span class="pz-egy-t"><b>${esc(w.n)}</b><em>Az app szerint: ${(w.o || 0) < 0 ? '−' : ''}${pzFt(Math.abs(w.o || 0))} Ft · ${esc(pzEgySzo(w))}</em></span>
+                        <input type="text" inputmode="numeric" data-pzegyw="${esc(w.id)}" value="${ert[w.id] != null ? esc(pzFt(ert[w.id])) : ''}" placeholder="${esc(pzFt(w.o || 0))}" aria-label="${esc(w.n)} valós egyenlege">
+                        ${k == null ? '<button type="button" class="pz-egy-ok" data-pzegyok="' + esc(w.id) + '" title="Egyezik">✓ egyezik</button>'
+                          : k === 0 ? '<span class="pz-egy-kul nulla">✓ egyezik</span>'
+                          : `<span class="pz-egy-kul ${k > 0 ? 'pz-up' : 'pz-down'}">${k > 0 ? '+' : '−'}${pzFt(Math.abs(k))} Ft</span>
+                             <button type="button" class="pz-egy-tetel" data-pzegytetel="${esc(w.id)}">Elfelejtett ${k < 0 ? 'kiadás' : 'bevétel'}? Rögzítsd tételként ›</button>`}
+                    </div>`; }).join('')}
+                ${db ? `<div class="pz-egy-ossz">${db} tárcánál korrekció · összesen <b class="${ossz >= 0 ? 'pz-up' : 'pz-down'}">${ossz >= 0 ? '+' : '−'}${pzFt(Math.abs(ossz))} Ft</b></div>` : ''}
+            </div>
+            <div class="modal-foot"><button class="btn" data-pzx>Mégse</button>
+                <button class="btn primary" data-pzegyment style="background:var(--blue);color:#fff;border-color:var(--blue);">${db ? 'Korrekció mentése' : 'Kész'}</button></div></div>`;
+        const ujfo = ov.querySelector('.modal-body'); if(ujfo) ujfo.scrollTop = gorg;
+    };
+    rajz(); document.body.appendChild(ov);
+    const zar = () => ov.remove();
+    ov.addEventListener('input', e => {
+        const i = e.target.closest('[data-pzegyw]'); if(!i) return;
+        const v = i.value.trim(); ert[i.dataset.pzegyw] = v === '' || v === '-' || v === '−' ? undefined : (pzNum(v.replace(/−/g, '-')) || 0);
+        // csak a különbség-cellát frissítjük, hogy a beírás közben ne ugorjon a kurzor
+        clearTimeout(ov._t); ov._t = setTimeout(() => { const id = i.dataset.pzegyw, pos = i.selectionStart; rajz(); const ni = ov.querySelector(`[data-pzegyw="${id}"]`); if(ni){ ni.focus(); try { ni.setSelectionRange(pos, pos); } catch(_){} } }, 450);
+    });
+    ov.addEventListener('click', e => {
+        if(e.target === ov || e.target.closest('[data-pzx]')) return zar();
+        const ok = e.target.closest('[data-pzegyok]'); if(ok){ const w = lista.find(y => y.id === ok.dataset.pzegyok); if(w){ ert[w.id] = w.o || 0; rajz(); } return; }
+        const tt = e.target.closest('[data-pzegytetel]');
+        if(tt){ const w = lista.find(y => y.id === tt.dataset.pzegytetel), k = w && kul(w); if(!k) return;
+            zar(); pzTHo = pzMaHo(); pzTetelModal(null, { t: k < 0 ? 'ki' : 'bev', o: Math.abs(k), p: w.id }); return; }
+        if(e.target.closest('[data-pzegyment]')){
+            const most = new Date().toISOString(); let valt = false;
+            for(const w of lista){ if(ert[w.id] == null) continue; valt = true;
+                if(ert[w.id] !== (w.o || 0)){ pzKorrNaplo(w, w.o || 0, ert[w.id]); w.o = ert[w.id]; } else w.egy = most; }
+            if(valt){ pzSaveTorzs(); renderPzView(); }
+            zar();
+        }
+    });
+    setTimeout(() => { const i = ov.querySelector('[data-pzegyw]'); if(i && pzFinom()) i.focus(); }, 30);
 }
 function renderPzTarcak(){
     const host = document.getElementById('pzTorzs'); if(!host) return;
@@ -9298,7 +9386,8 @@ function renderPzTarcak(){
     </div>
     <div class="pz-t-mfej"><div class="pz-a-hos"><span class="c">Összesen a tárcákban</span>
         <b>${pzTarcaOssz() < 0 ? '−' : ''}${pzFt(Math.abs(pzTarcaOssz()))}<small> Ft</small></b>
-        <button type="button" class="pz-a-hos-gomb" id="pzTarcaUj3">${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}Új tárca</button></div>
+        <span class="pz-egy-gombok"><button type="button" class="pz-a-hos-gomb" id="pzTarcaUj3">${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}Új tárca</button>
+        ${lista.length ? `<button type="button" class="pz-a-hos-gomb" data-pzegyeztet>${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'}Egyenlegek egyeztetése</button>` : ''}</span></div>
         ${lista.length ? `<div class="pz-a-szamla-sor pz-t-kartyak">${lista.map((w, i) => `
             <button type="button" class="pz-a-szamla" data-pztarca="${i}" title="${esc(w.n)} – szerkesztés" style="--k:${['#2563eb','#0f766e','#7c3aed','#b45309','#be185d','#15803d'][i % 6]}">
                 <span class="f"><i>${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i><em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
@@ -9325,6 +9414,8 @@ function pzTarcaModal(idx){
                 <div class="pz-f-teljes"><span class="pz-f-cim">Ikon</span><div id="pzTaIkon"></div><input type="hidden" data-f="ikon" value="${esc(x.ikon||'')}"></div>
                 <label>Egyenleg (Ft)<input type="text" inputmode="numeric" data-f="o" value="${x.o!=null?esc(pzFt(x.o)):''}" placeholder="0"></label>
             </div>
+            ${idx != null ? `<p class="pz-sec-note" style="margin-top:8px;">Ha az egyenleget átírod, az korrekcióként kerül a tárca előzményébe – a költésekbe nem számít bele. Állapot: ${esc(pzEgySzo(x))}.</p>
+                ${(x.korr || []).length ? `<div class="pz-korr-lista"><b>Korrekciók</b>${x.korr.slice().reverse().slice(0, 6).map(k => `<div><span>${esc(pzKorrDatum(k.d))}</span><em class="${k.uj - k.regi >= 0 ? 'pz-up' : 'pz-down'}">${k.uj - k.regi >= 0 ? '+' : '−'}${pzFt(Math.abs(k.uj - k.regi))} Ft</em><i>${pzFt(k.regi)} → ${pzFt(k.uj)} Ft</i></div>`).join('')}</div>` : ''}` : ''}
             <div class="pz-hiba" id="pzTaHiba"></div>
         </div>
         <div class="modal-foot">
@@ -9360,9 +9451,11 @@ function pzTarcaModal(idx){
     const ment = () => {
         const ert = k => ov.querySelector(`[data-f="${k}"]`).value.trim();
         if(!ert('n')){ ov.querySelector('#pzTaHiba').textContent = 'A név nem lehet üres.'; return; }
-        const uj = { id: x.id || ('w' + Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
+        const uj = { ...(idx != null ? x : {}), id: x.id || ('w' + Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
                      n: ert('n'), tipus, ikon: ert('ikon'), o: pzNum(ert('o')) || 0 };
-        if(idx != null) lista[idx] = uj; else lista.push(uj);
+        // A meglévő tárca egyenlegének átírása korrekció: naplózzuk, mennyiről mennyire.
+        if(idx != null && (x.o || 0) !== uj.o) pzKorrNaplo(uj, x.o || 0, uj.o);
+        if(idx != null) lista[idx] = uj; else lista.push({ ...uj, egy: new Date().toISOString() });
         pzSaveTorzs(); zar(); renderPzView();
     };
     ov.querySelector('#pzTaMent').addEventListener('click', ment);
@@ -9719,6 +9812,7 @@ async function renderPzAttek(){
         // A számlák más kinézetet kapnak, mint a kimutatások: bankkártya-szerű lapok a tárca színében.
         tarca: torzs.penztarca.length ? `<section class="pz-a-szamlak">
             <div class="pz-a-szamlak-fej"><h4>Számlák</h4><span>${torzs.penztarca.length} tárca · <b>${jel(pzTarcaOssz())} Ft</b></span>
+                <button type="button" class="pz-egy-g" data-pzegyeztet>${pzEgyRegi() ? '<i class="pz-egy-pont"></i>' : ''}Egyeztetés</button>
                 <a class="link" href="#" data-pzview="tarca">Kezelés ↗</a></div>
             <div class="pz-a-szamla-sor">${torzs.penztarca.map((w, i) => `
             <button type="button" class="pz-a-szamla" data-pztarca="${i}" title="${esc(w.n)} – szerkesztés" style="--k:${['#2563eb','#0f766e','#7c3aed','#b45309','#be185d','#15803d'][i % 6]}">
@@ -11223,6 +11317,7 @@ window.sfShowPenzugyek = function(){
         if(nw){ pzNTarca = nw.dataset.pzntarca; renderPzNaplo(); return; }
         if(e.target.closest('#pzTorzsUj')){ pzTorzsModal(null); return; }
         if(e.target.closest('#pzTarcaUj, #pzTarcaUj2, #pzTarcaUj3')){ pzTarcaModal(null); return; }
+        if(e.target.closest('[data-pzegyeztet]')){ pzEgyeztetModal(); return; }
         const wk = e.target.closest('[data-pztarca]');
         if(wk){ pzTarcaModal(+wk.dataset.pztarca); return; }
         const tdel = e.target.closest('[data-pztorzsdel]');
