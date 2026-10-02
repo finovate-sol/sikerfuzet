@@ -116,9 +116,24 @@
     <meta name="apple-mobile-web-app-title" content="Sikerfüzet">
     <script>
     // Privát állásban indul az app: már az első festéskor Életfüzet a neve és az ikonja.
-    (function(){ var t = null; try { t = JSON.parse(localStorage.getItem('sf_ter') || 'null'); } catch(e){} if(t === 'priv') window.sfEletAlkalmaz(true); })();
+    (function(){ var t = null; try { t = JSON.parse(localStorage.getItem('sf_ter') || 'null'); } catch(e){} if(t === 'priv'){
+        window.sfEletAlkalmaz(true);
+        // Indítókép az első kirajzolástól, amíg a privát Ma oldal elkészül – így nem villan fel a Sikerfüzet.
+        document.documentElement.classList.add('sf-priv-indul');
+        document.documentElement.style.backgroundColor = '#ffffff';
+        var tc = document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content', '#ffffff');
+    } })();
     </script>
     <style>
+        /* ===== Életfüzet indítókép ===== */
+        #sfSplash { display:none; position:fixed; inset:0; z-index:4500; background:#fff; flex-direction:column; align-items:center; justify-content:center; gap:14px; transition:opacity .28s ease; }
+        html.sf-priv-indul #sfSplash { display:flex; }
+        html.sf-priv-indul body { overflow:hidden; }
+        #sfSplash img { width:96px; height:96px; border-radius:24px; box-shadow:0 12px 30px rgba(76,29,149,.22); }
+        #sfSplash b { font:800 22px/1.2 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:#1f1235; letter-spacing:-.01em; }
+        #sfSplash i { width:26px; height:26px; margin-top:10px; border-radius:50%; border:3px solid #ede9fe; border-top-color:#7c3aed; animation:sfSpl .8s linear infinite; }
+        @keyframes sfSpl { to { transform:rotate(360deg); } }
+        #sfSplash.el { opacity:0; pointer-events:none; }
         :root {
             --navy: #0f2f5f;
             --navy-dark: #0a2547;
@@ -5941,6 +5956,23 @@
     </style>
 </head>
 <body>
+<div id="sfSplash" aria-hidden="true"><img id="sfSplashIk" src="icons/elet-lotusz/icon-192.png" alt="" width="96" height="96"><b>Életfüzet</b><i></i></div>
+<script>
+// Indítókép (csak privát állásban látszik): a választott Életfüzet-ikonnal; eltűnik, amint a
+// privát kezdőlap elkészült (window.sfSplashLe), legkésőbb 7 mp után.
+(function(){
+    var sp = document.getElementById('sfSplash');
+    if(!document.documentElement.classList.contains('sf-priv-indul')){ sp.remove(); window.sfSplashLe = function(){}; return; }
+    try { document.getElementById('sfSplashIk').src = 'icons/' + window.sfEletIkon() + '/icon-192.png'; } catch(e){}
+    var kesz = false;
+    window.sfSplashLe = function(){
+        if(kesz) return; kesz = true;
+        sp.classList.add('el');
+        setTimeout(function(){ document.documentElement.classList.remove('sf-priv-indul'); sp.remove(); }, 280);
+    };
+    setTimeout(window.sfSplashLe, 7000);
+})();
+</script>
 <div class="layout">
     <!-- ===== MOBIL MENÜ HÁTTÉR ===== -->
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -7354,6 +7386,7 @@ renderMoney(); renderCareer(); renderInfo();
         const indit = () => {
             if(!window.sfCurrentUser){ setTimeout(indit, 300); return; }
             if(ter === 'priv' && lapTer(aktLap()) === 'ovb') menj('priv');
+            if(aktLap() !== 'privma' && window.sfSplashLe) setTimeout(window.sfSplashLe, 900);
         };
         indit();
     }
@@ -18540,6 +18573,7 @@ async function renderPrivMa(){
         </div>`;
     if(szGorg){ const g = host.querySelector('.ma-szok'); if(g) g.scrollLeft = szGorg; }
     nlKepTolt(host);
+    if(window.sfSplashLe) requestAnimationFrame(() => window.sfSplashLe());
 }
 window.sfShowPrivMa = function(){ renderPrivMa(); };
 // Egészség-sor: alvás (fél órás lépésekben) és víz (pohár) a mai napra.
