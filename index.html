@@ -5384,7 +5384,14 @@
         .pv-lep button:disabled { opacity:.35; cursor:default; }
         .pv-kapsz { border:0; border-radius:999px; background:#111827; color:#fff; font:inherit; font-size:12.5px; font-weight:700; padding:9px 14px; cursor:pointer; white-space:nowrap; }
         .ma-racs { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
-        @media (min-width:900px){ .ma-racs { grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:14px; align-items:start; } .ma-racs > .ma-szok-k { grid-column:1 / -1; } }
+        /* Széles képernyőn két oszlop: egy sorban a kártyák egyforma magasak; ha egy kártya
+           egyedül maradna a sorában (páratlan számú fél szélességű egymás után), a teljes sort kitölti. */
+        @media (min-width:900px){
+            .ma-racs { grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:14px; align-items:stretch; }
+            .ma-racs > section { display:flex; flex-direction:column; min-height:150px; box-sizing:border-box; }
+            .ma-racs > .ma-szok-k, .ma-racs > .ma-teljes { grid-column:1 / -1; min-height:0; }
+            .ma-racs > section > .ma-uj-kolt { margin-top:auto; align-self:flex-start; }
+        }
         /* szokás-pipa: kerek ikon a terület színében, kipipálva teli */
         .sz-pipa { --c:#6d28d9; --b:#ede9fe; display:inline-flex; flex-direction:column; align-items:center; gap:6px; border:0; background:none; padding:0; font:inherit; cursor:pointer; flex:none; }
         .sz-pipa i { width:48px; height:48px; border-radius:50%; background:var(--b); color:var(--c); display:flex; align-items:center; justify-content:center; transition:transform .12s, background .15s;
@@ -18590,7 +18597,13 @@ async function renderPrivMa(){
     let sor = mb.sor.filter(k => !mb.rejt.includes(k));
     // este (17 óra után), ha még nincs mai bejegyzés, az Esti zárás a lap tetejére kerül (kikapcsolható)
     if(mb.esti && nlK && !nlK.kesz && ora >= 17 && sor.includes('naplo')) sor = ['naplo', ...sor.filter(k => k !== 'naplo')];
-    const racs = sor.map(k => K[k] || '').join('');
+    // páratlan számú fél szélességű kártya egymás után → az utolsó teljes szélességű (ne maradjon félárva hely)
+    const TELJES = new Set(['szokas']), lat = sor.filter(k => K[k]);
+    let fut = [];
+    const lezar = () => { if(fut.length % 2) K[fut[fut.length - 1]] = K[fut[fut.length - 1]].replace('class="card pv-kartya', 'class="card pv-kartya ma-teljes'); fut = []; };
+    for(const k of lat){ if(TELJES.has(k)) lezar(); else fut.push(k); }
+    lezar();
+    const racs = lat.map(k => K[k]).join('');
     const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
