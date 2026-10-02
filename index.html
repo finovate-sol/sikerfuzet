@@ -7453,8 +7453,8 @@ renderMoney(); renderCareer(); renderInfo();
             timeout: 60000, attestation: 'none' } });
         return b64(cred.rawId);
     }
-    async function bioEllenoriz(){
-        const a = await navigator.credentials.get({ publicKey: {
+    async function bioEllenoriz(signal){
+        const a = await navigator.credentials.get({ signal, publicKey: {
             challenge: crypto.getRandomValues(new Uint8Array(32)),
             allowCredentials: [{ type: 'public-key', id: unb64(cfg.bio), transports: ['internal', 'hybrid'] }],
             userVerification: 'required', timeout: 60000 } });
@@ -7485,14 +7485,21 @@ renderMoney(); renderCareer(); renderInfo();
     function felold(){ zarva = false; frissit(); window.dispatchEvent(new CustomEvent('sf-zar', { detail: false })); }
     window.sfZarol = () => { if(!be()) return; zarva = true; frissit(); };
     window.sfZarva = () => zarva && be() && window.sfTer === 'priv';
-    async function bioProba(){
-        if(folyamat || !cfg || !cfg.bio) return; folyamat = true;
-        try { if(await bioEllenoriz()) felold(); else rajz('Az azonosítás nem sikerült.'); }
-        catch(e){ if(!ov.hidden) rajz(e && e.name === 'NotAllowedError' ? '' : 'Az azonosítás nem sikerült.'); }
-        folyamat = false;
+    // gesztus = a felhasználó koppintott. Ha egy korábbi (gesztus nélküli, pl. visszatéréskor
+    // indított) kérés még függ – egyes telefonokon sosem fejeződik be –, azt megszakítjuk és
+    // újrakérjük, különben a feloldó gomb "nem reagálna".
+    let bioAbort = null;
+    async function bioProba(gesztus){
+        if(!cfg || !cfg.bio) return;
+        if(folyamat){ if(!gesztus || !bioAbort) return; bioAbort.abort(); }
+        folyamat = true;
+        const ac = bioAbort = typeof AbortController === 'function' ? new AbortController() : null;
+        try { if(await bioEllenoriz(ac ? ac.signal : undefined)) felold(); else rajz('Az azonosítás nem sikerült.'); }
+        catch(e){ if(!(ac && ac.signal.aborted) && !ov.hidden) rajz(e && e.name === 'NotAllowedError' ? '' : 'Az azonosítás nem sikerült.'); }
+        finally { if(bioAbort === ac){ folyamat = false; bioAbort = null; } }
     }
     ov.addEventListener('click', e => {
-        if(e.target.closest('[data-zbio]')){ bioProba(); return; }
+        if(e.target.closest('[data-zbio]')){ bioProba(true); return; }
         if(e.target.closest('[data-zovb]')){ if(window.sfTerValt) window.sfTerValt('ovb'); return; }
         if(e.target.closest('[data-zfelejt]')){
             rajz('Ha nem megy a feloldás: jelentkezz ki, és lépj be újra a Google-fiókoddal – az újbóli belépés ezen az eszközön kikapcsolja a zárat.');
@@ -7501,7 +7508,7 @@ renderMoney(); renderCareer(); renderInfo();
         }
         if(e.target.closest('[data-zki]')){ store.save('sf_zar_kilepett', 1); const lb = document.getElementById('logoutBtn'); if(lb) lb.click(); return; }
         // A képernyő bármely pontja feloldó gomb (ahol a rendszer koppintást kér az arcfelismeréshez).
-        if(!e.target.closest('form, button, input, a')) bioProba();
+        if(!e.target.closest('form, button, input, a')) bioProba(true);
     });
     ov.addEventListener('submit', async e => {
         e.preventDefault();
@@ -7517,7 +7524,7 @@ renderMoney(); renderCareer(); renderInfo();
         if(e.detail === 'ovb' && be() && cfg.kilep !== false) zarva = true;
         frissit();
         // a kapcsoló kattintása felhasználói gesztus – a biometria azonnal kérhető
-        if(e.detail === 'priv' && zarva && be() && cfg.bio) bioProba();
+        if(e.detail === 'priv' && zarva && be() && cfg.bio) bioProba(true);
     });
     document.addEventListener('visibilitychange', () => {
         if(document.hidden){
@@ -7529,7 +7536,7 @@ renderMoney(); renderCareer(); renderInfo();
         if(be() && rejtve && Date.now() - rejtve >= (cfg.perc ?? 1) * 60000){ zarva = true; frissit(); }
         rejtve = 0;
         // visszatéréskor rögtön kérjük az arcot / ujjat (ahol a rendszer engedi gesztus nélkül is)
-        if(!ov.hidden && cfg && cfg.bio) setTimeout(bioProba, 300);
+        if(!ov.hidden && cfg && cfg.bio) setTimeout(() => bioProba(), 300);
     });
     // Kijelentkezés után (a "Nem sikerül feloldani?" úton) az újbóli belépés kikapcsolja a zárat.
     (function figyel(){
@@ -7596,7 +7603,7 @@ renderMoney(); renderCareer(); renderInfo();
     window.sfZarBeallit = beallit;
     gomb(); frissit();
     // Indításkor (privát állásban) rögtön kérjük az arcot / ujjat – ahol a böngésző gesztus nélkül nem engedi, ott a gomb marad.
-    if(!ov.hidden && cfg && cfg.bio) setTimeout(bioProba, 400);
+    if(!ov.hidden && cfg && cfg.bio) setTimeout(() => bioProba(), 400);
     else if(!ov.hidden && cfg && cfg.pin && (() => { try { return matchMedia('(pointer:fine)').matches; } catch(e){ return false; } })()){ const i = ov.querySelector('[data-zpin]'); if(i) i.focus(); }
 })();
 
@@ -8552,6 +8559,89 @@ function pzTorzsGet(){
     for(const k of Object.keys(PZ_TORZS_URES)) pzTorzsData[k] = pzTorzsData[k] || [];
     return pzTorzsData;
 }
+// ===== Lassú szerver: ne fogja meg a felületet =====
+// A telefonra telepített app a háttérből visszatérve gyakran "beragadt" kapcsolattal
+// ébred: a Firestore-olvasás ilyenkor sokáig (akár percekig) nem válaszol, és amíg a
+// lapok erre várnak, a koppintásokra semmi sem történik. Ha van helyi másolat, legfeljebb
+// SF_VAR_MS-ig várunk a szerverre; utána a helyivel dolgozunk, és amikor a szerver
+// válasza megjön, a látható lapot frissítjük (ha közben nem módosítottál rajta).
+const SF_VAR_MS = 1500;
+// Ha egy olvasás már kifutott az időből, és azóta egy válasz sem jött, a szervert lassúnak
+// tekintjük: a további olvasások nem várnak rá (különben lapról lapra összeadódna a várakozás).
+let sfLassu = false;
+const sfEredmeny = p => p.then(v => { sfLassu = false; return { ok: true, v }; }, e => ({ ok: false, e }));
+const sfVarakozik = p => new Promise(res => {
+    let kesz = false;
+    const t = setTimeout(() => { if(kesz) return; kesz = true; sfLassu = true; res(null); }, sfLassu ? 0 : SF_VAR_MS);
+    p.then(v => { if(kesz) return; kesz = true; clearTimeout(t); res(v); });
+});
+// A szerverről jött adat helyi másolata (ebből rajzolunk, ha legközelebb lassú a szerver).
+// A nagyon nagy dokumentumokat nem tesszük el, hogy a böngésző tárhelye ne teljen be.
+function sfHelyiMasolat(kulcs, adat){
+    try { const j = JSON.stringify(adat); if(j.length < 400000) localStorage.setItem(kulcs, j); } catch(e){}
+}
+// Ugyanazt az objektumot tartjuk meg (a hívók hivatkozást tarthatnak rá), csak a tartalma cserélődik.
+function sfCserel(cel, uj){
+    if(Array.isArray(cel)){ cel.length = 0; cel.push(...uj); }
+    else { for(const k of Object.keys(cel)) delete cel[k]; Object.assign(cel, uj); }
+    return cel;
+}
+// Háromutas összefésülés: alap = a közös kiindulás (a helyi másolat a várakozás kezdetén),
+// h = ami közben helyben lett belőle, sz = ami a szerveren van. Ahol csak az egyik oldal
+// változott, az nyer; ahol mindkettő: objektumoknál kulcsonként, azonosítós listáknál
+// elemenként fésülünk (a szerveren megjelent új elem bekerül, a helyben törölt kimarad);
+// egyébként a helyi nyer.
+function sfFesul(alap, h, sz){
+    const J = JSON.stringify;
+    if(J(h) === J(alap)) return sz;
+    if(J(sz) === J(alap) || J(sz) === J(h)) return h;
+    const obj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+    const idLista = x => Array.isArray(x) && x.every(e => obj(e) && e.id != null);
+    if(obj(h) && obj(sz)){
+        const a = obj(alap) ? alap : {}, ki = {};
+        for(const k of new Set([...Object.keys(a), ...Object.keys(h), ...Object.keys(sz)])){
+            const v = sfFesul(a[k], h[k], sz[k]);
+            if(v !== undefined) ki[k] = v;
+        }
+        return ki;
+    }
+    if(idLista(h) && idLista(sz)){
+        const t = l => new Map(l.map(e => [e.id, e]));
+        const A = t(idLista(alap) ? alap : []), H = t(h), S = t(sz), ki = [];
+        for(const e of h){ const v = sfFesul(A.get(e.id), e, S.get(e.id)); if(v !== undefined) ki.push(v); }
+        for(const e of sz) if(!H.has(e.id) && !A.has(e.id)) ki.push(e);
+        return ki;
+    }
+    return h;
+}
+// A késve megjött szerver-állapot beolvasztása az `obj`-ba (helyben tartott objektum/lista).
+// Visszaadja: 'szerver' (nem nyúltál hozzá, a szerveré lett), 'fesult' (közben módosítottál,
+// összefésültük – fel kell tölteni), vagy '' (nincs változás).
+function sfKesoBeolvaszt(obj, pill, sz){
+    const h = JSON.stringify(obj);
+    if(h === pill){
+        if(JSON.stringify(sz) === pill) return '';
+        sfCserel(obj, sz); sfKesoFrissit(); return 'szerver';
+    }
+    const uj = sfFesul(JSON.parse(pill), JSON.parse(h), sz);
+    sfCserel(obj, uj);
+    if(JSON.stringify(uj) !== h) sfKesoFrissit();
+    return 'fesult';
+}
+let sfKesoTimer = null;
+function sfKesoFrissit(){
+    clearTimeout(sfKesoTimer);
+    sfKesoTimer = setTimeout(() => {
+        // nyitott ablak vagy épp gépelt mező alatt nem rajzolunk újra – kicsit később próbáljuk
+        const a = document.activeElement;
+        if(document.querySelector('.modal-overlay') || (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable))){ sfKesoFrissit(); return; }
+        const lap = id => { const p = document.getElementById('page-' + id); return p && !p.hidden; };
+        const R = { penzugyek: () => pzFrissit(), privma: () => renderPrivMa(), szokasok: () => renderSzokasok(), egeszseg: () => renderEgeszseg(),
+            mentesek: () => renderMentesek(), emberek: () => renderEmberek(), konyvek: () => renderKonyvek(), enaplo: () => renderNaplo(), edzes: () => renderEdz() };
+        for(const id in R) if(lap(id)){ try { R[id](); } catch(e){ console.warn(e); } }
+    }, 400);
+}
+
 async function pzLoadTorzs(){
     if(pzTorzsData) return pzTorzsGet();
     const helyi = store.load(pzTKey() + '_torzs', null);
@@ -8559,13 +8649,25 @@ async function pzLoadTorzs(){
     const uid = pzUid();
     const olvas = window.sfGetPzTranzStrict || window.sfGetPzTranz;
     if(uid && typeof olvas === 'function'){
-        try {
-            const t = await olvas(uid, 'torzs');
+        const alkalmaz = r => {
+            if(!r.ok){ console.warn('Törzsadatok betöltése sikertelen:', r.e); return; }
+            const t = r.v;
             if(t){ pzTorzsData = t; store.save(pzTKey() + '_torzs', t); }
             // ugyanaz, mint a katalógusnál: a csak helyben meglévő tárcák, előfizetések felkerülnek
             else if(helyi && window.sfGetPzTranzStrict && typeof window.sfSavePzTranz === 'function')
                 window.sfSavePzTranz(uid, 'torzs', pzTorzsGet()).catch(e => console.warn('Törzsadatok feltöltése sikertelen:', e));
-        } catch(e){ console.warn('Törzsadatok betöltése sikertelen:', e); }
+        };
+        const szerver = sfEredmeny(olvas(uid, 'torzs'));
+        const r = helyi ? await sfVarakozik(szerver) : await szerver;
+        if(r) alkalmaz(r);
+        else {
+            const obj = pzTorzsGet(), pill = JSON.stringify(obj);
+            szerver.then(r2 => {
+                if(pzTorzsData !== obj || JSON.stringify(obj) !== pill) return;   // közben módosult / eldobtuk
+                alkalmaz(r2);
+                if(pzTorzsData !== obj){ const uj = pzTorzsData; pzTorzsData = sfCserel(obj, uj); if(JSON.stringify(pzTorzsGet()) !== pill) sfKesoFrissit(); }
+            });
+        }
     }
     return pzTorzsGet();
 }
@@ -8586,26 +8688,52 @@ const pzTartozas = () => pzTorzsGet().hitel.reduce((sz,x) => sz + (x.o||0), 0);
 const pzNetto    = () => pzEszkoz() - pzTartozas();
 const pzElofizHavi = () => pzTorzsGet().elofiz.reduce((sz,x) => sz + (x.o||0), 0);
 
+// A hónapok, amelyeknél a szerver válasza még úton van (a helyi másolattal dolgozunk).
+// Ilyenkor a mentés csak helyben történik; a válasz megérkezésekor a közben rögzített
+// tételeket összefésüljük a szerveren lévőkkel, és úgy töltjük fel – így a másik
+// eszközön közben rögzített tétel sem vész el.
+const pzTranzKesik = new Set();
+const pzTranzNemFriss = ho => pzTranzHiba.has(ho) || pzTranzKesik.has(ho);
 async function pzLoadTranz(hoKulcs){
     if(pzTranz[hoKulcs]) return pzTranz[hoKulcs];
     const helyi = store.load(pzTKey() + '_' + hoKulcs, null);
     if(helyi) pzTranz[hoKulcs] = helyi;
     const uid = pzUid();
     if(uid && typeof window.sfGetPzTranz === 'function'){
-        try {
-            const tavoli = await window.sfGetPzTranz(uid, hoKulcs);
+        const szerver = sfEredmeny(window.sfGetPzTranz(uid, hoKulcs));
+        const alkalmaz = r => {
+            if(!r.ok){ pzTranzHiba.add(hoKulcs); console.warn('Költésnapló betöltése sikertelen:', r.e); return; }
+            const tavoli = r.v;
             if(tavoli && Array.isArray(tavoli.tetelek)) {
                 pzTranz[hoKulcs] = tavoli.tetelek;
                 store.save(pzTKey() + '_' + hoKulcs, tavoli.tetelek);
             }
+            else if(!helyi) store.save(pzTKey() + '_' + hoKulcs, []);   // üres hónap – legközelebb nem kell rá várni
             pzTranzHiba.delete(hoKulcs);
-        } catch(e){ pzTranzHiba.add(hoKulcs); console.warn('Költésnapló betöltése sikertelen:', e); }
+        };
+        const r = helyi ? await sfVarakozik(szerver) : await szerver;
+        if(r) alkalmaz(r);
+        else {
+            const obj = pzTranz[hoKulcs], pill = JSON.stringify(obj);
+            pzTranzKesik.add(hoKulcs);
+            szerver.then(r2 => {
+                if(pzTranz[hoKulcs] !== obj) return;
+                pzTranzKesik.delete(hoKulcs);
+                if(!r2.ok){ pzTranzHiba.add(hoKulcs); console.warn('Költésnapló betöltése sikertelen:', r2.e); return; }
+                pzTranzHiba.delete(hoKulcs);
+                const tav = r2.v && Array.isArray(r2.v.tetelek) ? r2.v.tetelek : null;
+                if(!tav){ if(JSON.stringify(obj) !== pill) pzSaveTranz(hoKulcs); return; }
+                const m = sfKesoBeolvaszt(obj, pill, tav);
+                if(m === 'fesult') pzSaveTranz(hoKulcs); else if(m) store.save(pzTKey() + '_' + hoKulcs, obj);
+            });
+        }
     }
     return (pzTranz[hoKulcs] = pzTranz[hoKulcs] || []);
 }
 function pzSaveTranz(hoKulcs){
     const lista = pzTranz[hoKulcs] || [];
     store.save(pzTKey() + '_' + hoKulcs, lista);
+    if(pzTranzKesik.has(hoKulcs)) return;      // a szerver válaszának megérkezésekor töltjük fel (összefésülve)
     const uid = pzUid();
     if(uid && typeof window.sfSavePzTranz === 'function')
         window.sfSavePzTranz(uid, hoKulcs, { tetelek: lista })
@@ -8619,8 +8747,22 @@ async function pzLoadKat(){
     const uid = pzUid();
     const olvas = window.sfGetPzTranzStrict || window.sfGetPzTranz;
     if(uid && typeof olvas === 'function'){
+        const szerver = sfEredmeny(olvas(uid, 'katalogus'));
+        const r = helyi ? await sfVarakozik(szerver) : await szerver;
+        if(!r){
+            const obj = pzKatalogus(), pill = JSON.stringify(obj);
+            szerver.then(r2 => {
+                if(pzKat !== obj || JSON.stringify(obj) !== pill || !r2.ok) return;   // közben módosult / eldobtuk
+                const t = r2.v;
+                if(t && t.kiadas && (t.mentve || !(helyi.kiadas || []).some(x => !Array.isArray(x) && (x.k || 0) > 0)) && JSON.stringify(t) !== pill){
+                    pzKat = sfCserel(obj, t); store.save(pzTKey() + '_kat', t); if(JSON.stringify(pzKatalogus()) !== pill) sfKesoFrissit();
+                }
+            });
+            return pzKatalogus();
+        }
         try {
-            const t = await olvas(uid, 'katalogus');
+            if(!r.ok) throw r.e;
+            const t = r.v;
             const keretDb = k => (k && k.kiadas ? k.kiadas.filter(x => !Array.isArray(x) && (x.k || 0) > 0).length : 0);
             // Önjavítás: a szerveren a javítás előtti, KERET NÉLKÜLI lista van (nincs időbélyege),
             // ezen az eszközön viszont be vannak állítva a keretek → ez a helyes, feltöltjük.
@@ -9293,7 +9435,7 @@ function pzCelKartyakHtml(lista){
 }
 // A folyó hónapban esedékes, még nem rögzített automatikus utalások rögzítése.
 function pzCelAuto(){
-    const ho = pzMaHo(); if(!pzTranz[ho] || pzTranzHiba.has(ho)) return false;   // ha nem jött le a hónap, nem írunk bele
+    const ho = pzMaHo(); if(!pzTranz[ho] || pzTranzNemFriss(ho)) return false;   // ha nem jött le a hónap, nem írunk bele
     const nap = new Date().getDate(), t = pzTorzsGet();
     let valt = false, torzs = false;
     for(const c of t.cel){
@@ -10231,7 +10373,7 @@ function pzSyncTervezo(ho){
         // Kiürült a hónap (pl. minden tételt töröltek): a naplóból számolt tény-
         // értékek is törlődnek, különben a Tervező egy már nem létező költést mutatna.
         // Ha a hónapot nem sikerült beolvasni, nem nyúlunk hozzá – a lista csak üresnek LÁTSZIK.
-        if(sor.naplo && !pzTranzHiba.has(ho)){
+        if(sor.naplo && !pzTranzNemFriss(ho)){
             ['bevFo','bevOvb','bevExtra','kolt','naplo'].forEach(k => delete sor[k]);
             savePenzugyekData();
         }
@@ -11264,7 +11406,7 @@ let pzCacheUid = null;
 function pzCacheEllenor(){
     if(pzCacheUid === pzUid()) return;
     pzCacheUid = pzUid();
-    pzTranz = {}; pzKat = null; pzTorzsData = null; pzGyTarca = null; pzNTarca = ''; pzCNyitva = '';
+    pzTranz = {}; pzTranzKesik.clear(); pzKat = null; pzTorzsData = null; pzGyTarca = null; pzNTarca = ''; pzCNyitva = '';
     pzAdatAllapot = 'nincs';
     ['pzHonap','pzNaplo','pzAttek','pzTorzs'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
 }
@@ -11278,7 +11420,8 @@ document.addEventListener('visibilitychange', () => {
     if(document.hidden){ pzRejtveOta = Date.now(); return; }
     if(!pzRejtveOta || Date.now() - pzRejtveOta < 30000) return;
     pzRejtveOta = 0;
-    pzKat = null; pzTorzsData = null; pzTranz = {};
+    // a még úton lévő hónapokat megtartjuk – a közben rögzített tételeik a válasz megérkezésekor kerülnek fel
+    pzKat = null; pzTorzsData = null; pzTranz = Object.fromEntries(Object.entries(pzTranz).filter(([h]) => pzTranzKesik.has(h)));
     const pg = document.getElementById('page-penzugyek');
     if(pg && !pg.hidden) pzFrissit();
 });
@@ -14305,7 +14448,7 @@ const ezLKey = k => `sf_edzes_${ezUid()}_${k}`;
 const ezCsakSzerver = k => k === 'strava' || k.startsWith('sv');
 const ezStravaKapcs = () => !!(ezAdat.strava && ezAdat.strava.athleteId);
 let ezToltes = {};           // a folyamatban lévő betöltések – ugyanazt a kulcsot egyszerre csak egyszer kérjük le
-function ezCacheEllenor(){ if(ezAdatUid !== ezUid()){ ezAdat = {}; ezHiba = new Set(); ezToltes = {}; ezAdatUid = ezUid(); } }
+function ezCacheEllenor(){ if(ezAdatUid !== ezUid()){ ezAdat = {}; ezHiba = new Set(); ezToltes = {}; ezKesik.clear(); ezAdatUid = ezUid(); } }
 // Két egyidejű betöltés (pl. szinkron és újrarajzolás) ugyanarra a kulcsra
 // ugyanazt az objektumot kapja – különben a később érkező, régebbi példány
 // felülírná azt, amibe a másik már beleírt.
@@ -14314,15 +14457,41 @@ function ezBetolt(k){
     if(ezAdat[k]) return Promise.resolve(ezAdat[k]);
     return ezToltes[k] || (ezToltes[k] = ezBetoltSzerverrol(k).finally(() => { delete ezToltes[k]; }));
 }
+// Ha a szerver lassan válaszol, a helyi másolattal dolgozunk (lásd SF_VAR_MS); ezek a
+// kulcsok ilyenkor csak helyben mentődnek, a válasz megérkezésekor töltjük fel őket.
+const ezKesik = new Set();
 async function ezBetoltSzerverrol(k){
     const kiee = ezAdatUid;
     const helyi = store.load(ezLKey(k), null);
     let adat = helyi;
     const uid = ezUid();
     if(uid && typeof window.sfGetEdzesStrict === 'function'){
-        try { const t = await window.sfGetEdzesStrict(uid, k); if(t || ezCsakSzerver(k)) adat = t; ezHiba.delete(k); }
-        catch(e){ ezHiba.add(k); console.warn('Edzésnapló betöltése sikertelen:', e); }
+        const szerver = sfEredmeny(window.sfGetEdzesStrict(uid, k));
+        const r = helyi ? await sfVarakozik(szerver) : await szerver;
+        if(!r){
+            const obj = ezNormal(k, helyi);
+            if(kiee !== ezAdatUid) return obj;
+            ezAdat[k] = obj; ezKesik.add(k);
+            const pill = JSON.stringify(obj);
+            szerver.then(r2 => {
+                if(kiee !== ezAdatUid || ezAdat[k] !== obj) return;
+                ezKesik.delete(k);
+                if(!r2.ok){ ezHiba.add(k); console.warn('Edzésnapló betöltése sikertelen:', r2.e); return; }
+                ezHiba.delete(k);
+                if(!r2.v && !ezCsakSzerver(k)){ if(JSON.stringify(obj) !== pill) ezMent(k); return; }
+                const m = sfKesoBeolvaszt(obj, pill, ezNormal(k, r2.v));
+                if(m === 'fesult') ezMent(k); else if(m) sfHelyiMasolat(ezLKey(k), obj);
+            });
+            return obj;
+        }
+        if(r.ok){ if(r.v || ezCsakSzerver(k)) adat = r.v; ezHiba.delete(k); sfHelyiMasolat(ezLKey(k), r.v || adat || {}); }
+        else { ezHiba.add(k); console.warn('Edzésnapló betöltése sikertelen:', r.e); }
     }
+    adat = ezNormal(k, adat);
+    if(kiee !== ezAdatUid) return adat;         // közben felhasználót váltottak – ne keverjük össze
+    return (ezAdat[k] = adat);
+}
+function ezNormal(k, adat){
     adat = adat && typeof adat === 'object' ? adat : {};
     if(k === 'torzs'){
         if(!Array.isArray(adat.sablonok)) adat.sablonok = EZ_ALAP_SABLON.map(x => ({ ...x }));
@@ -14335,8 +14504,7 @@ async function ezBetoltSzerverrol(k){
         }
     }
     else if(k !== 'strava' && (!adat.napok || typeof adat.napok !== 'object')) adat.napok = {};
-    if(kiee !== ezAdatUid) return adat;         // közben felhasználót váltottak – ne keverjük össze
-    return (ezAdat[k] = adat);
+    return adat;
 }
 const ezEvekBetolt = (...napok) => Promise.all([...new Set(napok.map(s => s.slice(0, 4)))]
     .flatMap(y => ezStravaKapcs() ? [ezBetolt(y), ezBetolt('sv' + y)] : [ezBetolt(y)]));
@@ -14344,7 +14512,7 @@ function ezMent(k){
     const adat = ezAdat[k]; if(!adat) return;
     store.save(ezLKey(k), adat);
     const uid = ezUid();
-    if(uid && !ezHiba.has(k) && typeof window.sfSaveEdzes === 'function')
+    if(uid && !ezHiba.has(k) && !ezKesik.has(k) && typeof window.sfSaveEdzes === 'function')
         window.sfSaveEdzes(uid, k, adat).catch(e => alert('Az edzés mentése a szerverre nem sikerült: ' + (e.message || e)
             + '\n\nA böngésződben megmaradt, de másik eszközön nem fog látszani.'));
     if(/^\d{4}$/.test(k)) ezGcIdozit();
@@ -16578,18 +16746,48 @@ const PRV = {};
 const prvHiba = new Set();
 let prvUid = null;
 const prvKulcs = k => `sf_priv_${ezUid()}_${k}`;
-function prvCache(){ if(prvUid !== ezUid()){ for(const k in PRV) delete PRV[k]; prvHiba.clear(); prvUid = ezUid(); } }
+function prvCache(){ if(prvUid !== ezUid()){ for(const k in PRV) delete PRV[k]; prvHiba.clear(); prvKesik.clear(); prvToltes = {}; prvUid = ezUid(); } }
 const PRV_ALAP = { beall: () => ({}), mentesek: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
-async function prvBetolt(k){
+const prvUj = (k, adat) => Object.assign((PRV_ALAP[k] || (/^nl\d{4}$/.test(k) ? () => ({ bej: [] }) : () => ({})))(), adat && typeof adat === 'object' ? adat : {});
+// Lassú szervernél a helyi másolattal dolgozunk (lásd SF_VAR_MS); ezek a kulcsok addig csak
+// helyben mentődnek. Ugyanazt a kulcsot egyszerre csak egyszer kérjük le.
+const prvKesik = new Set();
+let prvToltes = {};
+const prvNemFriss = k => prvHiba.has(k) || prvKesik.has(k);
+function prvBetolt(k){
     prvCache();
-    if(PRV[k]) return PRV[k];
+    if(PRV[k]) return Promise.resolve(PRV[k]);
+    return prvToltes[k] || (prvToltes[k] = prvBetoltSzerverrol(k).finally(() => { delete prvToltes[k]; }));
+}
+async function prvBetoltSzerverrol(k){
+    const kie = prvUid;
     let adat = store.load(prvKulcs(k), null);
     const uid = ezUid();
     if(uid && typeof window.sfGetPrivatStrict === 'function'){
-        try { const t = await window.sfGetPrivatStrict(uid, k); if(t) adat = t; prvHiba.delete(k); }
-        catch(e){ prvHiba.add(k); console.warn('Privát adat betöltése sikertelen:', k, e); }
+        const szerver = sfEredmeny(window.sfGetPrivatStrict(uid, k));
+        const r = adat ? await sfVarakozik(szerver) : await szerver;
+        if(!r){
+            const obj = prvUj(k, adat);
+            if(kie !== prvUid) return obj;
+            PRV[k] = obj; prvKesik.add(k);
+            const pill = JSON.stringify(obj);
+            szerver.then(r2 => {
+                if(kie !== prvUid || PRV[k] !== obj) return;
+                prvKesik.delete(k);
+                if(!r2.ok){ prvHiba.add(k); console.warn('Privát adat betöltése sikertelen:', k, r2.e); return; }
+                prvHiba.delete(k);
+                if(!r2.v){ if(JSON.stringify(obj) !== pill) prvMent(k); return; }
+                const m = sfKesoBeolvaszt(obj, pill, prvUj(k, r2.v));
+                if(m === 'fesult') prvMent(k); else if(m) sfHelyiMasolat(prvKulcs(k), obj);
+            });
+            return obj;
+        }
+        if(r.ok){ if(r.v) adat = r.v; sfHelyiMasolat(prvKulcs(k), adat || {}); prvHiba.delete(k); }
+        else { prvHiba.add(k); console.warn('Privát adat betöltése sikertelen:', k, r.e); }
     }
-    return (PRV[k] = Object.assign((PRV_ALAP[k] || (/^nl\d{4}$/.test(k) ? () => ({ bej: [] }) : () => ({})))(), adat && typeof adat === 'object' ? adat : {}));
+    const obj = prvUj(k, adat);
+    if(kie !== prvUid) return obj;
+    return (PRV[k] = obj);
 }
 // Ha a szerverről nem jött le, csak helyben mentünk – különben egy üres/régi
 // példánnyal írnánk felül azt, ami a szerveren van.
@@ -16597,7 +16795,7 @@ function prvMent(k){
     const adat = PRV[k]; if(!adat) return;
     store.save(prvKulcs(k), adat);
     const uid = ezUid();
-    if(uid && !prvHiba.has(k) && typeof window.sfSavePrivat === 'function')
+    if(uid && !prvHiba.has(k) && !prvKesik.has(k) && typeof window.sfSavePrivat === 'function')
         window.sfSavePrivat(uid, k, JSON.parse(JSON.stringify(adat))).catch(e => pzHibaJelzes('A mentés a szerverre nem sikerült', e));
 }
 const prvUjId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -16613,7 +16811,7 @@ document.addEventListener('visibilitychange', () => {
     if(document.hidden){ prvRejtveOta = Date.now(); return; }
     if(!prvRejtveOta || Date.now() - prvRejtveOta < 30000) return;
     prvRejtveOta = 0;
-    for(const k in PRV) delete PRV[k];
+    for(const k in PRV) if(!prvKesik.has(k)) delete PRV[k];   // a még úton lévőket megtartjuk (lásd prvKesik)
     if(prvLap('privma')) renderPrivMa();
     if(prvLap('szokasok')) renderSzokasok();
     if(prvLap('egeszseg')) renderEgeszseg();
@@ -17451,7 +17649,7 @@ async function nlBeall(){
     if(d.napok && Object.keys(d.napok).length && !d.v){
         const evek = [...new Set(Object.keys(d.napok).map(s => s.slice(0, 4)))];
         const docs = await Promise.all(evek.map(nlEv));
-        if(!evek.some(y => prvHiba.has(nlEvKulcs(y)))){
+        if(!evek.some(y => prvNemFriss(nlEvKulcs(y))) && !prvNemFriss('naplo')){
             for(const [s, n] of Object.entries(d.napok)){
                 const doc = docs[evek.indexOf(s.slice(0, 4))];
                 if(doc.bej.some(b => b.id === 'r_' + s)) continue;
@@ -18033,7 +18231,7 @@ function nlImportModal(){
             const evek = [...new Set(adat.bej.map(b => b.d.slice(0, 4)))];
             all('A meglévő évek betöltése…');
             const docs = {}; for(const y of evek) docs[y] = await nlEv(y);
-            if(evek.some(y => prvHiba.has(nlEvKulcs(y)))) throw new Error('Az évek egy részét most nem sikerült a szerverről betölteni – próbáld újra később, hogy ne írjunk felül semmit.');
+            if(evek.some(y => prvNemFriss(nlEvKulcs(y)))) throw new Error('Az évek egy részét most nem sikerült a szerverről betölteni – próbáld újra később, hogy ne írjunk felül semmit.');
             let uj = 0, kihagy = 0, kepDb = 0, frissit = 0;
             const fotoTalal = a => adat.fotok && adat.fotok.find(x => a.checksum && x.name.includes(a.checksum));
             for(const [i, b] of adat.bej.entries()){
@@ -18086,7 +18284,7 @@ function nlImportModal(){
             }
             if(celok && adat.celok.length){
                 const sz = await prvBetolt('szokasok');
-                if(prvHiba.has('szokasok')) throw new Error('A szokásokat most nem sikerült a szerverről betölteni – próbáld újra később.');
+                if(prvNemFriss('szokasok')) throw new Error('A szokásokat most nem sikerült a szerverről betölteni – próbáld újra később.');
                 sz.lista = sz.lista || []; sz.napok = sz.napok || {};
                 // Ugyanaz a cél több időszakban (pl. "Sport" 2023–25 és "Sport 🏃‍♂️" 2025-től) egy szokás lesz.
                 const csop = new Map();
@@ -18559,7 +18757,8 @@ async function renderPrivMa(){
     const [sz, em, , , , , , celok] = await Promise.all([
         prvBetolt('szokasok'), prvBetolt('emberek'), ezBetolt('torzs'), ezBetolt('strava'), ezEvekBetolt(ma),
         pzLoadKat().catch(() => null), Promise.all([pzLoadTorzs(), pzLoadTranz(ho)]).catch(() => null),
-        (window.sfCelokOsszegzes ? window.sfCelokOsszegzes() : Promise.resolve([])).catch(() => []),
+        // a célok összegzése ne tartsa fel a lapot: ha lassú, nélküle rajzolunk, és megérkezéskor frissítünk
+        (p => sfVarakozik(p).then(v => v !== null ? v : (p.then(() => sfKesoFrissit()), [])))((window.sfCelokOsszegzes ? window.sfCelokOsszegzes() : Promise.resolve([])).catch(() => [])),
     ]);
     if(!prvLap('privma')) return;
     const dt = new Date(), ora = dt.getHours();
