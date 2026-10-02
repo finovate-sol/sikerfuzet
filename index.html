@@ -281,6 +281,20 @@
         .zb-sor > button { flex:none; }
         .zb-bev { margin:0 0 4px !important; padding:0 !important; }
         .zb-pin input::placeholder { letter-spacing:normal; }
+        .ma-testre { display:flex; align-items:center; justify-content:center; gap:8px; margin:6px auto 4px; padding:10px 18px; border:0; border-radius:999px; background:rgba(255,255,255,.7); color:#6d28d9; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; box-shadow:0 2px 10px rgba(15,23,42,.05); }
+        .ma-testre svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+        .ma-tr-sor { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f2f4; }
+        .ma-tr-sor:last-child { border-bottom:0; }
+        .ma-tr-sor.ki .t { opacity:.45; }
+        .ma-tr-sor .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; } .ma-tr-sor .t b { font-size:15px; color:#111827; } .ma-tr-sor .t em { font-style:normal; font-size:12px; color:#6b7280; }
+        .ma-tr-nyil { display:flex; flex-direction:column; gap:3px; }
+        .ma-tr-nyil button { width:34px; height:24px; border:0; border-radius:8px; background:#f3f4f6; color:#4b5563; font-size:10px; cursor:pointer; }
+        .ma-tr-nyil button:disabled { opacity:.3; cursor:default; }
+        .ma-tr-kapcs { width:48px; height:28px; flex:none; border:0; border-radius:99px; padding:3px; background:#d1d5db; cursor:pointer; display:flex; transition:background .18s; }
+        .ma-tr-kapcs i { width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .18s; }
+        .ma-tr-kapcs.on { background:#7c3aed; } .ma-tr-kapcs.on i { transform:translateX(20px); }
+        .ma-tr-esti { display:flex; gap:10px; align-items:flex-start; margin-top:14px; font-size:13px; color:#4b5563; line-height:1.4; }
+        .ma-tr-esti input { width:20px; height:20px; flex:none; accent-color:#7c3aed; }
         .mt-gyors { display:flex; gap:8px; padding:6px 18px 14px; }
         .mt-gyors input { flex:1; min-width:0; height:46px; border:0; border-radius:999px; background:#f3f4f6; padding:0 18px; font:inherit; font-size:15px; }
         .mt-be { width:46px; height:46px; flex:none; border:0; border-radius:50%; background:#f3f4f6; color:#6d28d9; display:flex; align-items:center; justify-content:center; cursor:pointer; }
@@ -16520,7 +16534,7 @@ const prvHiba = new Set();
 let prvUid = null;
 const prvKulcs = k => `sf_priv_${ezUid()}_${k}`;
 function prvCache(){ if(prvUid !== ezUid()){ for(const k in PRV) delete PRV[k]; prvHiba.clear(); prvUid = ezUid(); } }
-const PRV_ALAP = { mentesek: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
+const PRV_ALAP = { beall: () => ({}), mentesek: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
 async function prvBetolt(k){
     prvCache();
     if(PRV[k]) return PRV[k];
@@ -18547,38 +18561,95 @@ async function renderPrivMa(){
         return `<div class="ma-edz">${ezIk(e.sport)}<span class="t"><b>${esc(e.n)}</b><span>${esc(ezCel(e))}</span></span>
             ${er.a === 'terv' ? `<button type="button" class="pv-kapsz" data-maedzok="${esc(e.id)}">Kész ✓</button>` : `<span class="ez-pill ez-st-${er.a}">${ezAllCim(er)}</span>`}</div>`; }).join('')
         : `<p class="pv-megj">${pih ? 'Pihenőnap – a regeneráció is az edzés része.' : 'Mára nincs betervezett edzés.'}</p>`;
+    // A Ma oldal kártyái: azonosító → HTML (üres, ha nincs mit mutatni). A sorrend és a
+    // láthatóság a privát beállításokban él (privat/{uid}_beall → ma: { sor:[…], rejt:[…], esti }).
+    const nlKartya = nlK ? kartya(nlK.kesz ? 'Mai napló' : 'Esti zárás', 'enaplo', nlK.zaras, 'ma-nl-k') : '';
+    const K = {
+        fokusz: nlK && nlK.fokuszHtml ? kartya('Mai fókusz', '', nlK.fokuszHtml, 'ma-fok-k') : '',
+        emlek: emlek ? kartya('Ezen a napon', '', emlek, 'ma-emlek-k') : '',
+        szokas: kartya(`Mai szokások${szAll.es ? `<span class="pv-szam">${szKeszDb} / ${szAll.es}</span>` : ''}`, 'szokasok', szl.length
+            ? `<div class="ma-szok">${szl.map(h => szPipaHtml(sz, h, ma, true)).join('')}</div>`
+            : `<p class="pv-megj">Még nincs mára esedékes szokás. <button type="button" class="pv-link" data-mamenj="szokasok">Szokás felvétele ›</button></p>`, 'ma-szok-k'),
+        edzes: kartya('Mai edzés', 'edzes', edzHtml),
+        penz: kartya('Pénz', 'penzugyek', `${keret ? `<div class="ma-penz"><b class="${maradt < 0 ? 'neg' : ''}">${maradt < 0 ? '−' : ''}${pzFt(Math.abs(maradt))} Ft</b><span>${maradt < 0 ? 'túllépés a havi keretekben' : `maradt a havi keretekből · kb. <b>${pzFt(Math.max(0, maradt) / hatra)} Ft</b> naponta`}</span>
+                <span class="ma-csik"><i style="width:${Math.min(100, keret ? kolt / keret * 100 : 0).toFixed(0)}%" class="${kolt > keret ? 'tul' : kolt > keret * .85 ? 'fig' : ''}"></i></span></div>` : '<p class="pv-megj">Nincs beállított havi keret.</p>'}
+            ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${pzIk(x.ik, x.c)}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`),
+        kolt: kartya('Mai költések', 'penzugyek', maKoltHtml, 'ma-kolt-k'),
+        olvas: kvOlvas.length ? kartya('Olvasás', 'konyvek', kvOlvas.map(kvOlvasKartya).join(''), 'ma-kv-k') : '',
+        naplo: nlKartya,
+        celok: kartya('Célok, amiken dolgozol', 'celok', celok.length ? `<div class="ma-lista">${celok.slice(0, 4).map(c => `<div class="ma-sor"><span class="ma-ter" style="--c:${c.szin};--b:${c.hat}">${c.ikon || ''}</span>
+                <span class="t"><b>${esc(c.name)}</b><span>${esc(c.terNev)}${c.due ? ' · ' + esc(c.dueSzo) : ''}</span>${c.pct != null ? `<span class="ma-csik kicsi"><i style="width:${c.pct}%"></i></span>` : ''}</span>${c.pct != null ? `<span class="o">${c.pct}%</span>` : ''}</div>`).join('')}</div>`
+            : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>'),
+        esemeny: esem.length ? kartya('Közelgő események', 'emberek', `<div class="ma-lista">${esem.map(x => `<button type="button" class="ma-sor ma-sor-g" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t, 'kicsi')}
+                <span class="t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></button>`).join('')}</div>`) : '',
+        egeszseg: kartya('Egészség', 'egeszseg', `<div class="ma-eg" data-maeghost>${maEgHtml()}</div>
+            <div class="ma-suly"><span class="ma-eg-cim">⚖️ Testsúly</span><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
+                <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`, 'ma-eg-k'),
+    };
+    const mb = maBeall(await prvBetolt('beall').catch(() => ({})));
+    let sor = mb.sor.filter(k => !mb.rejt.includes(k));
+    // este (17 óra után), ha még nincs mai bejegyzés, az Esti zárás a lap tetejére kerül (kikapcsolható)
+    if(mb.esti && nlK && !nlK.kesz && ora >= 17 && sor.includes('naplo')) sor = ['naplo', ...sor.filter(k => k !== 'naplo')];
+    const racs = sor.map(k => K[k] || '').join('');
     const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
             <span class="s">${osszesito.length ? esc(osszesito.join(' · ')) : 'Nyugodt nap – semmi sem sürget.'}</span></div>
-        <div class="ma-racs">
-        ${nlK && nlK.fokuszHtml ? kartya('Mai fókusz', '', nlK.fokuszHtml, 'ma-fok-k') : ''}
-        ${nlK && !nlK.kesz && ora >= 17 ? kartya('Esti zárás', 'enaplo', nlK.zaras, 'ma-nl-k') : ''}
-        ${emlek ? kartya('Ezen a napon', '', emlek, 'ma-emlek-k') : ''}
-        ${kartya(`Mai szokások${szAll.es ? `<span class="pv-szam">${szKeszDb} / ${szAll.es}</span>` : ''}`, 'szokasok', szl.length
-            ? `<div class="ma-szok">${szl.map(h => szPipaHtml(sz, h, ma, true)).join('')}</div>`
-            : `<p class="pv-megj">Még nincs mára esedékes szokás. <button type="button" class="pv-link" data-mamenj="szokasok">Szokás felvétele ›</button></p>`, 'ma-szok-k')}
-        ${kartya('Mai edzés', 'edzes', edzHtml)}
-        ${kartya('Pénz', 'penzugyek', `${keret ? `<div class="ma-penz"><b class="${maradt < 0 ? 'neg' : ''}">${maradt < 0 ? '−' : ''}${pzFt(Math.abs(maradt))} Ft</b><span>${maradt < 0 ? 'túllépés a havi keretekben' : `maradt a havi keretekből · kb. <b>${pzFt(Math.max(0, maradt) / hatra)} Ft</b> naponta`}</span>
-                <span class="ma-csik"><i style="width:${Math.min(100, keret ? kolt / keret * 100 : 0).toFixed(0)}%" class="${kolt > keret ? 'tul' : kolt > keret * .85 ? 'fig' : ''}"></i></span></div>` : '<p class="pv-megj">Nincs beállított havi keret.</p>'}
-            ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${pzIk(x.ik, x.c)}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`)}
-        ${kartya('Mai költések', 'penzugyek', maKoltHtml, 'ma-kolt-k')}
-        ${kvOlvas.length ? kartya('Olvasás', 'konyvek', kvOlvas.map(kvOlvasKartya).join(''), 'ma-kv-k') : ''}
-        ${nlK && (nlK.kesz || ora < 17) ? kartya(nlK.kesz ? 'Mai napló' : 'Esti zárás', 'enaplo', nlK.zaras, 'ma-nl-k') : ''}
-        ${kartya('Célok, amiken dolgozol', 'celok', celok.length ? `<div class="ma-lista">${celok.slice(0, 4).map(c => `<div class="ma-sor"><span class="ma-ter" style="--c:${c.szin};--b:${c.hat}">${c.ikon || ''}</span>
-                <span class="t"><b>${esc(c.name)}</b><span>${esc(c.terNev)}${c.due ? ' · ' + esc(c.dueSzo) : ''}</span>${c.pct != null ? `<span class="ma-csik kicsi"><i style="width:${c.pct}%"></i></span>` : ''}</span>${c.pct != null ? `<span class="o">${c.pct}%</span>` : ''}</div>`).join('')}</div>`
-            : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>')}
-        ${esem.length ? kartya('Közelgő események', 'emberek', `<div class="ma-lista">${esem.map(x => `<button type="button" class="ma-sor ma-sor-g" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t, 'kicsi')}
-                <span class="t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></button>`).join('')}</div>`) : ''}
-        ${kartya('Egészség', 'egeszseg', `<div class="ma-eg" data-maeghost>${maEgHtml()}</div>
-            <div class="ma-suly"><span class="ma-eg-cim">⚖️ Testsúly</span><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
-                <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`, 'ma-eg-k')}
-        </div>`;
+        <div class="ma-racs">${racs}</div>
+        <button type="button" class="ma-testre" data-matestre><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Ma oldal testreszabása</button>`;
     if(szGorg){ const g = host.querySelector('.ma-szok'); if(g) g.scrollLeft = szGorg; }
     nlKepTolt(host);
     if(window.sfSplashLe) requestAnimationFrame(() => window.sfSplashLe());
 }
 window.sfShowPrivMa = function(){ renderPrivMa(); };
+// ---- A Ma oldal testreszabása: mely kártyák látszanak, milyen sorrendben ----
+const MA_KARTYAK = [
+    ['fokusz', 'Mai fókusz', 'a tegnap esti „holnapi top 3”'], ['emlek', 'Ezen a napon', 'egy, két, három éve ilyenkor'],
+    ['szokas', 'Mai szokások', 'pipálható csempék'], ['edzes', 'Mai edzés', 'a mai terv, Kész gombbal'],
+    ['penz', 'Pénz', 'maradék keret, közelgő fizetések'], ['kolt', 'Mai költések', 'a mai kiadások, gyors rögzítés'],
+    ['olvas', 'Olvasás', 'amit épp olvasol'], ['naplo', 'Napló / Esti zárás', 'hangulat, a nap lezárása'],
+    ['celok', 'Célok, amiken dolgozol', 'haladás a célokban'], ['esemeny', 'Közelgő események', 'születésnapok, programok'],
+    ['egeszseg', 'Egészség', 'alvás, víz, testsúly'],
+];
+function maBeall(b){
+    const m = (b && b.ma) || {}, ism = MA_KARTYAK.map(x => x[0]);
+    const sor = (Array.isArray(m.sor) ? m.sor.filter(k => ism.includes(k)) : []);
+    for(const k of ism) if(!sor.includes(k)) sor.splice(Math.min(sor.length, ism.indexOf(k)), 0, k);   // az újonnan érkező kártyák az alap helyükre
+    return { sor, rejt: Array.isArray(m.rejt) ? m.rejt.filter(k => ism.includes(k)) : [], esti: m.esti !== false };
+}
+async function maTestreModal(){
+    const b = await prvBetolt('beall');
+    const x = maBeall(b);
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    const nev = k => MA_KARTYAK.find(y => y[0] === k) || [k, k, ''];
+    const rajz = () => {
+        const gorg = ov.querySelector('.modal-body')?.scrollTop || 0;
+        ov.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Ma oldal</h3><button class="modal-x" data-mtx aria-label="Bezárás">&times;</button></div>
+            <div class="modal-body">
+                <p class="pv-megj zb-bev">Kapcsold ki, amire nincs szükséged, és rendezd a nyilakkal a sorrendet.</p>
+                <div class="ma-tr-lista">${x.sor.map((k, i) => { const [, n, al] = nev(k), be = !x.rejt.includes(k);
+                    return `<div class="ma-tr-sor${be ? '' : ' ki'}">
+                        <span class="ma-tr-nyil"><button type="button" data-matrfel="${k}" aria-label="${esc(n)} feljebb"${i === 0 ? ' disabled' : ''}>▲</button><button type="button" data-matrle="${k}" aria-label="${esc(n)} lejjebb"${i === x.sor.length - 1 ? ' disabled' : ''}>▼</button></span>
+                        <span class="t"><b>${esc(n)}</b><em>${esc(al)}</em></span>
+                        <button type="button" class="ma-tr-kapcs${be ? ' on' : ''}" data-matrkapcs="${k}" role="switch" aria-checked="${be}" aria-label="${esc(n)} látszik"><i></i></button></div>`; }).join('')}</div>
+                <label class="ma-tr-esti"><input type="checkbox" data-matresti${x.esti ? ' checked' : ''}> Este 17 óra után az Esti zárás a lap tetejére kerül, ha még nem írtál aznap</label>
+            </div>
+            <div class="modal-foot"><button class="btn" data-mtralap>Alaphelyzet</button><button class="pv-ment" data-mtrment>Kész</button></div></div>`;
+        const fo = ov.querySelector('.modal-body'); if(fo) fo.scrollTop = gorg;
+    };
+    rajz(); document.body.appendChild(ov);
+    const ment = () => { b.ma = { sor: x.sor.slice(), rejt: x.rejt.slice(), ...(x.esti ? {} : { esti: false }) }; prvMent('beall'); renderPrivMa(); };
+    ov.addEventListener('click', e => {
+        if(e.target === ov || e.target.closest('[data-mtx]') || e.target.closest('[data-mtrment]')){ ov.remove(); return; }
+        const csere = (k, d) => { const i = x.sor.indexOf(k), j = i + d; if(i < 0 || j < 0 || j >= x.sor.length) return; [x.sor[i], x.sor[j]] = [x.sor[j], x.sor[i]]; ment(); rajz(); };
+        const f = e.target.closest('[data-matrfel]'); if(f){ csere(f.dataset.matrfel, -1); return; }
+        const l = e.target.closest('[data-matrle]'); if(l){ csere(l.dataset.matrle, 1); return; }
+        const kp = e.target.closest('[data-matrkapcs]');
+        if(kp){ const k = kp.dataset.matrkapcs, i = x.rejt.indexOf(k); if(i >= 0) x.rejt.splice(i, 1); else x.rejt.push(k); ment(); rajz(); return; }
+        if(e.target.closest('[data-mtralap]')){ const a = maBeall({}); x.sor = a.sor; x.rejt = []; x.esti = true; ment(); rajz(); }
+    });
+    ov.addEventListener('change', e => { if(e.target.matches('[data-matresti]')){ x.esti = e.target.checked; ment(); } });
+}
 // Egészség-sor: alvás (fél órás lépésekben) és víz (pohár) a mai napra.
 function maEgHtml(){
     const ma = ezMa(), alv = nlNapAlv(ma), viz = nlNapViz(ma), tegnap = nlNapAlv(ezPlusz(ma, -1));
@@ -18640,6 +18711,7 @@ document.addEventListener('click', e => {
     }
     const eo = e.target.closest('[data-maedzok]'); if(eo){ ezJelol(ezMa(), eo.dataset.maedzok, 'ok').then(renderPrivMa); return; }
     if(e.target.closest('[data-mamer]')){ if(ezMeresMent(true)) renderPrivMa(); return; }
+    if(e.target.closest('[data-matestre]')){ maTestreModal(); return; }
     const eg = e.target.closest('[data-maeg]'); if(eg){ const [m, i] = eg.dataset.maeg.split('|'); maEgValt(m, +i); return; }
 });
 document.addEventListener('keydown', e => {
