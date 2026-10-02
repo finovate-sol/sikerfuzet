@@ -14358,6 +14358,13 @@ const EZ_GC_VISSZA = 7, EZ_GC_ELORE = 60;
 const EZ_GC_ALAPIDO = '18:00';             // ha az edzésnek nincs időpontja (a kártyán átállítható)
 let ezGcAllapot = '', ezGcFut = null, ezGcUjra = false, ezGcUtolso = 0, ezGcTimer = null;
 const ezGcNaptar = () => (ezAdat.torzs && ezAdat.torzs.naptar) || null;
+// A naptárban: "Sport (milyen)" – pl. Futás (Könnyű futás), Bicikli (Gravel). Ha a név csak a sportot ismétli, zárójel nélkül.
+const EZ_GC_SPORT = { bri: 'Bicikli' };
+function ezGcCim(e){
+    const sp = EZ_GC_SPORT[e.sport] || (EZ_SPORT[e.sport] || EZ_SPORT.egy)[0];
+    const n = String(e.n || '').trim();
+    return !n || n.toLowerCase() === sp.toLowerCase() || n.toLowerCase() === (EZ_SPORT[e.sport] || [''])[0].toLowerCase() ? sp : `${sp} (${n})`;
+}
 function ezGcIdozit(){
     const n = ezGcNaptar(); if(!n || !n.id) return;
     clearTimeout(ezGcTimer); ezGcTimer = setTimeout(() => ezGcSzinkron(), 4000);
@@ -14387,7 +14394,7 @@ async function ezGcSzinkron(kezi){
             const akt = er.src === 'strava' && er.akt && er.akt.length ? er.akt[0] : null;
             const ido = ezIdoOk(akt && akt.ido) || ezIdoOk(e.ido) || ezIdoOk(n.ido) || EZ_GC_ALAPIDO;
             const perc = Math.max(10, Math.round((akt && (er.tp || akt.perc)) || e.perc || 60));
-            tetelek.push({ kulcs: d + '|' + e.id, datum: d, ido, perc, cim: jel + (e.n || 'Edzés'),
+            tetelek.push({ kulcs: d + '|' + e.id, datum: d, ido, perc, cim: jel + ezGcCim(e),
                 leiras: [cel !== '—' ? cel : '', e.leiras || '', 'Sikerfüzet · edzésnapló'].filter(Boolean).join('\n') });
         }
         try {
