@@ -9,8 +9,9 @@ dokumentum `appIcon` mezőjében, mindenkire érvényesen).
 | `emelkedo/` | Emelkedő      | felfelé tartó nyíl                        |
 | `fuzet/`    | Nyitott füzet | nyitott füzet fehér lapokkal              |
 
-Mindkettő ugyanazt a színátmenetet viseli (`#2E86FF` → `#0A2E6B`), hogy
-váltáskor ugyanannak az appnak a két arca legyen, ne két különböző appé.
+Mindkettő fehér lapon ugyanazt a kék színátmenetet viseli (`#0A2E6B` → `#2E86FF`),
+hogy váltáskor ugyanannak az appnak a két arca legyen, ne két különböző appé.
+A rajz kitölti a lapot, mint a Tükör ikonjainál.
 
 ## Melyik fájl mire való
 
