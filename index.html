@@ -6268,10 +6268,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><path d="M4 18V12M12 18v-4M20 18V12"/></svg>
                 <span class="nav-label">Struktúra</span>
             </a>
-            <a href="#" data-ter="ovb" data-page="onismeret" title="Önismeret">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3v6.8M12 14.2V21M3 12h6.8M14.2 12H21M5.6 5.6l4.8 4.8M13.6 13.6l4.8 4.8M18.4 5.6l-4.8 4.8M10.4 13.6l-4.8 4.8"/></svg>
-                <span class="nav-label">Önismeret</span>
-            </a>
             <a href="#" data-ter="ovb" data-page="kiertekelo" id="navKiertekelo" hidden title="Kiértékelő telefon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 <span class="nav-label">Kiértékelő telefon</span>
@@ -6303,6 +6299,10 @@
             <a href="#" data-ter="priv" data-page="enaplo" title="Napló">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 19a2 2 0 0 1 2-2h12M9 7h6M9 11h4"/></svg>
                 <span class="nav-label">Napló</span>
+            </a>
+            <a href="#" data-ter="priv" data-page="onismeret" title="Önismeret">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3v6.8M12 14.2V21M3 12h6.8M14.2 12H21M5.6 5.6l4.8 4.8M13.6 13.6l4.8 4.8M18.4 5.6l-4.8 4.8M10.4 13.6l-4.8 4.8"/></svg>
+                <span class="nav-label">Önismeret</span>
             </a>
             <a href="#" data-ter="priv" data-page="konyvek" title="Olvasás">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5C4.5 4 8 4 12 6c4-2 7.5-2 10-.5V19c-2.5-1.5-6-1.5-10 .5-4-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/></svg>
@@ -7839,7 +7839,9 @@ renderMoney(); renderCareer(); renderInfo();
 
 // ===================== ÖNISMERET: Vezetői életkerék + Hawkins-skála =====================
 // onismeret/{uid}: { kerek: [{ id, d, p:{terület:1–10}, i:{terület:'indoklás'} }], hawk: [{ id, d, ido, sz, megj }] }
-// A Sikerfüzet része: a gazda, a felettesei (ránézés) és az admin látja, mint a célokat.
+// A Tükör (privát) része: a privat/{uid}_onismeret dokumentumban, csak a gazdája látja.
+// A régi onismeret/{uid} dokumentumot (amit a felettes és az admin is olvashatott) első
+// betöltéskor átmásoljuk ide, és sikeres mentés után töröljük.
 const OI_TER = [
     ['eg',    'Egészség és energiaszint',  '<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>', '#ef4444'],
     ['sport', 'Sport és fizikai állapot',  '<circle cx="14.5" cy="4.5" r="1.8"/><path d="M7 21l3.5-6 3 2.5V21M6.5 11.5l3-3.5h4l2 3.5 3 1M9.5 8l-1.5 4.5"/>', '#f97316'],
@@ -7877,39 +7879,50 @@ const OI_HAWK = [
 ];
 const oiHawkOf = sz => OI_HAWK.find(x => x[0] === sz) || null;
 const oiHawkErtek = x => x[0] === 700 ? '700–1000' : String(x[0]);
-let oiAdat = null, oiUid = null, oiHiba = false, oiTab = store.load('sf_oi_tab', 'kerek'), oiKerekSel = null;
+let oiAdat = null, oiUid = null, oiTab = store.load('sf_oi_tab', 'kerek'), oiKerekSel = null;
 const oiIk = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const oiMaStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const oiDatum = s => { const [y, m, d] = s.split('-').map(Number); return `${y}. ${['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'][m - 1]} ${d}.`; };
 const oiId = () => 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 async function oiBetolt(){
-    const uid = pzUid();
-    if(oiAdat && oiUid === uid) return oiAdat;
-    oiUid = uid; oiKerekSel = null; oiHiba = false;
-    let a = store.load('sf_oi_' + uid, null);
-    if(uid && typeof window.sfGetOnismeret === 'function'){
-        try { const t = await window.sfGetOnismeret(uid); if(t) a = t; }
-        catch(e){ oiHiba = true; console.warn('Önismeret betöltése sikertelen:', e); }
-    }
-    oiAdat = Object.assign({ kerek: [], hawk: [] }, a && typeof a === 'object' ? a : {});
-    if(!Array.isArray(oiAdat.kerek)) oiAdat.kerek = [];
-    if(!Array.isArray(oiAdat.hawk)) oiAdat.hawk = [];
+    const uid = ezUid();
+    if(oiUid !== uid){ oiUid = uid; oiKerekSel = null; }
+    const a = await prvBetolt('onismeret');
+    if(!Array.isArray(a.kerek)) a.kerek = [];
+    if(!Array.isArray(a.hawk)) a.hawk = [];
+    oiAdat = a;
+    if(!a.kerek.length && !a.hawk.length && !prvNemFriss('onismeret')) await oiAtkoltoztet(uid, a);
     return oiAdat;
 }
-// Ha a szerverről nem jött le, csak helyben mentünk – különben üressel írnánk felül.
-function oiMent(){
-    if(!oiAdat) return;
-    store.save('sf_oi_' + oiUid, oiAdat);
-    if(oiUid && !oiHiba && typeof window.sfSaveOnismeret === 'function')
-        window.sfSaveOnismeret(oiUid, JSON.parse(JSON.stringify(oiAdat))).catch(e => pzHibaJelzes('Az önismereti adat mentése a szerverre nem sikerült', e));
+let oiAtkNezve = '';   // ebben a munkamenetben már megnéztük a régi helyet
+async function oiAtkoltoztet(uid, a){
+    if(!uid || typeof window.sfGetOnismeret !== 'function' || typeof window.sfSavePrivat !== 'function') return;
+    if(oiAtkNezve === uid) return;
+    try {
+        const r = await sfVarakozik(sfEredmeny(window.sfGetOnismeret(uid)));
+        if(!r || !r.ok) return;   // lassú vagy elérhetetlen szerver: most kihagyjuk, legközelebb újra
+        oiAtkNezve = uid;
+        const regi = r.v || store.load('sf_oi_' + uid, null);
+        if(!regi || PRV.onismeret !== a || a.kerek.length || a.hawk.length) return;
+        if(Array.isArray(regi.kerek)) a.kerek = regi.kerek;
+        if(Array.isArray(regi.hawk)) a.hawk = regi.hawk;
+        if(!a.kerek.length && !a.hawk.length) return;
+        store.save(prvKulcs('onismeret'), a);
+        await window.sfSavePrivat(uid, 'onismeret', JSON.parse(JSON.stringify(a)));
+        if(typeof window.sfDeleteOnismeret === 'function') await window.sfDeleteOnismeret(uid);
+        try { localStorage.removeItem('sf_oi_' + uid); } catch(e){}
+    } catch(e){ console.warn('Az önismereti adat átköltöztetése nem sikerült (később újra próbáljuk):', e); }
 }
+function oiMent(){ if(oiAdat && PRV.onismeret === oiAdat) prvMent('onismeret'); }
 async function renderOnismeret(){
     const host = document.getElementById('onismeretBody'); if(!host) return;
+    if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Az Önismeret privát – ránézés módban nem látszik.</div>`; return; }
     if(!host.innerHTML) host.innerHTML = '<section class="card"><div class="card-body" style="color:var(--muted);">Betöltés…</div></section>';
     const a = await oiBetolt();
+    if(!prvLap('onismeret')) return;
     const fulek = `<div class="oi-fulek" role="tablist">${[['kerek', 'Vezetői életkerék'], ['hawk', 'Hawkins-skála']].map(([k, n]) =>
         `<button type="button" role="tab" data-oitab="${k}" class="${oiTab === k ? 'on' : ''}" aria-selected="${oiTab === k}">${n}</button>`).join('')}</div>`;
-    const hiba = oiHiba ? '<div class="oi-hiba">Az adatot most nem sikerült a szerverről betölteni – amit módosítasz, csak ezen az eszközön mentődik.</div>' : '';
+    const hiba = prvHiba.has('onismeret') ? '<div class="oi-hiba">Az adatot most nem sikerült a szerverről betölteni – amit módosítasz, csak ezen az eszközön mentődik.</div>' : '';
     const y = window.scrollY;
     host.innerHTML = hiba + fulek + (oiTab === 'hawk' ? oiHawkHtml(a) : oiKerekHtml(a));
     window.scrollTo(0, y);
@@ -17537,7 +17550,7 @@ const prvHiba = new Set();
 let prvUid = null;
 const prvKulcs = k => `sf_priv_${ezUid()}_${k}`;
 function prvCache(){ if(prvUid !== ezUid()){ for(const k in PRV) delete PRV[k]; prvHiba.clear(); prvKesik.clear(); prvToltes = {}; prvUid = ezUid(); } }
-const PRV_ALAP = { beall: () => ({}), mentesek: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
+const PRV_ALAP = { beall: () => ({}), onismeret: () => ({ kerek: [], hawk: [] }), mentesek: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
 const prvUj = (k, adat) => Object.assign((PRV_ALAP[k] || (/^nl\d{4}$/.test(k) ? () => ({ bej: [] }) : () => ({})))(), adat && typeof adat === 'object' ? adat : {});
 // Lassú szervernél a helyi másolattal dolgozunk (lásd SF_VAR_MS); ezek a kulcsok addig csak
 // helyben mentődnek. Ugyanazt a kulcsot egyszerre csak egyszer kérjük le.
@@ -17609,6 +17622,7 @@ document.addEventListener('visibilitychange', () => {
     if(prvLap('emberek')) renderEmberek();
     if(prvLap('konyvek')) renderKonyvek();
     if(prvLap('enaplo')) renderNaplo();
+    if(prvLap('onismeret')) renderOnismeret();
 });
 const PRV_HO = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 const PRV_NAP = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
@@ -20058,7 +20072,7 @@ document.addEventListener('keydown', e => {
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, saveOnismeret } from "./auth.js?v=77";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=78";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -20089,7 +20103,7 @@ document.addEventListener('keydown', e => {
     window.sfSaveEdzes = saveEdzes;
     window.sfGetPrivatStrict = getPrivatStrict;
     window.sfGetOnismeret = getOnismeret;
-    window.sfSaveOnismeret = saveOnismeret;
+    window.sfDeleteOnismeret = deleteOnismeret;
     window.sfSavePrivat = savePrivat;
     window.sfStravaHivas = stravaHivas;
 

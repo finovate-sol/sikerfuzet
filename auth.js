@@ -325,19 +325,18 @@ export async function saveCelok(uid, data){
     await setDoc(doc(db, "celok", uid), data, { merge: true });
 }
 
-// ===================== ÖNISMERET (Vezetői életkerék, Hawkins-skála) =====================
-// onismeret/{uid}: { kerek: [...felmérések], hawk: [...bejegyzések] }. Mint a célok:
-// a gazda, a felettesei (ránézés) és az admin éri el. Hibánál dobunk (nem nyeljük el),
-// mert a mentés a teljes dokumentumot írja – egy elnyelt olvasási hiba után üressel
-// írnánk felül a szerveren lévőt.
+// ===================== ÖNISMERET (régi hely) =====================
+// Az Önismeret átkerült a Tükörbe: privat/{uid}_onismeret. A régi onismeret/{uid}
+// dokumentumot (a felettes és az admin is olvashatta) csak az átköltöztetés olvassa,
+// majd törli. Hibánál dobunk, hogy egy elnyelt olvasási hiba ne tűnjön üres adatnak.
 export async function getOnismeret(uid){
     if(!isConfigured || !db || !uid) return null;
     const snap = await getDoc(doc(db, "onismeret", uid));
     return snap.exists() ? (snap.data() || null) : null;
 }
-export async function saveOnismeret(uid, data){
-    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "onismeret", uid), data);
+export async function deleteOnismeret(uid){
+    if(!isConfigured || !db || !uid) return;
+    await deleteDoc(doc(db, "onismeret", uid));
 }
 
 // ===================== FELADATOK PLUSZ MEZŐI =====================
