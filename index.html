@@ -5509,10 +5509,21 @@
         .sz-hc.ma { box-shadow:0 0 0 2px #111827; }
         .sz-hc.jovo { opacity:.45; }
         .sz-hc.ures { background:none; }
-        .sz-javas { display:flex; flex-wrap:wrap; gap:8px; padding:0 18px 10px; }
-        .sz-javas button { display:inline-flex; align-items:center; gap:8px; border:0; border-radius:999px; background:var(--b); color:#111827; font:inherit; font-size:13px; font-weight:600; padding:6px 14px 6px 6px; cursor:pointer; }
-        .sz-javas i { width:28px; height:28px; border-radius:50%; background:#fff; color:var(--c); display:flex; align-items:center; justify-content:center; }
-        .sz-javas svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        /* Ajánlások: kompakt – két sor, vízszintesen görgetve */
+        .sz-javas { display:flex; flex-direction:column; gap:6px; padding:2px 18px 14px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+        .sz-javas > div { display:flex; gap:6px; width:max-content; }
+        .sz-javas::-webkit-scrollbar { display:none; }
+        .sz-javas button { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:999px; background:var(--b); color:#111827; font:inherit; font-size:12.5px; font-weight:600; padding:4px 11px 4px 4px; cursor:pointer; white-space:nowrap; }
+        .sz-javas button::after { content:'+'; font-weight:800; color:var(--c); margin-left:2px; }
+        .sz-javas i { width:22px; height:22px; border-radius:50%; background:#fff; color:var(--c); display:flex; align-items:center; justify-content:center; flex:none; }
+        .sz-javas svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .sz-jav-k .pv-cim { padding-bottom:4px; }
+        .sz-javtab { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; padding:2px 18px 8px; }
+        .sz-javtab::-webkit-scrollbar { display:none; }
+        .sz-javtab button { flex:none; display:inline-flex; align-items:center; gap:5px; border:0; border-radius:999px; background:transparent; color:#6b7280; font:inherit; font-size:12px; font-weight:700; padding:5px 9px; cursor:pointer; }
+        .sz-javtab button svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; color:var(--c); }
+        .sz-javtab button em { font-style:normal; font-size:10.5px; color:#9ca3af; }
+        .sz-javtab button.on { background:var(--b); color:var(--c); }
         /* ===== Napló (Daylio-szerű) ===== */
         .nl-arc { --c:#cbd5e1; width:48px; height:48px; flex:none; border-radius:15px; background:var(--c); display:inline-flex; align-items:center; justify-content:center; }
         .nl-arc svg { width:32px; height:32px; fill:none; stroke:#fff; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
@@ -17063,12 +17074,42 @@ const SZ_IK = {
     zaszlo:['Sport','M5 21V4M5 4h11l-2 4 2 4H5'],
     ejjel:['Éjjelezés nélkül','M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5zM3 3l18 18'],
     fekvo:['Fekvőtámasz','M4 15h9l5-3h3M6 15v4M18 12v7M3 19h18M15 9.5a1.5 1.5 0 1 0 0-.01'],
+    csalad:['Család','M9 11a3 3 0 1 0 0-.01M17 11.5a2.5 2.5 0 1 0 0-.01M3 20c0-3 2.7-5 6-5s6 2 6 5M14.5 16.2c.9-.5 2-.7 3-.7 2.5 0 3.5 1.8 3.5 4.5'],
+    naptar:['Tervezés','M3 5h18v16H3zM3 10h18M8 3v4M16 3v4'],
+    cel:['Cél','M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 12h.01'],
+    level:['Üzenet','M3 6h18v12H3zM3 7l9 6 9-6'],
+    laptop:['Gép','M4 5h16v11H4zM2 19h20'],
+    persely:['Megtakarítás','M19 11c0-3.3-3.1-6-7-6s-7 2.7-7 6c0 2 1.2 3.8 3 4.9V19h3v-2h2v2h3v-3.1c1.8-1.1 3-2.9 3-4.9zM15 10h.01M10 6.5h4'],
     pipa:['Egyéb','M5 12l5 5 9-10'],
 };
 const szIkSvg = k => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${(SZ_IK[k] || SZ_IK.pipa)[1]}"/></svg>`;
+// Szokás-ajánlások kategóriánként (a célok életterületei), mindegyikben legalább 10.
+// A sorrend számít: az elemek indexe a data-szjav – új ajánlást a lista végére érdemes tenni.
 const SZ_JAVASLAT = [['Kerüld az alkoholt','alkohol','eg'], ['Kerüld a dohányzást','cigi','eg'], ['Sport','zaszlo','eg'], ['Kerüld az éjjelezést','ejjel','eg'], ['Fekvőtámasz','fekvo','eg'],
     ['Igyál 2 liter vizet','viz','eg'], ['Alvás 23 előtt','alvas','eg'], ['10 oldal olvasás','konyv','sz'], ['Nincs cukor','tilt','eg'],
-    ['10 perc séta','seta','eg'], ['5 perc meditáció','medit','sz'], ['Hívd fel a családot','sziv','cs'], ['Nincs impulzusvásárlás','penz','pe']];
+    ['10 perc séta','seta','eg'], ['5 perc meditáció','medit','sz'], ['Hívd fel a családot','sziv','cs'], ['Nincs impulzusvásárlás','penz','pe'],
+    // Egészség
+    ['Napi 8000 lépés','seta','eg'], ['Zöldség vagy gyümölcs minden étkezéshez','alma','eg'], ['Vitamin','tabletta','eg'], ['10 perc nyújtás','edzes','eg'],
+    ['Lefekvés előtt 1 órával nincs képernyő','telefon','eg'],
+    // Pénzügy
+    ['Költések rögzítése','naplo','pe'], ['Napi 1000 Ft félretétele','persely','pe'], ['Nincs ételrendelés','tilt','pe'], ['Ebéd otthonról','alma','pe'],
+    ['Bevásárlás csak listával','naplo','pe'], ['24 óra várakozás nagyobb vásárlás előtt','tilt','pe'], ['Heti költségvetés átnézése','naptar','pe'],
+    ['10 perc pénzügyi olvasás','konyv','pe'], ['Számlák időben kifizetése','pipa','pe'], ['Nincs kávé útközben','tilt','pe'],
+    // Család és párkapcsolat
+    ['Közös vacsora','alma','cs'], ['Telefon nélküli közös idő','telefon','cs'], ['Mondj valami kedveset','sziv','cs'], ['Randi este','sziv','cs'],
+    ['Írj egy barátnak','level','cs'], ['Közös séta','seta','cs'], ['Köszönd meg valakinek','sziv','cs'], ['Látogasd meg a szüleidet','csalad','cs'],
+    ['Segíts be otthon','pipa','cs'], ['Figyelmesen hallgass meg valakit','csalad','cs'],
+    // Személyes fejlődés
+    ['Napló írása','naplo','sz'], ['3 dolog, amiért hálás vagy','naplo','sz'], ['15 perc nyelvtanulás','nyelv','sz'], ['Reggel: a nap 3 célja','cel','sz'],
+    ['Korai kelés','alvas','sz'], ['Hideg zuhany','viz','sz'], ['Podcast vagy hangoskönyv','nyelv','sz'], ['Közösségi média max. 30 perc','telefon','sz'],
+    ['Heti tervezés','naptar','sz'], ['Tanulj ma valami újat','nyelv','sz'],
+    // Szakmai
+    ['Napi 10 telefonhívás','telefon','ov'], ['Ajánlás kérése','csalad','ov'], ['Ügyfél-utánkövetés','level','ov'], ['Napi terv a munkanap elején','naptar','ov'],
+    ['1 óra elmélyült munka','cel','ov'], ['E-mailek naponta csak kétszer','level','ov'], ['15 perc szakmai olvasás','konyv','ov'], ['Ügyféllista frissítése','laptop','ov'],
+    ['Termékismeret tanulása','nyelv','ov'], ['Új szakmai kapcsolat','csalad','ov'], ['Nap végi értékelés','naplo','ov'],
+];
+// Az ajánlások kártyáján épp nyitott kategória (eszközönként megjegyezve).
+let szJavTer = store.load('sf_sz_javter', '');
 let szNap = '', szHo = '';
 const szAktiv = d => (d.lista || []).filter(h => !h.arch);
 // Heti X-szeres szokás (h.het = 1…6): a hét bármelyik napján pipálható, a hét (H–V) számít.
@@ -17191,8 +17232,19 @@ async function renderSzokasok(){
             // Az ajánlások mindig látszanak – csak azok, amelyek még nincsenek felvéve (név szerint, ékezet nélkül).
             const van = new Set((d.lista || []).map(h => nlNorm(h.n)));
             const jav = SZ_JAVASLAT.map((x, i) => [x, i]).filter(([[n]]) => !van.has(nlNorm(n)));
-            return jav.length ? `<section class="card pv-kartya"><h4 class="pv-cim">Ajánlások<span class="pv-szam">${jav.length}</span></h4>
-                <div class="sz-javas">${jav.map(([[n, ik, ter], i]) => `<button type="button" data-szjav="${i}" style="--c:${prvTer(ter).c};--b:${prvTer(ter).b}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div></section>` : '';
+            if(!jav.length) return '';
+            // Kompakt: kategória-fülek, alattuk két sorban, vízszintesen görgethető javaslatok
+            const terek = PRV_TER.filter(t => jav.some(([[, , ter]]) => ter === t.k));
+            const akt = terek.some(t => t.k === szJavTer) ? szJavTer : (terek.find(t => t.k === szTerSzuro) || terek[0]).k;
+            const l = jav.filter(([[, , ter]]) => ter === akt), t0 = prvTer(akt);
+            return `<section class="card pv-kartya sz-jav-k"><h4 class="pv-cim">Ajánlások<span class="pv-szam">${jav.length}</span></h4>
+                <div class="sz-javtab" role="tablist" aria-label="Ajánlások kategóriái">${terek.map(t => `<button type="button" role="tab" data-szjavter="${t.k}" aria-selected="${t.k === akt}" class="${t.k === akt ? 'on' : ''}" style="--c:${t.c};--b:${t.b}">${prvTerIk(t)}${esc(t.n)}<em>${jav.filter(([[, , ter]]) => ter === t.k).length}</em></button>`).join('')}</div>
+                <div class="sz-javas" style="--c:${t0.c};--b:${t0.b}">${(() => {
+                    // két sor, a szövegek hossza szerint kiegyensúlyozva; a kettő együtt görget
+                    const sorok = [[], []], hossz = [0, 0];
+                    for(const x of l){ const j = hossz[0] <= hossz[1] ? 0 : 1; sorok[j].push(x); hossz[j] += x[0][0].length + 6; }
+                    return sorok.map(r => `<div>${r.map(([[n, ik], i]) => `<button type="button" data-szjav="${i}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div>`).join('');
+                })()}</div></section>`;
         })()}
         <section class="card pv-kartya">
             <h4 class="pv-cim">${hy}. ${PRV_HO[hm - 1]}<span class="pv-lep"><button type="button" data-szho="-1" aria-label="Előző hónap">‹</button><button type="button" data-szho="1" aria-label="Következő hónap"${szHo >= ma.slice(0, 7) ? ' disabled' : ''}>›</button></span></h4>
@@ -19249,6 +19301,7 @@ document.addEventListener('click', e => {
     const p = e.target.closest('[data-szpipa]');
     if(p){ const d = PRV.szokasok; if(!d) return; szValt(d, p.dataset.szpipa, p.dataset.sznap); prvFrissit(); return; }
     const vn = e.target.closest('[data-szvalnap]'); if(vn){ szNap = vn.dataset.szvalnap; renderSzokasok(); return; }
+    const jt = e.target.closest('[data-szjavter]'); if(jt){ szJavTer = jt.dataset.szjavter; store.save('sf_sz_javter', szJavTer); renderSzokasok(); return; }
     const tsz = e.target.closest('[data-szterszuro]'); if(tsz){ szTerSzuro = tsz.dataset.szterszuro; store.save('sf_sz_ter', szTerSzuro); renderSzokasok(); return; }
     const sh = e.target.closest('[data-szho]'); if(sh){ szHo = pzHoLep(szHo, +sh.dataset.szho); renderSzokasok(); return; }
     if(e.target.closest('[data-szuj]')){ szModal(null); return; }
