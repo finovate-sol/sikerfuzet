@@ -4833,6 +4833,10 @@
                   padding:9px 16px; border-top:1px solid #f1f4f8; cursor:pointer; text-align:left; font-size:12px; }
         .pz-ntb:not(:has(.pz-jelolo)) { grid-template-columns:auto minmax(0,1fr) auto; }
         .pz-ntb:hover { background:#fafbfd; }
+        .pz-huzhato .pz-nap-sorok > [data-pztid] { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+        .pz-huz-hely { opacity:.35; background:#eef3fb !important; }
+        .pz-huz-klon { position:fixed; z-index:6000; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 14px 34px rgba(15,47,95,.25); transform:scale(1.02); border-top:0 !important; }
+        body.pz-huz-aktiv, body.pz-huz-aktiv * { cursor:grabbing !important; }
         .pz-ntb:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }
         /* olvashatóbb, visszafogott sor (A terv): kisebb ikon, közepes név, halvány második sor, mérsékelt összeg */
         .pz-nt-ik { width:36px; height:36px; border-radius:11px; display:inline-flex; align-items:center; justify-content:center; font-style:normal; flex:none; }
@@ -11731,6 +11735,7 @@ let pzKerHat = 'ho', pzKerTol = '', pzKerIg = '';        // hatókör: ho | ev |
 let pzSz = { kat:[], al:[], min:null, max:null, ism:false, rend:'uj' }, pzSzNyit = false;
 // Tömeges szerkesztés: kijelölő mód és a kijelölt tételek azonosítói.
 let pzJelol = false, pzJelolt = new Set(), pzLathatoIdk = [];
+let pzHuzhato = false;   // a Napló tételei húzással rendezhetők (lásd PZ HÚZÁS)
 // A Napló nézete: lista (kártyás két sor) | kompakt (egy sor) | tabla. A választás megmarad.
 let pzNezet = 'lista';
 try { const v = localStorage.getItem('sf_pz_nezet'); if(['lista','kompakt','tabla'].includes(v)) pzNezet = v; } catch(e){}
@@ -11769,6 +11774,8 @@ async function renderPzNaplo(){
     const osszes = hok.flatMap(h => (pzTranz[h] || []).map((t, i) => ({ ...t, _i:i })));
     const szavak = pzNorm(pzKer).split(' ').filter(Boolean);
     const keres = szavak.length > 0 || pzKerTip !== 'mind' || pzSzAktivDb() > 0;
+    // Húzással rendezni csak a teljes, szűretlen havi listában lehet (különben rejtett tételek közé kerülne).
+    pzHuzhato = pzNezet !== 'tabla' && !pzJelol && pzKerHat === 'ho' && !keres && !pzNTarca && (pzSz.rend === 'uj' || pzSz.rend === 'regi');
     // Alap: tárca, típus, időszak és a szöveg. Ebből számoljuk a kategória-
     // címkék darabszámát, hogy lásd, mire érdemes még szűkíteni.
     const alap = osszes.filter(t => !pzNTarca || t.p === pzNTarca || (t.t === 'atu' && t.p2 === pzNTarca))
@@ -11815,7 +11822,7 @@ async function renderPzNaplo(){
     // A nap sorai külön dobozban: telefonon a napfejléc a doboz fölött áll, a sorok egy lekerekített kártyában.
     const napokHtml = ht => [...new Set(ht.map(t => t.d))].map(d => {
         const nt = ht.filter(t => t.d === d);
-        return `<div class="pz-nap-blokk">${napFej(d, nt)}<div class="pz-nap-sorok">${nt.map(t => pzNaploSorHtml(t, pzNTarca)).join('')}</div></div>`;
+        return `<div class="pz-nap-blokk">${napFej(d, nt)}<div class="pz-nap-sorok" data-pznap="${esc(d)}">${nt.map(t => pzNaploSorHtml(t, pzNTarca)).join('')}</div></div>`;
     }).join('');
     pzLathatoIdk = lista.map(t => t.id);
     // Táblázat nézet: igazított oszlopok, napokra bontás nélkül, alul összesítő sorral.
@@ -11864,7 +11871,7 @@ async function renderPzNaplo(){
     const mobCim = (pzKerHat === 'ho' ? (pzTHo === maHo ? 'Ez a hónap' : pzHoNevKis(pzTHo)) : hatokor)
         + (szuro ? ' · ' + szuro : '') + (keres ? ' · szűrve' : '');
     host.innerHTML = `
-    <div class="pz-b-lay${pzNezet === 'tabla' ? ' tabla' : ''}">
+    <div class="pz-b-lay${pzNezet === 'tabla' ? ' tabla' : ''}${pzHuzhato ? ' pz-huzhato' : ''}">
         <aside class="card pz-b-bal">
             <div class="pz-netto"><span class="c">Nettó vagyon</span><b>${pzNetto() < 0 ? '−' : ''}${pzFt(Math.abs(pzNetto()))} Ft</b>
                 <span class="s">${pzTarcaOssz() < 0 ? '−' : ''}${pzFt(Math.abs(pzTarcaOssz()))} Ft a tárcákban</span></div>
@@ -12471,6 +12478,87 @@ window.sfShowPenzugyek = function(){
         }
     });
 })();
+
+// ===== PZ HÚZÁS: a Napló tételeinek sorrendje (és napja) húzással =====
+// Egérrel: lenyomva elhúzva indul (sima kattintás = szerkesztés). Telefonon: hosszan
+// nyomva, majd húzva. A sorrend a hónap tömbjében tárolódik (a Napló a napon belül
+// a tömb sorrendjében mutat); másik nap listájába ejtve a tétel dátuma is átáll.
+(function(){
+    let jel = null, huz = null, elnyel = false, gorgeto = 0;
+    const sorok = () => [...document.querySelectorAll('#pzNaplo .pz-huzhato .pz-nap-sorok[data-pznap]')];
+    function indit(sor, x, y){
+        const r = sor.getBoundingClientRect(), klon = sor.cloneNode(true);
+        klon.classList.add('pz-huz-klon'); klon.style.width = r.width + 'px'; klon.style.left = r.left + 'px'; klon.style.top = r.top + 'px';
+        document.body.appendChild(klon); sor.classList.add('pz-huz-hely'); document.body.classList.add('pz-huz-aktiv');
+        huz = { sor, klon, dy: y - r.top, regiNap: sor.parentElement.dataset.pznap, regiIdx: [...sor.parentElement.children].indexOf(sor) };
+        try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
+        mozgat(x, y);
+    }
+    function mozgat(x, y){
+        if(!huz) return;
+        huz.y = y; huz.klon.style.top = (y - huz.dy) + 'px';
+        // a mutató alatti nap listája: a legközelebbi, amelyik függőlegesen a legközelebb esik
+        const l = sorok(); if(!l.length) return;
+        let cel = null, tav = Infinity;
+        for(const c of l){ const b = c.closest('.pz-nap-blokk').getBoundingClientRect(); const t = y < b.top ? b.top - y : y > b.bottom ? y - b.bottom : 0; if(t < tav){ tav = t; cel = c; } }
+        const tobbi = [...cel.children].filter(r => r !== huz.sor);
+        const ele = tobbi.find(r => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+        if(ele){ if(huz.sor.nextElementSibling !== ele || huz.sor.parentElement !== cel) cel.insertBefore(huz.sor, ele); }
+        else if(cel.lastElementChild !== huz.sor) cel.appendChild(huz.sor);
+    }
+    function gorget(){
+        if(!huz){ gorgeto = 0; return; }
+        const y = huz.y, h = innerHeight, z = 70;
+        const v = y < z ? -Math.ceil((z - y) / 6) : y > h - z ? Math.ceil((y - (h - z)) / 6) : 0;
+        if(v){ scrollBy(0, v); mozgat(0, y); }
+        gorgeto = requestAnimationFrame(gorget);
+    }
+    function vege(ment){
+        clearTimeout(jel && jel.ido); jel = null;
+        if(!huz) return;
+        const { sor, klon, regiNap, regiIdx } = huz; huz = null; cancelAnimationFrame(gorgeto); gorgeto = 0;
+        klon.remove(); sor.classList.remove('pz-huz-hely'); document.body.classList.remove('pz-huz-aktiv');
+        elnyel = true; setTimeout(() => { elnyel = false; }, 350);
+        const c = sor.parentElement, nap = c && c.dataset.pznap, idx = c ? [...c.children].indexOf(sor) : -1;
+        if(!ment || !nap || (nap === regiNap && idx === regiIdx)){ if(nap !== regiNap || idx !== regiIdx) renderPzNaplo(); return; }
+        pzHuzMent(sor.dataset.pztid, nap, [...c.children].map(r => r.dataset.pztid));
+    }
+    document.addEventListener('pointerdown', e => {
+        if(huz || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        const sor = e.target.closest('#pzNaplo .pz-huzhato .pz-nap-sorok[data-pznap] > [data-pztid]'); if(!sor) return;
+        jel = { sor, x: e.clientX, y: e.clientY, tip: e.pointerType };
+        if(e.pointerType !== 'mouse') jel.ido = setTimeout(() => { if(jel && jel.sor === sor) indit(sor, jel.x, jel.y), gorget(); }, 380);
+    });
+    document.addEventListener('pointermove', e => {
+        if(huz){ e.preventDefault(); mozgat(e.clientX, e.clientY); return; }
+        if(!jel) return;
+        const d = Math.hypot(e.clientX - jel.x, e.clientY - jel.y);
+        if(jel.tip === 'mouse'){ if(d > 6){ const s = jel.sor; indit(s, e.clientX, e.clientY); gorget(); } }
+        else { jel.x = e.clientX; jel.y = e.clientY; if(d > 10 && !huz){ clearTimeout(jel.ido); jel = null; } }
+    });
+    document.addEventListener('pointerup', () => vege(true));
+    document.addEventListener('pointercancel', () => vege(false));
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && huz) vege(false); });
+    // húzás közben a lap ne görögjön az ujjal, és ne jöjjön fel a hosszú nyomás menüje
+    document.addEventListener('touchmove', e => { if(huz) e.preventDefault(); }, { passive: false });
+    document.addEventListener('contextmenu', e => { if(jel || huz) e.preventDefault(); });
+    // a húzás végén keletkező kattintás ne nyissa meg a tételt
+    document.addEventListener('click', e => { if(elnyel && e.target.closest('#pzNaplo')){ e.stopPropagation(); e.preventDefault(); elnyel = false; } }, true);
+})();
+// A húzás eredménye: a cél nap tételei a képernyőn látott sorrendben. A tömbben a cél nap
+// (és az áthúzott tétel régi) helyeire rakjuk vissza őket, a többi nap érintetlen marad.
+function pzHuzMent(id, nap, ids){
+    const ho = pzTHo, arr = pzTranz[ho], t = arr && arr.find(x => x.id === id);
+    if(!t || nap.slice(0, 7) !== ho){ renderPzNaplo(); return; }
+    const helyek = arr.map((x, i) => (x.d === nap || x === t) ? i : -1).filter(i => i >= 0);
+    const novekvo = pzSz.rend === 'regi' ? ids : ids.slice().reverse();
+    const elemek = novekvo.map(i => arr.find(x => x.id === i)).filter(Boolean);
+    if(elemek.length !== helyek.length){ renderPzNaplo(); return; }
+    if(t.d !== nap) t.d = nap;
+    helyek.forEach((h, k) => { arr[h] = elemek[k]; });
+    pzSaveTranz(ho);
+    renderPzNaplo();
+}
 
 // ===== PÉNZÜGYEK IMPORT =====
 // Egy teljes év beolvasása JSON-ból. A pénzügyi adat személyes: a böngésződből
