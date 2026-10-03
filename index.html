@@ -5539,6 +5539,22 @@
         .nl-cel-pipa.ures { border-style:dashed; cursor:default; }
         .nl-cel-t em.sz-hetdb { margin-right:4px; }
         .sz-lista { margin-bottom:14px; }
+        /* szokások kategóriák (életterületek) szerint */
+        .sz-ter-fej { display:flex; align-items:center; gap:8px; padding:12px 16px 6px; }
+        .sz-ter-fej + .nl-cel { border-top:0; }
+        .nl-cel + .sz-ter-fej { border-top:1px solid #eef0f4; margin-top:4px; }
+        .sz-ter-fej i { width:24px; height:24px; border-radius:8px; background:var(--b); color:var(--c); display:flex; align-items:center; justify-content:center; flex:none; }
+        .sz-ter-fej i svg, .sz-terszuro svg, .sz-terchip svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+        .sz-ter-fej b { font-size:12.5px; font-weight:800; color:var(--c); text-transform:uppercase; letter-spacing:.04em; flex:1; }
+        .sz-ter-fej em { font-style:normal; font-size:12px; font-weight:700; color:#6b7280; }
+        .sz-terszuro { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:0 2px 10px; }
+        .sz-terszuro::-webkit-scrollbar { display:none; }
+        .sz-terszuro button { --c:#111827; --b:#f3f4f6; flex:none; display:inline-flex; align-items:center; gap:6px; border:0; border-radius:999px; background:#fff; color:#374151; box-shadow:0 1px 3px rgba(15,23,42,.08);
+            font:inherit; font-size:13px; font-weight:600; padding:7px 12px; cursor:pointer; }
+        .sz-terszuro button svg { color:var(--c); }
+        .sz-terszuro button em { font-style:normal; font-size:11px; font-weight:700; color:#9ca3af; }
+        .sz-terszuro button.on { background:var(--c); color:#fff; } .sz-terszuro button.on svg, .sz-terszuro button.on em { color:#fff; }
+        .sz-terchip button { display:inline-flex; align-items:center; gap:6px; }
         .nl-ota { text-align:center; color:#6b7280; font-size:13px; margin:14px 0; }
         .nl-k { padding:0; margin:0 0 12px; overflow:hidden; }
         .nl-k-fo { display:flex; gap:14px; width:100%; border:0; background:none; padding:16px 18px; font:inherit; text-align:left; cursor:pointer; }
@@ -16849,11 +16865,17 @@ const PRV_HO = ['január','február','március','április','május','június','j
 const PRV_NAP = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
 const prvDatumSzo = s => { const d = ezD(s); return `${PRV_HO[d.getMonth()]} ${d.getDate()}.`; };
 // Területek – ugyanazok, mint a Célokban (a szokás onnan kapja a színét).
+// Életterületek – a Célok és a Szokások közös kategóriái (a Célok modulja is ebből
+// építkezik). n = rövid név, nt = teljes név, c = szín, b = háttér, tx = sötét szöveg,
+// hat = a Célok kártyáinak háttere, ik = ikon (SVG-útvonalak).
 const PRV_TER = [
-    { k:'eg', n:'Egészség', c:'#15803d', b:'#dcfce7' }, { k:'pe', n:'Pénzügy', c:'#b45309', b:'#ffedd5' },
-    { k:'cs', n:'Család', c:'#be185d', b:'#fce7f3' }, { k:'sz', n:'Személyes', c:'#6d28d9', b:'#ede9fe' },
-    { k:'ov', n:'Szakmai', c:'#1d4ed8', b:'#dbeafe' },
+    { k:'eg', n:'Egészség', nt:'Egészség', c:'#15803d', b:'#dcfce7', tx:'#166534', hat:'#dcf5e6', ik:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>' },
+    { k:'pe', n:'Pénzügy', nt:'Pénzügy', c:'#b45309', b:'#ffedd5', tx:'#92400e', hat:'#fdecd2', ik:'<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>' },
+    { k:'cs', n:'Család', nt:'Család és párkapcsolat', c:'#be185d', b:'#fce7f3', tx:'#9d174d', hat:'#fce7f3', ik:'<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>' },
+    { k:'sz', n:'Személyes', nt:'Személyes fejlődés', c:'#6d28d9', b:'#ede9fe', tx:'#5b21b6', hat:'#ede9fe', ik:'<path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5-6.5 4.5 2-7.5L2 9h7z"/>' },
+    { k:'ov', n:'Szakmai', nt:'Szakmai (OVB)', c:'#1d4ed8', b:'#dbeafe', tx:'#1e40af', hat:'#dbeafe', ik:'<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6M3 12.5h18"/>' },
 ];
+const prvTerIk = t => `<svg viewBox="0 0 24 24" aria-hidden="true">${t.ik}</svg>`;
 const prvTer = k => PRV_TER.find(t => t.k === k) || PRV_TER[3];
 
 // ===================== SZOKÁSOK =====================
@@ -16958,6 +16980,8 @@ function szHetCimke(d, h, s){
     const db = szHetDb(d, h, s);
     return `<em class="sz-hetdb${db >= h.het ? ' meg' : ''}">${db}/${h.het} a héten</em>`;
 }
+// A szokáslista kategória-szűrője ('' = mind).
+let szTerSzuro = store.load('sf_sz_ter', '');
 async function renderSzokasok(){
     const host = document.getElementById('szokasokBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A szokások privátak – ránézés módban nem látszanak.</div>`; return; }
@@ -16988,7 +17012,18 @@ async function renderSzokasok(){
             <span class="s">${all.es ? (all.kesz === all.es ? '<b class="poz">Minden megvan – szép munka!</b>' : 'szokás kész') : 'erre a napra nincs esedékes szokás'}${legj ? ` · leghosszabb sorozat: <b>${legj} nap</b>` : ''}</span>
             <button type="button" class="sf-hos-gomb" data-szuj><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Új szokás</button></div>
         <div class="sz-het" role="group" aria-label="Nap kiválasztása">${het.map(napGomb).join('')}</div>
-        ${lista.length ? `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div><section class="card nl-celok sz-lista">${lista.map(sor).join('')}</section>`
+        ${lista.length ? (() => {
+            // kategóriák (a célok életterületei) szerint csoportosítva; fölötte szűrő
+            const terek = PRV_TER.filter(t => lista.some(h => prvTer(h.ter).k === t.k));
+            if(szTerSzuro && !terek.some(t => t.k === szTerSzuro)) szTerSzuro = '';
+            const szuro = terek.length > 1 ? `<div class="sz-terszuro" role="group" aria-label="Kategória">${[{ k: '', n: 'Mind' }, ...terek].map(t =>
+                `<button type="button" data-szterszuro="${t.k}" class="${szTerSzuro === t.k ? 'on' : ''}" aria-pressed="${szTerSzuro === t.k}"${t.k ? ` style="--c:${t.c};--b:${t.b}"` : ''}>${t.k ? prvTerIk(t) : ''}${esc(t.n)}${t.k ? `<em>${lista.filter(h => prvTer(h.ter).k === t.k).length}</em>` : ''}</button>`).join('')}</div>` : '';
+            const csop = terek.filter(t => !szTerSzuro || t.k === szTerSzuro).map(t => {
+                const l = lista.filter(h => prvTer(h.ter).k === t.k), es = l.filter(h => szSzamit(d, h, szNap)), kesz = es.filter(h => szKesz(d, h, szNap)).length;
+                return `<div class="sz-ter-fej" style="--c:${t.c};--b:${t.b}"><i>${prvTerIk(t)}</i><b>${esc(t.nt)}</b>${es.length ? `<em>${kesz}/${es.length}</em>` : ''}</div>${l.map(sor).join('')}`;
+            }).join('');
+            return `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div>${szuro}<section class="card nl-celok sz-lista">${csop}</section>`;
+        })()
             : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p></section>`}
         ${(() => {
             // Az ajánlások mindig látszanak – csak azok, amelyek még nincsenek felvéve (név szerint, ékezet nélkül).
@@ -17018,7 +17053,7 @@ async function szModal(id, javaslat){
             <div class="modal-body">
                 <label class="pv-mezo"><span>Mit szeretnél rendszeresen csinálni?</span><input type="text" data-f="n" value="${esc(x.n)}" placeholder="Pl. 10 oldal olvasás" maxlength="60"></label>
                 <div class="pv-mezo"><span>Ikon</span><div class="pv-ikonok">${Object.entries(SZ_IK).map(([k, [cim]]) => `<button type="button" class="${x.ik === k ? 'on' : ''}" data-szik="${k}" title="${esc(cim)}" aria-label="${esc(cim)}">${szIkSvg(k)}</button>`).join('')}</div></div>
-                <div class="pv-mezo"><span>Életterület</span><div class="pv-chipek">${PRV_TER.map(t => `<button type="button" class="${x.ter === t.k ? 'on' : ''}" data-szter="${t.k}" style="--c:${t.c};--b:${t.b}">${esc(t.n)}</button>`).join('')}</div></div>
+                <div class="pv-mezo"><span>Kategória <i>ugyanazok az életterületek, mint a céloknál</i></span><div class="pv-chipek sz-terchip">${PRV_TER.map(t => `<button type="button" class="${prvTer(x.ter).k === t.k ? 'on' : ''}" data-szter="${t.k}" style="--c:${t.c};--b:${t.b}">${prvTerIk(t)}${esc(t.nt)}</button>`).join('')}</div></div>
                 <label class="pv-mezo"><span>Melyik célodat segíti? <i>nem kötelező</i></span><select data-f="cel"><option value="">— egyik sem —</option>${celok.map(c => `<option value="${esc(c.id)}"${x.cel === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
                 <div class="pv-mezo"><span>Milyen gyakran?</span><div class="pv-chipek sz-gyak">${[['min', 'Minden nap'], ['nap', 'Adott napokon'], ['het', 'Heti X-szer']].map(([k, n]) => `<button type="button" class="${gyak === k ? 'on' : ''}" data-szgyak="${k}">${n}</button>`).join('')}</div></div>
                 ${gyak === 'nap' ? `<div class="pv-mezo"><span>Mely napokon?</span><div class="pv-chipek napok">${['H','K','Sze','Cs','P','Szo','V'].map((n, i) => `<button type="button" class="${x.napok.includes(i) ? 'on' : ''}" data-sznapi="${i}">${n}</button>`).join('')}</div></div>` : ''}
@@ -17035,7 +17070,12 @@ async function szModal(id, javaslat){
     document.body.appendChild(ov);
     const zar = () => ov.remove();
     ov.addEventListener('input', e => { if(e.target.dataset.f) x[e.target.dataset.f] = e.target.value; });
-    ov.addEventListener('change', e => { if(e.target.dataset.f) x[e.target.dataset.f] = e.target.value; });
+    ov.addEventListener('change', e => {
+        if(!e.target.dataset.f) return;
+        x[e.target.dataset.f] = e.target.value;
+        // célt választva a kategória a cél életterülete lesz (utána is átállítható)
+        if(e.target.dataset.f === 'cel'){ const c = celok.find(c => c.id === x.cel); if(c && c.ter && c.ter !== x.ter){ x.ter = c.ter; rajz(); } }
+    });
     ov.addEventListener('click', e => {
         if(e.target === ov || e.target.closest('[data-pvx]')) return zar();
         const ik = e.target.closest('[data-szik]'); if(ik){ x.ik = ik.dataset.szik; rajz(); return; }
@@ -19047,6 +19087,7 @@ document.addEventListener('click', e => {
     const p = e.target.closest('[data-szpipa]');
     if(p){ const d = PRV.szokasok; if(!d) return; szValt(d, p.dataset.szpipa, p.dataset.sznap); prvFrissit(); return; }
     const vn = e.target.closest('[data-szvalnap]'); if(vn){ szNap = vn.dataset.szvalnap; renderSzokasok(); return; }
+    const tsz = e.target.closest('[data-szterszuro]'); if(tsz){ szTerSzuro = tsz.dataset.szterszuro; store.save('sf_sz_ter', szTerSzuro); renderSzokasok(); return; }
     const sh = e.target.closest('[data-szho]'); if(sh){ szHo = pzHoLep(szHo, +sh.dataset.szho); renderSzokasok(); return; }
     if(e.target.closest('[data-szuj]')){ szModal(null); return; }
     const sj = e.target.closest('[data-szjav]'); if(sj){ szModal(null, SZ_JAVASLAT[+sj.dataset.szjav]); return; }
@@ -23999,13 +24040,8 @@ document.addEventListener('keydown', e => {
     // belát; minden más cél a privát tárolóban (privat/{uid}_celok), amit csak
     // a gazdája lát. Egy cél több területhez is tartozhat – ha a Szakmai köztük
     // van, a vezető is látja.
-    const CL_TER = [
-        { k:'eg', n:'Egészség', szin:'#15803d', tx:'#166534', hat:'#dcf5e6', ikon:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>' },
-        { k:'pe', n:'Pénzügy', szin:'#b45309', tx:'#92400e', hat:'#fdecd2', ikon:'<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>' },
-        { k:'cs', n:'Család és párkapcsolat', rov:'Család', szin:'#be185d', tx:'#9d174d', hat:'#fce7f3', ikon:'<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>' },
-        { k:'sz', n:'Személyes fejlődés', rov:'Személyes', szin:'#6d28d9', tx:'#5b21b6', hat:'#ede9fe', ikon:'<path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5-6.5 4.5 2-7.5L2 9h7z"/>' },
-        { k:'ov', n:'Szakmai (OVB)', rov:'Szakmai', szin:'#1d4ed8', tx:'#1e40af', hat:'#dbeafe', ikon:'<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6M3 12.5h18"/>' },
-    ];
+    // A területek a közös PRV_TER-ből jönnek (a Szokások kategóriái is ezek).
+    const CL_TER = PRV_TER.map(t => ({ k: t.k, n: t.nt, ...(t.nt !== t.n ? { rov: t.n } : {}), szin: t.c, tx: t.tx, hat: t.hat, ikon: t.ik }));
     const clTer = k => CL_TER.find(t => t.k === k) || CL_TER[3];
     const CL_TIP = { cel:'Cél', bakancs:'Bakancslista', challenge:'Challenge', szokas:'Szokás', havi:'Havi cél' };
     const CL_STAT = { nincs:['Nincs elkezdve','#eef1f5','#475569'], fut:['Folyamatban','#dbeafe','#1d4ed8'], kesz:['Sikerült','#dcf5e6','#166534'], arch:['Archív','#f3f4f6','#6b7280'] };
@@ -24980,7 +25016,7 @@ document.addEventListener('keydown', e => {
             const t = clTer(clTerek(g)[0]);
             let pct = null;
             if(clMert(g) && !CL_SRC[g.src].milestone){ try { pct = Math.round(clPace(g, clGoalNow(g)).donePct); } catch(e){} }
-            return { id: g.id, name: g.name || '(névtelen cél)', terNev: t.rov || t.n, szin: t.szin, hat: t.hat, ikon: clIc(t.ikon), due: g.due || '', dueSzo: g.due ? clDateLabel(g.due) : '', pct };
+            return { id: g.id, name: g.name || '(névtelen cél)', ter: t.k, terNev: t.rov || t.n, szin: t.szin, hat: t.hat, ikon: clIc(t.ikon), due: g.due || '', dueSzo: g.due ? clDateLabel(g.due) : '', pct };
         });
     };
     window.sfShowCelok = async function(){
