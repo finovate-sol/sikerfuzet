@@ -11007,7 +11007,8 @@ function pzAMent(el){
     pzSaveTorzs(); renderPzAttek();
 }
 
-async function renderPzAttek(){
+// csak: egyetlen kártya (data-pzw) frissül, a lap többi része – és a görgetés – marad.
+async function renderPzAttek(csak){
     const host = document.getElementById('pzAttek'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
     const ho = pzTHo, elozo = pzHoLep(ho, -1);
@@ -11151,7 +11152,7 @@ async function renderPzAttek(){
             <b>${szamlak < 0 ? '−' : ''}${pzFt(Math.abs(szamlak))}<small> Ft</small></b>
             <button type="button" class="pz-a-hos-gomb" data-pzview="tarca">${pzSvg('bank')}${tarcaDb ? tarcaDb + ' tárca' : 'Tárca felvétele'}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
         ${pzMobHokHtml('pzAMhok')}</div>`;
-    host.innerHTML = `${hos}
+    const html = `${hos}
     ${pzAEdit ? `<div class="pz-a-edit-info">Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A „Látszik” gombbal elrejted / megjeleníted, a ⅓ · ⅔ · ▬ gombokkal a szélességét állítod (a sor harmada, kétharmada vagy egésze).</div>` : ''}
 
     <div class="pz-a-racs${pzAEdit ? ' szerk' : ''}">${pzAElrendezes().map(([k, rejtett, meret], i, arr) => {
@@ -11168,6 +11169,12 @@ async function renderPzAttek(){
             </div>` : ''}
             ${W[k]}</div>`;
     }).join('')}</div>`;
+    if(csak){
+        const t = document.createElement('div'); t.innerHTML = html;
+        const uj = t.querySelector(`[data-pzw="${csak}"]`), regi = host.querySelector(`[data-pzw="${csak}"]`);
+        if(uj && regi){ regi.replaceWith(uj); return; }
+    }
+    host.innerHTML = html;
     pzMobHokGorget('pzAMhok');
     pzAramIgazit();
 }
@@ -12568,7 +12575,8 @@ window.sfShowPenzugyek = function(){
         const ak = e.target.closest('[data-pzakat]') || e.target.closest('[data-pzfank]');
         if(ak && ak.closest('#pzAttek')){
             const k = ak.dataset.pzakat ?? ak.dataset.pzfank;
-            if(k){ pzAKat = pzAKat === k ? '' : k; renderPzAttek(); }
+            // csak a kategória-kártya frissül, így a lap nem ugrik el (telefonon a teljes újrarajzolás felgörgetett)
+            if(k){ pzAKat = pzAKat === k ? '' : k; const y = scrollY; renderPzAttek('kat').then(() => { if(Math.abs(scrollY - y) > 2) scrollTo(0, y); }); }
             return;
         }
         const kr = e.target.closest('[data-pzkeret]');
