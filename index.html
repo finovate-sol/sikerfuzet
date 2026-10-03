@@ -7455,7 +7455,11 @@ const SF_SIDE_VIEWS = {
     info:       { view: 'sideViewInfo',       btn: 'railBtnInfo' },
     feladatok:  { view: 'sideViewFeladatok',  btn: 'railBtnFeladatok', onShow: () => { if (typeof window.sfShowRailFeladatok === 'function') window.sfShowRailFeladatok(); } },
 };
-window.sfSelectView = function(v){
+// kesleltet: az induló híváskor a nézet kirajzolása csak a szkript végigfutása után jön –
+// a Heti terv (renderPlan) olyan konstansokat használ (HAVI_METRICS, HAVI_ICONS), amelyek
+// a fájlban később jönnek létre; korábban ez induláskor hibát dobott, és leállította a
+// teljes induló szkriptet (a bal oldali menü sem kapott kattintás-kezelőt).
+window.sfSelectView = function(v, kesleltet){
     const panel = document.getElementById('sidePanel');
     const content = document.querySelector('.content');
     const target = SF_SIDE_VIEWS[v] ? v : 'sikerfuzet';
@@ -7479,9 +7483,14 @@ window.sfSelectView = function(v){
         if(btn) btn.classList.toggle('active', k === target);
     });
     store.save('sf_side_view', target);
-    if(SF_SIDE_VIEWS[target].onShow) SF_SIDE_VIEWS[target].onShow();
+    const show = SF_SIDE_VIEWS[target].onShow;
+    if(show){
+        // egy panel hibája se vigye magával az egész oldalt
+        const fut = () => { try { show(); } catch(e){ console.warn('Oldalpanel (' + target + '):', e); } };
+        if(kesleltet) setTimeout(fut, 0); else fut();
+    }
 };
-sfSelectView(store.load('sf_side_view', 'sikerfuzet'));
+sfSelectView(store.load('sf_side_view', 'sikerfuzet'), true);
 if(store.load('sf_side_collapsed', false)){
     const p = document.getElementById('sidePanel'), c = document.querySelector('.content');
     if(p) p.classList.add('collapsed');
