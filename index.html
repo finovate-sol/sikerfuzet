@@ -8747,7 +8747,10 @@ function pzSaveTorzs(){
 const pzEszkoz   = () => pzTorzsGet().vagyon.reduce((sz,x) => sz + (x.o||0), 0) + pzTarcaOssz() + pzKintOssz();
 const pzTartozas = () => pzTorzsGet().hitel.reduce((sz,x) => sz + (x.o||0), 0);
 const pzNetto    = () => pzEszkoz() - pzTartozas();
-const pzElofizHavi = () => pzTorzsGet().elofiz.reduce((sz,x) => sz + (x.o||0), 0);
+// Éves előfizetés: gyak = 'ev', evho = a hónap (1–12). A havi összesítésekben 1/12-ével számít.
+const pzElofizEves = x => x.gyak === 'ev';
+const pzElofizHaviResz = x => pzElofizEves(x) ? (x.o || 0) / 12 : (x.o || 0);
+const pzElofizHavi = () => Math.round(pzTorzsGet().elofiz.reduce((sz,x) => sz + pzElofizHaviResz(x), 0));
 
 // A hónapok, amelyeknél a szerver válasza még úton van (a helyi másolattal dolgozunk).
 // Ilyenkor a mentés csak helyben történik; a válasz megérkezésekor a közben rögzített
@@ -9423,11 +9426,12 @@ function pzKatModal(){
    jelentené. */
 const PZ_TORZS_DEF = {
     elofiz: { cim:'Előfizetések', egy:'előfizetés',
-        leiras:'Havonta ismétlődő kifizetések. A hónap napja adja a "közelgő kifizetések" sorrendjét.',
-        mezok:[ ['n','Név','txt'], ['k','Kategória','kat'], ['o','Havi összeg (Ft)','ft'], ['nap','Hónap napja','nap'], ['i','Ikon','ikon'] ],
-        oszlop:['Név','Kategória','Havi összeg','Nap'], sor:x => [x.n, esc(x.k || '—'), pzFt(x.o)+' Ft', (x.nap||1)+'.'],
+        leiras:'Havonta vagy évente ismétlődő kifizetések. A nap (és éves előfizetésnél a hónap) adja a "közelgő kifizetések" sorrendjét; az éves csak a saját hónapjában esedékes.',
+        mezok:[ ['n','Név','txt'], ['k','Kategória','kat'], ['gyak','Gyakoriság','gyak'], ['o','Összeg (Ft)','ft'], ['evho','Melyik hónapban?','honap'], ['nap','Hónap napja','nap'], ['i','Ikon','ikon'] ],
+        oszlop:['Név','Kategória','Összeg','Esedékes'],
+        sor:x => [x.n, esc(x.k || '—'), pzFt(x.o)+' Ft' + (pzElofizEves(x) ? ' / év' : ' / hó'), pzElofizEves(x) ? `évente, ${PZ_HO_ROV[(x.evho || 1) - 1]} ${x.nap || 1}.` : (x.nap||1)+'.'],
         ikon: x => pzIk(pzElofizIkon(x), pzElofizSzin(x)),
-        ossz: l => l.reduce((s,x)=>s+(x.o||0),0), osszCim:'Havonta összesen', mob:2 },
+        ossz: l => Math.round(l.reduce((s,x)=>s+pzElofizHaviResz(x),0)), osszCim:'Havonta összesen (az éves 1/12-ével)', mob:2 },
     vagyon: { cim:'Vagyon', egy:'vagyonelem',
         leiras:'Amid van: befektetés, készpénz, ingatlan. Ezek összege mínusz a hitelek adja a nettó vagyont.',
         mezok:[ ['n','Megnevezés','txt'], ['tipus','Típus','tip'], ['o','Jelenlegi érték (Ft)','ft'], ['elozo','Előző havi érték (Ft)','ft'] ],
@@ -9960,6 +9964,9 @@ function pzTorzsModal(idx){
     const mezo = ([k, cim, tip]) => {
         if(tip === 'tip') return `<label>${esc(cim)}<select data-f="${k}">${PZ_VAGYON_TIP.map(([v,l])=>`<option value="${v}"${x.tipus===v?' selected':''}>${esc(l)}</option>`).join('')}</select></label>`;
         if(tip === 'nap') return `<label>${esc(cim)}<input type="number" min="1" max="31" step="1" data-f="${k}" value="${x[k]!=null?esc(String(x[k])):'1'}"></label>`;
+        if(tip === 'gyak') return `<label>${esc(cim)}<select data-f="${k}"><option value="ho">Havonta</option><option value="ev"${x[k]==='ev'?' selected':''}>Évente</option></select></label>`;
+        if(tip === 'honap') return `<label data-pzevho${x.gyak==='ev'?'':' hidden'}>${esc(cim)}<select data-f="${k}">${PZ_MONTHS.map((h, i) =>
+            `<option value="${i+1}"${(+x[k]||new Date().getMonth()+1)===i+1?' selected':''}>${h}</option>`).join('')}</select></label>`;
         if(tip === 'tarca') return `<label>${esc(cim)}<select data-f="${k}"><option value="">— nincs —</option>${pzTorzsGet().penztarca.map(w =>
             `<option value="${esc(w.id)}"${x[k]===w.id?' selected':''}>${esc(w.n)}</option>`).join('')}</select></label>`;
         if(tip === 'pipa') return `<label class="pz-f-teljes pz-f-pipa"><input type="checkbox" data-f="${k}"${x[k] ? ' checked' : ''}> ${esc(cim)}</label>`;
@@ -9989,7 +9996,10 @@ function pzTorzsModal(idx){
         ikonHely.innerHTML = pzIkonRacsHtml(pzElofizIkon(minta), pzElofizSzin(minta));
     };
     ikonRajz();
-    ov.addEventListener('change', e => { if(e.target.dataset.f === 'k') ikonRajz(); });
+    ov.addEventListener('change', e => {
+        if(e.target.dataset.f === 'k') ikonRajz();
+        if(e.target.dataset.f === 'gyak'){ const h = ov.querySelector('[data-pzevho]'); if(h) h.hidden = e.target.value !== 'ev'; }
+    });
     ov.addEventListener('click', e => {
         if(e.target === ov || e.target.closest('[data-pzx]')) return zar();
         const ik = e.target.closest('[data-pzikon]');
@@ -10004,8 +10014,12 @@ function pzTorzsModal(idx){
         const uj = {};
         for(const [k,,tip] of d.mezok){
             const el = ov.querySelector(`[data-f="${k}"]`);
-            uj[k] = tip === 'ft' ? (pzNum(el.value) || 0) : tip === 'nap' ? Math.min(31, Math.max(1, parseInt(el.value,10)||1)) : tip === 'pipa' ? el.checked : el.value.trim();
+            uj[k] = tip === 'ft' ? (pzNum(el.value) || 0) : tip === 'nap' ? Math.min(31, Math.max(1, parseInt(el.value,10)||1)) : tip === 'pipa' ? el.checked
+                : tip === 'honap' ? Math.min(12, Math.max(1, parseInt(el.value,10)||1)) : el.value.trim();
         }
+        // havi előfizetésnél a hónap nem kell (a régi adattal kompatibilis: nincs gyak = havi)
+        if('gyak' in uj && uj.gyak !== 'ev'){ delete uj.gyak; delete uj.evho; }
+        const regiEv = idx != null && pzNyilv === 'elofiz' && lista[idx].gyak === 'ev' && !uj.gyak;
         if(pzNyilv === 'cel'){
             if(uj.auto && !(uj.havi > 0)){ ov.querySelector('#pzTHiba').textContent = 'Az automatikus utaláshoz add meg a havi összeget.'; return; }
             if(uj.p && uj.p === uj.p2){ ov.querySelector('#pzTHiba').textContent = 'A forrás- és a céltárca nem lehet ugyanaz.'; return; }
@@ -10014,7 +10028,7 @@ function pzTorzsModal(idx){
             if(!uj.id) uj.id = (idx != null && lista[idx].id) || 'c' + Date.now().toString(36);
         }
         if(!uj.n){ ov.querySelector('#pzTHiba').textContent = 'A név nem lehet üres – enélkül a listában nem lehetne megkülönböztetni.'; return; }
-        if(idx != null) lista[idx] = { ...lista[idx], ...uj }; else lista.push(uj);
+        if(idx != null){ lista[idx] = { ...lista[idx], ...uj }; if(regiEv){ delete lista[idx].gyak; delete lista[idx].evho; } } else lista.push(uj);
         pzSaveTorzs(); zar(); renderPzTorzs();
     });
     setTimeout(() => ov.querySelector('[data-f]').focus(), 30);
@@ -10249,7 +10263,7 @@ async function renderPzAttek(){
     const eszkoz = vagySzel.reduce((s,x) => s + x.v, 0);
 
     // --- közelgő fizetések, legutóbbi tételek ---
-    const fizet = pzFixek().map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, pzMaHo()) }))
+    const fizet = pzFixek(pzMaHo()).map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, pzMaHo()) }))
         .sort((a,b) => a.h - b.h).slice(0, 5);
     const utolso = lista.map((t, i) => ({ ...t, _i:i })).sort((a,b) => String(b.d).localeCompare(String(a.d)) || b._i - a._i).slice(0, 6);
 
@@ -10317,7 +10331,7 @@ async function renderPzAttek(){
         fiz: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Közelgő kifizetések</h4><a class="link" href="#" data-pzview="elofiz">Összes</a></div>
             ${fizet.length ? `<div class="pz-a-lista">${fizet.map(x => `
-                <div class="pz-a-li">${pzIk(x.ik, x.c)}<span class="n">${esc(x.n)}<em>${x.kesz ? 'ebben a hónapban rögzítve' : pzHatraSzo(x.h)} · ${x.nap}.</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
+                <div class="pz-a-li">${pzIk(x.ik, x.c)}<span class="n">${esc(x.n)}<em>${x.kesz ? (x.ev ? 'idén rögzítve' : 'ebben a hónapban rögzítve') : pzHatraSzo(x.h)} · ${x.nap}.${x.ev ? ' · éves' : ''}</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
             : `<div class="pz-ures">Nincs előfizetés vagy törlesztő.<br><a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
         </section>`,
         utolso: `<section class="card pz-a-kartya">
@@ -10773,10 +10787,12 @@ async function pzGyMent(){
    tétel azonosítója hónaponként egyedi), visszavéve törlődik. Így nincs
    külön "fizetve" állapot, amit szinkronban kellene tartani. */
 const pzSlug = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-');
-function pzFixek(){
-    const t = pzTorzsGet();
+// ho = melyik hónap kifizetései (alapból a kiválasztott hónap); az éves előfizetés csak a saját hónapjában van benne.
+function pzFixek(ho = pzTHo){
+    const t = pzTorzsGet(), hoSz = +String(ho || pzMaHo()).slice(5, 7);
     return [
-        ...t.elofiz.map(x => ({ n:x.n, o:x.o, nap:x.nap || 1, tip:'elofiz', k:x.k || '', ik:pzElofizIkon(x), c:pzElofizSzin(x) })),
+        ...t.elofiz.filter(x => !pzElofizEves(x) || (x.evho || 1) === hoSz)
+            .map(x => ({ n:x.n, o:x.o, nap:x.nap || 1, tip:'elofiz', k:x.k || '', ik:pzElofizIkon(x), c:pzElofizSzin(x), ...(pzElofizEves(x) ? { ev:true } : {}) })),
         ...t.hitel.filter(x => x.torleszto).map(x => ({ n:x.n, o:x.torleszto, nap:x.nap || 1, tip:'hitel', k:'Hitel', ik:'bank', c:'piros' })),
     ];
 }
@@ -10923,7 +10939,7 @@ async function renderPzHonap(){
     const elore = allas === 'most' && nap >= 3 && nap < hossz;
     const fixHatra = new Map(), valtozo = new Map();
     if(elore){
-        for(const x of pzFixek()) if(!pzFixTetel(x, ho)) fixHatra.set(x.k || 'Egyéb', (fixHatra.get(x.k || 'Egyéb') || 0) + (x.o || 0));
+        for(const x of pzFixek(ho)) if(!pzFixTetel(x, ho)) fixHatra.set(x.k || 'Egyéb', (fixHatra.get(x.k || 'Egyéb') || 0) + (x.o || 0));
         for(const t of lista) if(pzKi(t) && !t.elo && !String(t.id).startsWith('fix_')) valtozo.set(t.k || 'Egyéb', (valtozo.get(t.k || 'Egyéb') || 0) + (t.o || 0));
     }
     const pzVarhato = kat => elore ? Math.round((koltes.get(kat) || 0) + (valtozo.get(kat) || 0) / nap * (hossz - nap) + (fixHatra.get(kat) || 0)) : null;
@@ -10976,7 +10992,7 @@ async function renderPzHonap(){
     const bevSorok = [['fo','epulet','Főállás', tervSor.bevFoT], ['ovb','iroda','OVB', tervSor.bevOvbT], ['extra','penz','Extra', null]]
         .filter(([c,,,terv]) => bevTeny[c] || terv);
     // --- jobb sáv: fix kifizetések ---
-    const fixek = pzFixek();
+    const fixek = pzFixek(ho);
     const fixHtml = fixek.map((x, i) => {
         const kesz = !!pzFixTetel(x, ho);
         const esedekes = !kesz && (allas === 'mult' || (allas === 'most' && x.nap <= nap));
@@ -18996,7 +19012,7 @@ async function renderPrivMa(){
     const keret = pzKeretOssz(), kolt = lista.reduce((s, t) => s + (pzKi(t) && keretesKat.has(t.k || 'Egyéb') ? (t.o || 0) : 0), 0);
     const hossz = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate(), hatra = hossz - dt.getDate() + 1;
     const maradt = keret - kolt;
-    const fiz = pzFixek().map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, ho) })).filter(x => !x.kesz && x.h <= 7).sort((a, b) => a.h - b.h).slice(0, 4);
+    const fiz = pzFixek(ho).map(x => ({ ...x, h: pzHatra(x.nap), kesz: !!pzFixTetel(x, ho) })).filter(x => !x.kesz && x.h <= 7).sort((a, b) => a.h - b.h).slice(0, 4);
     // mai költések: a mai kiadás-tételek, és a nap elején elkölthető összeg (a mai keretes költés előtti maradék / hátralévő napok)
     const maTet = lista.filter(t => pzKi(t) && t.d === ma).sort((a, b) => String(b.id).localeCompare(String(a.id)));
     const maOssz = maTet.reduce((a, t) => a + (t.o || 0), 0);
