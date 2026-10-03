@@ -27,9 +27,9 @@ A PNG-k az SVG-kből származnak, fejetlen Chromiummal renderelve. A rajz
 forrása maga az `icon.svg` / `icon-maskable.svg` – azokat kell átírni,
 a PNG-ket utána újra kell renderelni ugyanabban a hét méretben.
 
-## Életfüzet (a privát rész külön appként)
+## Tükör (a privát rész külön appként)
 
-Privát módban a lap neve, ikonja és manifestje Életfüzetre vált, a cím
+Privát módban a lap neve, ikonja és manifestje Tükörre vált, a cím
 `?app=elet`-et kap. Ha innen adják a kezdőképernyőhöz, az ikon mindig a privát
 részre nyílik. Az ikon a privát rész beállításaiban (fogaskerék a Privát mód
 kapcsoló mellett) választható, eszközönként (`localStorage: sf_elet_icon`).
