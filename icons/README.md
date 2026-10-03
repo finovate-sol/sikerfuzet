@@ -6,12 +6,12 @@ dokumentum `appIcon` mezőjében, mindenkire érvényesen).
 
 | mappa       | név           | motívum                                   |
 |-------------|---------------|-------------------------------------------|
-| `emelkedo/` | Emelkedő      | felfelé tartó nyíl                        |
-| `fuzet/`    | Nyitott füzet | nyitott füzet fehér lapokkal              |
+| `fuzet/`    | Nyitott füzet (alap) | zöld–kék nyitott füzet sorokkal, fekete kerettel |
+| `emelkedo/` | Emelkedő      | felfelé tartó nyíl (manifest: `manifest-emelkedo.json`) |
 
-Mindkettő fehér lapon ugyanazt a kék színátmenetet viseli (`#0A2E6B` → `#2E86FF`),
-hogy váltáskor ugyanannak az appnak a két arca legyen, ne két különböző appé.
-A rajz kitölti a lapot, mint a Tükör ikonjainál.
+Mindkettő fehér lapon áll, és a rajz kitölti a lapot, mint a Tükör ikonjainál.
+Az alap (Nyitott füzet) a Tükör szemével egy családba tartozik: ugyanaz a háttér,
+ugyanolyan vastag, színátmenetes fekete keret és puha árnyék.
 
 ## Melyik fájl mire való
 
