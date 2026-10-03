@@ -699,6 +699,9 @@
         .ev-edit-modal .ev-input { width:100%; padding:9px 11px; border:none; background:var(--bg); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); outline:none; box-sizing:border-box; }
         .ev-edit-modal .ev-input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
         .ev-when { display:flex; align-items:center; gap:6px; }
+        .ev-when-tobb { flex-wrap:wrap; }
+        .ev-when-fel { display:flex; gap:6px; flex:1 1 200px; min-width:0; }
+        .ev-tobbnap { font-style:normal; color:var(--blue); text-transform:none; letter-spacing:0; }
         .ev-when .ev-input { width:auto; flex:1; min-width:0; }
         .ev-edit-modal .ev-input-time { flex:0 0 84px; text-align:center; font-variant-numeric:tabular-nums; }
         .ev-when-sep { color:var(--muted); font-weight:700; flex-shrink:0; }
@@ -2384,6 +2387,11 @@
         .allday-ev { background:var(--blue-light); color:#1a3f7a; border-radius:5px; font-size:9px; padding:0 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; cursor:grab; }
         .wk-allday .allday-ev { height:var(--ad-chip); box-sizing:border-box; display:flex; align-items:center; flex:none; }
         .allday-ev:active { cursor:grabbing; }
+        /* többnapos esemény: a folytatás oldalán lapos szél, hogy sávként fusson át a napokon */
+        .wk-allday .allday-ev.folyt-be { border-top-left-radius:0; border-bottom-left-radius:0; margin-left:-5px; }
+        .wk-allday .allday-ev.folyt-ki { border-top-right-radius:0; border-bottom-right-radius:0; margin-right:-5px; }
+        .wk-allday .cell > .allday-ev.folyt-be, .wk-allday .cell > .allday-ev.folyt-ki { max-width:none; }
+        .wk-ev.wk-folyt { border-top-left-radius:0; border-top-right-radius:0; opacity:.92; }
         .allday-ev.dragging { opacity:.4; }
         .wk-grid { display:flex; overflow-y:auto; }
         .wk-times { width:52px; flex-shrink:0; position:relative; }
@@ -20477,6 +20485,23 @@ document.addEventListener('keydown', e => {
     function fmtDay(d){ return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}. (${huDow(d)})`; }
     function fmtMonth(d){ return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]}`; }
     function colIndexOf(cols, d){ for(let i=0;i<cols.length;i++) if(sameDay(cols[i], d)) return i; return -1; }
+    // ===== Többnapos események =====
+    // Mely napokra esik az esemény (helyi idő szerint, napkezdetek). Egész naposnál az
+    // "end" KIZÁRÓLAGOS; időpontosnál a záró nap is benne van, kivéve ha pont éjfélkor ér véget.
+    function evNapok(ev){
+        const allDay = !ev.start.dateTime;
+        const s = allDay ? new Date((ev.start.date || "") + "T00:00:00") : new Date(ev.start.dateTime);
+        if (isNaN(s)) return [];
+        const e = allDay ? new Date(((ev.end && ev.end.date) || ev.start.date) + "T00:00:00") : new Date((ev.end && ev.end.dateTime) || ev.start.dateTime);
+        const utolso = new Date(Math.max(s.getTime(), e.getTime() - 1));
+        const out = [];
+        for (let d = new Date(s.getFullYear(), s.getMonth(), s.getDate()); d <= utolso && out.length < 400; d = addDays(d, 1)) out.push(d);
+        return out.length ? out : [new Date(s.getFullYear(), s.getMonth(), s.getDate())];
+    }
+    // A sávban (az "egész nap" sorban) futó többnapos időpontos esemény: legalább 24 óra.
+    // A rövidebb, éjfélen átnyúló (pl. 22:00–02:00) a rácsban két darabban jelenik meg.
+    const evSavos = ev => !!ev.start.dateTime && ev.end && ev.end.dateTime
+        && (new Date(ev.end.dateTime) - new Date(ev.start.dateTime)) >= 86400000;
 
     // A látható 8–22 sáv töltse ki a képernyő aljáig tartó helyet: ebből adódik
     // az óra-magasság. Első rendereléskor a rács teteje még nem mérhető, ilyenkor
@@ -20784,13 +20809,18 @@ document.addEventListener('keydown', e => {
         events.forEach(ev => {
             const { clean, status } = parseValidation(ev.summary);
             const hex = eventColorHex(ev, clean);
-            if (!ev.start.dateTime){                       // egész napos
-                const d = new Date((ev.start.date || "") + "T00:00:00");
-                const idx = colIndexOf(cols, d);
-                if (idx>=0){
+            // Egész napos és a legalább 24 órás esemény: az "egész nap" sorban, minden
+            // érintett napon; a folytatást a chip lapos széle jelzi.
+            if (!ev.start.dateTime || evSavos(ev)){
+                const napok = evNapok(ev), timedSav = !!ev.start.dateTime;
+                const sT = timedSav ? new Date(ev.start.dateTime) : null, eT = timedSav ? new Date(ev.end.dateTime) : null;
+                napok.forEach((nap, ni) => {
+                    const idx = colIndexOf(cols, nap);
+                    if (idx < 0) return;
                     const chip = document.createElement("div");
                     const chipTask = evKind(ev) === "task";
-                    chip.className = "allday-ev" + (chipTask ? " allday-task" : "");
+                    chip.className = "allday-ev" + (chipTask ? " allday-task" : "")
+                        + (napok.length > 1 && ni > 0 ? " folyt-be" : "") + (napok.length > 1 && ni < napok.length - 1 ? " folyt-ki" : "");
                     if (chipTask){
                         chip.style.borderLeft = "4px solid " + hex;
                     } else if (calStyle === "light"){
@@ -20814,26 +20844,40 @@ document.addEventListener('keydown', e => {
                     chip.draggable = true;
                     chip.dataset.eventId = ev.id || "";
                     chip.dataset.title = ev.summary || "";
-                    chip.title = (clean || "(névtelen)") + " — húzd a naptárba időpontot adni neki";
+                    // a sávos időpontos esemény a rácsba húzva is megtartja a hosszát
+                    if (timedSav) chip.dataset.durationMin = String(Math.round((eT - sT) / 60000));
+                    const tart = napok.length > 1 ? ` (${napok.length} nap: ${fmtDay(napok[0])} – ${fmtDay(napok[napok.length - 1])})` : "";
+                    chip.title = (clean || "(névtelen)") + tart + " — húzd a naptárba időpontot adni neki";
+                    const elo = timedSav && ni === 0 ? `<b>${pad2(sT.getHours())}:${pad2(sT.getMinutes())}&nbsp;</b>` : "";
+                    const uto = timedSav && ni === napok.length - 1 && napok.length > 1 ? `<b>&nbsp;→&nbsp;${pad2(eT.getHours())}:${pad2(eT.getMinutes())}</b>` : "";
                     chip.innerHTML = (chipTask ? `<span class="wk-task-dot${status === "yes" ? " done" : status === "no" ? " no" : ""}" style="--c:${hex}"></span>` : "")
-                        + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status));
+                        + elo + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status)) + uto;
                     alldayCells[idx].appendChild(chip);
                     if (ev.id && ev.id === pendingHighlightId){
                         chip.classList.add("cal-highlight");
                         setTimeout(() => chip.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
                         pendingHighlightId = null;
                     }
-                }
+                });
                 return;
             }
             const s = new Date(ev.start.dateTime), e = new Date(ev.end.dateTime);
+            // A záró napon a folytatás: a nap elejétől a végéig (éjfélkor záró eseménynél nincs)
+            if (!sameDay(s, e) && (e.getHours() || e.getMinutes())){
+                const i2 = colIndexOf(cols, e), endDec2 = e.getHours() + e.getMinutes()/60;
+                if (i2 >= 0 && endDec2 > START_H){
+                    let h2 = (Math.min(endDec2, END_H) - START_H) * ROW;
+                    if (h2 > 0) timed.push({ ev, clean, status, hex, s: new Date(e.getFullYear(), e.getMonth(), e.getDate()), e, evS: s, folyt: true, idx: i2,
+                        startDec: START_H, endDec: Math.min(endDec2, END_H), top: 0, height: Math.max(18, h2), kind: evKind(ev), depth:0, slot:0, slots:1 });
+                }
+            }
             const idx = colIndexOf(cols, s);
             if (idx < 0) return;
             const startDec = s.getHours() + s.getMinutes()/60;
             // Éjfélkor végződő (vagy másnapra átnyúló) eseménynél a getHours() 0-t ad,
             // ami negatív magasságot eredményezne – ilyenkor a rács aljáig tart.
             let endDec = e.getHours() + e.getMinutes()/60;
-            if (endDec <= startDec) endDec = END_H;
+            if (endDec <= startDec || !sameDay(s, e)) endDec = END_H;
             let top = (startDec - START_H) * ROW;
             let height = Math.max(18, (endDec - startDec) * ROW);
             if (top < 0){ height += top; top = 0; }
@@ -20900,7 +20944,8 @@ document.addEventListener('keydown', e => {
             div.style.height = t.height + "px";
             div.dataset.eventId = t.ev.id || "";
             div.dataset.title = t.ev.summary || "";
-            div.dataset.durationMin = Math.round((t.e - t.s) / 60000);
+            div.dataset.durationMin = Math.round((t.e - (t.evS || t.s)) / 60000);
+            if (t.folyt){ div.draggable = false; div.classList.add("wk-folyt"); }
             // Rövid (30 percnél kisebb) eseménynél nem fér ki két sor – ott csak a cím.
             const durMin = Math.round((t.e - t.s) / 60000);
             // ...és akkor sem, ha a blokk magassága nem enged meg egy cím- és egy
@@ -21120,10 +21165,12 @@ document.addEventListener('keydown', e => {
     async function convertToAllDay(id, day){
         if (kulsoCsakOlvas(id)) return;
         const start = new Date(day); start.setHours(0, 0, 0, 0);
+        // a többnapos esemény a napjainak számát megtartja
+        const ev = eventsById[id], napDb = ev ? Math.max(1, evNapok(ev).length) : 1;
         try {
             await updateCalendarEvent(id, {
                 start: { dateTime: null, timeZone: null, date: ymd(start) },
-                end:   { dateTime: null, timeZone: null, date: ymd(new Date(start.getTime() + 86400000)) }
+                end:   { dateTime: null, timeZone: null, date: ymd(addDays(start, napDb)) }
             });
             initCalendar();
         } catch (e){ alert("Nem sikerült egész naposra állítani: " + (e.message || e)); }
@@ -21197,7 +21244,7 @@ document.addEventListener('keydown', e => {
             }
             const chip = e.target.closest(".allday-ev[draggable]");
             if (!chip || !chip.dataset.eventId) return;
-            draggingEvent = { id: chip.dataset.eventId, durationMin: chip.classList.contains("allday-task") ? 15 : 60 };
+            draggingEvent = { id: chip.dataset.eventId, durationMin: +chip.dataset.durationMin || (chip.classList.contains("allday-task") ? 15 : 60) };
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", JSON.stringify({ type: "reschedule", eventId: draggingEvent.id }));
             chip.classList.add("dragging");
@@ -21479,8 +21526,11 @@ document.addEventListener('keydown', e => {
         const dayKey = d => d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         events.forEach(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
-            const key = dayKey(ds);
-            (byDay[key] = byDay[key] || []).push({ ev, ds });
+            // a többnapos esemény minden érintett napon megjelenik (a folytatás nap elejére sorolva)
+            evNapok(ev).forEach((nap, ni) => {
+                const key = dayKey(nap);
+                (byDay[key] = byDay[key] || []).push({ ev, ds: ni ? nap : ds, folyt: ni > 0 });
+            });
         });
         (tasks || []).forEach(t => {
             const due = taskDue(t); if(!due) return;
@@ -21501,7 +21551,7 @@ document.addEventListener('keydown', e => {
             }
             const other = d.getMonth() !== anchorMonth ? " other" : "";
             const today = sameDay(d, now) ? " today" : "";
-            let evs = list.slice(0,3).map(({ev,task,ds}) => {
+            let evs = list.slice(0,3).map(({ev,task,ds,folyt}) => {
                 if (task){
                     const due = taskDue(task), tm = taskTimeLabel(due);
                     return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
@@ -21510,7 +21560,7 @@ document.addEventListener('keydown', e => {
                 }
                 const { clean, status } = parseValidation(ev.summary);
                 const hex = eventColorHex(ev, clean);
-                const t = ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
+                const t = folyt ? "↳ " : ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
                 const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
                 return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="background:${hex};color:${contrastTextColor(hex)};">${t}${escM(statusTitle(clean, status))}</span>`;
             }).join("");
@@ -21552,7 +21602,8 @@ document.addEventListener('keydown', e => {
             }
             const { clean, status } = parseValidation(ev.summary);
             const hex = eventColorHex(ev, clean);
-            const time = allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes());
+            const napDb = evNapok(ev).length;
+            const time = (allDay ? "egész nap" : pad2(ds.getHours())+":"+pad2(ds.getMinutes())) + (napDb > 1 ? ` · ${napDb} nap` : "");
             const meetUrl = getMeetLink(ev);
             const meetHtml = meetUrl ? `<a class="ag-meet" href="${meetUrl}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")} Meet</a>` : "";
             html += `<div class="ag-item" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}">
@@ -21691,6 +21742,9 @@ document.addEventListener('keydown', e => {
         const dateStr = `${start.getFullYear()}-${pad2(start.getMonth()+1)}-${pad2(start.getDate())}`;
         const startStr = pad2(start.getHours())+":"+pad2(start.getMinutes());
         const endStr = pad2(end.getHours())+":"+pad2(end.getMinutes());
+        // záró nap: egész naposnál az (kizárólagos) end előtti nap; időpontosnál az end napja
+        const endDay = allDay ? addDays(end, -1) : end;
+        const endDateStr = ymd(endDay < start ? start : endDay);
         const meetUrl = getMeetLink(ev);
         const meetFieldHtml = meetUrl
             ? `<div class="ev-row">
@@ -21736,11 +21790,12 @@ document.addEventListener('keydown', e => {
                         <span class="ev-row-ic">${calSvg("clock")}</span>
                         <div class="ev-row-field">
                             <label class="lbl" for="evDate">Időpont</label>
-                            <div class="ev-when">
-                                <input id="evDate" type="date" class="ev-input" value="${dateStr}">
-                                ${allDay ? "" : `<input id="evStartT" type="time" class="ev-input ev-input-time" value="${startStr}">
+                            <div class="ev-when ev-when-tobb">
+                                <span class="ev-when-fel"><input id="evDate" type="date" class="ev-input" value="${dateStr}" aria-label="Kezdő nap">
+                                ${allDay ? "" : `<input id="evStartT" type="time" class="ev-input ev-input-time" value="${startStr}" aria-label="Kezdés">`}</span>
                                 <span class="ev-when-sep">–</span>
-                                <input id="evEndT" type="time" class="ev-input ev-input-time" value="${endStr}">`}
+                                <span class="ev-when-fel"><input id="evEndDate" type="date" class="ev-input" value="${endDateStr}" min="${dateStr}" aria-label="Záró nap">
+                                ${allDay ? "" : `<input id="evEndT" type="time" class="ev-input ev-input-time" value="${endStr}" aria-label="Vége">`}</span>
                             </div>
                         </div>
                     </div>
@@ -21843,17 +21898,19 @@ document.addEventListener('keydown', e => {
             const useStatus = statusOverride !== undefined ? statusOverride : status;
             const title = statusTitle(cleanTitle, useStatus);
             const d = overlay.querySelector("#evDate").value || dateStr;
+            // záró nap (többnapos esemény); a kezdőnél korábbi nem lehet
+            const dE0 = (overlay.querySelector("#evEndDate") || {}).value || d, dE = dE0 < d ? d : dE0;
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
             const addMeetEl = overlay.querySelector("#evAddMeet");
             const patch = allDay
-                // Egész naposnál az "end" KIZÁRÓLAGOS: a következő nap kell bele,
+                // Egész naposnál az "end" KIZÁRÓLAGOS: az utolsó nap utáni nap kell bele,
                 // különben a Google 400-zal utasítja vissza a kérést.
                 ? { summary: title, location: overlay.querySelector("#evLocEdit").value.trim(), colorId,
-                    start: { date: d }, end: { date: ymd(new Date(new Date(d + "T00:00:00").getTime() + 86400000)) } }
+                    start: { date: d }, end: { date: ymd(addDays(new Date(dE + "T00:00:00"), 1)) } }
                 : (() => {
                     const st = overlay.querySelector("#evStartT").value || startStr;
                     const et = overlay.querySelector("#evEndT").value || endStr;
-                    const sDt = new Date(`${d}T${st}:00`), eDt = new Date(`${d}T${et}:00`);
+                    const sDt = new Date(`${d}T${st}:00`), eDt = new Date(`${dE}T${et}:00`);
                     return {
                         summary: title,
                         location: overlay.querySelector("#evLocEdit").value.trim(),
@@ -21969,15 +22026,16 @@ document.addEventListener('keydown', e => {
         }).join("") + `</div>`;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay, attendees }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay, allDayEnd, attendees }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const body = { summary };
         if (allDay){
             // Egész napos eseménynél a Google dátumot vár, és az "end" KIZÁRÓLAGOS,
             // ezért a következő nap kerül bele.
+            // Többnapos: allDayEnd az utolsó nap (bezárólag).
             body.start = { date: ymd(start) };
-            body.end   = { date: ymd(new Date(start.getTime() + 86400000)) };
+            body.end   = { date: ymd(addDays(allDayEnd && allDayEnd > start ? allDayEnd : start, 1)) };
         } else {
             const end = new Date(start.getTime() + durationMin * 60000);
             body.start = { dateTime: localIso(start), timeZone: tz };
@@ -22077,9 +22135,10 @@ document.addEventListener('keydown', e => {
                 <div class="modal-body">
                     <div class="ev-row-field"><label class="lbl" for="qcTitle">Cím</label><input id="qcTitle" class="ev-input" value="${escM(prefillTitle || "")}" placeholder="Ügyfél neve vagy esemény címe"></div>
                     <div><label class="lbl">Esemény típusa</label><div class="ev-tiles" id="qcTiles"></div></div>
-                    <div class="ev-grid3">
-                        <div class="ev-row-field"><label class="lbl" for="qcDate">Dátum</label><input id="qcDate" type="date" class="ev-input" value="${dateStr}"></div>
+                    <div class="ev-grid2 ev-idok">
+                        <div class="ev-row-field"><label class="lbl" for="qcDate">Kezdő nap</label><input id="qcDate" type="date" class="ev-input" value="${dateStr}"></div>
                         <div class="ev-row-field" id="qcStartWrap"><label class="lbl" for="qcStartT">Kezdés</label><input id="qcStartT" type="time" class="ev-input" value="${startStr}"></div>
+                        <div class="ev-row-field"><label class="lbl" for="qcEndDate">Záró nap <i class="ev-tobbnap" id="qcTobbNap"></i></label><input id="qcEndDate" type="date" class="ev-input" value="${dateStr}" min="${dateStr}"></div>
                         <div class="ev-row-field" id="qcEndWrap"><label class="lbl" for="qcEndT">Vége</label><input id="qcEndT" type="time" class="ev-input" value="${endStr}"></div>
                     </div>
                     <div class="ev-row">
@@ -22256,6 +22315,21 @@ document.addEventListener('keydown', e => {
         };
         allDayChk.addEventListener("change", syncAllDay);
         syncAllDay();
+        // Többnapos esemény: a záró nap a kezdő naphoz igazodik (nem lehet korábbi), és kiírjuk, hány nap.
+        const qcDateEl = overlay.querySelector("#qcDate"), qcEndDateEl = overlay.querySelector("#qcEndDate");
+        let qcElozoKezd = qcDateEl.value;
+        const syncTobbNap = () => {
+            const a = qcDateEl.value, b = qcEndDateEl.value;
+            const db = a && b ? Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000) + 1 : 1;
+            overlay.querySelector("#qcTobbNap").textContent = db > 1 ? `· ${db} nap` : "";
+        };
+        qcDateEl.addEventListener("change", () => {
+            const a = qcDateEl.value; if (!a) return;
+            // ha a záró nap eddig a kezdővel egyezett, együtt mozog; korábbira sosem kerülhet
+            if (!qcEndDateEl.value || qcEndDateEl.value === qcElozoKezd || qcEndDateEl.value < a) qcEndDateEl.value = a;
+            qcEndDateEl.min = a; qcElozoKezd = a; syncTobbNap();
+        });
+        qcEndDateEl.addEventListener("change", () => { if (qcEndDateEl.value && qcEndDateEl.value < qcDateEl.value) qcEndDateEl.value = qcDateEl.value; syncTobbNap(); });
 
         let qcStatus = null; // null | 'yes' | 'no'
         const segNo = overlay.querySelector("#qcNo"), segNone = overlay.querySelector("#qcNone"), segYes = overlay.querySelector("#qcYes");
@@ -22276,10 +22350,12 @@ document.addEventListener('keydown', e => {
             const isAllDay = allDayChk.checked;
             const st = overlay.querySelector("#qcStartT").value || startStr;
             const et = overlay.querySelector("#qcEndT").value || endStr;
+            const dE = (overlay.querySelector("#qcEndDate").value || d) < d ? d : (overlay.querySelector("#qcEndDate").value || d);
             const sDt = isAllDay ? new Date(`${d}T00:00:00`) : new Date(`${d}T${st}:00`);
-            const eDtRaw = new Date(`${d}T${et}:00`);
+            const eDtRaw = new Date(`${dE}T${et}:00`);
             const eDt = eDtRaw > sDt ? eDtRaw : new Date(sDt.getTime() + 900000);
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
+            const allDayEnd = isAllDay ? new Date(`${dE}T00:00:00`) : null;
             const location = overlay.querySelector("#qcLoc").value.trim();
             const addMeet = isAllDay ? false : overlay.querySelector("#qcMeet").checked;
             const type = EVENT_TYPES[curType];
@@ -22324,7 +22400,7 @@ document.addEventListener('keydown', e => {
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
                 const guests = (overlay.querySelector("#qcGuests") || {}).value || "";
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay, attendees: guests });
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay, allDayEnd, attendees: guests });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
