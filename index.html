@@ -3161,6 +3161,18 @@
         .ez-vers-lista { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
         .ez-vers-sor { display:grid; grid-template-columns:56px 30px minmax(0,1fr) auto; gap:14px; align-items:center; padding:11px 14px; font:inherit; text-align:left; cursor:pointer; color:var(--text); }
         .ez-vers-sor:hover { border-color:var(--blue); }
+        .ez-vers-sor:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+        .ez-jel { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:#55657a; background:#eef1f5; border-radius:99px; padding:5px 11px 5px 8px; cursor:pointer; white-space:nowrap; user-select:none; }
+        .ez-jel input { width:15px; height:15px; margin:0; accent-color:#1d4ed8; cursor:pointer; }
+        .ez-jel.on { background:#e8effc; color:#1d4ed8; }
+        .ez-jel.hero { background:rgba(255,255,255,.14); color:#fff; padding:7px 13px 7px 10px; font-size:12.5px; }
+        .ez-jel.hero.on { background:#16a34a; } .ez-jel.hero input { accent-color:#fff; }
+        .ez-kiirt { cursor:default; } .ez-kiirt:hover { border-color:var(--border); }
+        .ez-kiirt .k span.vh { color:#b45309; font-weight:600; }
+        .ez-sp-chipek.ez-kiirt-sp { margin:0 0 10px; padding:0 0 2px; }
+        .ez-kiirt-l { font-size:11px; font-weight:700; color:var(--blue); text-decoration:none; white-space:nowrap; }
+        .ez-kiirt-fel { font:inherit; font-size:11.5px; font-weight:700; border:1px solid var(--blue); color:var(--blue); background:#fff; border-radius:99px; padding:5px 12px; cursor:pointer; white-space:nowrap; }
+        .ez-kiirt-fel:hover { background:#e8effc; }
         .ez-vers-d { display:flex; flex-direction:column; align-items:center; line-height:1.1; border-right:1px solid var(--border); padding-right:12px; }
         .ez-vers-d b { font-size:20px; color:var(--navy); } .ez-vers-d em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--blue); } .ez-vers-d i { font-style:normal; font-size:9.5px; color:var(--muted); }
         .ez-vers-sor .k { display:flex; flex-direction:column; gap:1px; min-width:0; }
@@ -14801,6 +14813,9 @@ const EZ_SPORT = {
     ero: ['Erősítés',  'lila',      'M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12'],
     usz: ['Úszás',     'turkiz',    'M2 16c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0M2 20c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0M8 12l4-6 5 3'],
     mob: ['Mobilitás', 'zold',      'M12 3a2 2 0 1 0 .01 0M4 10h16M12 10v10M8 20l4-4 4 4'],
+    hyr: ['Hyrox',     'piros',     'M9 9V6a3 3 0 0 1 6 0v3M6 14a6 6 0 1 0 12 0a6 6 0 1 0-12 0'],
+    tri: ['Triatlon',  'rozsa',     'M12 8m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M7 15.5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M17 15.5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0'],
+    dua: ['Duatlon',   'sarga',     'M8 12m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M16 12m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0'],
     egy: ['Egyéb',     'sotet',     'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0M12 8v4l3 2'],
     pih: ['Pihenő',    'szurke',    'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'],
 };
@@ -15771,7 +15786,7 @@ let ezSabFul = store.load('sf_ez_sab_ful', 'sab');           // sab | gy | prog
 let ezSabCsop = store.load('sf_ez_sab_csop', 'forras');      // forras | sport | nincs
 let ezSabSport = '';                                         // sportág-szűrő ('' = mind)
 let ezGyKeres = '', ezGyTip = '';      // gyakorlatlista: keresés és mérés-szűrő
-const EZ_SP_SZIN = { borostyan:'#d97706', kek:'#2563eb', lila:'#7c3aed', turkiz:'#0891b2', zold:'#16a34a', sotet:'#0f2f5f', szurke:'#94a3b8' };
+const EZ_SP_SZIN = { borostyan:'#d97706', kek:'#2563eb', lila:'#7c3aed', turkiz:'#0891b2', zold:'#16a34a', sotet:'#0f2f5f', szurke:'#94a3b8', piros:'#dc2626', rozsa:'#db2777', sarga:'#ca8a04' };
 const ezSpSzin = k => EZ_SP_SZIN[ezSp(k)[1]] || '#94a3b8';
 const ezSabMeta = s => s.gyak && s.gyak.length ? `${s.gyak.length} gyakorlat · ${s.gyak.reduce((n, g) => n + (g.sz || 0), 0)} szett` : ezCel(s);
 const ezSabProg = s => s.prog ? EZ_PROGRAMOK.find(p => p.id === s.prog) || null : null;
@@ -16044,21 +16059,75 @@ function ezVisszaszamol(d){
     return `${Math.floor(n / 7)} hét múlva (${n} nap)`;
 }
 const ezLinkOk = u => /^https?:\/\/\S+$/i.test(String(u || ''));
+// „Jelentkeztem” pipa: közelgő, még le nem zárt versenynél a Tervezem ↔ Nevezve állapotot váltja.
+const ezVersJelOk = v => v.d >= ezMa() && (v.st === 'terv' || v.st === 'nev' || !v.st);
+const ezVersJel = (v, cls) => `<label class="ez-jel${v.st === 'nev' ? ' on' : ''}${cls ? ' ' + cls : ''}"><input type="checkbox" data-ezvjel="${esc(v.id)}"${v.st === 'nev' ? ' checked' : ''}><span>Jelentkeztem</span></label>`;
+function ezVersJelValt(id, be){
+    const l = ezAdat.torzs.versenyek || [], v = l.find(x => x.id === id); if(!v) return;
+    ezAdat.torzs.versenyek = l.map(x => x === v ? { ...v, st: be ? 'nev' : 'terv' } : x);
+    ezMent('torzs'); renderEdz();
+}
+// Kiírt versenyek (2026 ősz – 2027) – kézzel gyűjtött lista; a „vh” jelölésű dátum még nem végleges.
+const EZ_KIIRT = [
+    { n:'SPAR Budapest Maraton Fesztivál', d:'2026-10-11', sport:'fut', tav:'42,2 / 30 / 10 / 5 km', hely:'Budapest', link:'https://www.runinbudapest.com' },
+    { n:'HYROX Budapest', d:'2026-10-17', sport:'hyr', tav:'8 × 1 km + 8 állomás', hely:'Budapest, Hungexpo', link:'https://hungary.hyrox.com/event/hyrox-budapest-season-26-27-81xh5a' },
+    { n:'Veresi Futónap', d:'2026-10-18', sport:'fut', tav:'', hely:'Veresegyház' },
+    { n:'Barátság Maraton', d:'2026-10-18', sport:'fut', tav:'', hely:'Miskolc' },
+    { n:'Halloween Run', d:'2026-11-07', sport:'fut', tav:'félmaratonig', hely:'Budapest, Kőbánya' },
+    { n:'Mikulásfutás', d:'2026-12-06', sport:'fut', tav:'', hely:'Budapest, Ferencváros' },
+    { n:'Futapest Mikulás terepfutás', d:'2026-12-06', sport:'fut', tav:'15 / 3,5 km', hely:'Csömör', link:'https://gotrail.run/hu/esemeny/futapest-mikulas-terepfutas-csomor' },
+    { n:'Szilveszteri futógála', d:'2026-12-27', sport:'fut', tav:'10 / 5 km', hely:'Balatonlelle', link:'https://running.life/hu/esemeny/szilveszteri-futogala' },
+    { n:'HYROX Bécs', d:'2027-02-19', sport:'hyr', tav:'8 × 1 km + 8 állomás', hely:'Bécs', vh:'febr. 19–21. (még nem végleges)', link:'https://rundida.com/hyrox/event/vienna/' },
+    { n:'Balaton Szupermaraton', d:'2027-03-04', sport:'fut', tav:'4 nap, 195 km (napi szakaszok)', hely:'Balaton', vh:'március eleje (még nem végleges)', link:'https://visithungary.com/event/16th-balaton-supermarathon' },
+    { n:'Telekom Vivicittá Félmaraton', d:'2027-04-11', sport:'fut', tav:'21,1 / 10 / 7 km', hely:'Budapest, Margitsziget', link:'https://www.telekomvivicitta.hu' },
+    { n:'UCI Tour de Mátra (Cofidis)', d:'2027-05-29', sport:'bri', tav:'150 / 83 km + 16 km időfutam', hely:'Gyöngyös, Mátra', vh:'május vége (még nem végleges)', link:'https://www.finishers.com/hu/e/uci-tour-de-matra-cofidis' },
+    { n:'Lidl Balaton-átúszás', d:'2027-07-17', sport:'usz', tav:'5,2 km', hely:'Révfülöp → Balatonboglár', link:'https://www.vg.hu/turizmus/2026/04/balaton-atuszas-lid-verseny' },
+    { n:'Wizz Air Budapest Félmaraton', d:'2027-09-05', sport:'fut', tav:'21,1 km', hely:'Budapest', link:'https://www.finishers.com/en/event/wizz-air-semi-marathon-de-budapest' },
+];
+const EZ_KIIRT_SPORT = ['fut', 'usz', 'bri', 'hyr', 'tri', 'dua'];
+const EZ_KIIRT_NINCS = {
+    tri: 'A Magyar Triatlon Szövetség 2027-es versenynaptára 2026 novemberében jelenik meg.',
+    dua: 'Az idei duatlonszezon lezajlott; a 2027-es naptár a triatlonnal együtt, 2026 novemberében jelenik meg.',
+};
+let ezKiirtSport = store.load('sf_ez_kiirt_sp', '');
+const ezKiirtFelveve = k => ((ezAdat.torzs || {}).versenyek || []).some(v => v.n === k.n && v.d.slice(0, 4) === k.d.slice(0, 4));
+function ezKiirtHtml(){
+    const ma = ezMa(), l = EZ_KIIRT.filter(k => k.d >= ma && (!ezKiirtSport || k.sport === ezKiirtSport));
+    const sor = k => { const d = ezD(k.d), fel = ezKiirtFelveve(k); return `<div class="card ez-vers-sor ez-kiirt">
+        <span class="ez-vers-d"><b>${d.getDate()}</b><em>${EZ_HO_R[d.getMonth()]}</em><i>${d.getFullYear()}</i></span>
+        ${ezIk(k.sport)}
+        <span class="k"><b>${esc(k.n)}</b><em>${esc([k.tav, k.hely].filter(Boolean).join(' · ') || ezSp(k.sport)[0])}</em>${k.vh ? `<span class="vh">Várható: ${esc(k.vh)}</span>` : ''}</span>
+        <span class="j">${ezLinkOk(k.link) ? `<a class="ez-kiirt-l" href="${esc(k.link)}" target="_blank" rel="noopener">Kiírás ↗</a>` : ''}
+            ${fel ? '<span class="ez-pill ez-vs-kesz">✓ Felvéve</span>' : `<button type="button" class="ez-kiirt-fel" data-ezkiirt="${EZ_KIIRT.indexOf(k)}">+ Felveszem</button>`}</span>
+    </div>`; };
+    const nincs = ezKiirtSport && EZ_KIIRT_NINCS[ezKiirtSport];
+    return `<div class="ez-vers-cim">Kiírt versenyek · 2026–2027</div>
+        <div class="ez-sp-chipek ez-val-sp ez-kiirt-sp">${['', ...EZ_KIIRT_SPORT].map(k => `<button type="button" class="ez-sp-chip${ezKiirtSport === k ? ' on' : ''}" data-ezkiirtsp="${k}"${k ? ` style="--sc:${ezSpSzin(k)}"` : ''}><i></i>${k ? esc(ezSp(k)[0]) : 'Mind'}</button>`).join('')}</div>
+        ${l.length ? `<div class="ez-vers-lista">${l.map(sor).join('')}</div>`
+            : `<div class="card ez-ures">${esc(nincs || 'Ebben a sportágban most nincs kiírt verseny a listában.')}${nincs ? ' <a href="https://triatlon.hu/hazai-versenyek/" target="_blank" rel="noopener">triatlon.hu ↗</a>' : ''}</div>`}`;
+}
+function ezKiirtFelvesz(i){
+    const k = EZ_KIIRT[i]; if(!k || ezKiirtFelveve(k)) return;
+    const uj = ezTiszta({ id: 'v' + ezUjId(), n: k.n, d: k.d, sport: k.sport, tav: k.tav || '', hely: k.hely || '', cel: '', st: 'terv', eredmeny: '',
+        link: k.link || '', megj: k.vh ? 'A dátum még nem végleges: ' + k.vh : '' });
+    ezAdat.torzs.versenyek = [...(ezAdat.torzs.versenyek || []), uj];
+    ezMent('torzs'); renderEdz();
+}
 function ezVersenyHtml(){
     const ma = ezMa(), l = ezVersenyek();
     const jovo = l.filter(v => v.d >= ma), mult = l.filter(v => v.d < ma).reverse();
     const kov = ezKovVerseny();
-    const sor = v => { const a = ezVersAll(v), d = ezD(v.d); return `<button type="button" class="card ez-vers-sor" data-ezvszerk="${esc(v.id)}">
+    const sor = v => { const a = ezVersAll(v), d = ezD(v.d); return `<div class="card ez-vers-sor" role="button" tabindex="0" data-ezvszerk="${esc(v.id)}">
         <span class="ez-vers-d"><b>${d.getDate()}</b><em>${EZ_HO_R[d.getMonth()]}</em><i>${d.getFullYear()}</i></span>
         ${ezIk(v.sport)}
         <span class="k"><b>${esc(v.n)}</b><em>${esc(ezVersCel(v))}</em>${v.eredmeny ? `<span>Eredmény: <b>${esc(v.eredmeny)}</b></span>` : ''}</span>
-        <span class="j">${v.d >= ma && a !== 'ki' ? `<em>${esc(ezVisszaszamol(v.d))}</em>` : ''}<span class="ez-pill ez-vs-${a}">${EZ_VERS_ALL[a]}</span></span>
-    </button>`; };
+        <span class="j">${v.d >= ma && a !== 'ki' ? `<em>${esc(ezVisszaszamol(v.d))}</em>` : ''}${ezVersJelOk(v) ? ezVersJel(v) : `<span class="ez-pill ez-vs-${a}">${EZ_VERS_ALL[a]}</span>`}</span>
+    </div>`; };
     const hero = kov ? (() => { const a = ezVersAll(kov), n = Math.round((ezD(kov.d) - ezD(ma)) / 864e5); return `<div class="ez-vers-hero">
         ${ezVersIk('nagy')}
         <div class="k"><span class="c">Következő verseny · ${EZ_NAP[ezNapIdx(kov.d)].toLowerCase()}, ${ezRovidD(kov.d)} ${kov.d.slice(0, 4)}</span>
             <b class="n">${esc(kov.n)}</b><span class="s">${esc(ezVersCel(kov))}</span>
-            <div class="ez-mai-gombok"><span class="ez-pill ez-vs-${a}">${EZ_VERS_ALL[a]}</span>
+            <div class="ez-mai-gombok">${ezVersJelOk(kov) ? ezVersJel(kov, 'hero') : `<span class="ez-pill ez-vs-${a}">${EZ_VERS_ALL[a]}</span>`}
                 ${ezLinkOk(kov.link) ? `<a class="ez-gb2" href="${esc(kov.link)}" target="_blank" rel="noopener">Verseny oldala ↗</a>` : ''}
                 <button type="button" class="ez-gb2" data-ezfelk="${esc(kov.id)}">Felkészülési terv</button>
                 <button type="button" class="ez-gb3" data-ezvszerk="${esc(kov.id)}">Módosítás</button></div></div>
@@ -16070,6 +16139,7 @@ function ezVersenyHtml(){
         <div class="ez-vers-cim">Közelgő versenyek${jovo.length ? ` · ${jovo.length}` : ''}</div>
         ${jovo.length ? `<div class="ez-vers-lista">${jovo.map(sor).join('')}</div>`
             : `<div class="card ez-ures">Még nincs felírva közelgő verseny. Az <b>+ Új verseny</b> gombbal veheted fel.</div>`}
+        ${ezKiirtHtml()}
         ${mult.length ? `<div class="ez-vers-cim">Lezajlott versenyek · ${mult.length}</div><div class="ez-vers-lista">${mult.map(sor).join('')}</div>` : ''}`;
 }
 function ezVersenyModal(id){
@@ -17307,7 +17377,11 @@ window.sfShowEdzes = function(){
 (function(){
     const page = document.getElementById('page-edzes'); if(!page) return;
     page.addEventListener('input', e => { if(e.target.matches('[data-ezgykeres]')){ ezGyKeres = e.target.value; ezGySzur(); } });
+    page.addEventListener('keydown', e => {
+        if((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[data-ezvszerk]')){ e.preventDefault(); ezVersenyModal(e.target.dataset.ezvszerk); }
+    });
     page.addEventListener('change', e => {
+        if(e.target.matches('[data-ezvjel]')){ ezVersJelValt(e.target.dataset.ezvjel, e.target.checked); return; }
         if(e.target.matches('[data-ezsabcsop]')){ ezSabCsop = e.target.value; store.save('sf_ez_sab_csop', ezSabCsop); renderEdz(); return; }
         if(e.target.matches('[data-ezgcido]')){
             const n = ezGcNaptar(); if(!n || !n.id) return;
@@ -17318,6 +17392,9 @@ window.sfShowEdzes = function(){
         }
     });
     page.addEventListener('click', e => {
+        if(e.target.closest('.ez-jel, .ez-kiirt-l')) return;
+        const kf = e.target.closest('[data-ezkiirt]'); if(kf){ ezKiirtFelvesz(+kf.dataset.ezkiirt); return; }
+        const ks = e.target.closest('[data-ezkiirtsp]'); if(ks){ ezKiirtSport = ks.dataset.ezkiirtsp; store.save('sf_ez_kiirt_sp', ezKiirtSport); renderEdz(); return; }
         if(e.target.closest('[data-ezgcval]')){ ezGcValaszt(); return; }
         const fk = e.target.closest('[data-ezfelk]'); if(fk){ const v = (ezAdat.torzs.versenyek || []).find(x => x.id === fk.dataset.ezfelk); if(v) ezFelkModal(v); return; }
         if(e.target.closest('[data-ezgcszink]')){ const k = document.getElementById('ezGcAll'); if(k) k.textContent = 'Szinkron folyamatban…'; ezGcSzinkron(true); return; }
