@@ -5934,6 +5934,16 @@
         #szokasokBody .sz-hc { border-radius:7px; font-size:10px; }
         #szokasokBody .sz-hoterkep .f { font-size:10px; }
         #szokasokBody .pv-kartya { margin-bottom:10px; }
+        .sz-ter-racs { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin:0 0 10px; }
+        .sz-ter-racs > .sz-lista { margin:0; }
+        .sz-also { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+        #szokasokBody .sz-also > section { margin:0; }
+        @media (min-width:900px){
+            .sz-ter-racs { grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); align-items:start; }
+            .sz-also { grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; }
+            .sz-also > .sz-jav-k { grid-column:1 / -1; order:3; }
+            .sz-also .sz-hoterkep { max-width:340px; }
+        }
         .sz-mk-toast b { font-size:14.5px; } .sz-mk-toast small { font-size:12px; color:#d1d5db; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         @keyframes szMkBe { from { opacity:0; transform:translate(-50%, 24px) scale(.9); } to { opacity:1; transform:translate(-50%, 0) scale(1); } }
         .sz-r-kpi { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .sz-r-kpi.har { grid-template-columns:repeat(3, minmax(0,1fr)); }
@@ -18070,6 +18080,12 @@ async function renderSzokasok(){
         const s = `${szHo}-${String(i + 1).padStart(2, '0')}`, a = szNapiAllas(d, s), p = a.es ? a.kesz / a.es : 0;
         return `<span class="sz-hc${s === ma ? ' ma' : ''}${s > ma ? ' jovo' : ''}" style="--p:${s > ma || !a.es ? 0 : Math.max(.12, p)}" title="${s}: ${a.kesz}/${a.es}">${i + 1}</span>`;
     })).join('');
+    let szMkHtml = '';
+    const szNaptarHtml = `<section class="card pv-kartya sz-naptar-k">
+            <h4 class="pv-cim">${hy}. ${PRV_HO[hm - 1]}<span class="pv-lep"><button type="button" data-szho="-1" aria-label="Előző hónap">‹</button><button type="button" data-szho="1" aria-label="Következő hónap"${szHo >= ma.slice(0, 7) ? ' disabled' : ''}>›</button></span></h4>
+            <div class="sz-hoterkep"><span class="f">H</span><span class="f">K</span><span class="f">Sze</span><span class="f">Cs</span><span class="f">P</span><span class="f">Szo</span><span class="f">V</span>${cellak}</div>
+            <p class="pv-megj">Minél sötétebb egy nap, annál több esedékes szokásod teljesült.</p>
+        </section>`;
     host.innerHTML = `
         <div class="sf-hos"><span class="c">${szNap === ma ? 'Ma' : esc(prvDatumSzo(szNap))}</span><b>${all.kesz}<small> / ${all.es}</small></b>
             <span class="s">${all.es ? (all.kesz === all.es ? '<b class="poz">Minden megvan – szép munka!</b>' : 'szokás kész') : 'erre a napra nincs esedékes szokás'}${legj ? ` · leghosszabb sorozat: <b>${legj} nap</b>` : ''}</span>
@@ -18083,7 +18099,7 @@ async function renderSzokasok(){
                 `<button type="button" data-szterszuro="${t.k}" class="${szTerSzuro === t.k ? 'on' : ''}" aria-pressed="${szTerSzuro === t.k}"${t.k ? ` style="--c:${t.c};--b:${t.b}"` : ''}>${t.k ? prvTerIk(t) : ''}${esc(t.n)}${t.k ? `<em>${lista.filter(h => prvTer(h.ter).k === t.k).length}</em>` : ''}</button>`).join('')}</div>` : '';
             const csop = terek.filter(t => !szTerSzuro || t.k === szTerSzuro).map(t => {
                 const l = lista.filter(h => prvTer(h.ter).k === t.k), es = l.filter(h => szSzamit(d, h, szNap)), kesz = es.filter(h => szKesz(d, h, szNap)).length;
-                return `<div class="sz-ter-fej" style="--c:${t.c};--b:${t.b}"><i>${prvTerIk(t)}</i><b>${esc(t.nt)}</b>${es.length ? `<em>${kesz}/${es.length}</em>` : ''}</div>${l.map(sor).join('')}`;
+                return `<section class="card nl-celok sz-lista"><div class="sz-ter-fej" style="--c:${t.c};--b:${t.b}"><i>${prvTerIk(t)}</i><b>${esc(t.nt)}</b>${es.length ? `<em>${kesz}/${es.length}</em>` : ''}</div>${l.map(sor).join('')}</section>`;
             }).join('');
             // Mérföldkövek: szokásonként a legrangosabb jelvény, vízszintesen görgetve
             const mk = lista.map(h => [h, szMkLegjobb(d, h)]).filter(x => x[1]);
@@ -18091,9 +18107,12 @@ async function renderSzokasok(){
             const mkK = `<section class="card pv-kartya sz-mk-k"><h4 class="pv-cim">Mérföldkövek<span class="pv-szam">${mkDb}</span></h4>
                 ${mk.length ? `<div class="sz-mk-gorg">${mk.map(([h, m]) => `<button type="button" class="sz-mk" data-szreszl="${esc(h.id)}" title="${esc(m.cim + ' – ' + m.szo)}">${szMkSvg(m)}<b>${esc(h.n)}</b><em>${esc(m.szo)}</em></button>`).join('')}</div>`
                     : '<p class="pv-megj sz-mk-ures">Az első jelvény 3 napos sorozatnál (heti szokásnál 2 hétnél) vagy 10 teljesítésnél jár. 🏅</p>'}</section>`;
-            return `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div>${szuro}<section class="card nl-celok sz-lista">${csop}</section>${mkK}`;
+            // kategóriánként külön doboz; széles képernyőn 2–3 egymás mellett (lásd .sz-ter-racs)
+            szMkHtml = mkK;
+            return `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div>${szuro}<div class="sz-ter-racs">${csop}</div>`;
         })()
             : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p></section>`}
+        <div class="sz-also">${szMkHtml}${szNaptarHtml}
         ${(() => {
             // Az ajánlások mindig látszanak – csak azok, amelyek még nincsenek felvéve (név szerint, ékezet nélkül).
             const van = new Set((d.lista || []).map(h => nlNorm(h.n)));
@@ -18112,11 +18131,7 @@ async function renderSzokasok(){
                     return sorok.map(r => `<div>${r.map(([[n, ik], i]) => `<button type="button" data-szjav="${i}"><i>${szIkSvg(ik)}</i>${esc(n)}</button>`).join('')}</div>`).join('');
                 })()}</div></section>`;
         })()}
-        <section class="card pv-kartya">
-            <h4 class="pv-cim">${hy}. ${PRV_HO[hm - 1]}<span class="pv-lep"><button type="button" data-szho="-1" aria-label="Előző hónap">‹</button><button type="button" data-szho="1" aria-label="Következő hónap"${szHo >= ma.slice(0, 7) ? ' disabled' : ''}>›</button></span></h4>
-            <div class="sz-hoterkep"><span class="f">H</span><span class="f">K</span><span class="f">Sze</span><span class="f">Cs</span><span class="f">P</span><span class="f">Szo</span><span class="f">V</span>${cellak}</div>
-            <p class="pv-megj">Minél sötétebb egy nap, annál több esedékes szokásod teljesült.</p>
-        </section>`;
+        </div>`;
 }
 async function szModal(id, javaslat){
     const d = await prvBetolt('szokasok');
