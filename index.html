@@ -5451,6 +5451,31 @@
         .nl-eg-graf rect.ok { fill:#7c3aed; } .nl-eg-graf rect.keves { fill:#c4b5fd; }
         .nl-eg-graf .h7 { stroke:#9ca3af; stroke-dasharray:3 3; stroke-width:1; } .nl-eg-graf .h7t { font-size:9px; fill:#6b7280; }
         .nl-eg-graf .viz { fill:#bae6fd; } .nl-eg-graf .viz.meg { fill:#0284c7; }
+        /* alvásminőség: jó / közepes / gyenge */
+        .nl-eg-graf .q-jo { fill:#059669; } .nl-eg-graf .q-kozep { fill:#f59e0b; } .nl-eg-graf .q-gyenge { fill:#e11d48; }
+        .nl-eg-graf rect.nap { fill:transparent; cursor:pointer; } .nl-eg-graf rect.nap:hover { fill:rgba(124,58,237,.06); }
+        .q-lg { display:inline-block; width:9px; height:9px; border-radius:2px; margin:0 3px 0 4px; vertical-align:-1px; }
+        .q-lg.jo { background:#059669; } .q-lg.kozep { background:#f59e0b; } .q-lg.gyenge { background:#e11d48; }
+        .ma-alv-ert { cursor:pointer; }
+        .ma-alv-min { align-self:flex-start; border:0; border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(15,23,42,.10); font:inherit; font-size:12px; font-weight:600; color:#6d28d9; padding:4px 10px; cursor:pointer; }
+        .ma-alv-min b { font-weight:800; }
+        .ma-alv-min.jo { color:#047857; background:#ecfdf5; } .ma-alv-min.kozep { color:#b45309; background:#fffbeb; } .ma-alv-min.gyenge { color:#be123c; background:#fff1f2; }
+        .alv-idok { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+        .alv-idok .pv-mezo { margin:0; }
+        .alv-idok input[type="time"] { height:44px; border:0; border-radius:14px; background:#f3f4f6; padding:0 10px; font:inherit; font-size:15px; color:#111827; box-sizing:border-box; width:100%; min-width:0; }
+        .alv-tipp { margin:8px 0 16px; }
+        .alv-min-fej { display:flex; align-items:baseline; gap:10px; }
+        .alv-min-fej b { font-size:32px; font-weight:800; letter-spacing:-.02em; color:#9ca3af; }
+        .alv-min-fej b.jo { color:#047857; } .alv-min-fej b.kozep { color:#b45309; } .alv-min-fej b.gyenge { color:#be123c; }
+        .alv-min-fej em { font-style:normal; font-size:14px; font-weight:600; color:#6b7280; }
+        .alv-min input[type="range"] { -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:999px; margin:10px 0 4px;
+            background:linear-gradient(90deg, #7c3aed var(--p,0%), #e5e7eb var(--p,0%)); }
+        .alv-min input[type="range"].ures { background:#e5e7eb; }
+        .alv-min input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fff; border:3px solid #7c3aed; box-shadow:0 2px 6px rgba(15,23,42,.2); cursor:pointer; }
+        .alv-min input[type="range"]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#fff; border:3px solid #7c3aed; cursor:pointer; }
+        .alv-min input[type="range"].ures::-webkit-slider-thumb { border-color:#9ca3af; }
+        .alv-min-skala { display:flex; justify-content:space-between; font-size:11px; color:#9ca3af; }
+        .alv-min-tor { align-self:flex-start; margin-top:6px; }
         .sz-het { display:flex; justify-content:space-between; gap:4px; margin:0 0 14px; }
         .sz-nap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; border:0; background:none; font:inherit; cursor:pointer; padding:6px 0; border-radius:16px; }
         .sz-nap em { font-style:normal; font-size:11.5px; font-weight:600; color:#6b7280; }
@@ -17631,6 +17656,10 @@ const nlSzam = x => String(Math.round(x * 10) / 10).replace('.', ',');
 const NL_VIZ_CEL = 8, NL_POHAR_DL = 2.5;
 const nlEg = s => (((PRV[nlEvKulcs(s.slice(0, 4))] || {}).eg) || {})[s] || {};
 const nlNapAlv = s => nlEg(s).alv || Math.max(0, ...nlNapBej(s).map(b => b.alv || 0));
+// Alvásminőség százalékban (nlYYYY.eg[nap].alvM, 0–100); a lefekvés / ébredés (le / fel, "HH:MM") nem kötelező.
+const nlNapAlvM = s => { const q = nlEg(s).alvM; return typeof q === 'number' && q >= 0 && q <= 100 ? q : null; };
+const nlAlvMOszt = q => q >= 75 ? 'jo' : q >= 50 ? 'kozep' : 'gyenge';
+const nlAlvMSzo = q => q >= 85 ? 'kiváló' : q >= 75 ? 'jó' : q >= 50 ? 'közepes' : q >= 30 ? 'gyenge' : 'rossz';
 const nlNapViz = s => nlEg(s).viz || 0;
 const nlOraSzo = m => m ? nlSzam(m / 60) + ' ó' : '—';
 const nlLiter = p => nlSzam(p * NL_POHAR_DL / 10) + ' l';
@@ -18708,17 +18737,22 @@ document.addEventListener('click', async e => {
 // Alvás és víz (a napló év-dokumentumaiban, nlYYYY.eg), testsúly (ezAdat.torzs.meresek).
 function egTortHtml(){
     const ma = ezMa(), napok = Array.from({ length: 30 }, (_, i) => ezPlusz(ma, i - 29));
-    const alv = napok.map(nlNapAlv), viz = napok.map(nlNapViz), av = alv.filter(Boolean), vv = viz.filter(Boolean);
-    if(!av.length && !vv.length) return `<section class="card pv-kartya" data-egtort><h4 class="pv-cim">Alvás és víz</h4><p class="pv-megj">A fenti léptetőkkel rögzítsd naponta – itt látod majd az elmúlt 30 napot.</p></section>`;
-    const W = 340, H = 130, B = 6, A = 20, maxA = Math.max(600, ...av), bw = (W - B * 2) / 30, gy = v => H - A - (H - A - 6) * v / maxA;
-    const oszl = alv.map((v, i) => v ? `<rect x="${(B + i * bw + 1).toFixed(1)}" y="${gy(v).toFixed(1)}" width="${Math.max(2, bw - 2).toFixed(1)}" height="${(H - A - gy(v)).toFixed(1)}" rx="2" class="${v >= 420 ? 'ok' : 'keves'}"><title>${esc(prvDatumSzo(napok[i]))}: ${nlOraSzo(v)}</title></rect>` : '').join('');
-    const pont = viz.map((v, i) => v ? `<circle cx="${(B + i * bw + bw / 2).toFixed(1)}" cy="${H - 8}" r="${v >= NL_VIZ_CEL ? 3.2 : 2.2}" class="viz${v >= NL_VIZ_CEL ? ' meg' : ''}"><title>${esc(prvDatumSzo(napok[i]))}: ${v} pohár víz</title></circle>` : '').join('');
+    const alv = napok.map(nlNapAlv), viz = napok.map(nlNapViz), min = napok.map(nlNapAlvM), av = alv.filter(Boolean), vv = viz.filter(Boolean), mv = min.filter(v => v != null);
+    if(!av.length && !vv.length && !mv.length) return `<section class="card pv-kartya" data-egtort><h4 class="pv-cim">Alvás és víz</h4><p class="pv-megj">A fenti léptetőkkel rögzítsd naponta, az alvás minőségét és időpontját az óraszámra koppintva – itt látod majd az elmúlt 30 napot.</p></section>`;
+    // alul két sáv: az alvás minősége (kis négyzetek) és a víz (pontok)
+    const W = 340, H = 148, B = 6, A = 38, maxA = Math.max(600, ...av), bw = (W - B * 2) / 30, gy = v => H - A - (H - A - 6) * v / maxA;
+    const oszl = alv.map((v, i) => v ? `<rect x="${(B + i * bw + 1).toFixed(1)}" y="${gy(v).toFixed(1)}" width="${Math.max(2, bw - 2).toFixed(1)}" height="${(H - A - gy(v)).toFixed(1)}" rx="2" class="${v >= 420 ? 'ok' : 'keves'}"></rect>` : '').join('');
+    const minS = min.map((v, i) => v != null ? `<rect x="${(B + i * bw + 1.5).toFixed(1)}" y="${H - 30}" width="${Math.max(2, bw - 3).toFixed(1)}" height="8" rx="2" class="q-${nlAlvMOszt(v)}"></rect>` : '').join('');
+    const pont = viz.map((v, i) => v ? `<circle cx="${(B + i * bw + bw / 2).toFixed(1)}" cy="${H - 9}" r="${v >= NL_VIZ_CEL ? 3.2 : 2.2}" class="viz${v >= NL_VIZ_CEL ? ' meg' : ''}"></circle>` : '').join('');
+    // napi találati sáv: rámutatva összegzés, koppintásra az adott nap alvás-ablaka
+    const hit = napok.map((s, i) => `<rect class="nap" data-alvnap="${s}" x="${(B + i * bw).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}"><title>${esc(prvDatumSzo(s))}: ${alv[i] ? nlOraSzo(alv[i]) + ' alvás' : 'nincs alvás'}${min[i] != null ? ` · minőség ${min[i]}%` : ''}${viz[i] ? ` · ${viz[i]} pohár víz` : ''}</title></rect>`).join('');
     return `<section class="card pv-kartya" data-egtort><h4 class="pv-cim">Alvás és víz<span class="pv-megj">elmúlt 30 nap</span></h4>
         <div class="nl-eg-kpi"><span><b>${av.length ? nlOraSzo(nlAtlag(av)) : '—'}</b><em>átlag alvás · ${av.filter(v => v >= 420).length}/${av.length} napon 7+ óra</em></span>
+            <span><b>${mv.length ? Math.round(nlAtlag(mv)) + '%' : '—'}</b><em>átlagos alvásminőség${mv.length ? ` · ${mv.filter(v => v >= 75).length}/${mv.length} napon jó` : ''}</em></span>
             <span><b>${vv.length ? nlSzam(nlAtlag(vv)) : '—'}</b><em>pohár víz naponta · ${vv.filter(v => v >= NL_VIZ_CEL).length} napon megvolt</em></span></div>
-        <svg class="nl-eg-graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Alvás és víz az elmúlt 30 napban"><line x1="${B}" x2="${W - B}" y1="${gy(420).toFixed(1)}" y2="${gy(420).toFixed(1)}" class="h7"/>
-            <text x="${W - B}" y="${(gy(420) - 4).toFixed(1)}" text-anchor="end" class="h7t">7 óra</text>${oszl}${pont}</svg>
-        <p class="pv-megj">Oszlop: alvás (lila = legalább 7 óra) · pont: víz (kék = megvolt a napi ${NL_VIZ_CEL} pohár)</p></section>`;
+        <svg class="nl-eg-graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Alvás, alvásminőség és víz az elmúlt 30 napban"><line x1="${B}" x2="${W - B}" y1="${gy(420).toFixed(1)}" y2="${gy(420).toFixed(1)}" class="h7"/>
+            <text x="${W - B}" y="${(gy(420) - 4).toFixed(1)}" text-anchor="end" class="h7t">7 óra</text>${oszl}${minS}${pont}${hit}</svg>
+        <p class="pv-megj">Oszlop: alvás (lila = legalább 7 óra) · négyzet: alvásminőség (<i class="q-lg jo"></i>75%+ <i class="q-lg kozep"></i>50–74% <i class="q-lg gyenge"></i>50% alatt) · pont: víz (kék = megvolt a napi ${NL_VIZ_CEL} pohár). Egy napra koppintva szerkesztheted.</p></section>`;
 }
 async function renderEgeszseg(){
     const host = document.getElementById('egBody'); if(!host) return;
@@ -18734,6 +18768,8 @@ window.sfShowEgeszseg = function(){ renderEgeszseg(); };
 document.addEventListener('click', e => {
     if(!e.target.closest('#page-egeszseg')) return;
     const eg = e.target.closest('[data-maeg]'); if(eg){ const [m, i] = eg.dataset.maeg.split('|'); maEgValt(m, +i); return; }
+    if(e.target.closest('[data-maalv]')){ alvModal(); return; }
+    const an = e.target.closest('[data-alvnap]'); if(an){ alvModal(an.dataset.alvnap); return; }
     if(e.target.closest('[data-ezmment]')){ if(ezMeresMent()) renderEgeszseg(); return; }
     const md = e.target.closest('[data-ezmdel]');
     if(md){ if(!confirm('Törlöd ezt a mérést?')) return; ezAdat.torzs.meresek = ezMeresek().filter(x => x.d !== md.dataset.ezmdel); ezMent('torzs'); renderEgeszseg(); return; }
@@ -18903,20 +18939,92 @@ async function maTestreModal(){
 // Egészség-sor: alvás (fél órás lépésekben) és víz (pohár) a mai napra.
 function maEgHtml(){
     const ma = ezMa(), alv = nlNapAlv(ma), viz = nlNapViz(ma), tegnap = nlNapAlv(ezPlusz(ma, -1));
+    const x = nlEg(ma), q = nlNapAlvM(ma);
     return `<div class="ma-eg-t"><span class="ma-eg-cim">🛏️ Alvás</span><div class="ma-eg-lep"><button type="button" data-maeg="alv|-1" aria-label="Kevesebb alvás">−</button>
-            <b>${alv ? nlSzam(alv / 60) : '—'}<small> óra</small></b><button type="button" data-maeg="alv|1" aria-label="Több alvás">+</button></div>
-            <span class="ma-eg-al">${alv ? (alv >= 420 ? 'kipihent éjszaka' : 'kevés alvás') : tegnap ? `tegnap ${nlOraSzo(tegnap)}` : 'az éjszakai alvás'}</span></div>
+            <b class="ma-alv-ert" data-maalv role="button" tabindex="0" aria-label="Alvás részletei">${alv ? nlSzam(alv / 60) : '—'}<small> óra</small></b><button type="button" data-maeg="alv|1" aria-label="Több alvás">+</button></div>
+            <button type="button" class="ma-alv-min${q != null ? ' ' + nlAlvMOszt(q) : ''}" data-maalv>${q != null ? `Minőség <b>${q}%</b>` : '+ minőség, időpont'}</button>
+            <span class="ma-eg-al">${x.le && x.fel ? `${x.le} – ${x.fel}` : alv ? (alv >= 420 ? 'kipihent éjszaka' : 'kevés alvás') : tegnap ? `tegnap ${nlOraSzo(tegnap)}` : 'az éjszakai alvás'}</span></div>
         <div class="ma-eg-t"><span class="ma-eg-cim">💧 Víz</span><div class="ma-eg-lep"><button type="button" data-maeg="viz|-1" aria-label="Egy pohárral kevesebb">−</button>
             <b>${viz}<small> pohár</small></b><button type="button" data-maeg="viz|1" aria-label="Egy pohár víz">+</button></div>
             <span class="ma-csik kicsi"><i style="width:${Math.min(100, viz / NL_VIZ_CEL * 100).toFixed(0)}%" class="${viz >= NL_VIZ_CEL ? 'kesz' : ''}"></i></span>
             <span class="ma-eg-al">${nlLiter(viz)} / ${nlLiter(NL_VIZ_CEL)}</span></div>`;
+}
+// Alvás részletei egy napra: időtartam, lefekvés–ébredés (ebből az időtartam magától
+// számolódik) és a minőség százalékban.
+async function alvModal(nap){
+    nap = nap || ezMa();
+    const y = nap.slice(0, 4), doc = await nlEv(+y);
+    const regi = (doc.eg || {})[nap] || {};
+    const hm = m => m ? String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0') : '';
+    const perc = v => { const [o, p] = String(v || '').split(':').map(Number); return (o || 0) * 60 + (p || 0); };
+    const x = { alv: nlNapAlv(nap) || 0, le: regi.le || '', fel: regi.fel || '', alvM: nlNapAlvM(nap) };
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal pv-modal alv-modal">
+        <div class="modal-head"><h3>🛏️ Alvás · ${esc(nap === ezMa() ? 'ma éjjel' : prvDatumSzo(nap))}</h3><button class="modal-x" data-pvx aria-label="Bezárás">&times;</button></div>
+        <div class="modal-body">
+            <div class="alv-idok">
+                <label class="pv-mezo"><span>Lefekvés</span><input type="time" data-a="le" value="${esc(x.le)}"></label>
+                <label class="pv-mezo"><span>Ébredés</span><input type="time" data-a="fel" value="${esc(x.fel)}"></label>
+                <label class="pv-mezo"><span>Alvásidő</span><input type="time" data-a="alv" value="${hm(x.alv)}" aria-label="Alvásidő (óra:perc)"></label>
+            </div>
+            <p class="pv-megj alv-tipp">Ha a lefekvést és az ébredést is megadod, az alvásidőt kiszámolja.</p>
+            <div class="pv-mezo alv-min">
+                <span>Alvás minősége</span>
+                <div class="alv-min-fej"><b data-alvq></b><em data-alvqsz></em></div>
+                <input type="range" min="0" max="100" step="5" value="${x.alvM ?? 70}" data-a="alvM" aria-label="Alvás minősége (%)">
+                <div class="alv-min-skala"><span>0%</span><span>50%</span><span>100%</span></div>
+                <button type="button" class="ez-link alv-min-tor" data-alvqtor>Minőség törlése</button>
+            </div>
+        </div>
+        <div class="modal-foot"><button class="pv-ment" data-alvment>Mentés</button></div></div>`;
+    document.body.appendChild(ov);
+    const q = ov.querySelector('[data-a="alvM"]');
+    const mutat = () => {
+        const v = x.alvM, el = ov.querySelector('[data-alvq]');
+        el.textContent = v == null ? '—' : v + '%';
+        el.className = v == null ? '' : nlAlvMOszt(v);
+        ov.querySelector('[data-alvqsz]').textContent = v == null ? 'húzd a csúszkát' : nlAlvMSzo(v);
+        ov.querySelector('[data-alvqtor]').hidden = v == null;
+        q.classList.toggle('ures', v == null);
+        q.style.setProperty('--p', (v ?? 0) + '%');
+    };
+    mutat();
+    const zar = () => ov.remove();
+    ov.addEventListener('input', e => {
+        const a = e.target.dataset.a; if(!a) return;
+        if(a === 'alvM'){ x.alvM = +e.target.value; mutat(); return; }
+        x[a] = a === 'alv' ? perc(e.target.value) : e.target.value;
+        if((a === 'le' || a === 'fel') && x.le && x.fel){
+            const d = (perc(x.fel) - perc(x.le) + 1440) % 1440;
+            if(d){ x.alv = d; ov.querySelector('[data-a="alv"]').value = hm(d); }
+        }
+    });
+    ov.addEventListener('click', e => {
+        if(e.target === ov || e.target.closest('[data-pvx]')) return zar();
+        if(e.target.closest('[data-alvqtor]')){ x.alvM = null; q.value = 70; mutat(); return; }
+        if(e.target.closest('[data-alvment]')){
+            const eg = doc.eg || (doc.eg = {}), u = Object.assign({}, eg[nap] || {});
+            delete u.alv; delete u.le; delete u.fel; delete u.alvM;
+            const alv = Math.max(0, Math.min(16 * 60, x.alv || 0));
+            if(alv) u.alv = alv;
+            if(/^\d\d:\d\d$/.test(x.le)) u.le = x.le;
+            if(/^\d\d:\d\d$/.test(x.fel)) u.fel = x.fel;
+            if(x.alvM != null) u.alvM = Math.max(0, Math.min(100, Math.round(x.alvM)));
+            if(Object.keys(u).length) eg[nap] = u; else delete eg[nap];
+            prvMent(nlEvKulcs(y)); zar();
+            document.querySelectorAll('[data-maeghost]').forEach(h => { h.innerHTML = maEgHtml(); });
+            if(prvLap('egeszseg')){ const t = document.querySelector('#egBody [data-egtort]'); if(t) t.outerHTML = egTortHtml(); }
+        }
+    });
 }
 let maEgIdozito = null;
 function maEgValt(mit, irany){
     const ma = ezMa(), y = ma.slice(0, 4), doc = PRV[nlEvKulcs(y)]; if(!doc) return;
     const eg = doc.eg || (doc.eg = {}), x = eg[ma] || (eg[ma] = {});
     // üresről indulva 7 óráról lépünk (−: 6,5 · +: 7,5)
-    if(mit === 'alv'){ x.alv = Math.max(0, Math.min(16 * 60, (nlNapAlv(ma) || 420) + irany * 30)); if(!x.alv) delete x.alv; }
+    // kézi léptetéskor a lefekvés–ébredés már nem igaz, azt elengedjük
+    if(mit === 'alv'){ x.alv = Math.max(0, Math.min(16 * 60, (nlNapAlv(ma) || 420) + irany * 30)); if(!x.alv) delete x.alv; delete x.le; delete x.fel; }
     else { x.viz = Math.max(0, Math.min(30, (x.viz || 0) + irany)); if(!x.viz) delete x.viz; }
     if(!Object.keys(x).length) delete eg[ma];
     document.querySelectorAll('[data-maeghost]').forEach(h => { h.innerHTML = maEgHtml(); });
@@ -18963,6 +19071,7 @@ document.addEventListener('click', e => {
     if(e.target.closest('[data-mamer]')){ if(ezMeresMent(true)) renderPrivMa(); return; }
     if(e.target.closest('[data-matestre]')){ maTestreModal(); return; }
     const eg = e.target.closest('[data-maeg]'); if(eg){ const [m, i] = eg.dataset.maeg.split('|'); maEgValt(m, +i); return; }
+    if(e.target.closest('[data-maalv]')){ alvModal(); return; }
 });
 document.addEventListener('keydown', e => {
     if(e.key === 'Enter' && e.target.matches && e.target.matches('#privMaBody [data-ezm="kg"]')){ e.preventDefault(); if(ezMeresMent(true)) renderPrivMa(); }
