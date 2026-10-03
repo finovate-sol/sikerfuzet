@@ -5710,6 +5710,33 @@
         .sz-r-nap.on i { background:var(--c); color:#fff; } .sz-r-nap.ma i { box-shadow:0 0 0 2px #111827; } .sz-r-nap.szunet { opacity:.45; } .sz-r-nap:disabled { opacity:.3; cursor:default; }
         .sz-r-nap b { font-size:12px; font-weight:600; color:#374151; }
         .sz-r-cim { font-size:16px; font-weight:800; color:#111827; margin:18px 0 8px; }
+        /* mérföldkő-jelvények */
+        .sz-mk-svg { width:40px; height:46px; display:block; flex:none; filter:drop-shadow(0 2px 3px rgba(15,23,42,.15)); }
+        .sz-mk-cimke { display:inline-flex; align-items:center; gap:3px; font-style:normal; font-size:11px; font-weight:700; color:var(--c); margin-left:4px; vertical-align:-3px; }
+        .sz-mk-cimke .sz-mk-svg { width:14px; height:16px; filter:none; }
+        .sz-mk-k .pv-cim { padding-bottom:2px; }
+        .sz-mk-gorg { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding:6px 18px 14px; }
+        .sz-mk-gorg::-webkit-scrollbar { display:none; }
+        .sz-mk-gorg .sz-mk { flex:none; width:86px; display:flex; flex-direction:column; align-items:center; gap:3px; border:0; background:#f8f7fc; border-radius:16px; padding:10px 6px 8px; font:inherit; cursor:pointer; }
+        .sz-mk-gorg .sz-mk b { font-size:11.5px; font-weight:700; color:#111827; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .sz-mk-gorg .sz-mk em { font-style:normal; font-size:10.5px; color:#6b7280; text-align:center; line-height:1.2; }
+        .sz-mk-ures { padding:4px 18px 14px; margin:0; }
+        .sz-mk-sav { margin:0 0 12px; }
+        .sz-mk-savfej { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 6px; }
+        .sz-mk-savfej b { font-size:13px; color:#374151; } .sz-mk-savfej em { font-style:normal; font-size:12px; color:#6b7280; }
+        .sz-mk-racs { display:grid; grid-template-columns:repeat(auto-fill, minmax(62px, 1fr)); gap:8px 4px; }
+        .sz-mk-racs .sz-mk { display:flex; flex-direction:column; align-items:center; gap:2px; }
+        .sz-mk-racs .sz-mk em { font-style:normal; font-size:10.5px; font-weight:600; color:#374151; text-align:center; line-height:1.15; overflow-wrap:anywhere; hyphens:auto; }
+        .sz-mk-racs .sz-mk.zarva em { color:#9ca3af; }
+        .sz-mk-racs .sz-mk.zarva .sz-mk-svg { filter:none; opacity:.8; }
+        .sz-mk-toast { position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:5000; display:flex; align-items:center; gap:12px;
+            background:#1e1b4b; color:#fff; border-radius:20px; padding:10px 18px 10px 12px; box-shadow:0 12px 32px rgba(30,27,75,.35); animation:szMkBe .45s cubic-bezier(.2,1.4,.4,1); transition:opacity .4s, transform .4s; width:max-content; max-width:calc(100vw - 32px); box-sizing:border-box; }
+        .sz-mk-toast.el { opacity:0; transform:translate(-50%, 12px); }
+        .sz-mk-toast .sz-mk-svg { width:44px; height:51px; }
+        .sz-mk-toast span { display:flex; flex-direction:column; min-width:0; }
+        .sz-mk-toast em { font-style:normal; font-size:11px; font-weight:700; color:#c4b5fd; text-transform:uppercase; letter-spacing:.05em; }
+        .sz-mk-toast b { font-size:14.5px; } .sz-mk-toast small { font-size:12px; color:#d1d5db; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        @keyframes szMkBe { from { opacity:0; transform:translate(-50%, 24px) scale(.9); } to { opacity:1; transform:translate(-50%, 0) scale(1); } }
         .sz-r-kpi { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .sz-r-kpi.har { grid-template-columns:repeat(3, minmax(0,1fr)); }
         .sz-r-kpi > span { border:1.5px solid #e5e7eb; border-radius:14px; padding:10px 12px; font-size:13px; color:#6b7280; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
         .sz-r-kpi > span.fo { border-color:#21b5a0; } .sz-r-kpi b { font-size:22px; color:#111827; font-weight:800; }
@@ -17144,11 +17171,63 @@ const szSzamit = (d, h, s) => szEsedekes(h, s) && (!szHeti(h) || szKesz(d, h, s)
 const szSorSzo = (h, n) => `${n} ${szHeti(h) ? 'hetes' : 'napos'} sorozat`;
 const szGyakSzo = h => szHeti(h) ? `Heti ${h.het}×` : h.napok && h.napok.length ? h.napok.map(i => ['H','K','Sze','Cs','P','Szo','V'][i]).join(', ') : 'Minden nap';
 function szValt(d, id, s){
+    const h = (d.lista || []).find(x => x.id === id), elotte = h ? new Set(szMkMeg(d, h)) : null;
     const l = (d.napok[s] || []).slice(), i = l.indexOf(id);
     if(i >= 0) l.splice(i, 1); else l.push(id);
     if(l.length) d.napok[s] = l; else delete d.napok[s];
     prvMent('szokasok');
     try { if(i < 0 && navigator.vibrate) navigator.vibrate(12); } catch(e){}
+    // új mérföldkő a pipával → ünneplés
+    if(h && i < 0){ const uj = szMkLista(d, h).filter(m => m.meg && !elotte.has(m.k)); if(uj.length) szMkToast(h, uj[uj.length - 1]); }
+}
+// ===================== MÉRFÖLDKŐ-JELVÉNYEK =====================
+// Két sáv: a valaha elért leghosszabb sorozat (így a megszakadt sorozat sem veszi el a
+// megszerzett jelvényt) és az összes teljesítés. Fokozatok: bronz → ezüst → arany → gyémánt → legenda.
+const SZ_MK_FOK = ['bronz', 'ezust', 'arany', 'gyemant', 'legenda'];
+const SZ_MK_SZIN = { bronz:['#f8c58f','#b45f22'], ezust:['#f1f5f9','#8193ab'], arany:['#fde68a','#d97706'], gyemant:['#a5f3fc','#4f46e5'], legenda:['#f5b8ff','#7c3aed'] };
+const SZ_MK_SOR_NAP = [[3,'Elindultál','bronz'], [7,'Egy hét','bronz'], [14,'Két hét','ezust'], [21,'Szokássá vált','ezust'], [30,'Egy hónap','arany'],
+    [60,'Két hónap','arany'], [100,'Száz nap','gyemant'], [200,'Kétszáz nap','gyemant'], [365,'Egy év','legenda']];
+const SZ_MK_SOR_HET = [[2,'Két hét','bronz'], [4,'Egy hónap','bronz'], [8,'Két hónap','ezust'], [12,'Negyedév','arany'], [26,'Fél év','gyemant'], [52,'Egy év','legenda']];
+const SZ_MK_OSSZ = [[10,'Tízes','bronz'], [25,'Negyedszáz','bronz'], [50,'Ötvenes','ezust'], [100,'Százas','arany'], [250,'Negyedezer','gyemant'],
+    [500,'Ötszázas','gyemant'], [1000,'Ezres','legenda']];
+const szOssz = (d, h) => Object.values(d.napok || {}).filter(l => l.includes(h.id)).length;
+function szMkLista(d, h){
+    const hh = szHeti(h), leg = szLeghosszabb(d, h), o = szOssz(d, h);
+    return [...(hh ? SZ_MK_SOR_HET : SZ_MK_SOR_NAP).map(([n, cim, t]) => ({ k: 's' + n, n, cim, t, tip: 'sor', szo: `${n} ${hh ? 'hetes' : 'napos'} sorozat`, meg: leg >= n, most: leg })),
+            ...SZ_MK_OSSZ.map(([n, cim, t]) => ({ k: 'o' + n, n, cim, t, tip: 'ossz', szo: `${n}× teljesítve`, meg: o >= n, most: o }))];
+}
+const szMkMeg = (d, h) => szMkLista(d, h).filter(m => m.meg).map(m => m.k);
+// A legrangosabb megszerzett jelvény (fokozat, azon belül a sorozat előbb)
+function szMkLegjobb(d, h){
+    const l = szMkLista(d, h).filter(m => m.meg);
+    return l.sort((a, b) => SZ_MK_FOK.indexOf(b.t) - SZ_MK_FOK.indexOf(a.t) || (a.tip === 'sor' ? -1 : 1) - (b.tip === 'sor' ? -1 : 1) || b.n - a.n)[0] || null;
+}
+let szMkUid = 0;
+function szMkSvg(m, zarva){
+    const [a, b] = zarva ? ['#f3f4f6', '#d1d5db'] : SZ_MK_SZIN[m.t], id = 'szmk' + (++szMkUid);
+    const fs = m.n >= 1000 ? 10 : m.n >= 100 ? 12.5 : 15;
+    return `<svg viewBox="0 0 48 56" class="sz-mk-svg" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
+        <path d="M15 33 9.5 53.5l8-3.8 4.3 6.3L24 39zM33 33l5.5 20.5-8-3.8-4.3 6.3L24 39z" fill="${zarva ? '#e5e7eb' : b}" opacity=".9"/>
+        <circle cx="24" cy="22" r="20" fill="url(#${id})"/><circle cx="24" cy="22" r="15.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="2"/>
+        ${m.tip === 'sor' ? `<path d="M24 6.5c1.2 2 3.3 3.2 3.3 5.6a3.3 3.3 0 0 1-6.6 0c0-1.3.6-2.2 1.3-3" fill="none" stroke="${zarva ? '#cbd5e1' : '#fff'}" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>` : ''}
+        <text x="24" y="${m.tip === 'sor' ? 31 : 27.5}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${zarva ? '#9ca3af' : '#fff'}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">${m.n}${m.tip === 'ossz' ? '×' : ''}</text></svg>`;
+}
+function szMkToast(h, m){
+    document.querySelectorAll('.sz-mk-toast').forEach(x => x.remove());
+    const t = document.createElement('div'); t.className = 'sz-mk-toast'; t.setAttribute('role', 'status');
+    t.innerHTML = `${szMkSvg(m)}<span><em>Új mérföldkő!</em><b>${esc(m.cim)} · ${esc(m.szo)}</b><small>${esc(h.n)}</small></span>`;
+    document.body.appendChild(t);
+    try { if(navigator.vibrate) navigator.vibrate([20, 60, 30]); } catch(e){}
+    setTimeout(() => t.classList.add('el'), 3800); setTimeout(() => t.remove(), 4300);
+    t.addEventListener('click', () => t.remove());
+}
+// A szokás részleteinek jelvény-szakasza: megszerzett színesen, a többi szürkén, és mennyi van a következőig.
+function szMkReszletHtml(d, h){
+    const l = szMkLista(d, h);
+    const sav = (tip, cim) => { const x = l.filter(m => m.tip === tip), kov = x.find(m => !m.meg);
+        return `<div class="sz-mk-sav"><div class="sz-mk-savfej"><b>${cim}</b>${kov ? `<em>következő: ${esc(kov.szo)} · még ${kov.n - kov.most}</em>` : '<em>minden megvan! 🏆</em>'}</div>
+            <div class="sz-mk-racs">${x.map(m => `<span class="sz-mk${m.meg ? '' : ' zarva'}" title="${esc(m.cim + ' – ' + m.szo)}">${szMkSvg(m, !m.meg)}<em>${esc(m.cim)}</em></span>`).join('')}</div></div>`; };
+    return sav('sor', 'Sorozat') + sav('ossz', 'Teljesítések');
 }
 // Sorozat: visszafelé számolt egymást követő, esedékes és teljesített napok.
 // A mai nap még nem töri meg (ha még nincs kipipálva, tegnaptól számolunk).
@@ -17223,7 +17302,7 @@ async function renderSzokasok(){
         return `<div class="nl-cel${es ? '' : ' szunet'}">${es ? `<button type="button" class="nl-cel-pipa${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${szNap}" aria-pressed="${on}" aria-label="${esc(h.n)}${on ? ' – kész' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button>`
                 : '<span class="nl-cel-pipa ures" aria-hidden="true"></span>'}
             <span class="nl-cel-ik" style="color:${t.c}">${szIkSvg(h.ik)}</span>
-            <button type="button" class="nl-cel-t" data-szreszl="${esc(h.id)}"><b>${esc(h.n)}</b><span>${szHeti(h) ? `<em class="sz-hetdb${szHetDb(d, h, szNap) >= h.het ? ' meg' : ''}">${szHetDb(d, h, szNap)}/${h.het} a héten</em> ` : ''}${sr ? `${szSorSzo(h, sr)} 🔥` : 'Kezdd el a sorozatod 🔥'}${es ? '' : ' · ma szünnap'}</span><i>›</i></button></div>`; };
+            <button type="button" class="nl-cel-t" data-szreszl="${esc(h.id)}"><b>${esc(h.n)}</b><span>${szHeti(h) ? `<em class="sz-hetdb${szHetDb(d, h, szNap) >= h.het ? ' meg' : ''}">${szHetDb(d, h, szNap)}/${h.het} a héten</em> ` : ''}${sr ? `${szSorSzo(h, sr)} 🔥` : 'Kezdd el a sorozatod 🔥'}${es ? '' : ' · ma szünnap'}${(m => m ? ` <em class="sz-mk-cimke" style="--c:${SZ_MK_SZIN[m.t][1]}">${szMkSvg(m)}${esc(m.cim)}</em>` : '')(szMkLegjobb(d, h))}</span><i>›</i></button></div>`; };
     // havi hőtérkép: a nap színe annál erősebb, minél több esedékes szokás teljesült
     const [hy, hm] = szHo.split('-').map(Number), elso = new Date(hy, hm - 1, 1), hossz = new Date(hy, hm, 0).getDate();
     const ures = (elso.getDay() + 6) % 7;
@@ -17246,7 +17325,13 @@ async function renderSzokasok(){
                 const l = lista.filter(h => prvTer(h.ter).k === t.k), es = l.filter(h => szSzamit(d, h, szNap)), kesz = es.filter(h => szKesz(d, h, szNap)).length;
                 return `<div class="sz-ter-fej" style="--c:${t.c};--b:${t.b}"><i>${prvTerIk(t)}</i><b>${esc(t.nt)}</b>${es.length ? `<em>${kesz}/${es.length}</em>` : ''}</div>${l.map(sor).join('')}`;
             }).join('');
-            return `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div>${szuro}<section class="card nl-celok sz-lista">${csop}</section>`;
+            // Mérföldkövek: szokásonként a legrangosabb jelvény, vízszintesen görgetve
+            const mk = lista.map(h => [h, szMkLegjobb(d, h)]).filter(x => x[1]);
+            const mkDb = lista.reduce((a, h) => a + szMkMeg(d, h).length, 0);
+            const mkK = `<section class="card pv-kartya sz-mk-k"><h4 class="pv-cim">Mérföldkövek<span class="pv-szam">${mkDb}</span></h4>
+                ${mk.length ? `<div class="sz-mk-gorg">${mk.map(([h, m]) => `<button type="button" class="sz-mk" data-szreszl="${esc(h.id)}" title="${esc(m.cim + ' – ' + m.szo)}">${szMkSvg(m)}<b>${esc(h.n)}</b><em>${esc(m.szo)}</em></button>`).join('')}</div>`
+                    : '<p class="pv-megj sz-mk-ures">Az első jelvény 3 napos sorozatnál (heti szokásnál 2 hétnél) vagy 10 teljesítésnél jár. 🏅</p>'}</section>`;
+            return `<div class="nl-cel-fej"><span>🚀 Szokásaim</span></div>${szuro}<section class="card nl-celok sz-lista">${csop}</section>${mkK}`;
         })()
             : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Kezdd egy egyszerűvel</h4><p>Egy-két kis szokás többet ér, mint tíz, amit egy hét után elhagysz. Koppints egy javaslatra, vagy vegyél fel sajátot.</p></section>`}
         ${(() => {
@@ -18768,6 +18853,8 @@ async function szReszlet(id){
                 <div class="sz-r-kpi"><span><b>${a7 ?? '—'}%</b>${valt(a7, a7e)}<em>${hh ? 'elmúlt 4 hét' : 'elmúlt 7 nap'}</em></span><span><b>${a30 ?? '—'}%</b>${valt(a30, a30e)}<em>${hh ? 'elmúlt 12 hét' : 'elmúlt 30 nap'}</em></span></div>
                 <h4 class="sz-r-cim">Teljesítések</h4>
                 <div class="sz-r-kpi har"><span class="fo"><b>${osszes}×</b><em>összesen</em></span><span><b>${hoDb(ho0)}×</b><em>${PRV_HO[+ho0.slice(5) - 1]}</em></span><span><b>${hoDb(ho1)}×</b><em>${PRV_HO[+ho1.slice(5) - 1]}</em></span></div>
+                <h4 class="sz-r-cim">Mérföldkövek</h4>
+                ${szMkReszletHtml(d, h)}
             </div>
             <div class="modal-foot"><button class="btn" data-szrszerk>Szerkesztés</button><button class="pv-ment" data-szrx>Kész</button></div></div>`;
     };
