@@ -36,6 +36,7 @@ kapcsoló mellett) választható, eszközönként (`localStorage: sf_elet_icon`)
 
 | mappa            | név           | manifest                      |
 |------------------|---------------|-------------------------------|
+| `tukor-szem/`    | Szem (alap)   | `manifest-tukor-szem.json`    |
 | `elet-lotusz/`   | Aurora-lótusz | `manifest-elet-lotusz.json`   |
 | `elet-vegtelen/` | Végtelen      | `manifest-elet-vegtelen.json` |
 
