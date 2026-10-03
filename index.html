@@ -5515,6 +5515,15 @@
         .pv-lep button:disabled { opacity:.35; cursor:default; }
         .pv-kapsz { border:0; border-radius:999px; background:#111827; color:#fff; font:inherit; font-size:12.5px; font-weight:700; padding:9px 14px; cursor:pointer; white-space:nowrap; }
         .ma-racs { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
+        .ma-racs > .ma-idezet-k { background:linear-gradient(135deg,#f5f3ff 0%,#fdf2f8 100%); border-color:#ece6fb; padding:0; grid-column:1 / -1; min-height:0; }
+        .ma-idezet { position:relative; margin:0; padding:18px 56px 18px 58px; }
+        .ma-idezet-jel { position:absolute; left:18px; top:-10px; font:800 62px/1 Georgia,'Times New Roman',serif; color:#a78bfa; opacity:.55; }
+        .ma-idezet blockquote { margin:0; font-size:16.5px; line-height:1.45; font-weight:600; color:#2e1065; text-wrap:pretty; }
+        .ma-idezet figcaption { margin-top:6px; font-size:12.5px; font-weight:600; color:#7c6a9a; }
+        .ma-idezet-mas { position:absolute; right:12px; top:12px; width:34px; height:34px; border:0; border-radius:10px; background:rgba(255,255,255,.7); color:#6d28d9; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+        .ma-idezet-mas:hover { background:#fff; }
+        .ma-idezet-mas svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+        @media (max-width:600px){ .ma-idezet { padding:16px 50px 16px 48px; } .ma-idezet-jel { left:13px; top:-8px; font-size:52px; } .ma-idezet blockquote { font-size:15px; } }
         /* Széles képernyőn két oszlop: egy sorban a kártyák egyforma magasak; ha egy kártya
            egyedül maradna a sorában (páratlan számú fél szélességű egymás után), a teljes sort kitölti. */
         @media (min-width:900px){
@@ -19747,6 +19756,7 @@ async function renderPrivMa(){
     // láthatóság a privát beállításokban él (privat/{uid}_beall → ma: { sor:[…], rejt:[…], esti }).
     const nlKartya = nlK ? kartya(nlK.kesz ? 'Mai napló' : 'Esti zárás', 'enaplo', nlK.zaras, 'ma-nl-k') : '';
     const K = {
+        idezet: `<section class="card pv-kartya ma-idezet-k">${maIdezetHtml()}</section>`,
         fokusz: nlK && nlK.fokuszHtml ? kartya('Mai fókusz', '', nlK.fokuszHtml, 'ma-fok-k') : '',
         emlek: emlek ? kartya('Ezen a napon', '', emlek, 'ma-emlek-k') : '',
         szokas: kartya(`Mai szokások${szAll.es ? `<span class="pv-szam">${szKeszDb} / ${szAll.es}</span>` : ''}`, 'szokasok', szl.length
@@ -19773,7 +19783,7 @@ async function renderPrivMa(){
     // este (17 óra után), ha még nincs mai bejegyzés, az Esti zárás a lap tetejére kerül (kikapcsolható)
     if(mb.esti && nlK && !nlK.kesz && ora >= 17 && sor.includes('naplo')) sor = ['naplo', ...sor.filter(k => k !== 'naplo')];
     // páratlan számú fél szélességű kártya egymás után → az utolsó teljes szélességű (ne maradjon félárva hely)
-    const TELJES = new Set(['szokas']), lat = sor.filter(k => K[k]);
+    const TELJES = new Set(['szokas', 'idezet']), lat = sor.filter(k => K[k]);
     let fut = [];
     const lezar = () => { if(fut.length % 2) K[fut[fut.length - 1]] = K[fut[fut.length - 1]].replace('class="card pv-kartya', 'class="card pv-kartya ma-teljes'); fut = []; };
     for(const k of lat){ if(TELJES.has(k)) lezar(); else fut.push(k); }
@@ -19790,8 +19800,69 @@ async function renderPrivMa(){
     if(window.sfSplashLe) requestAnimationFrame(() => window.sfSplashLe());
 }
 window.sfShowPrivMa = function(){ renderPrivMa(); };
+// ---- Napi idézet: 50 motiváló gondolat, naponta másik (17 lépésenként, így csak 50 nap után ismétlődik) ----
+const MA_IDEZETEK = [
+    ['Minden nagy utazás egyetlen lépéssel kezdődik.', 'Lao-ce'],
+    ['Az vagy, amit ismételten teszel. A kiválóság tehát nem egyszeri tett, hanem szokás.', 'Will Durant'],
+    ['Akár azt hiszed, hogy képes vagy rá, akár azt, hogy nem – igazad lesz.', 'Henry Ford'],
+    ['Nem számít, milyen lassan haladsz, amíg meg nem állsz.', 'Konfuciusz'],
+    ['A legjobb idő egy fa elültetésére húsz évvel ezelőtt volt. A második legjobb most.', 'kínai közmondás'],
+    ['Kezdd ott, ahol vagy. Használd, amid van. Tedd, amit tudsz.', 'Arthur Ashe'],
+    ['Nem kell nagynak lenned ahhoz, hogy elkezdd, de el kell kezdened ahhoz, hogy naggyá válj.', 'Zig Ziglar'],
+    ['A fegyelem a híd a célok és az eredmények között.', 'Jim Rohn'],
+    ['Kétféle fájdalom van: a fegyelemé és a megbánásé. A fegyelem grammokban mérhető, a megbánás tonnákban.', 'Jim Rohn'],
+    ['Ne a napokat számold – tedd, hogy a napok számítsanak.', 'Muhammad Ali'],
+    ['Mindig lehetetlennek tűnik, amíg meg nem csinálják.', 'Nelson Mandela'],
+    ['Ha repülni nem tudsz, fuss. Ha futni nem tudsz, gyalogolj. Ha járni nem tudsz, mássz. De bármit teszel, haladj előre.', 'Martin Luther King Jr.'],
+    ['A boldogság nem kész dolog. A saját tetteidből fakad.', 'Dalai Láma'],
+    ['Haladj magabiztosan az álmaid irányába. Éld azt az életet, amelyet elképzeltél.', 'Henry David Thoreau'],
+    ['Az élet olyan, mint a biciklizés: ahhoz, hogy megtartsd az egyensúlyod, mozgásban kell maradnod.', 'Albert Einstein'],
+    ['Nem buktam el. Csak találtam tízezer módszert, ami nem működik.', 'Thomas Edison'],
+    ['A legnagyobb dicsőség nem az, hogy sosem bukunk el, hanem hogy minden bukás után felállunk.', 'Oliver Goldsmith'],
+    ['A jövő azoké, akik hisznek álmaik szépségében.', 'Eleanor Roosevelt'],
+    ['Nagyszerű munkát csak úgy végezhetsz, ha szereted, amit csinálsz.', 'Steve Jobs'],
+    ['Ne attól félj, hogy lassan haladsz – attól félj, hogy egy helyben állsz.', 'kínai közmondás'],
+    ['A futás a legjobb metafora az életre: annyit kapsz vissza, amennyit beleteszel.', 'Oprah Winfrey'],
+    ['Ha futni akarsz, fuss egy mérföldet. Ha egy másik életet akarsz megtapasztalni, fuss maratont.', 'Emil Zátopek'],
+    ['Ép testben ép lélek.', 'Juvenalis'],
+    ['Ismerd meg önmagad.', 'a delphoi jósda felirata'],
+    ['A meg nem vizsgált élet nem méltó az emberhez.', 'Szókratész'],
+    ['Légy te magad a változás, amit látni szeretnél a világban.', 'Mahátma Gandhi'],
+    ['Nem az számít, hogy leütnek-e, hanem hogy felállsz-e.', 'Vince Lombardi'],
+    ['Amit nem mérsz, azt nem tudod fejleszteni.', 'Peter Drucker'],
+    ['A szokások az önfejlesztés kamatos kamatai.', 'James Clear'],
+    ['Nem a céljaid szintjére emelkedsz, hanem a rendszereid szintjére esel vissza.', 'James Clear'],
+    ['Minden tetted egy szavazat arra az emberre, aki lenni szeretnél.', 'James Clear'],
+    ['A bátorság nem a félelem hiánya, hanem a félelem legyőzése.', 'Nelson Mandela'],
+    ['Akinek van miért élnie, szinte minden hogyan-t elvisel.', 'Friedrich Nietzsche'],
+    ['Az embertől mindent elvehetnek, egyet kivéve: a szabadságot, hogy megválassza, hogyan viszonyul a körülményeihez.', 'Viktor Frankl'],
+    ['Kezdd azzal, hogy végiggondolod, hová akarsz eljutni.', 'Stephen R. Covey'],
+    ['A türelem rózsát terem.', 'magyar közmondás'],
+    ['Az élet tíz százaléka az, ami történik velünk, kilencven százaléka pedig az, ahogyan reagálunk rá.', 'Charles R. Swindoll'],
+    ['A felfedezés az, hogy látjuk, amit mindenki lát, és gondoljuk, amit senki sem gondolt.', 'Szent-Györgyi Albert'],
+    ['Hass, alkoss, gyarapíts: s a haza fényre derül!', 'Kölcsey Ferenc'],
+    ['Mondottam, ember: küzdj és bízva bízzál!', 'Madách Imre'],
+    ['Dolgozni csak pontosan, szépen, ahogy a csillag megy az égen, úgy érdemes.', 'József Attila'],
+    ['Nem azért nem merünk, mert nehéz a dolog, hanem azért nehéz, mert nem merünk.', 'Seneca'],
+    ['Életünk olyan, amilyenné gondolataink teszik.', 'Marcus Aurelius'],
+    ['Nem a dolgok nyugtalanítanak minket, hanem a róluk alkotott véleményünk.', 'Epiktétosz'],
+    ['Amit meg kell tanulnunk, azt cselekedve tanuljuk meg.', 'Arisztotelész'],
+    ['Nincs ember korlátok nélkül.', 'Eliud Kipchoge'],
+    ['Csak a fegyelmezettek szabadok az életben.', 'Eliud Kipchoge'],
+    ['Újra és újra kudarcot vallottam az életben. És pontosan ezért vagyok sikeres.', 'Michael Jordan'],
+    ['A meg nem tett lövések száz százaléka nem megy be.', 'Wayne Gretzky'],
+    ['Nem léphetsz kétszer ugyanabba a folyóba.', 'Hérakleitosz'],
+];
+let maIdezetEltol = 0;   // a ↻ gombbal léptetett, csak erre a munkamenetre
+function maIdezetHtml(){
+    const [y, m, d] = ezMa().split('-').map(Number), nap = Math.round(Date.UTC(y, m - 1, d) / 864e5);
+    const n = MA_IDEZETEK.length, [t, a] = MA_IDEZETEK[(((nap + maIdezetEltol) * 17) % n + n) % n];
+    return `<figure class="ma-idezet"><span class="ma-idezet-jel" aria-hidden="true">„</span><blockquote>${esc(t)}</blockquote><figcaption>— ${esc(a)}</figcaption>
+        <button type="button" class="ma-idezet-mas" data-maidezet aria-label="Másik idézet" title="Másik idézet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></figure>`;
+}
 // ---- A Ma oldal testreszabása: mely kártyák látszanak, milyen sorrendben ----
 const MA_KARTYAK = [
+    ['idezet', 'Napi idézet', 'minden nap egy másik motiváló gondolat'],
     ['fokusz', 'Mai fókusz', 'a tegnap esti „holnapi top 3”'], ['emlek', 'Ezen a napon', 'egy, két, három éve ilyenkor'],
     ['szokas', 'Mai szokások', 'pipálható csempék'], ['edzes', 'Mai edzés', 'a mai terv, Kész gombbal'],
     ['penz', 'Pénz', 'maradék keret, közelgő fizetések'], ['kolt', 'Mai költések', 'a mai kiadások, gyors rögzítés'],
@@ -19974,6 +20045,8 @@ document.addEventListener('click', e => {
     const eo = e.target.closest('[data-maedzok]'); if(eo){ ezJelol(ezMa(), eo.dataset.maedzok, 'ok').then(renderPrivMa); return; }
     if(e.target.closest('[data-mamer]')){ if(ezMeresMent(true)) renderPrivMa(); return; }
     if(e.target.closest('[data-matestre]')){ maTestreModal(); return; }
+    const mi = e.target.closest('[data-maidezet]');
+    if(mi){ maIdezetEltol++; const k = mi.closest('.ma-idezet-k'); if(k){ k.innerHTML = maIdezetHtml(); k.querySelector('[data-maidezet]').focus(); } return; }
     const eg = e.target.closest('[data-maeg]'); if(eg){ const [m, i] = eg.dataset.maeg.split('|'); maEgValt(m, +i); return; }
     if(e.target.closest('[data-maalv]')){ alvModal(); return; }
 });
