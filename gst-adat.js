@@ -3,7 +3,7 @@
    ? = a munkatársnak feltett kérdés (zárójelben a várt válasz),  - / 1. = lista
    (két szóköz behúzás = alpont),  !kép = ábra,  --- = szakasz vége,  **félkövér**. */
 window.SF_GST = [
-{ id:'bedolgozas', n:'4 hetes bedolgozás', c:'#21223e', b:'icons/gst/bedolgozas.jpg', u:'https://app.notion.com/e6dada168764415bab32afd0c3049a48', t:`
+{ id:'bedolgozas', n:'4 hetes bedolgozás', c:'#21223e', u:'https://app.notion.com/e6dada168764415bab32afd0c3049a48', t:`
 # 0. hét
 - **Péntek:** Infó szeminárium (19:00–21:00), Információs ital
 - **Szombat:** Starter szeminárium (14:00–16:00), Starter PG, Kulcstartó beszélgetés
@@ -33,7 +33,7 @@ window.SF_GST = [
 - **Péntek:** Telefonparty (16:00–18:00), Infó szeminárium (19:00–21:00), Információs ital
 - **Szombat:** Starter szeminárium (14:00–16:00), Kulcstartó beszélgetés, Alap vizsga (14:00–16:00)
 `},
-{ id:'starter', n:'Starter beszélgetés', c:'#b8741a', b:'icons/gst/starter.jpg', u:'https://app.notion.com/62196edb85a64f7eb895db24a146db51', t:`
+{ id:'starter', n:'Starter beszélgetés', c:'#b8741a', u:'https://app.notion.com/62196edb85a64f7eb895db24a146db51', t:`
 > A hanganyag (Vajay Csaba) a Notion-oldalon hallgatható meg.
 
 !icons/gst/starter-abra.jpg
@@ -49,7 +49,7 @@ Ezért maximum az első 5 elemzést azzal tudod elvégezni, akivel szeretnéd.
 ? Ezt milyennek tartod?
 ? Hol látod itt a magad előnyét?
 `},
-{ id:'kulcstarto', n:'Kulcstartó beszélgetés', c:'#52561f', b:'icons/gst/kulcstarto.jpg', u:'https://app.notion.com/2c9eb80f4fc34210acd97cff91f53c63', t:`
+{ id:'kulcstarto', n:'Kulcstartó beszélgetés', c:'#52561f', u:'https://app.notion.com/2c9eb80f4fc34210acd97cff91f53c63', t:`
 Már csak egyetlen dolog maradt hátra, ami számomra igazi motivációt jelent. Tegnap nagyon sokat hallhattál az OVB karrierlehetőségéről, mert a cégünk a **kiemelkedő munkatársakat** nemcsak egy nagyon **jó fizetéssel**, hanem **különböző incentive utakkal és céges rendezvényekkel is díjazza**. Láthattad, hogy fiatalos a társaság, ezért az utazásokon mindig nagyon jó a hangulat. Általában az első este szokott a legjobban sikerülni. Ilyenkor mindig lecsúszik egy-két pohár ital, és miután a hangulat a tetőfokára hág, valaki belenyúl a nadrágzsebébe, elővesz egy igazi relikviát, és jól látható helyre teszi az asztalon, hogy mindenki észrevegye.
 ? Ezzel mit gondolsz, mit akar elérni? (Figyelemfelkeltés)
 Pontosan. Ezért a többség is egyből elkezd kutakodni, keresik ezt a bizonyos relikviát, és ugyanúgy kiteszik az asztalra a többi mellé, és elégedetten nézik. De vannak olyanok, akik görcsösen kutakodnak, lesz egy bizonyos arcszínük, és korántsem érzik olyan jól magukat. Miután nem férnek be többen a mosdóba, az egyikük azt mondja: otthon felejtettem. Ez azonban a legritkább esetben igaz – valójában nincs meg nekik ez a relikviájuk.
@@ -63,7 +63,7 @@ Ezt úgy fogjuk tudni közösen elérni, hogy egy embertársunknak az elkövetke
 ? Ki lenne az a személy, akivel el tudunk készíteni egy igényfelmérőt az elkövetkezendő 2 napban? (XY)
 XY-nak ketten fogunk tudni segíteni. Viszont ő még erről nem tud, ezért hívjuk fel közösen.
 `},
-{ id:'potember-sima', n:'Pótember beszélgetés – sima', c:'#6e6e6e', b:'icons/gst/potember-sima.jpg', u:'https://app.notion.com/2a299778886047adb1b9826fc1b5423e', t:`
+{ id:'potember-sima', n:'Pótember beszélgetés – sima', c:'#6e6e6e', u:'https://app.notion.com/2a299778886047adb1b9826fc1b5423e', t:`
 Kedves Munkatárs, téged számos pályázó közül választottunk ki, és a pénzügyi ágazat egyik legjobb képzésében fogsz részesülni.
 Ez a képzés cégünknek körülbelül félmillió forintjába kerül.
 Ez azt jelenti, hogy nagy reménységnek tartunk, és bízunk benned.
@@ -76,7 +76,7 @@ Mivel ez sokba kerül a cégünknek: képzeld el, hogy három-négy hétre lebet
 ? Hogy hívják? Hány éves? Mivel foglalkozik?
 ? És mit gondolsz, melyik az előnyösebb: ha megbetegszel, és akkor képezzük ki őt, vagy ha már most elkezdjük? (Most)
 `},
-{ id:'potember-focis', n:'Pótember beszélgetés – focis', c:'#03989e', b:'icons/gst/potember-focis.jpg', u:'https://app.notion.com/92beade6e3fa44a9a8394f2d084c25bc', t:`
+{ id:'potember-focis', n:'Pótember beszélgetés – focis', c:'#03989e', u:'https://app.notion.com/92beade6e3fa44a9a8394f2d084c25bc', t:`
 Kedves XY, téged számos pályázó közül választottunk ki, és a pénzügyi ágazat egyik legjobb képzésében részesülsz itt nálunk.
 Ez a képzés cégünknek körülbelül félmillió forintjába kerül.
 Ezért, mint látod, mi nagyon komolyan vesszük a képzésedet.
@@ -94,7 +94,7 @@ Ugyanis az ügyvezetőségünk csak akkor engedélyezi a további képzésedet, 
 ? Hogy hívják? Hány éves? Mivel foglalkozik?
 ? És mit gondolsz, melyik az előnyösebb: ha megbetegszel, és akkor képezzük ki őt, vagy jobb, ha már most elkezdjük?
 `},
-{ id:'pg1-4', n:'PG 1 – PG 4', c:'#383232', b:'icons/gst/pg1-4.jpg', u:'https://app.notion.com/54529c15cc4a4ef9887b269aede2c72f', t:`
+{ id:'pg1-4', n:'PG 1 – PG 4', c:'#383232', u:'https://app.notion.com/54529c15cc4a4ef9887b269aede2c72f', t:`
 # PG 1
 ## Előzmény
 > A munkatárs részt vett az Infó- és a Starter szemináriumon, illetve megvolt neki a Kulcstartó beszélgetés és a kulcstartó elemzés.
@@ -218,7 +218,7 @@ A beszélgetést a munkatárs közvetlen főnökének abszolút exkluzívan kell
 10. Megállapodás a következményekről be nem tartás esetére
 11. **Cégbemutatást és célszituációt gyakorolni (először Ön, utána a munkatárs) – Tréning**
 `},
-{ id:'elemzes', n:'Elemzés letisztázó beszélgetés', c:'#e14f4f', b:'icons/gst/elemzes.jpg', u:'https://app.notion.com/766e1b88cb17424286f22c68b8a571ee', t:`
+{ id:'elemzes', n:'Elemzés letisztázó beszélgetés', c:'#e14f4f', u:'https://app.notion.com/766e1b88cb17424286f22c68b8a571ee', t:`
 > Ennek a vezető és munkatárs közötti megbeszélésnek az első elemzés elvégzése előtt kell lezajlania.
 ## Menete
 **Az elemzés átadása a munkatársnak, és gratuláció hozzá!**
@@ -242,7 +242,7 @@ Az 1. elemzés magyarázata:
 **Az első elemzésnek 100%-osan kell működnie. Vagyis az első ügyfél ne egy „nehéz”, hanem inkább egy „könnyű” ügyfél legyen.**
 > Ha ezt pontosan így alkalmazza, sok sikerre számíthat!
 `},
-{ id:'heti-pg', n:'Heti PG', c:'#5d6470', b:'icons/gst/heti-pg.jpg', u:'https://app.notion.com/6f4456105c70414c9e13111769b5faae', t:`
+{ id:'heti-pg', n:'Heti PG', c:'#5d6470', u:'https://app.notion.com/6f4456105c70414c9e13111769b5faae', t:`
 # 1. Előkészítés
 Minden egyes alkalommal készülni kell a PG-re. Mi lesz a PG pontos menete, és hova szeretnéd, hogy eljusson a beszélgetés a végén?
 # 2. Üdvözlés

@@ -1183,7 +1183,14 @@
         .idd-racs { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
         .idd-k { margin:0; padding:0; overflow:hidden; display:flex; flex-direction:column; text-align:left; font:inherit; color:inherit; cursor:pointer; transition:transform .12s, box-shadow .12s; }
         .idd-k:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(15,47,95,.14); }
-        .idd-bor { display:block; width:100%; aspect-ratio:3/1; object-fit:cover; background:var(--idd, #e5e7eb); }
+        /* Borító (A terv): témakörszínű sáv, ritkított nagybetűs cím, alatta az aláírás. */
+        .idd-bor, .idd-hos { position:relative; overflow:hidden; background:var(--idd, #3b6cf6); color:#fff; display:flex; flex-direction:column; justify-content:center; }
+        .idd-bor { height:92px; padding:0 16px; flex:none; }
+        .idd-bor::after, .idd-hos::after { content:''; position:absolute; right:-18px; bottom:-22px; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.10); pointer-events:none; }
+        .idd-bor::before, .idd-hos::before { content:''; position:absolute; right:30px; top:-30px; width:70px; height:70px; border-radius:50%; background:rgba(255,255,255,.08); pointer-events:none; }
+        .idd-bor em, .idd-hos em { position:relative; font-style:normal; font-size:12.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; line-height:1.3; }
+        .idd-bor small, .idd-hos small { position:relative; font-family:Georgia, 'Times New Roman', serif; font-style:italic; font-size:11.5px; opacity:.88; margin-top:5px; }
+        .idd-bor small::before, .idd-hos small::before { content:''; display:block; width:36px; height:1.5px; background:rgba(255,255,255,.6); margin-bottom:5px; }
         .idd-k-test { padding:12px 14px 13px; display:flex; flex-direction:column; gap:8px; flex:1; }
         .idd-k-test b { font-size:15px; color:#111827; line-height:1.3; }
         .idd-cimkek { display:flex; flex-wrap:wrap; gap:4px; }
@@ -1192,9 +1199,13 @@
         .idd-hal { display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--muted); font-weight:600; margin-top:auto; }
         .idd-hal i { flex:1; height:5px; border-radius:99px; background:#eef2f8; overflow:hidden; }
         .idd-hal i s { display:block; height:100%; background:var(--idd, var(--green)); border-radius:99px; }
-        .idd-hos { position:relative; margin:0 0 14px; border-radius:16px; overflow:hidden; box-shadow:var(--shadow); background:var(--idd); }
-        .idd-hos img { display:block; width:100%; max-height:220px; aspect-ratio:3/1; object-fit:cover; }
-        .idd-vissza { position:absolute; left:12px; top:12px; border:0; background:rgba(255,255,255,.92); font:inherit; font-size:13px; font-weight:700; color:var(--navy); border-radius:999px; padding:7px 14px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+        .idd-hos { margin:0 0 14px; border-radius:18px; box-shadow:var(--shadow); min-height:120px; padding:22px 28px; box-sizing:border-box; }
+        .idd-hos::after { width:220px; height:220px; right:-30px; bottom:-60px; }
+        .idd-hos::before { width:120px; height:120px; right:150px; top:-60px; }
+        .idd-hos em { font-size:22px; letter-spacing:.12em; }
+        .idd-hos small { font-size:14px; margin-top:6px; }
+        @media (max-width:640px){ .idd-hos { min-height:96px; padding:18px 20px; } .idd-hos em { font-size:17px; } }
+        .idd-vissza { border:1px solid var(--border); background:#fff; font:inherit; font-size:13px; font-weight:700; color:var(--navy); border-radius:999px; padding:7px 14px; cursor:pointer; margin:0 0 12px; }
         .idd-reszlet-fej { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin:0 0 12px; }
         .idd-reszlet-fej h2 { margin:0; font-size:24px; color:var(--navy); }
         .idd-forras { font-size:12px; color:var(--muted); margin-left:auto; }
@@ -1254,7 +1265,7 @@
         .gst-tart mark { background:#fde68a; color:inherit; border-radius:3px; padding:0 1px; }
         .gst-kesz { border:1px solid var(--border); background:#fff; font:inherit; font-size:12.5px; font-weight:700; color:var(--muted); border-radius:999px; padding:6px 13px; cursor:pointer; }
         .gst-kesz.on { background:var(--green); border-color:var(--green); color:#fff; }
-        .gst-jel { position:absolute; right:10px; top:10px; background:var(--green); color:#fff; font-size:11px; font-weight:800; border-radius:999px; padding:3px 9px; box-shadow:0 2px 6px rgba(0,0,0,.18); }
+        .gst-jel { position:absolute; z-index:1; right:10px; top:10px; background:var(--green); color:#fff; font-size:11px; font-weight:800; border-radius:999px; padding:3px 9px; box-shadow:0 2px 6px rgba(0,0,0,.18); }
         .idd-k { position:relative; }
         @media (max-width:640px){ .gst-tart { padding:14px 14px 16px; font-size:14.5px; } }
         /* ===== Tudástár (csapat-készségtábla) ===== */
@@ -8869,7 +8880,7 @@ let iddSzuro = store.load('sf_idd_szuro', 'mind'), iddKeres = '', iddBelso = '',
 function iddAdatBetolt(){
     if(window.SF_IDD) return Promise.resolve(window.SF_IDD);
     return iddToltes || (iddToltes = new Promise((ok, hiba) => {
-        const sc = document.createElement('script'); sc.src = 'idd-adat.js?v=2';
+        const sc = document.createElement('script'); sc.src = 'idd-adat.js?v=3';
         sc.onload = () => ok(window.SF_IDD || []); sc.onerror = () => { iddToltes = null; sc.remove(); hiba(new Error('idd')); };
         document.head.appendChild(sc);
     }));
@@ -8882,7 +8893,7 @@ function iddHalad(v){ const n = v.q.length, t = iddTudSzam(v), sz = n ? Math.rou
     return `<div class="idd-hal"><i><s style="width:${sz}%"></s></i><span>${t}/${n} megy</span></div>`; }
 const iddCimkeHtml = t => `<div class="idd-cimkek">${(t.length ? t : ['Egyéb']).map(c => `<span class="idd-c c-${esc(c)}">${esc(c)}</span>`).join('')}</div>`;
 const iddSzin = v => `--idd:${esc(v.c || '#3b6cf6')}`;
-const iddBorito = (v, cls) => v.b ? `<img class="${cls}" src="${esc(v.b)}" alt="" loading="lazy" decoding="async">` : `<div class="${cls}"></div>`;
+const iddBorito = (v, cls) => `<div class="${cls}"><em>${esc(v.n)}</em><small>BL Szécsi Márk</small></div>`;
 const iddNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 // Ékezetfüggetlen keresés: a találat az eredeti szövegben kap kiemelést.
 function iddJelol(s, q){
@@ -8929,8 +8940,8 @@ function iddKerdesHtml(q, i, t, kq){
 }
 function iddReszletHtml(v){
     const t = iddTudLista(v.id);
-    const fej = `<div class="idd-hos">${iddBorito(v, '')}<button type="button" class="idd-vissza" data-iddvissza>← Összes témakör</button></div>
-        <div class="idd-reszlet-fej"><h2>${esc(v.n)}</h2>${iddCimkeHtml(v.t)}
+    const fej = `<button type="button" class="idd-vissza" data-iddvissza>← Összes témakör</button>${iddBorito(v, 'idd-hos')}
+        <div class="idd-reszlet-fej">${iddCimkeHtml(v.t)}
         ${v.u ? `<a class="idd-forras" href="${esc(v.u)}" target="_blank" rel="noopener">Megnyitás Notionben ↗</a>` : ''}</div>
         <div class="idd-eszk"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-iddbelso placeholder="Keresés ebben a témakörben…" value="${esc(iddBelso)}" autocomplete="off"></label>
         <div class="sb-seg" role="tablist"><button type="button" class="${iddMod === 'lista' ? 'on' : ''}" data-iddmod="lista">Tanulás</button><button type="button" class="${iddMod === 'gyak' ? 'on' : ''}" data-iddmod="gyak">Gyakorlás</button></div>
@@ -9025,7 +9036,7 @@ let gstNyit = null, gstKeres = '', gstBelso = '', gstToltes = null;
 function gstAdatBetolt(){
     if(window.SF_GST) return Promise.resolve(window.SF_GST);
     return gstToltes || (gstToltes = new Promise((ok, hiba) => {
-        const sc = document.createElement('script'); sc.src = 'gst-adat.js?v=1';
+        const sc = document.createElement('script'); sc.src = 'gst-adat.js?v=2';
         sc.onload = () => ok(window.SF_GST || []); sc.onerror = () => { gstToltes = null; sc.remove(); hiba(new Error('gst')); };
         document.head.appendChild(sc);
     }));
@@ -9096,8 +9107,8 @@ function gstReszletHtml(v){
     const on = !!((PRV.gst && PRV.gst.kesz) || {})[v.id], q = iddNorm(gstBelso.trim());
     const qq = q.length >= 2 ? q : '';
     const db = qq ? gstSorok(v).filter(l => iddNorm(gstTiszta(l)).includes(qq)).length : 0;
-    return `<div class="idd-hos">${iddBorito(v, '')}<button type="button" class="idd-vissza" data-gstvissza>← GST tananyag</button></div>
-        <div class="idd-reszlet-fej"><h2>${esc(v.n)}</h2><button type="button" class="gst-kesz ${on ? 'on' : ''}" data-gstkesz>${on ? '✓ Megy' : 'Megy már?'}</button>
+    return `<button type="button" class="idd-vissza" data-gstvissza>← GST tananyag</button>${iddBorito(v, 'idd-hos')}
+        <div class="idd-reszlet-fej"><button type="button" class="gst-kesz ${on ? 'on' : ''}" data-gstkesz>${on ? '✓ Megy' : 'Megy már?'}</button>
         ${v.u ? `<a class="idd-forras" href="${esc(v.u)}" target="_blank" rel="noopener">Megnyitás Notionben ↗</a>` : ''}</div>
         <div class="idd-eszk"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-gstbelso placeholder="Keresés ebben az anyagban…" value="${esc(gstBelso)}" autocomplete="off"></label>
         ${qq ? `<span class="sb-tipp" style="margin:0">${db} találat</span>` : ''}</div>
