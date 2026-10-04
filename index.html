@@ -5707,8 +5707,18 @@
         .nl-emlek-fo b { font-size:15px; color:#111827; }
         .nl-emlek-sz { font-size:13.5px; color:#374151; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; white-space:pre-line; }
         .nl-emlek .nl-k-kepek { margin:8px 0 0 52px; }
-        .ma-eg { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; padding:4px 18px 4px; }
-        .ma-eg-t { display:flex; flex-direction:column; gap:6px; background:#f8f7fc; border-radius:16px; padding:10px 12px; min-width:0; }
+        .ma-eg { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; padding:4px 18px 8px; }
+        .ma-eg-host { display:contents; }
+        .ma-eg-t { display:flex; flex-direction:column; gap:8px; background:#f8f7fc; border-radius:16px; padding:10px 12px; min-width:0; }
+        .ma-eg-f { display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:22px; }
+        .ma-eg-meta { font:inherit; font-size:11.5px; font-weight:600; color:#6b7280; border:0; background:none; padding:0; white-space:nowrap; }
+        button.ma-eg-meta { cursor:pointer; color:#6d28d9; }
+        .ma-eg-t .ma-eg-lep { min-height:38px; }
+        .ma-eg-lep.ma-eg-kozep { justify-content:center; }
+        @media (max-width:600px){ .ma-eg { grid-template-columns:repeat(2, minmax(0,1fr)); } .ma-eg > .ma-eg-t:last-child { grid-column:1 / -1; } }
+        .ma-eg-also { min-height:30px; display:flex; align-items:center; justify-content:center; }
+        .ma-eg-also .ma-csik { flex:1; }
+        .ma-eg-also .ma-alv-min { align-self:center; }
         .ma-eg-cim { font-size:12.5px; font-weight:700; color:#374151; }
         .ma-eg-lep { display:flex; align-items:center; justify-content:space-between; gap:4px; }
         .ma-eg-lep b { font-size:22px; font-weight:800; color:#111827; letter-spacing:-.02em; white-space:nowrap; }
@@ -5718,8 +5728,6 @@
         .ma-eg-al { font-size:11.5px; color:#6b7280; }
         .ma-eg-t .ma-csik { margin:0; }
         body.sf-privat .ma-eg-t .ma-csik.kicsi i { background:#38bdf8; } body.sf-privat .ma-eg-t .ma-csik.kicsi i.kesz { background:#0284c7; }
-        .ma-eg-k .ma-suly { padding-top:10px; }
-        .ma-eg-k .ma-suly .ma-eg-cim { flex:1 1 100%; }
         .eg-dobozok { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:0 0 12px; }
         @media (min-width:760px){ .eg-dobozok { grid-template-columns:repeat(3, minmax(0,1fr)); } }
         .eg-d { margin:0; border-radius:22px; padding:14px 16px 12px; display:flex; flex-direction:column; gap:10px; min-width:0; }
@@ -6212,12 +6220,9 @@
         .ma-sor .o { font-size:14px; font-weight:600; color:#111827; white-space:nowrap; font-variant-numeric:tabular-nums; }
         .ma-sor .o.neg { color:#be185d; }
         .ma-uj-kolt { margin:6px 18px 10px; }
-        .ma-suly { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; padding:4px 18px 10px; }
-        .ma-suly > b { font-size:30px; font-weight:800; color:#111827; letter-spacing:-.02em; }
-        .ma-suly > b small { font-size:16px; color:#374151; }
-        .ma-suly > span { font-size:12.5px; color:#6b7280; }
-        .ma-suly-in { flex:1 1 100%; display:flex; gap:8px; margin-top:8px; }
-        .ma-suly-in input { flex:1; min-width:0; height:44px; border:0; border-radius:999px; background:#f3f4f6; padding:0 16px; font:inherit; font-size:15px; }
+        .ma-suly-in { flex:1; display:flex; gap:6px; min-width:0; }
+        .ma-suly-in input { flex:1; min-width:0; height:30px; border:0; border-radius:999px; background:#fff; box-shadow:inset 0 0 0 1px #e5e7eb; padding:0 12px; font:inherit; font-size:13px; }
+        .ma-suly-in button { flex:none; height:30px; border:0; border-radius:999px; background:#6d28d9; color:#fff; font:inherit; font-size:12px; font-weight:700; padding:0 12px; cursor:pointer; }
         input.hibas { box-shadow:0 0 0 2px #dc2626 inset; }
         /* testsúly (Edzések) */
         .ez-mmezok { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; padding:4px 18px 8px; }
@@ -20628,9 +20633,11 @@ async function renderPrivMa(){
             : '<p class="pv-megj">Nincs folyamatban lévő célod.</p>'),
         esemeny: esem.length ? kartya('Közelgő események', 'emberek', `<div class="ma-lista">${esem.map(x => `<button type="button" class="ma-sor ma-sor-g" data-emszerk="${esc(x.ev.id)}">${emIk(x.ev.t, 'kicsi')}
                 <span class="t"><b>${esc(x.ev.n)}</b><span>${esc(emReszl(x.ev, x.k))}</span></span><span class="o${x.k.nap <= 1 ? ' neg' : ''}">${emNapSzo(x.k.nap)}</span></button>`).join('')}</div>`) : '',
-        egeszseg: kartya('Egészség', 'egeszseg', `<div class="ma-eg" data-maeghost>${maEgHtml()}</div>
-            <div class="ma-suly"><span class="ma-eg-cim">⚖️ Testsúly</span><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b><span>${utM ? (utM.d === ma ? 'ma mérve' : 'utoljára ' + esc(prvDatumSzo(utM.d))) : 'még nincs mérés'}</span>
-                <label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" class="pv-kapsz" data-mamer>Rögzítés</button></label></div>`, 'ma-eg-k'),
+        egeszseg: kartya('Egészség', 'egeszseg', `<div class="ma-eg"><div class="ma-eg-host" data-maeghost>${maEgHtml()}</div>
+            <div class="ma-eg-t">
+                <div class="ma-eg-f"><span class="ma-eg-cim">⚖️ Testsúly</span><span class="ma-eg-meta">${utM ? (utM.d === ma ? 'ma' : esc(prvDatumSzo(utM.d))) : 'még nincs'}</span></div>
+                <div class="ma-eg-lep ma-eg-kozep"><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b></div>
+                <div class="ma-eg-also"><label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" data-mamer>Mentés</button></label></div></div></div>`, 'ma-eg-k'),
     };
     const mb = maBeall(await prvBetolt('beall').catch(() => ({})));
     let sor = mb.sor.filter(k => !mb.rejt.includes(k));
@@ -20764,17 +20771,21 @@ async function maTestreModal(){
     ov.addEventListener('change', e => { if(e.target.matches('[data-matresti]')){ x.esti = e.target.checked; ment(); } });
 }
 // Egészség-sor: alvás (fél órás lépésekben) és víz (pohár) a mai napra.
+// A Ma oldal egészség-csempéi: mindegyik fejléc · középre igazított nagy érték · azonos magasságú alsó sor.
 function maEgHtml(){
     const ma = ezMa(), alv = nlNapAlv(ma), viz = nlNapViz(ma), tegnap = nlNapAlv(ezPlusz(ma, -1));
     const x = nlEg(ma), q = nlNapAlvM(ma);
-    return `<div class="ma-eg-t"><span class="ma-eg-cim">🛏️ Alvás</span><div class="ma-eg-lep"><button type="button" data-maeg="alv|-1" aria-label="Kevesebb alvás">−</button>
-            <b class="ma-alv-ert" data-maalv role="button" tabindex="0" aria-label="Alvás részletei">${alv ? nlSzam(alv / 60) : '—'}<small> óra</small></b><button type="button" data-maeg="alv|1" aria-label="Több alvás">+</button></div>
-            <button type="button" class="ma-alv-min${q != null ? ' ' + nlAlvMOszt(q) : ''}" data-maalv>${q != null ? `Minőség <b>${q}%</b>` : '+ minőség, időpont'}</button>
-            <span class="ma-eg-al">${x.le && x.fel ? `${x.le} – ${x.fel}` : alv ? (alv >= 420 ? 'kipihent éjszaka' : 'kevés alvás') : tegnap ? `tegnap ${nlOraSzo(tegnap)}` : 'az éjszakai alvás'}</span></div>
-        <div class="ma-eg-t"><span class="ma-eg-cim">💧 Víz</span><div class="ma-eg-lep"><button type="button" data-maeg="viz|-1" aria-label="Egy pohárral kevesebb">−</button>
-            <b>${viz}<small> pohár</small></b><button type="button" data-maeg="viz|1" aria-label="Egy pohár víz">+</button></div>
-            <span class="ma-csik kicsi"><i style="width:${Math.min(100, viz / NL_VIZ_CEL * 100).toFixed(0)}%" class="${viz >= NL_VIZ_CEL ? 'kesz' : ''}"></i></span>
-            <span class="ma-eg-al">${nlLiter(viz)} / ${nlLiter(NL_VIZ_CEL)}</span></div>`;
+    return `<div class="ma-eg-t">
+            <div class="ma-eg-f"><span class="ma-eg-cim">🛏️ Alvás</span><button type="button" class="ma-eg-meta" data-maalv>${x.le && x.fel ? `${esc(x.le)}–${esc(x.fel)}` : alv ? 'időpont +' : tegnap ? `tegnap ${nlOraSzo(tegnap)}` : 'időpont +'}</button></div>
+            <div class="ma-eg-lep"><button type="button" data-maeg="alv|-1" aria-label="Kevesebb alvás">−</button>
+                <b class="ma-alv-ert" data-maalv role="button" tabindex="0" aria-label="Alvás részletei">${alv ? nlSzam(alv / 60) : '—'}<small> óra</small></b>
+                <button type="button" data-maeg="alv|1" aria-label="Több alvás">+</button></div>
+            <div class="ma-eg-also"><button type="button" class="ma-alv-min${q != null ? ' ' + nlAlvMOszt(q) : ''}" data-maalv>${q != null ? `Minőség <b>${q}%</b>` : '+ minőség'}</button></div></div>
+        <div class="ma-eg-t">
+            <div class="ma-eg-f"><span class="ma-eg-cim">💧 Víz</span><span class="ma-eg-meta">${nlLiter(viz)} / ${nlLiter(NL_VIZ_CEL)}</span></div>
+            <div class="ma-eg-lep"><button type="button" data-maeg="viz|-1" aria-label="Egy pohárral kevesebb">−</button>
+                <b>${viz}<small> / ${NL_VIZ_CEL} pohár</small></b><button type="button" data-maeg="viz|1" aria-label="Egy pohár víz">+</button></div>
+            <div class="ma-eg-also"><span class="ma-csik kicsi"><i style="width:${Math.min(100, viz / NL_VIZ_CEL * 100).toFixed(0)}%" class="${viz >= NL_VIZ_CEL ? 'kesz' : ''}"></i></span></div></div>`;
 }
 // Alvás részletei egy napra: időtartam, lefekvés–ébredés (ebből az időtartam magától
 // számolódik) és a minőség százalékban.
