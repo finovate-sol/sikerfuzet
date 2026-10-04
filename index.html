@@ -1165,6 +1165,12 @@
         .sb-masol { border:0; background:var(--navy); color:#fff; font:inherit; font-size:12.5px; font-weight:700; border-radius:999px; padding:7px 14px; cursor:pointer; white-space:nowrap; }
         .sb-masol:disabled { opacity:.4; cursor:default; } .sb-masol.kesz { background:#16a34a; }
         .sb-tipp { font-size:12px; color:var(--muted); margin:2px 2px 0; }
+        .sb-kom { flex-direction:row; align-items:center; gap:10px; padding:11px 14px; }
+        .sb-kom p { flex:1; min-width:0; font-size:15px; }
+        .sb-kom.kiv { box-shadow:0 0 0 2px #22c55e; }
+        .sb-kom-cim { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin:4px 2px -2px; }
+        @media (min-width:1300px){ .sb-kom-racs { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+        .sb-veletlen { align-self:flex-start; font-size:13.5px; padding:10px 18px; }
         .sb-alful { display:inline-flex; gap:3px; padding:3px; background:#eef2f8; border-radius:12px; margin:0 0 12px; }
         .sb-alful button { border:0; background:none; font:inherit; font-size:13px; font-weight:700; color:var(--muted); padding:6px 14px; border-radius:9px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
         .sb-alful button em { font-style:normal; font-size:10.5px; font-weight:600; opacity:.75; }
@@ -8489,43 +8495,56 @@ function sbSikerHtml(){
         </div></div>`;
 }
 // ---- Skool: komment mások siker-posztjára ----
-let sbKom = Object.assign({ nev: '', tema: '', eh: '', vez: false, emoji: true }, store.load('sf_sb_kom', {}));
-const sbKomMent = () => store.save('sf_sb_kom', sbKom);
-const SB_KOM = [
-    ['Rövid', c => `Gratulálok, ${c.nev}!${c.em ? ' 🎉' : ''} Szép munka, csak így tovább!`],
-    ['Lelkes', c => `Hatalmas gratula, ${c.nev}!${c.em ? ' 👏' : ''} Öröm látni, ahogy jönnek az eredmények.`],
-    ['Elismerő', c => `Le a kalappal, ${c.nev}!${c.em ? ' 🏆' : ''} ${c.eh ? `${c.eh} EH – megérdemelt siker.` : 'Megérdemelt siker.'}`],
-    ['Témára', c => `Szuper, ${c.nev}!${c.em ? ' 🔥' : ''} ${c.tema ? `Egy újabb sikeres ${c.tema.toLowerCase()} – így kell ezt!` : 'Így kell ezt!'}`],
-    ['Motiváló', c => `Ez az, ${c.nev}!${c.em ? ' 💪' : ''} Inspiráló látni a kitartásodat – jöhet a következő!`],
-    ['Köszönő', c => `Gratulálok, ${c.nev}, és köszönöm, hogy megosztottad!${c.em ? ' 🙌' : ''} Motiváló az egész csapatnak.`],
-    ['Ügyfélközpontú', c => `Gratula, ${c.nev}!${c.em ? ' ✨' : ''} Megint egy ügyfél, aki biztonságosabban tervezheti a jövőjét.`],
-    ['Csapat / vezetői', c => c.vez ? `Büszke vagyok rád, ${c.nev}!${c.em ? ' 🌟' : ''} Látszik a munkád eredménye – így tovább!`
-        : `Szép volt, ${c.nev}!${c.em ? ' 🙌' : ''} Jó egy ilyen csapat tagjának lenni.`],
+// Valódi kommentek a Skoolból (a csapattagok által írtak, böngésző-bővítménnyel kigyűjtve).
+// [NÉV] helyére a megadott név kerül; név nélkül a [NÉV] kimarad. A bővítmény is ebből választ majd.
+const SF_KOMMENT_SABLONOK = [
+    "Gratulálok [NÉV]! :)",
+    "Grat [NÉV]! 🔥",
+    "Szép munka [NÉV]! 💪🔥",
+    "Bravo [NÉV] 🤝🏻😉",
+    "Csak így tovább [NÉV]! ;)",
+    "Nyomod [NÉV]!! 🚀",
+    "Gratula [NÉV], ügyes vagy! 🔥",
+    "Hajrá [NÉV]! :)",
+    "Az igen [NÉV], gratulálok! 🎉🏆",
+    "Wow, gratulálok [NÉV]! Szép teljesítmény 💯",
+    "Gratulálok [NÉV], megérdemled! :)",
+    "Szép volt [NÉV]! Nincs megállás 🚀💪",
+    "Gratulálok, csak így tovább! :)",
+    "Szép munka! 💪",
+    "Ez igen! 🔥🔥",
+    "Wow! Őszintén gratulálok! :)",
+    "Csak így tovább, sok kicsi sokra megy! ;)",
+    "Grat, grat!! 😉",
+    "Ez a beszéd, csak így tovább! 💪",
+    "Minden számít! Gratulálok 🔥",
 ];
-function sbKomValtozatok(){
-    const c = { nev: '@' + (sbKom.nev.trim().replace(/^@/, '') || 'Név'), tema: sbKom.tema.trim(), eh: String(sbKom.eh || '').trim().replace('.', ','), vez: sbKom.vez, em: sbKom.emoji };
-    return SB_KOM.map(([n, f]) => [n, f(c).replace(/\s+/g, ' ').trim()]);
-}
-const sbEmKiemel = t => esc(t).replace(/(@[^\s.,!–:]+(?: [A-ZÁÉÍÓÖŐÚÜŰ][^\s.,!–:]*)?)/g, '<b class="sb-em">$1</b>');
+window.SF_KOMMENT_SABLONOK = SF_KOMMENT_SABLONOK;
+let sbKom = Object.assign({ nev: '' }, store.load('sf_sb_kom', {}));
+const sbKomMent = () => store.save('sf_sb_kom', sbKom);
+// a sablon a megadott névvel (név nélkül a [NÉV] és az előtte álló szóköz kimarad)
+const sbKomKesz = (t, nev) => { nev = String(nev || '').trim();
+    return nev ? t.replace(/\[NÉV\]/g, nev) : t.replace(/\s*\[NÉV\]/g, '').replace(/\s{2,}/g, ' ').trim(); };
+const sbKomElo = (t, nev) => String(nev || '').trim()
+    ? esc(t).replace(/\[NÉV\]/g, `<b class="sb-em">${esc(nev.trim())}</b>`)
+    : esc(t).replace(/\[NÉV\]/g, '<mark class="sb-ph">[NÉV]</mark>');
 function sbKommentHtml(){
-    const valt = sbKomValtozatok();
+    const nevvel = SF_KOMMENT_SABLONOK.map((t, i) => [t, i]).filter(([t]) => t.includes('[NÉV]'));
+    const nelkul = SF_KOMMENT_SABLONOK.map((t, i) => [t, i]).filter(([t]) => !t.includes('[NÉV]'));
+    const kartya = ([t, i]) => `<section class="card sb-v sb-kom"><p>${sbKomElo(t, sbKom.nev)}</p><button type="button" class="sb-masol" data-sbkommasol="${i}">Másolás</button></section>`;
     return `<div class="sb-lay">
         <section class="card sb-urlap">
-            <label class="sb-mezo"><span>Kinek a posztjára? (@név)</span>
-                <input type="text" class="sb-in" data-sbkom="nev" value="${esc(sbKom.nev)}" maxlength="60" placeholder="pl. Kovács Anna"></label>
-            <div class="sb-mezo"><span>Téma <i>(nem kötelező – a poszt címe)</i></span>
-                <div class="sb-chipek">${['', ...SB_TERMEK.map(x => x[0])].map(t => `<button type="button" class="sb-chip${sbKom.tema === t ? ' on' : ''}" data-sbkomtema="${esc(t)}">${t ? esc(t) : 'Nincs'}</button>`).join('')}</div></div>
-            <label class="sb-mezo"><span>Szakmai elismerés (EH) <i>(nem kötelező)</i></span>
-                <input type="text" class="sb-in sb-in-eh" data-sbkom="eh" value="${esc(sbKom.eh)}" inputmode="decimal" maxlength="10" placeholder="pl. 72"></label>
-            <div class="sb-mezo"><span>Hangnem</span>
-                <div class="sb-seg">${[[false, 'Csapattárs'], [true, 'Vezetőként']].map(([k, n]) => `<button type="button" class="${sbKom.vez === k ? 'on' : ''}" data-sbkomvez="${k ? 1 : 0}">${n}</button>`).join('')}</div></div>
-            <label class="sb-kapcs"><input type="checkbox" data-sbkomemoji${sbKom.emoji ? ' checked' : ''}> Emojik a szövegben</label>
+            <label class="sb-mezo"><span>Kinek a posztjára? (név)</span>
+                <input type="text" class="sb-in" data-sbkom="nev" value="${esc(sbKom.nev)}" maxlength="60" placeholder="pl. Marci"></label>
+            <p class="sb-tipp" style="margin:0">A <b>[NÉV]</b> helyére ez kerül. Üresen hagyva a név kimarad a szövegből.</p>
+            <button type="button" class="sb-masol sb-veletlen" data-sbkomveletlen>🎲 Véletlen komment másolása</button>
+            <p class="sb-tipp" style="margin:0">${SF_KOMMENT_SABLONOK.length} valódi komment a Skoolból – ezek közül választ majd a böngésző-bővítmény is.</p>
         </section>
         <div class="sb-jobb">
-            <div class="sb-valt">${valt.map(([n, t], i) => `<section class="card sb-v">
-                <div class="sb-v-fej"><span>${i + 1}. ${esc(n)}</span><button type="button" class="sb-masol" data-sbkommasol="${i}">Másolás</button></div>
-                <p>${sbEmKiemel(t)}</p></section>`).join('')}</div>
-            <p class="sb-tipp">Tipp: a Skoolban a <b>@név</b> beillesztés után csak szöveg – ha jelölésként szeretnéd, töröld ki és írd be újra a @ jellel, majd válaszd ki a listából.</p>
+            <div class="sb-kom-cim">Névvel · ${nevvel.length}</div>
+            <div class="sb-valt sb-kom-racs">${nevvel.map(kartya).join('')}</div>
+            <div class="sb-kom-cim">Név nélkül · ${nelkul.length}</div>
+            <div class="sb-valt sb-kom-racs">${nelkul.map(kartya).join('')}</div>
         </div></div>`;
 }
 // ---- E-mail és Telefon: mentett sablonok {helyettesítő} mezőkkel ----
@@ -8646,7 +8665,6 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
     if(!e.target.matches) return;
     if(e.target.matches('#page-sablonok [data-sbemoji]')){ sbAdat.emoji = e.target.checked; sbMent(); renderSablonok(); }
-    if(e.target.matches('#page-sablonok [data-sbkomemoji]')){ sbKom.emoji = e.target.checked; sbKomMent(); renderSablonok(); }
 });
 document.addEventListener('click', async e => {
     if(!e.target.closest('#page-sablonok')) return;
@@ -8658,9 +8676,14 @@ document.addEventListener('click', async e => {
     const mc = e.target.closest('[data-sbmasolcim]'); if(mc){ sbJelzes(mc, await sbMasol(sbCim())); return; }
     const ms = e.target.closest('[data-sbmasol]'); if(ms){ sbJelzes(ms, await sbMasol(sbValtozatok()[+ms.dataset.sbmasol][1])); return; }
     // komment
-    const kt = e.target.closest('[data-sbkomtema]'); if(kt){ sbKom.tema = kt.dataset.sbkomtema; sbKomMent(); renderSablonok(); return; }
-    const kv = e.target.closest('[data-sbkomvez]'); if(kv){ sbKom.vez = kv.dataset.sbkomvez === '1'; sbKomMent(); renderSablonok(); return; }
-    const km = e.target.closest('[data-sbkommasol]'); if(km){ sbJelzes(km, await sbMasol(sbKomValtozatok()[+km.dataset.sbkommasol][1])); return; }
+    const km = e.target.closest('[data-sbkommasol]'); if(km){ sbJelzes(km, await sbMasol(sbKomKesz(SF_KOMMENT_SABLONOK[+km.dataset.sbkommasol], sbKom.nev))); return; }
+    const kr = e.target.closest('[data-sbkomveletlen]');
+    if(kr){ // névvel csak akkor, ha van név; ugyanazt kétszer egymás után nem adja
+        const l = SF_KOMMENT_SABLONOK.map((t, i) => i).filter(i => sbKom.nev.trim() || !SF_KOMMENT_SABLONOK[i].includes('[NÉV]')).filter(i => i !== window.__sbKomUtolso);
+        const i = l[Math.floor(Math.random() * l.length)]; window.__sbKomUtolso = i;
+        sbJelzes(kr, await sbMasol(sbKomKesz(SF_KOMMENT_SABLONOK[i], sbKom.nev)));
+        document.querySelectorAll('#page-sablonok .sb-kom').forEach(k => k.classList.toggle('kiv', k.querySelector('[data-sbkommasol]').dataset.sbkommasol === String(i)));
+        return; }
     // mentett sablonok
     const d = PRV.sablonok; if(!d) return;
     const of = id => d.lista.find(x => x.id === id);
