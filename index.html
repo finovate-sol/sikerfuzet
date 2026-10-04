@@ -1208,7 +1208,6 @@
         .idd-vissza { border:1px solid var(--border); background:#fff; font:inherit; font-size:13px; font-weight:700; color:var(--navy); border-radius:999px; padding:7px 14px; cursor:pointer; margin:0 0 12px; }
         .idd-reszlet-fej { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin:0 0 12px; }
         .idd-reszlet-fej h2 { margin:0; font-size:24px; color:var(--navy); }
-        .idd-forras { font-size:12px; color:var(--muted); margin-left:auto; }
         .idd-eszk { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin:0 0 12px; }
         .idd-eszk .idd-kereso { flex:1 1 240px; max-width:none; }
         .idd-eszk .idd-hal { flex:0 1 220px; margin:0; }
@@ -1243,7 +1242,7 @@
         .idd-talalat .k { font-size:14.5px; font-weight:700; color:#1f2937; }
         .idd-talalat .v { font-size:14px; color:#14532d; background:#f0fdf4; border-radius:8px; padding:7px 10px; border-left:3px solid #22c55e; }
         .idd-ures { padding:28px 16px; text-align:center; color:var(--muted); font-size:14px; }
-        @media (max-width:640px){ .idd-v { padding-left:14px; } .idd-gy { padding:18px 16px 16px; } .idd-gy-k { font-size:16.5px; } .idd-forras { margin-left:0; width:100%; } .idd-reszlet-fej h2 { font-size:20px; } .idd-eszk .idd-hal { flex:1 1 100%; } }
+        @media (max-width:640px){ .idd-v { padding-left:14px; } .idd-gy { padding:18px 16px 16px; } .idd-gy-k { font-size:16.5px; } .idd-reszlet-fej h2 { font-size:20px; } .idd-eszk .idd-hal { flex:1 1 100%; } }
         /* ===== GST vizsga (tananyag) ===== */
         .gst-tart { margin:0; padding:18px 22px 20px; display:flex; flex-direction:column; gap:10px; font-size:15px; line-height:1.6; color:#1f2937; }
         .gst-tart p { margin:0; }
@@ -8872,15 +8871,15 @@ document.addEventListener('click', async e => {
 
 // ===== IDD VIZSGÁK =====
 // A kérdés-válaszok a Notion „OVB - Vizsgák / IDD” adatbázisából jönnek (idd-adat.js,
-// csak az oldal első megnyitásakor töltődik be), a borítók is a Notion-oldalakéi
-// (icons/idd). Hogy mi „megy már”, az privat/{uid}_idd dokumentumba kerül:
+// csak az oldal első megnyitásakor töltődik be); a témakör színe a Notion-borítóból jön.
+// Hogy mi „megy már”, az privat/{uid}_idd dokumentumba kerül:
 // { tud: { vizsgaId: { kérdésKulcs: 1 } } }.
 const IDD_CIMKEK = ['Kötelező', 'Kiemelt', 'Sima'];
 let iddSzuro = store.load('sf_idd_szuro', 'mind'), iddKeres = '', iddBelso = '', iddNyit = null, iddMod = 'lista', iddCsakNem = false, iddGy = null, iddToltes = null;
 function iddAdatBetolt(){
     if(window.SF_IDD) return Promise.resolve(window.SF_IDD);
     return iddToltes || (iddToltes = new Promise((ok, hiba) => {
-        const sc = document.createElement('script'); sc.src = 'idd-adat.js?v=3';
+        const sc = document.createElement('script'); sc.src = 'idd-adat.js?v=4';
         sc.onload = () => ok(window.SF_IDD || []); sc.onerror = () => { iddToltes = null; sc.remove(); hiba(new Error('idd')); };
         document.head.appendChild(sc);
     }));
@@ -8941,8 +8940,7 @@ function iddKerdesHtml(q, i, t, kq){
 function iddReszletHtml(v){
     const t = iddTudLista(v.id);
     const fej = `<button type="button" class="idd-vissza" data-iddvissza>← Összes témakör</button>${iddBorito(v, 'idd-hos')}
-        <div class="idd-reszlet-fej">${iddCimkeHtml(v.t)}
-        ${v.u ? `<a class="idd-forras" href="${esc(v.u)}" target="_blank" rel="noopener">Megnyitás Notionben ↗</a>` : ''}</div>
+        <div class="idd-reszlet-fej">${iddCimkeHtml(v.t)}</div>
         <div class="idd-eszk"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-iddbelso placeholder="Keresés ebben a témakörben…" value="${esc(iddBelso)}" autocomplete="off"></label>
         <div class="sb-seg" role="tablist"><button type="button" class="${iddMod === 'lista' ? 'on' : ''}" data-iddmod="lista">Tanulás</button><button type="button" class="${iddMod === 'gyak' ? 'on' : ''}" data-iddmod="gyak">Gyakorlás</button></div>
         <label class="sb-kapcs"><input type="checkbox" data-iddcsaknem ${iddCsakNem ? 'checked' : ''}> Csak ami még nem megy</label>${iddHalad(v)}</div>`;
@@ -9036,7 +9034,7 @@ let gstNyit = null, gstKeres = '', gstBelso = '', gstToltes = null;
 function gstAdatBetolt(){
     if(window.SF_GST) return Promise.resolve(window.SF_GST);
     return gstToltes || (gstToltes = new Promise((ok, hiba) => {
-        const sc = document.createElement('script'); sc.src = 'gst-adat.js?v=2';
+        const sc = document.createElement('script'); sc.src = 'gst-adat.js?v=3';
         sc.onload = () => ok(window.SF_GST || []); sc.onerror = () => { gstToltes = null; sc.remove(); hiba(new Error('gst')); };
         document.head.appendChild(sc);
     }));
@@ -9108,8 +9106,7 @@ function gstReszletHtml(v){
     const qq = q.length >= 2 ? q : '';
     const db = qq ? gstSorok(v).filter(l => iddNorm(gstTiszta(l)).includes(qq)).length : 0;
     return `<button type="button" class="idd-vissza" data-gstvissza>← GST tananyag</button>${iddBorito(v, 'idd-hos')}
-        <div class="idd-reszlet-fej"><button type="button" class="gst-kesz ${on ? 'on' : ''}" data-gstkesz>${on ? '✓ Megy' : 'Megy már?'}</button>
-        ${v.u ? `<a class="idd-forras" href="${esc(v.u)}" target="_blank" rel="noopener">Megnyitás Notionben ↗</a>` : ''}</div>
+        <div class="idd-reszlet-fej"><button type="button" class="gst-kesz ${on ? 'on' : ''}" data-gstkesz>${on ? '✓ Megy' : 'Megy már?'}</button></div>
         <div class="idd-eszk"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-gstbelso placeholder="Keresés ebben az anyagban…" value="${esc(gstBelso)}" autocomplete="off"></label>
         ${qq ? `<span class="sb-tipp" style="margin:0">${db} találat</span>` : ''}</div>
         <div class="card gst-tart">${gstRender(v.t, qq, false)}</div>`;
