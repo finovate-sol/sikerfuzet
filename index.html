@@ -17055,6 +17055,9 @@ const EZ_GC_VISSZA = 7, EZ_GC_ELORE = 60;
 const EZ_GC_ALAPIDO = '18:00';             // ha az edzésnek nincs időpontja (a kártyán átállítható)
 let ezGcAllapot = '', ezGcFut = null, ezGcUjra = false, ezGcUtolso = 0, ezGcTimer = null;
 const ezGcNaptar = () => (ezAdat.torzs && ezAdat.torzs.naptar) || null;
+// Melyik naptárat ajánljuk / választjuk magától: elsőként a "Sport", utána az "Edzés"-féle nevűt.
+const EZ_GC_NEV_RE = [/sport/i, /edz|training|workout|fitness/i];
+const ezGcJavasolt = nev => EZ_GC_NEV_RE.some(r => r.test(nev));
 // A naptárban: "Sport (milyen)" – pl. Futás (Könnyű futás), Bicikli (Gravel). Ha a név csak a sportot ismétli, zárójel nélkül.
 const EZ_GC_SPORT = { bri: 'Bicikli' };
 function ezGcCim(e){
@@ -17069,7 +17072,8 @@ function ezGcIdozit(){
 async function ezGcAuto(){
     if(ezGcNaptar() || typeof window.sfCalLista !== 'function') return;
     let l = null; try { l = await window.sfCalLista(); } catch(e){}
-    const t = l && l.find(c => c.iras && !c.primary && /edz/i.test(c.nev));
+    const jo = l ? l.filter(c => c.iras && !c.primary) : [];
+    const t = jo.find(c => EZ_GC_NEV_RE[0].test(c.nev)) || jo.find(c => EZ_GC_NEV_RE[1].test(c.nev));
     if(t && !ezGcNaptar()){ ezAdat.torzs.naptar = { id: t.id, nev: t.nev }; ezMent('torzs'); }
 }
 // Ami egy edzésből a naptárba kerül (cím, nap, időpont, hossz, leírás).
@@ -17134,7 +17138,7 @@ async function ezGcBehuz(esemenyek, all, n, tol, ig){
             e = ezTiszta(e);
             athelyez(x.d, ev.datum, e);
         } else {
-            // kézzel felvett esemény az Edzés naptárban → új tervezett edzés
+            // kézzel felvett esemény a Sport naptárban → új tervezett edzés
             const c = ezGcCimbol(ezGcCimTiszta(ev.cim)); if(!ev.cim || c.sport === 'pih') continue;
             delete c.sablonbol;
             const e = ezTiszta({ ...c, id: ezUjId(), st: 'terv', ido: ev.egesz ? undefined : ev.ido, perc: ev.egesz ? c.perc : ev.perc });
@@ -17201,7 +17205,7 @@ function ezGcKartya(){
         <b>Google Naptár${n && n.id ? ' · ' + esc(n.nev || '') : ''}</b>
         <span>${n && n.id ? `Kétirányú szinkron (7 nap vissza, 60 nap előre): az edzéseid időpontra kerülnek ebbe a naptárba, és ha a naptárban mozgatsz, átírsz vagy új eseményt veszel fel, az ide is átjön. A Strava által igazolt edzés a valódi kezdési idővel és hosszal.`
             : n && n.ki ? 'Kikapcsolva – az edzések nem kerülnek a Google Naptárba.'
-            : 'Az edzéseid bekerülhetnek a Google „Edzés” naptáradba. Válaszd ki a naptárat.'}</span>
+            : 'Az edzéseid bekerülhetnek a Google „Sport” naptáradba. Válaszd ki a naptárat.'}</span>
         ${n && n.id ? `<label class="ez-gc-ido">Ha az edzésnek nincs időpontja: <input type="time" data-ezgcido value="${esc(n.ido || EZ_GC_ALAPIDO)}" aria-label="Alapidőpont"></label>
             <span id="ezGcAll">${esc(ezGcAllapot)}</span>` : ''}
         <div class="ez-sv-gombok">${n && n.id
@@ -17210,7 +17214,7 @@ function ezGcKartya(){
     </section>`;
 }
 async function ezGcValaszt(){
-    const ov = ezModal('Edzés naptár', `<div id="ezGcLista"><div class="ez-ures kicsi">Naptárak betöltése…</div></div>`,
+    const ov = ezModal('Sport naptár', `<div id="ezGcLista"><div class="ez-ures kicsi">Naptárak betöltése…</div></div>`,
         `<button type="button" class="btn" data-ezx>Mégse</button>`);
     const host = ov.querySelector('#ezGcLista');
     const rajzol = l => {
@@ -17221,9 +17225,9 @@ async function ezGcValaszt(){
         }
         const ir = l.filter(c => c.iras);
         const akt = (ezGcNaptar() || {}).id;
-        host.innerHTML = `<p class="ez-gc-sz">Válaszd ki, melyik naptárba kerüljenek az edzések. Ha még nincs „Edzés” naptárad, a Google Naptárban hozd létre (Egyéb naptárak → +), majd nyisd meg újra ezt az ablakot.</p>
+        host.innerHTML = `<p class="ez-gc-sz">Válaszd ki, melyik naptárba kerüljenek az edzések. Ha még nincs „Sport” naptárad, a Google Naptárban hozd létre (Egyéb naptárak → +), majd nyisd meg újra ezt az ablakot.</p>
             <div class="ez-valaszto">${ir.map(c => `<button type="button" class="ez-vs${c.id === akt ? ' on' : ''}" data-ezgcid="${esc(c.id)}" data-ezgcnev="${esc(c.nev)}">
-                <i class="ez-gc-pont" style="background:${esc(c.szin)}"></i><span><b>${esc(c.nev)}</b><em>${c.primary ? 'Saját naptár' : /edz/i.test(c.nev) ? 'Javasolt' : 'Szerkeszthető'}</em></span></button>`).join('')}</div>`;
+                <i class="ez-gc-pont" style="background:${esc(c.szin)}"></i><span><b>${esc(c.nev)}</b><em>${c.primary ? 'Saját naptár' : ezGcJavasolt(c.nev) ? 'Javasolt' : 'Szerkeszthető'}</em></span></button>`).join('')}</div>`;
     };
     ov.addEventListener('click', async e => {
         if(e.target.closest('[data-ezgceng]')){
@@ -25209,7 +25213,7 @@ document.addEventListener('keydown', e => {
     // edzés kulcsa (nap|azonosító) azonosítja, így az időablakon belül a hiányzót
     // létrehozzuk, a változottat frissítjük, a megszűntet töröljük – a naptár
     // más eseményeihez nem nyúlunk.
-    // Az Edzés naptár hívásai: a tokent egyszer kérjük, lejáratkor (401) csendben megújítjuk.
+    // A Sport (edzés-) naptár hívásai: a tokent egyszer kérjük, lejáratkor (401) csendben megújítjuk.
     async function edzNaptarHivo(calId){
         let token = getCalendarToken() || await silentOnce();
         if (!token){ const e = new Error("Nincs Google Naptár kapcsolat."); e.kod = "token"; throw e; }
@@ -25222,12 +25226,12 @@ document.addEventListener('keydown', e => {
                 const friss = await silentOnce(true);
                 if (friss){ token = friss; res = await mk(token); }
             }
-            if (!res.ok && !(opt.method === "DELETE" && (res.status === 404 || res.status === 410))) throw await apiError(res, "Edzés naptár");
+            if (!res.ok && !(opt.method === "DELETE" && (res.status === 404 || res.status === 410))) throw await apiError(res, "Sport naptár");
             return res.status === 204 || opt.method === "DELETE" ? null : res.json();
         };
         return { alap, hiv };
     }
-    // A naptár → app irányhoz: az Edzés naptár MINDEN eseménye az ablakban (a kézzel
+    // A naptár → app irányhoz: a Sport naptár MINDEN eseménye az ablakban (a kézzel
     // felvettek is). { gid, kulcs (a mi jelölőnk, ha a miénk), datum, ido, perc, cim, egesz, frissitve (ms) }
     window.sfEdzesNaptarOlvas = async (calId, tol, ig) => {
         const { alap, hiv } = await edzNaptarHivo(calId);
