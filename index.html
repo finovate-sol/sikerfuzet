@@ -28803,6 +28803,25 @@ document.addEventListener('keydown', e => {
     // "Megállapodás: ..." kezdetű valódi jegyzetet nem csonkítunk meg. Amit nem
     // használunk fel, az sem vész el: idézetként a jegyzet elejére kerül.
     const JG_TAG_KEYS = ["tags", "címkék", "cimkék", "címke", "cimke"];
+    // Ezekből is címke lesz (pl. a „Csapat – Training” adatbázis típusa és résztvevői),
+    // hogy egy kattintással előjöjjön egy munkatárs vagy egy training-fajta összes jegyzete.
+    const JG_TAG_EXTRA_KEYS = ["type", "típus", "tipus", "munkatárs", "munkatársak", "résztvevők", "resztvevok"];
+    // A Notion „Vezető” mezője az Oktató-nézetbe kerül.
+    const JG_OKT_KEYS = ["oktató", "oktato", "vezető", "vezeto"];
+    const JG_DATE_KEYS = ["date", "dátum", "datum"];
+    const JG_HONAP_EN = { january:1, february:2, march:3, april:4, may:5, june:6, july:7, august:8, september:9, october:10, november:11, december:12 };
+    // A Notion-export a dátumot a mező beállítása szerint írja ki („2026/02/21”, „February 21, 2026” …) –
+    // ÉÉÉÉ-HH-NN alakra hozzuk, mert a jegyzet dátuma ebből jön, ha a címben nincs.
+    function jgIsoDatum(v){
+        const s = String(v || "");
+        let m = s.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+        if(m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        m = s.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+        if(m && JG_HONAP_EN[m[1].toLowerCase()]) return `${m[3]}-${String(JG_HONAP_EN[m[1].toLowerCase()]).padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+        return "";
+    }
+    // „VIP Traning”, „Felépitő Training” → egységes, helyesen írt címke.
+    const jgTipusCimke = v => v.replace(/\bTraning\b/i, "Training").replace(/Felépitő/i, "Felépítő").replace(/Nyugdij/i, "Nyugdíj");
     function jgParseProps(body){
         const lines = body.split(/\r?\n/);
         const props = [];
@@ -28816,11 +28835,23 @@ document.addEventListener('keydown', e => {
             if(!m) break;
             props.push([m[1].trim(), m[2].trim()]);
         }
-        const tagLine = props.find(([k]) => JG_TAG_KEYS.includes(k.toLowerCase()));
-        if(props.length < 2 && !tagLine) return { tags: [], rest: body };
+        const kis = k => k.toLowerCase();
+        const tagLine = props.find(([k]) => JG_TAG_KEYS.includes(kis(k)));
+        const extra = props.filter(([k, v]) => v && JG_TAG_EXTRA_KEYS.includes(kis(k)));
+        if(props.length < 2 && !tagLine && !extra.length) return { tags: [], rest: body };
         const tags = tagLine ? tagLine[1].split(",").map(x => x.trim()).filter(Boolean) : [];
+        for(const [k, v] of extra){
+            const tipus = ["type", "típus", "tipus"].includes(kis(k));
+            for(let x of v.split(",").map(y => y.trim()).filter(Boolean)){
+                if(tipus){ x = jgTipusCimke(x); if(/training/i.test(x) && !tags.includes("Training")) tags.push("Training"); }
+                if(!tags.includes(x)) tags.push(x);
+            }
+        }
         // A maradék tulajdonságot megtartjuk a jegyzet elején, hogy ne vesszen el.
-        const keep = props.filter(([k, v]) => v && !JG_TAG_KEYS.includes(k.toLowerCase()));
+        // Az oktató és a dátum egységes kulcsot kap, mert az Oktató-nézet és a dátum ezekből olvas.
+        const keep = props.filter(([k, v]) => v && !JG_TAG_KEYS.includes(kis(k)) && !JG_TAG_EXTRA_KEYS.includes(kis(k)))
+            .map(([k, v]) => JG_OKT_KEYS.includes(kis(k)) ? ["Oktató", v]
+                : JG_DATE_KEYS.includes(kis(k)) && jgIsoDatum(v) ? ["Date", jgIsoDatum(v)] : [k, v]);
         const head = keep.length ? keep.map(([k, v]) => `> **${k}:** ${v}`).join("\n") + "\n\n" : "";
         return { tags, rest: head + lines.slice(i).join("\n").replace(/^\s*\n/, "") };
     }
@@ -28842,7 +28873,8 @@ document.addEventListener('keydown', e => {
                         csak a <b>táblázat</b> jön le (2 db .csv), a jegyzetek szövege nem – ilyenkor
                         az import azt írja, hogy nem talált oldalt.
                         <br><br>Minden oldalból egy jegyzet lesz, a címkék az oldal tulajdonságaiból
-                        (Tags) és a mappanevekből jönnek. A képek is átjönnek. A <b>teljes
+                        (Tags, Type, Munkatárs) és a mappanevekből jönnek; a Vezető az Oktató-nézetbe,
+                        a Date a jegyzet dátumába kerül. A képek is átjönnek. A <b>teljes
                         munkaterület</b> exportja is jó: a Notion olyankor ZIP-be csomagolt ZIP-eket
                         ad, azokat magától kibontja.
                     </p>
