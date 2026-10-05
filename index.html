@@ -8170,6 +8170,7 @@ renderMoney(); renderCareer(); renderInfo();
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
+        if(p === 'home' && typeof window.sfCalUjraMer === 'function') requestAnimationFrame(window.sfCalUjraMer);
         if(p === 'havi') renderHavi();
         if(p === 'eves') renderEves();
         if(p === 'kovetkezo') renderKov();
@@ -23262,9 +23263,24 @@ document.addEventListener('keydown', e => {
     // Utána a rács alját visszahúzzuk a képernyő aljáig – enélkül a naptár
     // annyival lóg túl rajta, amennyivel az egész napos sor megnőtt. A rács
     // belül görgethető, tehát nem vész el óra, csak kevesebb látszik egyszerre.
+    // Hol állt a rács, amikor utoljára méretre szabtuk. Ha akkor az oldal rejtve
+    // volt (bejelentkezés, betöltőkép, másik lap), a mérés rossz – a naptár túlnyúlt
+    // a képernyőn. Ilyenkor a lap megjelenésekor újrarajzoljuk.
+    let calMertTop = null, calMertRejtve = false;
+    function calUjraMer(){
+        const grid = document.getElementById("calGrid");
+        const wk = grid && grid.querySelector(".wk-grid");
+        if (!wk || !wk.offsetParent || !currentColumns.length) return;
+        const top = Math.round(wk.getBoundingClientRect().top + window.scrollY);
+        if (calMertRejtve || calMertTop === null || Math.abs(top - calMertTop) > 4) initCalendar();
+    }
+    window.sfCalUjraMer = calUjraMer;
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) requestAnimationFrame(calUjraMer); });
     function fitTimeGridBottom(){
         const wk = document.querySelector("#calGrid .wk-grid");
         if (!wk) return;
+        calMertRejtve = !wk.offsetParent;
+        calMertTop = Math.round(wk.getBoundingClientRect().top + window.scrollY);
         const content = document.querySelector(".content");
         const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
         const ideal = (VIEW_END_H - VIEW_START_H) * ROW;
@@ -25184,13 +25200,27 @@ document.addEventListener('keydown', e => {
     let calLathato = {};
     try { calLathato = JSON.parse(localStorage.getItem("sf_cal_lathato") || "{}") || {}; } catch(e){ calLathato = {}; }
     const calLathatoMent = () => { try { localStorage.setItem("sf_cal_lathato", JSON.stringify(calLathato)); } catch(e){} };
+    // A naptárlista eszközönként és felhasználónként elmentve: induláskor ebből dolgozunk,
+    // így a bekapcsolt naptárak akkor is rögtön látszanak, ha a lista lekérése (lejárt
+    // token, lassú hálózat) csak később sikerül.
+    const calListaKulcs = () => "sf_cal_lista_cache_" + ((window.sfCurrentUser && window.sfCurrentUser.uid) || "");
+    let calListaFriss = false;
+    function calListaMentett(){
+        if (calLista) return calLista;
+        try { const l = JSON.parse(localStorage.getItem(calListaKulcs()) || "null"); if (Array.isArray(l) && l.length) calLista = l; } catch(e){}
+        return calLista;
+    }
     async function calListaBetolt(token, force){
-        if (calLista && !force) return calLista;
-        if (!token) return calLista;
+        if (calLista && calListaFriss && !force) return calLista;
+        if (!token) return calListaMentett();
         try {
-            const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250",
-                { headers: { Authorization: "Bearer " + token } });
-            if (res.status === 401 || res.status === 403){ calListaHiba = "jog"; return calLista; }
+            const kerj = tok => fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250",
+                { headers: { Authorization: "Bearer " + tok } });
+            let res = await kerj(token);
+            // lejárt token (pl. újra be kellett jelentkezni): csendben új tokent kérünk, és még egyszer próbáljuk
+            if (res.status === 401){ const friss = await silentOnce(true); if (friss) res = await kerj(friss); }
+            if (res.status === 401){ calListaMentett(); return calLista; }   // átmeneti – a következő rajzolásnál újra próbáljuk
+            if (res.status === 403){ calListaHiba = "jog"; return calListaMentett(); }
             if (!res.ok){ calListaHiba = "A naptárlista nem tölthető be (" + res.status + ")."; return calLista; }
             const data = await res.json();
             calListaHiba = "";
@@ -25199,7 +25229,8 @@ document.addEventListener('keydown', e => {
                 primary: !!c.primary, iras: c.accessRole === "owner" || c.accessRole === "writer",
                 alap: !!c.selected || !!c.primary
             })).sort((a, b) => (b.primary - a.primary) || a.nev.localeCompare(b.nev, "hu"));
-            try { localStorage.setItem("sf_cal_lista_cache", JSON.stringify(calLista)); } catch(e){}
+            calListaFriss = true;
+            try { localStorage.setItem(calListaKulcs(), JSON.stringify(calLista)); } catch(e){}
         } catch(e){ calListaHiba = "A naptárlista nem tölthető be."; }
         return calLista;
     }
@@ -25517,7 +25548,8 @@ document.addEventListener('keydown', e => {
             const ownCal = activeCalendarId() === "primary";
             const own = window.sfCurrentUser && window.sfCurrentUser.uid;
             const sajatNezet = !window.sfViewedUid || window.sfViewedUid === own;
-            if (sajatNezet && !calLista && !calListaHiba) await calListaBetolt(token);
+            if (sajatNezet && !calListaFriss && calListaHiba !== "jog") await calListaBetolt(token);
+            else if (sajatNezet) calListaMentett();
             if (seq !== calRenderSeq) return;
             const atfedok = sajatNezet ? calAtfedok() : [];
             const [events, tasks, ...kulsok] = await Promise.all([
