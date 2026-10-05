@@ -17036,14 +17036,15 @@ function ezNormal(k, adat){
 }
 const ezEvekBetolt = (...napok) => Promise.all([...new Set(napok.map(s => s.slice(0, 4)))]
     .flatMap(y => ezStravaKapcs() ? [ezBetolt(y), ezBetolt('sv' + y)] : [ezBetolt(y)]));
-function ezMent(k){
+// nincsGc: a naptárból átvett változás mentése – ilyenkor nem indítunk újabb szinkront
+function ezMent(k, nincsGc){
     const adat = ezAdat[k]; if(!adat) return;
     store.save(ezLKey(k), adat);
     const uid = ezUid();
     if(uid && !ezHiba.has(k) && !ezKesik.has(k) && typeof window.sfSaveEdzes === 'function')
         window.sfSaveEdzes(uid, k, adat).catch(e => alert('Az edzés mentése a szerverre nem sikerült: ' + (e.message || e)
             + '\n\nA böngésződben megmaradt, de másik eszközön nem fog látszani.'));
-    if(/^\d{4}$/.test(k)) ezGcIdozit();
+    if(/^\d{4}$/.test(k) && !nincsGc) ezGcIdozit();
 }
 
 // ---- Google Naptár: az edzések az "Edzés" naptárba ----
@@ -17071,6 +17072,85 @@ async function ezGcAuto(){
     const t = l && l.find(c => c.iras && !c.primary && /edz/i.test(c.nev));
     if(t && !ezGcNaptar()){ ezAdat.torzs.naptar = { id: t.id, nev: t.nev }; ezMent('torzs'); }
 }
+// Ami egy edzésből a naptárba kerül (cím, nap, időpont, hossz, leírás).
+function ezGcTetel(d, e, n){
+    const a = ezAll(e, d);
+    const jel = { ok: '✅ ', resz: '◐ ', ki: '❌ ' }[a] || '';
+    const cel = ezCel(e), er = ezEr(e, d);
+    // Időpont: a Strava-aktivitás valódi kezdete és hossza, ha igazolta; különben a tervezett idő, végül az alapidőpont.
+    const akt = er.src === 'strava' && er.akt && er.akt.length ? er.akt[0] : null;
+    const ido = ezIdoOk(akt && akt.ido) || ezIdoOk(e.ido) || ezIdoOk(n.ido) || EZ_GC_ALAPIDO;
+    const perc = Math.max(10, Math.round((akt && (er.tp || akt.perc)) || e.perc || 60));
+    return { kulcs: d + '|' + e.id, datum: d, ido, perc, cim: jel + ezGcCim(e),
+        leiras: [cel !== '—' ? cel : '', e.leiras || '', 'Sikerfüzet · edzésnapló'].filter(Boolean).join('\n') };
+}
+// ---- Naptár → app ----
+// A naptárban mozgatott, átírt (cím, időpont, hossz) edzést átvesszük, a kézzel
+// felvett eseményt edzésként beemeljük, a naptárból törölt tervezett edzést töröljük.
+// Hogy egy eltérés a naptárban vagy az appban keletkezett-e, azt az esemény
+// módosítási ideje dönti el: ha a legutóbbi sikeres szinkron UTÁN változott, a
+// naptárbeli az újabb. (Az app a saját változását pár másodpercen belül kiírja.)
+const ezGcCimTiszta = c => String(c || '').replace(/^(✅|◐|❌)\s*/u, '').trim();
+function ezGcSportSzobol(sz){
+    const t = String(sz || '').toLowerCase();
+    return /fut|run/.test(t) ? 'fut' : /bicikli|kerékpár|bringa|bike|ride|gravel|mtb/.test(t) ? 'bri' : /úsz|usz|swim/.test(t) ? 'usz'
+        : /erősít|erosit|konditerem|edzőterem|gym|súlyz|push|pull|láb nap/.test(t) ? 'ero' : /mobilit|jóga|joga|yoga|nyújt|henger/.test(t) ? 'mob'
+        : /hyrox/.test(t) ? 'hyr' : /triatlon/.test(t) ? 'tri' : /duatlon/.test(t) ? 'dua' : /pihen/.test(t) ? 'pih' : '';
+}
+// "Sport (név)" vagy csak "név" → az edzés mezői; ha a név egy sablon neve, a sablonból.
+function ezGcCimbol(cim){
+    const m = cim.match(/^(.+?)\s*\((.+)\)\s*$/), spSzo = (m ? m[1] : cim).trim(), nev = (m ? m[2] : cim).trim();
+    const sabok = (ezAdat.torzs && ezAdat.torzs.sablonok) || [], kis = x => String(x || '').trim().toLowerCase();
+    const sab = sabok.find(x => kis(x.n) === kis(nev)) || sabok.find(x => kis(x.n) === kis(cim));
+    const sport = ezGcSportSzobol(spSzo) || ezGcSportSzobol(nev);
+    if(sab && (!sport || sport === sab.sport))
+        return { sid: sab.id, n: sab.n, sport: sab.sport, perc: sab.perc, km: sab.km, cel: sab.cel, leiras: sab.leiras, gyak: sab.gyak && sab.gyak.length ? sab.gyak.map(x => ({ ...x })) : undefined, sablonbol: true };
+    const sp = sport || 'egy';
+    return { sid: undefined, n: m ? nev : cim, sport: sp, km: undefined, cel: undefined, leiras: undefined, gyak: undefined };
+}
+async function ezGcBehuz(esemenyek, all, n, tol, ig){
+    const app = new Map();
+    for(let d = tol; d <= ig; d = ezPlusz(d, 1)) for(const e of ezNapLista(d)) if(e.id && e.sport !== 'pih') app.set(e.id, { d, e });
+    const latott = new Set(), valt = new Set();
+    const athelyez = (regiNap, ujNap, e) => {
+        ezNapSet(regiNap, ezNapLista(regiNap).filter(x => x.id !== e.id));
+        ezNapSet(ujNap, ezIdoRend([...ezNapLista(ujNap).filter(x => x.id !== e.id), e]));
+        valt.add(regiNap.slice(0, 4)); valt.add(ujNap.slice(0, 4));
+    };
+    for(const ev of esemenyek){
+        if(ev.datum < tol || ev.datum > ig) continue;
+        const id = ev.kulcs ? ev.kulcs.split('|').pop() : '';
+        if(id){
+            latott.add(id);
+            const x = app.get(id); if(!x) continue;                 // az appban törölték – a kiírás törli a naptárból is
+            const t = ezGcTetel(x.d, x.e, n), cim = ezGcCimTiszta(ev.cim);
+            const cimValt = cim !== ezGcCimTiszta(t.cim), idoValt = !ev.egesz && ev.ido !== t.ido, percValt = !ev.egesz && ev.perc !== t.perc;
+            if(ev.datum === t.datum && !cimValt && !idoValt && !percValt) continue;
+            if(all.ido && ev.frissitve <= all.ido + 5000) continue;   // nem a naptárban változott – az app változását írjuk ki
+            let e = { ...x.e };
+            if(cimValt){ const c = ezGcCimbol(cim); delete c.sablonbol; e = { ...e, ...c }; }
+            if(idoValt) e.ido = ev.ido;
+            if(percValt) e.perc = ev.perc;
+            e = ezTiszta(e);
+            athelyez(x.d, ev.datum, e);
+        } else {
+            // kézzel felvett esemény az Edzés naptárban → új tervezett edzés
+            const c = ezGcCimbol(ezGcCimTiszta(ev.cim)); if(!ev.cim || c.sport === 'pih') continue;
+            delete c.sablonbol;
+            const e = ezTiszta({ ...c, id: ezUjId(), st: 'terv', ido: ev.egesz ? undefined : ev.ido, perc: ev.egesz ? c.perc : ev.perc });
+            try { await window.sfEdzesNaptarJelol(n.id, ev.gid, ev.datum + '|' + e.id); } catch(err){ console.warn('Naptár-esemény jelölése sikertelen:', err); continue; }
+            await ezEvekBetolt(ev.datum);
+            ezNapSet(ev.datum, ezIdoRend([...ezNapLista(ev.datum), e])); valt.add(ev.datum.slice(0, 4));
+            latott.add(e.id);
+        }
+    }
+    // a naptárból törölt, még csak tervezett edzés (amelyik a legutóbbi szinkronkor ott volt)
+    const voltIds = new Set(all.ids || []);
+    for(const [id, x] of app) if(!latott.has(id) && voltIds.has(id) && (!x.e.st || x.e.st === 'terv') && !ezAppRogzitve(x.e) && !(x.e.naplo || []).length){
+        ezNapSet(x.d, ezNapLista(x.d).filter(y => y.id !== id)); valt.add(x.d.slice(0, 4));
+    }
+    return valt;
+}
 async function ezGcSzinkron(kezi){
     if(ezMasNezet() || typeof window.sfEdzesNaptarSzinkron !== 'function') return;
     if(ezGcFut){ ezGcUjra = true; return ezGcFut; }
@@ -17080,24 +17160,29 @@ async function ezGcSzinkron(kezi){
         const n = ezGcNaptar(); if(!n || !n.id) return;
         const ma = ezMa(), tol = ezPlusz(ma, -EZ_GC_VISSZA), ig = ezPlusz(ma, EZ_GC_ELORE);
         await ezEvekBetolt(tol, ig);
-        const tetelek = [];
-        for(let d = tol; d <= ig; d = ezPlusz(d, 1)) for(const e of ezNapLista(d)){
-            if(e.sport === 'pih' || !e.id) continue;
-            const a = ezAll(e, d);
-            const jel = { ok: '✅ ', resz: '◐ ', ki: '❌ ' }[a] || '';
-            const cel = ezCel(e), er = ezEr(e, d);
-            // Időpont: a Strava-aktivitás valódi kezdete és hossza, ha igazolta; különben a tervezett idő, végül az alapidőpont.
-            const akt = er.src === 'strava' && er.akt && er.akt.length ? er.akt[0] : null;
-            const ido = ezIdoOk(akt && akt.ido) || ezIdoOk(e.ido) || ezIdoOk(n.ido) || EZ_GC_ALAPIDO;
-            const perc = Math.max(10, Math.round((akt && (er.tp || akt.perc)) || e.perc || 60));
-            tetelek.push({ kulcs: d + '|' + e.id, datum: d, ido, perc, cim: jel + ezGcCim(e),
-                leiras: [cel !== '—' ? cel : '', e.leiras || '', 'Sikerfüzet · edzésnapló'].filter(Boolean).join('\n') });
-        }
+        const all = ezAdat.torzs.gcSz || {};
         try {
+            // 1) naptár → app
+            let valt = new Set();
+            if(typeof window.sfEdzesNaptarOlvas === 'function'){
+                // csak a szerverről friss évekbe írunk vissza – különben egy régi helyi példányt mentenénk
+                if([...new Set([tol, ig].map(x => x.slice(0, 4)))].every(y => !ezHiba.has(y) && !ezKesik.has(y)))
+                    valt = await ezGcBehuz(await window.sfEdzesNaptarOlvas(n.id, tol, ezPlusz(ig, 1)), all, n, tol, ig);
+                valt.forEach(y => ezMent(y, true));
+            }
+            // 2) app → naptár
+            const tetelek = [];
+            for(let d = tol; d <= ig; d = ezPlusz(d, 1)) for(const e of ezNapLista(d)){
+                if(e.sport === 'pih' || !e.id) continue;
+                tetelek.push(ezGcTetel(d, e, n));
+            }
             const r = await window.sfEdzesNaptarSzinkron(n.id, tetelek, tol, ezPlusz(ig, 1));
+            ezAdat.torzs.gcSz = { ido: Date.now(), ids: tetelek.map(t => t.kulcs.split('|').pop()) };
+            ezMent('torzs');
             ezGcUtolso = Date.now();
-            const v = [r.uj && `${r.uj} új`, r.mod && `${r.mod} frissítve`, r.tor && `${r.tor} törölve`].filter(Boolean).join(', ');
+            const v = [valt.size && 'a naptár változásai átvéve', r.uj && `${r.uj} új`, r.mod && `${r.mod} frissítve`, r.tor && `${r.tor} törölve`].filter(Boolean).join(', ');
             ezGcAllapot = `Utolsó szinkron: ${new Date().toTimeString().slice(0, 5)}${v ? ' · ' + v : ' · minden naprakész'}.`;
+            if(valt.size && prvLap('edzes')) renderEdz();
         } catch(e){
             ezGcAllapot = e && e.kod === 'token' ? 'Nincs Google Naptár kapcsolat – nyisd meg egyszer a Naptárat, vagy jelentkezz be újra.'
                 : 'A szinkron nem sikerült: ' + ((e && e.message) || e);
@@ -17114,7 +17199,7 @@ function ezGcKartya(){
     const n = ezGcNaptar();
     return `<section class="ez-gc-k">
         <b>Google Naptár${n && n.id ? ' · ' + esc(n.nev || '') : ''}</b>
-        <span>${n && n.id ? `Az edzéseid időpontra kerülnek ebbe a naptárba (7 nap vissza, 60 nap előre), és követik a változásokat. A Strava által igazolt edzés a valódi kezdési idővel és hosszal.`
+        <span>${n && n.id ? `Kétirányú szinkron (7 nap vissza, 60 nap előre): az edzéseid időpontra kerülnek ebbe a naptárba, és ha a naptárban mozgatsz, átírsz vagy új eseményt veszel fel, az ide is átjön. A Strava által igazolt edzés a valódi kezdési idővel és hosszal.`
             : n && n.ki ? 'Kikapcsolva – az edzések nem kerülnek a Google Naptárba.'
             : 'Az edzéseid bekerülhetnek a Google „Edzés” naptáradba. Válaszd ki a naptárat.'}</span>
         ${n && n.id ? `<label class="ez-gc-ido">Ha az edzésnek nincs időpontja: <input type="time" data-ezgcido value="${esc(n.ido || EZ_GC_ALAPIDO)}" aria-label="Alapidőpont"></label>
@@ -19491,10 +19576,16 @@ window.sfShowEdzes = function(){
     ezTab = 'ma'; ezHet = ezHetfo(ezMa()); ezHo = ezMa().slice(0, 7); ezRszAutoVolt = false;
     renderEdz().then(() => {
         ezStravaSzinkron(false);
-        // Megnyitáskor legfeljebb 10 percenként egyeztetünk a Google Naptárral.
-        if(Date.now() - ezGcUtolso > 600000) ezGcSzinkron(false).then(() => { if(!ezGcAllapot) return; const k = document.getElementById('ezGcAll'); if(k) k.textContent = ezGcAllapot; else if(ezGcNaptar()) renderEdz(); });
+        // Megnyitáskor legfeljebb 2 percenként egyeztetünk a Google Naptárral (a naptárban
+        // végzett módosítások így hamar átjönnek).
+        if(Date.now() - ezGcUtolso > 120000) ezGcSzinkron(false).then(() => { if(!ezGcAllapot) return; const k = document.getElementById('ezGcAll'); if(k) k.textContent = ezGcAllapot; else if(ezGcNaptar()) renderEdz(); });
     });
 };
+// Ha a Naptár appból visszaváltasz, és az Edzések látszik, a naptár változásai rögtön átjönnek.
+document.addEventListener('visibilitychange', () => {
+    if(document.hidden || !prvLap('edzes') || Date.now() - ezGcUtolso < 60000) return;
+    ezGcSzinkron(false).then(() => { const k = document.getElementById('ezGcAll'); if(k) k.textContent = ezGcAllapot; });
+});
 (function(){
     const page = document.getElementById('page-edzes'); if(!page) return;
     page.addEventListener('input', e => { if(e.target.matches('[data-ezgykeres]')){ ezGyKeres = e.target.value; ezGySzur(); } });
@@ -25118,7 +25209,8 @@ document.addEventListener('keydown', e => {
     // edzés kulcsa (nap|azonosító) azonosítja, így az időablakon belül a hiányzót
     // létrehozzuk, a változottat frissítjük, a megszűntet töröljük – a naptár
     // más eseményeihez nem nyúlunk.
-    window.sfEdzesNaptarSzinkron = async (calId, tetelek, tol, ig) => {
+    // Az Edzés naptár hívásai: a tokent egyszer kérjük, lejáratkor (401) csendben megújítjuk.
+    async function edzNaptarHivo(calId){
         let token = getCalendarToken() || await silentOnce();
         if (!token){ const e = new Error("Nincs Google Naptár kapcsolat."); e.kod = "token"; throw e; }
         const alap = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId) + "/events";
@@ -25133,6 +25225,44 @@ document.addEventListener('keydown', e => {
             if (!res.ok && !(opt.method === "DELETE" && (res.status === 404 || res.status === 410))) throw await apiError(res, "Edzés naptár");
             return res.status === 204 || opt.method === "DELETE" ? null : res.json();
         };
+        return { alap, hiv };
+    }
+    // A naptár → app irányhoz: az Edzés naptár MINDEN eseménye az ablakban (a kézzel
+    // felvettek is). { gid, kulcs (a mi jelölőnk, ha a miénk), datum, ido, perc, cim, egesz, frissitve (ms) }
+    window.sfEdzesNaptarOlvas = async (calId, tol, ig) => {
+        const { alap, hiv } = await edzNaptarHivo(calId);
+        const p2 = n => String(n).padStart(2, "0");
+        const ki = [];
+        let pt = "";
+        do {
+            const d = await hiv(alap + "?singleEvents=true&maxResults=2500"
+                + "&timeMin=" + encodeURIComponent(new Date(tol + "T00:00:00").toISOString())
+                + "&timeMax=" + encodeURIComponent(new Date(ig + "T00:00:00").toISOString()) + (pt ? "&pageToken=" + encodeURIComponent(pt) : ""));
+            for (const ev of d.items || []){
+                if (ev.status === "cancelled" || !ev.start) continue;
+                const pr = (ev.extendedProperties || {}).private || {};
+                const base = { gid: ev.id, kulcs: pr.sfEdzes ? (pr.sfKulcs || "") : "", cim: ev.summary || "", frissitve: Date.parse(ev.updated || "") || 0 };
+                if (ev.start.date) ki.push({ ...base, datum: ev.start.date, ido: "", perc: 0, egesz: true });
+                else {
+                    const a = new Date(ev.start.dateTime), b = new Date(ev.end.dateTime);
+                    ki.push({ ...base, datum: `${a.getFullYear()}-${p2(a.getMonth() + 1)}-${p2(a.getDate())}`, ido: `${p2(a.getHours())}:${p2(a.getMinutes())}`,
+                        perc: Math.max(1, Math.round((b - a) / 60000)), egesz: false });
+                }
+            }
+            pt = d.nextPageToken || "";
+        } while (pt);
+        return ki;
+    };
+    // Egy kézzel felvett eseményt a sajátunkká jelölünk (innentől a szinkron követi).
+    window.sfEdzesNaptarJelol = async (calId, gid, kulcs) => {
+        const { alap, hiv } = await edzNaptarHivo(calId);
+        await hiv(alap + "/" + encodeURIComponent(gid), { method: "PATCH", body: JSON.stringify({ extendedProperties: { private: { sfEdzes: "1", sfKulcs: kulcs } } }) });
+    };
+    window.sfEdzesNaptarSzinkron = async (calId, tetelek, tol, ig) => {
+        const { alap, hiv } = await edzNaptarHivo(calId);
+        // A párosítás az edzés AZONOSÍTÓJA szerint megy (a kulcs "nap|azonosító"): ha az
+        // edzés másik napra került, a meglévő eseményt mozgatjuk, nem törlünk és hozunk létre újat.
+        const kId = k => String(k || "").split("|").pop();
         const meglevo = {};
         let pt = "";
         do {
@@ -25140,7 +25270,7 @@ document.addEventListener('keydown', e => {
                 + "&timeMin=" + encodeURIComponent(new Date(tol + "T00:00:00").toISOString())
                 + "&timeMax=" + encodeURIComponent(new Date(ig + "T00:00:00").toISOString()) + (pt ? "&pageToken=" + encodeURIComponent(pt) : ""));
             (d.items || []).forEach(ev => {
-                const k = ((ev.extendedProperties || {}).private || {}).sfKulcs;
+                const k = kId(((ev.extendedProperties || {}).private || {}).sfKulcs);
                 if (k && !meglevo[k]) meglevo[k] = ev; else if (ev.status !== "cancelled") (meglevo["_dupla_" + ev.id] = ev);
             });
             pt = d.nextPageToken || "";
@@ -25157,11 +25287,13 @@ document.addEventListener('keydown', e => {
             const body = { summary: t.cim, description: t.leiras,
                 start: { dateTime: helyi(kezd), timeZone: "Europe/Budapest" }, end: { dateTime: helyi(vege), timeZone: "Europe/Budapest" },
                 transparency: "opaque", extendedProperties: { private: { sfEdzes: "1", sfKulcs: t.kulcs, sfIdo: idoJel } } };
-            const m = meglevo[t.kulcs]; delete meglevo[t.kulcs];
+            const m = meglevo[kId(t.kulcs)]; delete meglevo[kId(t.kulcs)];
             if (!m) feladat.push(() => hiv(alap, { method: "POST", body: JSON.stringify(body) }).then(() => er.uj++));
             // a régi (egész napos) eseményt is lecseréli – a teljes cserét a PUT végzi (a PATCH a start.date-et megtartaná)
             else if (m.summary !== body.summary || (m.description || "") !== body.description || (m.start || {}).date
-                     || ((m.extendedProperties || {}).private || {}).sfIdo !== idoJel)
+                     || ((m.extendedProperties || {}).private || {}).sfIdo !== idoJel
+                     || ((m.extendedProperties || {}).private || {}).sfKulcs !== t.kulcs
+                     || ((m.start || {}).dateTime && new Date(m.start.dateTime).getTime() !== kezd.getTime()))
                 feladat.push(() => hiv(alap + "/" + encodeURIComponent(m.id), { method: "PUT", body: JSON.stringify(body) }).then(() => er.mod++));
         }
         for (const ev of Object.values(meglevo))
