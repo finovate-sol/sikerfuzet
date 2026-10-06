@@ -5697,8 +5697,7 @@
         #pzNaplo .pz-nezet-lista .pz-mal { display:flex; align-items:center; gap:5px; font-size:13px; color:#6b7280; min-width:0; overflow:hidden; }
         #pzNaplo .pz-nezet-lista .pz-mal .t { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         #pzNaplo .pz-nezet-lista .pz-mal .f { flex:none; white-space:nowrap; }
-        #pzNaplo .pz-nezet-lista .pz-mal .f:first-child:not(:only-child):not(.pz-mcimke) { max-width:45%; overflow:hidden; text-overflow:ellipsis; flex:0 1 auto; }
-        #pzNaplo .pz-nezet-lista .pz-mal .pz-mcimke { display:inline-flex; align-items:center; gap:5px; color:#374151; max-width:60%; overflow:hidden; text-overflow:ellipsis; flex:0 1 auto; }
+        #pzNaplo .pz-nezet-lista .pz-mal .pz-mcimke { display:inline-flex; align-items:center; gap:5px; color:#374151; }
         .pz-mpont { width:7px; height:7px; border-radius:50%; flex:none; background:currentColor !important; }
         #pzNaplo .pz-nezet-lista .pz-mal em { font-style:normal; margin-left:auto; padding-left:8px; color:#9ca3af; font-size:12px; }
         #pzNaplo .pz-nezet-lista .pz-mjegy { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -13644,26 +13643,23 @@ const pzAlsor = (t, datum, w) => [datum, t.k ? t.k + (t.a ? ' › ' + t.a : '') 
 function pzNaploSorHtml(t, tarcaSzuro, datum){
     if(t.t === 'atu') return pzAtuSorHtml(t, tarcaSzuro, datum);
     const ik = pzIkon(t.k), w = t.p ? pzTarcaOf(t.p) : null, bev = t.t === 'bev';
-    // Telefonon (banki app minta): a hosszú banki szöveg ("From Marcell V, HU83…")
-    // nem cím – ilyenkor a kategória a cím, és a szöveg alatta, halványan, tördelve.
-    const memo = pzNevTiszta(t.m), hosszu = memo.length > 26 || /\d{8,}/.test(memo);
-    const cimM = hosszu || !memo ? (t.k || t.a || memo || '—') : memo;
+    const memo = pzNevTiszta(t.m);
+    const cimM = memo || t.a || t.k || '—';       // telefonon is a megjegyzés a cím (hosszúnál levágva)
     const cimD = memo || t.a || t.k || '—';
     const ism = (pzIsmetlodo(t) ? `<i class="pz-ism" title="Ismétlődő – előfizetés vagy törlesztő">${pzSvg('ismetles')}</i>` : '')
         + (t.sz && t.sz.length ? `<i class="pz-ism pz-csatolt" title="${t.sz.length} csatolt számla">${PZ_CLIP}</i>` : '')
         + (t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : '');
     return pzSorKeret(t, `${pzTetelIkHtml(t, ik, 'pz-nt-av') || `<i class="pz-nt-ik sz-${esc(ik.c)}">${pzSvg(ik.i)}</i>`}
-        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', t.a || (cimM !== t.k ? t.k : ''), ik.c, hosszu ? memo : '')}</span>
+        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', t.k, ik.c, t.a)}</span>
         <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b></span>`);
 }
-// Telefonos második sor (két soros tétel, mint a banki appban), egy halvány sor:
-// „Revolut · ● Parkolás · Simplep*parkl.net…” – tárca, a kategória színpöttye és a címke
-// (alkategória, vagy ha a cím nem a kategória, a kategória), végül a hosszú banki szöveg.
-// A tárca és a címke mindig kiírva, csak a szöveg vágódik le.
-function pzMobAlsor(tarca, datum, cimke, szin, szoveg){
+// Telefonos második sor (két soros tétel): fent a megjegyzés, alatta egy halvány sorban
+// „Revolut · ● Autó · Parkolás” – tárca, a kategória (színpöttyel), az alkategória.
+// Ha nem fér ki, az alkategória vágódik le.
+function pzMobAlsor(tarca, datum, kat, szin, alkat){
     const r = [tarca ? `<span class="f">${esc(tarca)}</span>` : '',
-        cimke ? `<span class="f pz-mcimke"><i class="pz-mpont sz-${esc(szin || 'szurke')}"></i>${esc(cimke)}</span>` : '',
-        szoveg ? `<span class="t">${esc(szoveg)}</span>` : ''].filter(Boolean);
+        kat ? `<span class="f pz-mcimke"><i class="pz-mpont sz-${esc(szin || 'szurke')}"></i>${esc(kat)}</span>` : '',
+        alkat ? `<span class="t">${esc(alkat)}</span>` : ''].filter(Boolean);
     return `<span class="pz-mal">${r.join('<span class="f pz-msep">·</span>')}${datum ? `<em>${esc(datum)}</em>` : ''}</span>`;
 }
 /* A Napló keresésre való: rögzíteni a Hónap fülön lehet. Keres a megjegyzésben,
