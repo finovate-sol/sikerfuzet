@@ -4688,6 +4688,7 @@
         .pz-rs-sor, .pz-fix { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:9px; align-items:center;
                               padding:7px 0; border-top:1px solid #eef2f7; font-size:11.5px; }
         .pz-fix { grid-template-columns:auto auto minmax(0,1fr) auto; }
+        .pz-fix.pz-fix-lista { grid-template-columns:auto minmax(0,1fr) auto; }
         .pz-rs > :first-child { border-top:0; }
         .pz-rs-sor .n, .pz-fix .n, .pz-rs-cel .n { color:var(--navy); font-weight:650; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .pz-rs em { display:block; font-style:normal; font-size:10px; font-weight:600; color:var(--muted); }
@@ -13598,9 +13599,8 @@ async function renderPzHonap(){
     const fixHtml = fixek.map((x, i) => {
         const kesz = !!pzFixTetel(x, ho);
         const esedekes = !kesz && (allas === 'mult' || (allas === 'most' && x.nap <= nap));
-        return `<div class="pz-fix">
-            <button type="button" class="pz-pipa${kesz ? ' on' : ''}" data-pzfix="${i}" aria-pressed="${kesz}"
-                title="${kesz ? 'Rögzítve a naplóban – kattints a visszavonáshoz' : 'Pipáld ki, és tételként rögzül a naplóban'}">${kesz ? '✓' : ''}</button>
+        // Csak lista (nincs pipa): név, nap, összeg; ha a naplóban már megvan, „rögzítve”.
+        return `<div class="pz-fix pz-fix-lista">
                 ${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}
             <span class="n">${esc(x.n)}<em${esedekes ? ' class="pz-warn"' : ''}>${x.nap}. nap${esedekes ? ' · esedékes volt' : kesz ? ' · rögzítve' : ''}</em></span>
             <b>${pzFt(x.o)} Ft</b></div>`;
@@ -13643,7 +13643,7 @@ async function renderPzHonap(){
                             <b class="pz-up">+${pzFt(bevTeny[c])}</b></div>`).join('')}</div>`
                     : `<div class="pz-ures">Nincs rögzített bevétel.</div>`}
                 </section>
-                <section class="card pz-sec"><h4 class="pz-sec-title">Fix kifizetések<span class="pz-sec-note">pipáld ki, ha lement</span></h4>
+                <section class="card pz-sec"><h4 class="pz-sec-title">Fix kifizetések</h4>
                     ${fixek.length ? `<div class="pz-rs">${fixHtml}</div>`
                     : `<div class="pz-ures">Nincs előfizetés vagy törlesztő.<br><a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
                 </section>
@@ -13954,8 +13954,7 @@ async function renderPzNaplo(){
             </section>
             <section class="card pz-sec"><h4 class="pz-sec-title">Következő fizetések</h4>
                 ${kovetkezo.length ? `<div class="pz-rs">${kovetkezo.map(x => `
-                    <div class="pz-fix"><button type="button" class="pz-pipa${x.kesz ? ' on' : ''}" data-pzfix="${x.i}" aria-pressed="${x.kesz}"
-                        title="${x.kesz ? 'Rögzítve – kattints a visszavonáshoz' : 'Pipáld ki, és tételként rögzül'}">${x.kesz ? '✓' : ''}</button>
+                    <div class="pz-fix pz-fix-lista">
                 ${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}
                         <span class="n">${esc(x.n)}<em>${x.kesz ? 'rögzítve' : pzHatraSzo(x.h)}</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
                 : `<div class="pz-ures">Nincs előfizetés vagy törlesztő.<br><a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
