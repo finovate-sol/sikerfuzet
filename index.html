@@ -5378,6 +5378,8 @@
         .pz-nezet-kompakt .pz-nt-ik { width:28px; height:28px; }
         .pz-nezet-kompakt .pz-nt-ik svg { width:15px; height:15px; }
         .pz-nezet-kompakt .pz-nt-av { width:28px; height:28px; font-size:11px; }
+        .pz-tarca .pz-tarca-logo { grid-row:1 / 4; width:42px; height:42px; font-size:13px; }
+        .pz-w .pz-w-logo { width:28px; height:28px; font-size:10px; }
         .pz-atu-av { --s:36px; position:relative; display:inline-block; width:var(--s); height:var(--s); flex:none; }
         .pz-atu-av > span { position:absolute; display:flex; }
         .pz-atu-av .a { left:0; top:0; } .pz-atu-av .b { right:0; bottom:0; }
@@ -5634,6 +5636,7 @@
             #page-penzugyek .pz-tarca { background:none; border:0; box-shadow:none; border-radius:0; padding:11px 18px; grid-template-columns:auto minmax(0,1fr) auto;
                                         grid-template-rows:auto auto; column-gap:14px; row-gap:2px; }
             #page-penzugyek .pz-tarca .pz-tarca-ikon { grid-row:1 / 3; width:44px; height:44px; background-color:#eef2f7; }
+            #page-penzugyek .pz-tarca .pz-tarca-logo { grid-row:1 / 3; width:44px; height:44px; }
             #page-penzugyek .pz-tarca .nev { font-size:15px; font-weight:500; color:#111827; }
             #page-penzugyek .pz-tarca .tip { grid-column:2; font-size:12.5px; font-weight:400; color:#6b7280; }
             #page-penzugyek .pz-tarca b { grid-column:3; grid-row:1 / 3; align-self:center; font-size:14.5px; font-weight:500; }
@@ -11162,6 +11165,9 @@ function pzTarcaAv(w){
     if(w){ const x = pzSzolgOf(w.n); if(pzSzolgAutoWeb(w.n) || (x && pzSzolgKep(x))) return pzSzolgAv(w.n); }
     return `<i class="pz-szolg-av pz-tarca-av">${w ? pzSvg(w.ikon || pzTarcaTip(w.tipus)[2]) : '?'}</i>`;
 }
+// Tárca logója (bank, pl. Revolut, Raiffeisen), ha felismerhető; különben null (marad az ikon).
+const pzTarcaLogo = (w, cls) => { if(!w) return null; const x = pzSzolgOf(w.n);
+    return pzSzolgAutoWeb(w.n) || (x && pzSzolgKep(x)) ? pzSzolgAv(w.n, cls) : null; };
 const pzAtuAvHtml = (t, cls) => { const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
     return a || b ? `<span class="pz-atu-av ${cls || ''}" title="${esc((a ? a.n : '?') + ' → ' + (b ? b.n : '?'))}"><span class="a">${pzTarcaAv(a)}</span><span class="b">${pzTarcaAv(b)}</span></span>` : null; };
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
@@ -12332,7 +12338,7 @@ function pzTarcaKartyaHtml(w, i){
     const [, cim, ikon] = pzTarcaTip(w.tipus);
     const neg = (w.o || 0) < 0;
     return `<button type="button" class="pz-tarca" data-pztarca="${i}" title="Szerkesztés">
-        <i class="pz-tarca-ikon">${pzSvg(w.ikon || ikon)}</i>
+        ${pzTarcaLogo(w, 'pz-tarca-logo') || `<i class="pz-tarca-ikon">${pzSvg(w.ikon || ikon)}</i>`}
         <span class="nev">${esc(w.n || '—')}</span>
         <span class="tip">${esc(cim)} · ${esc(pzEgySzo(w))}</span>
         <b class="${neg ? 'pz-down' : 'pz-up'}">${neg ? '−' : '+'}${pzFt(Math.abs(w.o || 0))} Ft</b>
@@ -13856,7 +13862,7 @@ async function renderPzNaplo(){
                 <button type="button" class="pz-w${pzNTarca ? '' : ' on'}" data-pzntarca="">${pzIk('szumma', 'szurke')}
                     <span class="n">Összes<em>${torzs.penztarca.length} tárca</em></span><span></span></button>
                 ${torzs.penztarca.map(w => `<button type="button" class="pz-w${pzNTarca === w.id ? ' on' : ''}" data-pzntarca="${esc(w.id)}">
-                    ${pzIk(w.ikon || pzTarcaTip(w.tipus)[2], 'szurke')}
+                    ${pzTarcaLogo(w, 'pz-w-logo') || pzIk(w.ikon || pzTarcaTip(w.tipus)[2], 'szurke')}
                     <span class="n">${esc(w.n)}<em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
                     <b class="${(w.o || 0) < 0 ? 'pz-down' : 'pz-up'}">${(w.o || 0) < 0 ? '−' : ''}${pzFt(Math.abs(w.o || 0))}</b></button>`).join('')}
             </div>
