@@ -5285,7 +5285,7 @@
         /* ---- szolgáltatók: logó / monogram, javaslat-chipek az Új tétel ablakban ---- */
         .pz-szolg-av { --c:#6d28d9; width:36px; height:36px; border-radius:50%; flex:none; display:inline-flex; align-items:center; justify-content:center; font-style:normal;
                        font-size:13px; font-weight:800; letter-spacing:.02em; color:#fff; background:var(--c); overflow:hidden; }
-        .pz-szolg-av.kep { background:#fff; box-shadow:inset 0 0 0 1px #e5e7eb; }
+        .pz-szolg-av.kep { background:#fff; box-shadow:inset 0 0 0 1px rgba(15,23,42,.09); }
         .pz-szolg-av { position:relative; }
         .pz-szolg-av img { -webkit-user-drag:none; pointer-events:none; }
         .pz-szolg-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#fff; }
@@ -5644,7 +5644,7 @@
         /* ===== Tranzakciók telefonon: banki app minta =====
            Kerek kereső, cash-flow összesítő, hónap-csúszka; napfejléc a kártya fölött,
            a nap tételei egy lekerekített fehér kártyában, elválasztó vonalak nélkül. */
-        .pz-mcf, .pz-mhok, .pz-sz-mob, .pz-mal, .pz-mjegy, .pz-mtag, .pz-cim-m { display:none; }
+        .pz-mcf, .pz-mhok, .pz-sz-mob, .pz-mal, .pz-mjegy, .pz-mtag, .pz-mtag2, .pz-cim-m { display:none; }
         /* Közös (gépen is): kerek kereső, cash-flow, hónap-csúszka, napokra bontott kártyák */
         #pzNaplo .pz-sz-mob { display:flex; }
         #pzNaplo .pz-het, #pzNaplo .pz-ker-tip, #pzNaplo .pz-ker-info { display:none; }
@@ -5701,7 +5701,8 @@
                                              font-size:12.5px; line-height:1.35; color:#6b7280; margin-top:1px; }
         #pzNaplo .pz-nezet-lista .pz-mtag { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
         #pzNaplo .pz-nezet-lista .pz-mtag .pz-tag { font-size:11px; font-weight:600; padding:5px 10px; border-radius:999px; }
-        #pzNaplo .pz-nezet-lista .pz-ntb .jobb { padding-top:2px; }
+        #pzNaplo .pz-nezet-lista .pz-ntb .jobb { padding-top:2px; gap:5px; }
+        #pzNaplo .pz-nezet-lista .pz-mtag2 { display:block; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; }
         #pzNaplo .pz-nezet-lista .pz-ntb .jobb .o { font-size:15px; font-weight:500; color:#111827; }
         #pzNaplo .pz-nezet-lista .pz-ntb .jobb .o.pz-up { color:#2f9e6e; }
         #pzNaplo .pz-nezet-lista .pz-ntb .jobb .o.pz-atu-o { color:#1d4ed8; }
@@ -11028,6 +11029,7 @@ const pzSzolgWebCache = new Map();
 // a böngészőben megjegyezve ('' = marad a fehér kör). Ha a kép pixelei nem
 // olvashatók (a szerver nem engedi), szintén marad a fehér kör.
 const pzFavInfo = (() => { try { return new Map(Object.entries(store.load('sf_pz_fav', {}) || {})); } catch(e){ return new Map(); } })();
+const pzFavHatter = u => `background:url("${String(u).replace(/["\\]/g, '')}") 0% 50% / 4000% auto no-repeat, #fff`;
 // A feltöltött kép (data: URL) hosszú – a megjegyzéshez rövid kulcsot képzünk belőle.
 const pzFavKulcs = u => { u = String(u || ''); if(!u.startsWith('data:')) return u; let h = 0; for(let i = 0; i < u.length; i += 7) h = (h * 31 + u.charCodeAt(i)) >>> 0; return 'd' + u.length + '_' + h.toString(36); };
 function pzFavElemez(img){
@@ -11079,7 +11081,7 @@ const pzFavJoMent = () => { try { store.save('sf_pz_fav_jo', Object.fromEntries(
 function pzFavKov(img, kicsi){
     const l = (img.dataset.alt || '').split(' ').filter(Boolean), av = img.parentNode;
     if(kicsi) img.dataset.kicsi = '1';
-    if(l.length){ img.dataset.alt = l.slice(1).join(' '); img.src = l[0]; return; }
+    if(l.length){ img.dataset.alt = l.slice(1).join(' '); img.src = l[0]; if(av && !av.classList.contains('tele')) av.setAttribute('style', (av.getAttribute('style') || '').replace(/;?background:.*$/, '') + ';' + pzFavHatter(l[0])); return; }
     if(img.dataset.elso && img.dataset.kicsi){ pzFavJo.set(img.dataset.elso, ''); pzFavJoMent(); }
     if(av){ av.classList.remove('kep', 'fav', 'tele'); av.style.background = ''; }
     img.remove();
@@ -11106,7 +11108,11 @@ function pzSzolgAv(nev, cls){
     // B terv: minden logó a körbe írható négyzetben (a kör 71%-a) ül, így a négyzetes sarkok sem
     // lógnak ki; ha a logó széle egyszínű, a kör azt a színt kapja, és a kettő összeolvad.
     const sajat = !!(x && x.kep), fav = !!kep, szin = fav ? pzFavInfo.get(pzFavKulcs(kep)) : '';
-    return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${szin ? ';background:' + szin : ''}">${esc(bet)}${kep
+    // A kör kitöltése a logó szélének színével úgy is, ha a kép pixelei nem olvashatók (idegen
+    // szerver): háttérként maga a logó, 40-szeresre nagyítva, a bal szélének közepére igazítva –
+    // így a körben csak a logó széle látszik. (A saját, feltöltött képnél a szín kiolvasható.)
+    const hatter = szin ? 'background:' + szin : fav && !sajat ? pzFavHatter(kep) : '';
+    return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${hatter ? ';' + esc(hatter) : ''}">${esc(bet)}${kep
         ? `<img src="${esc(kep)}" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer"${fav ? `${sajat ? '' : ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}"`} onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
 }
 // Átutalás ikonja: a két tárca egymásra csúsztatva – nagyban a forrás (pl. Revolut),
@@ -13644,8 +13650,8 @@ function pzNaploSorHtml(t, tarcaSzuro, datum){
         + (t.sz && t.sz.length ? `<i class="pz-ism pz-csatolt" title="${t.sz.length} csatolt számla">${PZ_CLIP}</i>` : '')
         + (t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : '');
     return pzSorKeret(t, `${pzTetelIkHtml(t, ik, 'pz-nt-av') || `<i class="pz-nt-ik sz-${esc(ik.c)}">${pzSvg(ik.i)}</i>`}
-        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor([w ? w.n : '', hosszu ? memo : (t.a || (cimM !== t.k ? t.k : ''))].filter(Boolean).join(' · '), typeof datum === 'string' ? datum : '')}</span>
-        <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b></span>`);
+        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor([w ? w.n : '', hosszu ? memo : (cimM !== t.k ? t.k : '')].filter(Boolean).join(' · '), typeof datum === 'string' ? datum : '')}</span>
+        <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b>${t.a ? `<span class="pz-tag pz-mtag2 sz-${esc(ik.c)}">${esc(t.a)}</span>` : ''}</span>`);
 }
 // Telefonos második sor (két soros tétel, mint a banki appban): egy halvány sor,
 // pl. „Revolut · Parkolás” (tárca · alkategória vagy kategória, hosszú banki szövegnél a szöveg).
