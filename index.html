@@ -5287,6 +5287,7 @@
                        font-size:13px; font-weight:800; letter-spacing:.02em; color:#fff; background:var(--c); overflow:hidden; }
         .pz-szolg-av.kep { background:#fff; box-shadow:inset 0 0 0 1px #e5e7eb; }
         .pz-szolg-av { position:relative; }
+        .pz-szolg-av img { -webkit-user-drag:none; pointer-events:none; }
         .pz-szolg-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#fff; }
         .pz-szolg-av.fav img { inset:16%; width:68%; height:68%; object-fit:contain; background:none; }
         .pz-szolg-av.fav { background:#fff; }
@@ -11102,7 +11103,7 @@ function pzSzolgAv(nev, cls){
     // színnel töltjük ki a kört (lásd pzFavElemez), különben fehér körben, margóval látszik.
     const fav = kep && !(x && x.kep), szin = fav ? pzFavInfo.get(kep) : '';
     return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${szin ? ';background:' + szin : ''}">${esc(bet)}${kep
-        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer"${fav ? ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}" onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
+        ? `<img src="${esc(kep)}" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer"${fav ? ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}" onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
 }
 // Átutalás ikonja: a két tárca egymásra csúsztatva – nagyban a forrás (pl. Revolut),
 // a jobb alsó sarokban a cél (pl. Raiffeisen). Banknál a logója, egyébként a tárca ikonja.
@@ -13696,8 +13697,9 @@ async function renderPzNaplo(){
     const osszes = hok.flatMap(h => (pzTranz[h] || []).map((t, i) => ({ ...t, _i:i })));
     const szavak = pzNorm(pzKer).split(' ').filter(Boolean);
     const keres = szavak.length > 0 || pzKerTip !== 'mind' || pzSzAktivDb() > 0;
-    // Húzással rendezni csak a teljes, szűretlen havi listában lehet (különben rejtett tételek közé kerülne).
-    pzHuzhato = pzNezet !== 'tabla' && !pzJelol && pzKerHat === 'ho' && !keres && !pzNTarca && (pzSz.rend === 'uj' || pzSz.rend === 'regi');
+    // Húzással rendezni a havi listában lehet, tárcára szűrve is (a nem látszó tételek a helyükön
+    // maradnak); kereséssel / szűrőkkel nem, mert ott a lista nem napokra bontott teljes kép.
+    pzHuzhato = pzNezet !== 'tabla' && !pzJelol && pzKerHat === 'ho' && !keres && (pzSz.rend === 'uj' || pzSz.rend === 'regi');
     // Alap: tárca, típus, időszak és a szöveg. Ebből számoljuk a kategória-
     // címkék darabszámát, hogy lásd, mire érdemes még szűkíteni.
     const alap = osszes.filter(t => !pzNTarca || t.p === pzNTarca || (t.t === 'atu' && t.p2 === pzNTarca))
@@ -14490,7 +14492,10 @@ window.sfShowPenzugyek = function(){
 function pzHuzMent(id, nap, ids){
     const ho = pzTHo, arr = pzTranz[ho], t = arr && arr.find(x => x.id === id);
     if(!t || nap.slice(0, 7) !== ho){ renderPzNaplo(); return; }
-    const helyek = arr.map((x, i) => (x.d === nap || x === t) ? i : -1).filter(i => i >= 0);
+    // Csak a látott (átrendezett) tételek helyei cserélődnek; ha tárcára szűrsz, a többi tárca
+    // aznapi tételei ott maradnak, ahol voltak.
+    const lat = new Set(ids);
+    const helyek = arr.map((x, i) => ((x.d === nap && lat.has(x.id)) || x === t) ? i : -1).filter(i => i >= 0);
     const novekvo = pzSz.rend === 'regi' ? ids : ids.slice().reverse();
     const elemek = novekvo.map(i => arr.find(x => x.id === i)).filter(Boolean);
     if(elemek.length !== helyek.length){ renderPzNaplo(); return; }
