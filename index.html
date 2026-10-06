@@ -11004,7 +11004,7 @@ const PZ_SZOLG_WEB = {
     'telekom': 'telekom.hu', 'yettel': 'yettel.hu', 'vodafone': 'one.hu', 'one hungary': 'one.hu', 'digi': 'digi.hu',
     'mvm': 'mvm.hu', 'fotav': 'fotav.hu', 'dijnet': 'dijnet.hu', 'eon': 'eon.hu', 'vizmuvek': 'vizmuvek.hu',
     'otp': 'otpbank.hu', 'revolut': 'revolut.com', 'wise': 'wise.com', 'erste': 'erstebank.hu', 'raiffeisen': 'raiffeisen.hu',
-    'mbh': 'mbhbank.hu', 'cib': 'cib.hu', 'granit': 'granitbank.hu', 'uniqa': 'uniqa.hu', 'allianz': 'allianz.hu', 'generali': 'generali.hu',
+    'mbh': 'mbhbank.hu', 'cib': 'cib.hu', 'granit': 'granitbank.hu', 'uniqa': 'uniqa.hu|uniqa.at|uniqagroup.com', 'allianz': 'allianz.hu', 'generali': 'generali.hu',
     'ovb': 'ovb.hu', 'groupama': 'groupama.hu', 'signal': 'signal.hu', 'paypal': 'paypal.com', 'barion': 'barion.com', 'airbnb': 'airbnb.com',
     'booking': 'booking.com', 'szallas': 'szallas.hu', 'posta': 'posta.hu', 'foxpost': 'foxpost.hu', 'packeta': 'packeta.hu',
     'gls': 'gls-group.eu', 'dpd': 'dpd.com', 'cinema city': 'cinemacity.hu', 'nav': 'nav.gov.hu',
@@ -11052,11 +11052,36 @@ function pzSzolgAutoWeb(m){
     return w;
 }
 const pzFavicon = w => `https://www.google.com/s2/favicons?domain=${encodeURIComponent(w)}&sz=128`;
-const pzSzolgKep = x => x ? (x.kep || (x.web ? pzFavicon(x.web) : (pzSzolgAutoWeb(x.n) ? pzFavicon(pzSzolgAutoWeb(x.n)) : ''))) : '';
+// Logó-források egy weboldalhoz, sorban: a Google, majd a DuckDuckGo ikonszolgáltatása.
+// Egy szolgáltatóhoz több weboldal is tartozhat ("uniqa.hu|uniqa.at") – sorra próbáljuk.
+const pzFavForrasok = w => String(w || '').split('|').filter(Boolean).flatMap(d => [pzFavicon(d), `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`]);
+const pzSzolgWeb = (x, nev) => (x && x.web) || (x && pzSzolgAutoWeb(x.n)) || (nev ? pzSzolgAutoWeb(nev) : '');
+const pzSzolgKep = x => x ? (x.kep || pzFavForrasok(pzSzolgWeb(x))[0] || '') : '';
+// Melyik forrás vált be egy szolgáltatónál (az első forrás URL-je → a jó URL; '' = egyik sem,
+// mert csak üres / 16 px-es "nincs ikon" kép jött). Hálózati hibát nem jegyzünk meg.
+const pzFavJo = (() => { try { return new Map(Object.entries(store.load('sf_pz_fav_jo', {}) || {})); } catch(e){ return new Map(); } })();
+const pzFavJoMent = () => { try { store.save('sf_pz_fav_jo', Object.fromEntries(pzFavJo)); } catch(e){} };
+function pzFavKov(img, kicsi){
+    const l = (img.dataset.alt || '').split(' ').filter(Boolean), av = img.parentNode;
+    if(kicsi) img.dataset.kicsi = '1';
+    if(l.length){ img.dataset.alt = l.slice(1).join(' '); img.src = l[0]; return; }
+    if(img.dataset.elso && img.dataset.kicsi){ pzFavJo.set(img.dataset.elso, ''); pzFavJoMent(); }
+    if(av){ av.classList.remove('kep', 'fav', 'tele'); av.style.background = ''; }
+    img.remove();
+}
+function pzFavBetolt(img){
+    const av = img.parentNode; if(!av || !av.classList.contains('fav')) return;
+    if(img.naturalWidth && img.naturalWidth <= 16) return pzFavKov(img, true);      // a "nincs ikon" földgömb 16 px-es
+    const u = img.getAttribute('src');
+    if(img.dataset.elso && pzFavJo.get(img.dataset.elso) !== u){ pzFavJo.set(img.dataset.elso, u); pzFavJoMent(); }
+    pzFavElemez(img);
+}
 const PZ_SZOLG_SZIN = ['#6d28d9', '#2563eb', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#db2777', '#475569'];
 function pzSzolgAv(nev, cls){
     const x = pzSzolgOf(nev), n = pzNevTiszta((x && x.n) || nev).trim();
-    const kep = pzSzolgKep(x) || (pzSzolgAutoWeb(nev) ? pzFavicon(pzSzolgAutoWeb(nev)) : '');
+    const forr = x && x.kep ? [x.kep] : pzFavForrasok(pzSzolgWeb(x, nev)), elso = forr[0] || '';
+    const jo = elso && !(x && x.kep) && pzFavJo.has(elso) ? pzFavJo.get(elso) : null;
+    const kep = jo === '' ? '' : (jo || elso), alt = jo ? [] : forr.slice(1);
     const szavak = n.split(/[\s.,\-–*]+/).filter(Boolean);
     const bet = ((szavak[0] || '?')[0] + (szavak[1] ? szavak[1][0] : (szavak[0] || '').slice(1, 2))).toUpperCase();
     let h = 0; for(const c of pzNorm(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -11065,7 +11090,7 @@ function pzSzolgAv(nev, cls){
     // színnel töltjük ki a kört (lásd pzFavElemez), különben fehér körben, margóval látszik.
     const fav = kep && !(x && x.kep), szin = fav ? pzFavInfo.get(kep) : '';
     return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${szin ? ';background:' + szin : ''}">${esc(bet)}${kep
-        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer"${fav && !pzFavInfo.has(kep) ? ' onload="pzFavElemez(this)"' : ''} onerror="this.parentNode.classList.remove('kep','fav','tele');this.parentNode.style.background='';this.remove()">` : ''}</i>`;
+        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer"${fav ? ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}" onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
 }
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
 const pzTetelIkHtml = (t, ik, cls) => { if(!t || t.t === 'atu' || !t.m) return null; const x = pzSzolgOf(t.m);
@@ -11135,7 +11160,7 @@ function pzSzolgModal(utana){
         ov.querySelector('#pzSzlLista').innerHTML = l.length ? l.map(x => `<div class="pz-szl-sor" data-szid="${esc(x.id)}">
             <button type="button" class="pz-szl-kep" data-szlkep title="Logó feltöltése">${pzSzolgAv(x.n)}</button>
             <span class="n"><input type="text" value="${esc(x.n)}" data-szlnev maxlength="40" aria-label="Név"><em>${x.db ? x.db + ' tétel a betöltött hónapokban' : 'nincs tétel a betöltött hónapokban'}</em></span>
-            <input type="text" class="pz-szl-web" value="${esc(x.web || '')}" data-szlweb placeholder="${esc(pzSzolgAutoWeb(x.n) ? 'magától: ' + pzSzolgAutoWeb(x.n) : 'weboldal (pl. parkl.hu)')}" aria-label="Weboldal – innen jön a logó" maxlength="80">
+            <input type="text" class="pz-szl-web" value="${esc(x.web || '')}" data-szlweb placeholder="${esc(pzSzolgAutoWeb(x.n) ? 'magától: ' + pzSzolgAutoWeb(x.n).split('|')[0] : 'weboldal (pl. parkl.hu)')}" aria-label="Weboldal – innen jön a logó" maxlength="80">
             ${x.kep ? '<button type="button" class="pz-szl-g" data-szlkepx>Kép törlése</button>' : ''}
             <button type="button" class="pz-szl-x" data-szlx aria-label="Törlés">×</button></div>`).join('')
             : '<div class="pz-ures">Nincs találat.</div>';
