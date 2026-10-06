@@ -5377,6 +5377,18 @@
         .pz-nezet-kompakt .pz-nt-ik { width:28px; height:28px; }
         .pz-nezet-kompakt .pz-nt-ik svg { width:15px; height:15px; }
         .pz-nezet-kompakt .pz-nt-av { width:28px; height:28px; font-size:11px; }
+        .pz-atu-av { --s:36px; position:relative; display:inline-block; width:var(--s); height:var(--s); flex:none; }
+        .pz-atu-av > span { position:absolute; display:flex; }
+        .pz-atu-av .a { left:0; top:0; } .pz-atu-av .b { right:0; bottom:0; }
+        .pz-atu-av .pz-szolg-av { font-size:calc(var(--s) * .24); }
+        .pz-atu-av .a .pz-szolg-av { width:calc(var(--s) * .74); height:calc(var(--s) * .74); }
+        .pz-atu-av .b .pz-szolg-av { width:calc(var(--s) * .56); height:calc(var(--s) * .56); box-shadow:0 0 0 2px #fff; }
+        .pz-atu-av .b .pz-szolg-av.kep:not(.tele) { box-shadow:0 0 0 2px #fff, inset 0 0 0 1px #e5e7eb; }
+        .pz-tarca-av { background:#e8effc; color:#1f5fd0; }
+        .pz-tarca-av svg { width:58%; height:58%; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .pz-nezet-kompakt .pz-atu-av { --s:28px; }
+        #pzNaplo .pz-nezet-lista .pz-atu-av { --s:46px; margin-top:1px; }
+        .pz-a-li .pz-atu-av { --s:34px; }
         #pzNaplo .pz-nezet-lista .pz-nt-av { width:46px; height:46px; font-size:15px; margin-top:1px; }
         .pz-nezet-kompakt .pz-ntb .n { flex-direction:row; align-items:center; gap:14px; }
         .pz-nezet-kompakt .pz-ntb .n > b { flex:0 1 40%; font-size:12.5px; }
@@ -11092,6 +11104,14 @@ function pzSzolgAv(nev, cls){
     return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${szin ? ';background:' + szin : ''}">${esc(bet)}${kep
         ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer"${fav ? ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}" onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
 }
+// Átutalás ikonja: a két tárca egymásra csúsztatva – nagyban a forrás (pl. Revolut),
+// a jobb alsó sarokban a cél (pl. Raiffeisen). Banknál a logója, egyébként a tárca ikonja.
+function pzTarcaAv(w){
+    if(w){ const x = pzSzolgOf(w.n); if(pzSzolgAutoWeb(w.n) || (x && pzSzolgKep(x))) return pzSzolgAv(w.n); }
+    return `<i class="pz-szolg-av pz-tarca-av">${w ? pzSvg(w.ikon || pzTarcaTip(w.tipus)[2]) : '?'}</i>`;
+}
+const pzAtuAvHtml = (t, cls) => { const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
+    return a || b ? `<span class="pz-atu-av ${cls || ''}" title="${esc((a ? a.n : '?') + ' → ' + (b ? b.n : '?'))}"><span class="a">${pzTarcaAv(a)}</span><span class="b">${pzTarcaAv(b)}</span></span>` : null; };
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
 const pzTetelIkHtml = (t, ik, cls) => { if(!t || t.t === 'atu' || !t.m) return null; const x = pzSzolgOf(t.m);
     return (x && pzSzolgKep(x)) || pzSzolgAutoWeb(t.m) ? pzSzolgAv(x ? x.n : t.m, cls) : null; };
@@ -12839,7 +12859,7 @@ async function renderPzAttek(csak){
         utolso: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Legutóbbi tételek</h4><a class="link" href="#" data-pzview="naplo">Összes tranzakció</a></div>
             ${utolso.length ? `<div class="pz-a-lista">${utolso.map(t => { if(t.t === 'atu'){ const a = pzTarcaOf(t.p), b2 = pzTarcaOf(t.p2); return `
-                <button type="button" class="pz-a-li" data-pztid="${esc(t.id)}">${pzIk('atutal', 'kek')}
+                <button type="button" class="pz-a-li" data-pztid="${esc(t.id)}">${pzAtuAvHtml(t) || pzIk('atutal', 'kek')}
                     <span class="n">${esc(t.m || 'Átutalás')}<em>${esc(pzNapCim(t.d))} · ${esc(a ? a.n : '?')} → ${esc(b2 ? b2.n : '?')}</em></span>
                     <b class="pz-atu-o">${pzFt(t.o)} Ft</b></button>`; } const ik = pzIkon(t.k); return `
                 <button type="button" class="pz-a-li" data-pztid="${esc(t.id)}">${pzTetelIkHtml(t, ik, 'pz-a-av') || pzIk(ik.i, ik.c)}
@@ -13599,7 +13619,7 @@ function pzSorKeret(t, tartalom){
 function pzAtuSorHtml(t, tarcaSzuro, datum){
     const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
     const jel = typeof tarcaSzuro === 'string' && tarcaSzuro ? (t.p2 === tarcaSzuro ? '+' : '−') : '';
-    return pzSorKeret(t, `<i class="pz-nt-ik sz-kek">${pzSvg('atutal')}</i>
+    return pzSorKeret(t, `${pzAtuAvHtml(t) || `<i class="pz-nt-ik sz-kek">${pzSvg('atutal')}</i>`}
         <span class="n"><b>${esc(pzNevTiszta(t.m) || 'Átutalás')}</b><span class="pz-al">${[typeof datum === 'string' ? datum : '', 'Átutalás', `${a ? a.n : '?'} → ${b ? b.n : '?'}`].filter(Boolean).map(esc).join(' · ')}</span>${pzMobAlsor(`${a ? a.n : '?'} → ${b ? b.n : '?'}`, typeof datum === 'string' ? datum : '', '')}</span>
         <span class="jobb"><b class="o pz-atu-o">${jel}${pzFt(t.o)} Ft</b></span>`);
 }
