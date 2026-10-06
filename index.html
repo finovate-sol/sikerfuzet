@@ -5685,7 +5685,7 @@
         #pzNaplo .pz-napfej .ossz, #pzNaplo .pz-napfej .ossz b { font-size:14px; font-weight:500; color:#4b5563; }
         #pzNaplo .pz-nap-sorok { background:#fff; border-radius:28px; padding:8px 0; box-shadow:0 1px 3px rgba(15,23,42,.04); overflow:hidden; }
         #pzNaplo .pz-feed-lista > .pz-nap-sorok { margin-top:8px; }
-        #pzNaplo .pz-nezet-lista .pz-ntb { border-top:0; padding:12px 18px; gap:2px 14px; align-items:start; }
+        #pzNaplo .pz-nezet-lista .pz-ntb { border-top:0; padding:12px 18px; gap:2px 14px; align-items:center; }
         #pzNaplo .pz-nezet-lista .pz-ntb:hover { background:#f9fafb; }
         #pzNaplo .pz-nezet-lista .pz-nt-ik { width:46px; height:46px; border-radius:50%; margin-top:1px;
                                             background-image:radial-gradient(circle at 32% 28%, rgba(255,255,255,.75), rgba(255,255,255,0) 62%); }
@@ -5695,7 +5695,7 @@
         #pzNaplo .pz-nezet-lista .pz-cim-d, #pzNaplo .pz-nezet-lista .pz-al { display:none; }
         #pzNaplo .pz-nezet-lista .pz-cim-m { display:inline; }
         #pzNaplo .pz-nezet-lista .pz-mal { display:flex; align-items:center; gap:6px; font-size:13px; color:#6b7280; min-width:0; }
-        #pzNaplo .pz-nezet-lista .pz-mal svg { width:17px; height:17px; flex:none; stroke-width:1.6; }
+        #pzNaplo .pz-nezet-lista .pz-mal .t { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         #pzNaplo .pz-nezet-lista .pz-mal em { font-style:normal; margin-left:auto; padding-left:8px; color:#9ca3af; font-size:12px; }
         #pzNaplo .pz-nezet-lista .pz-mjegy { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                                              font-size:12.5px; line-height:1.35; color:#6b7280; margin-top:1px; }
@@ -13625,7 +13625,7 @@ function pzAtuSorHtml(t, tarcaSzuro, datum){
     const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
     const jel = typeof tarcaSzuro === 'string' && tarcaSzuro ? (t.p2 === tarcaSzuro ? '+' : '−') : '';
     return pzSorKeret(t, `${pzAtuAvHtml(t) || `<i class="pz-nt-ik sz-kek">${pzSvg('atutal')}</i>`}
-        <span class="n"><b>${esc(pzNevTiszta(t.m) || 'Átutalás')}</b><span class="pz-al">${[typeof datum === 'string' ? datum : '', 'Átutalás', `${a ? a.n : '?'} → ${b ? b.n : '?'}`].filter(Boolean).map(esc).join(' · ')}</span>${pzMobAlsor(`${a ? a.n : '?'} → ${b ? b.n : '?'}`, typeof datum === 'string' ? datum : '', '')}</span>
+        <span class="n"><b>${esc(pzNevTiszta(t.m) || 'Átutalás')}</b><span class="pz-al">${[typeof datum === 'string' ? datum : '', 'Átutalás', `${a ? a.n : '?'} → ${b ? b.n : '?'}`].filter(Boolean).map(esc).join(' · ')}</span>${pzMobAlsor(`${a ? a.n : '?'} → ${b ? b.n : '?'}`, typeof datum === 'string' ? datum : '')}</span>
         <span class="jobb"><b class="o pz-atu-o">${jel}${pzFt(t.o)} Ft</b></span>`);
 }
 // A banki importból jövő megnevezés gyakran duplázott ("Orlen Hu, Orlen Hu") – megjelenítéskor egyszer.
@@ -13644,13 +13644,13 @@ function pzNaploSorHtml(t, tarcaSzuro, datum){
         + (t.sz && t.sz.length ? `<i class="pz-ism pz-csatolt" title="${t.sz.length} csatolt számla">${PZ_CLIP}</i>` : '')
         + (t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : '');
     return pzSorKeret(t, `${pzTetelIkHtml(t, ik, 'pz-nt-av') || `<i class="pz-nt-ik sz-${esc(ik.c)}">${pzSvg(ik.i)}</i>`}
-        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', hosszu ? memo : '', t.a && t.a !== cimM ? `<span class="pz-tag sz-${esc(ik.c)}">${esc(t.a)}</span>` : '')}</span>
+        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor([w ? w.n : '', hosszu ? memo : (t.a || (cimM !== t.k ? t.k : ''))].filter(Boolean).join(' · '), typeof datum === 'string' ? datum : '')}</span>
         <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b></span>`);
 }
-// Telefonos alsó sorok: tárca-ikon + tárca, alatta egy sorban a megjegyzés,
-// legalul az alkategória címkeként.
-function pzMobAlsor(tarca, datum, jegyzet, cimkek){
-    return `<span class="pz-mal">${tarca ? pzSvg('penztarca') + esc(tarca) : ''}${datum ? `<em>${esc(datum)}</em>` : ''}</span>${jegyzet ? `<span class="pz-mjegy">${esc(jegyzet)}</span>` : ''}${cimkek ? `<span class="pz-mtag">${cimkek}</span>` : ''}`;
+// Telefonos második sor (két soros tétel, mint a banki appban): egy halvány sor,
+// pl. „Revolut · Parkolás” (tárca · alkategória vagy kategória, hosszú banki szövegnél a szöveg).
+function pzMobAlsor(szoveg, datum){
+    return `<span class="pz-mal"><span class="t">${esc(szoveg)}</span>${datum ? `<em>${esc(datum)}</em>` : ''}</span>`;
 }
 /* A Napló keresésre való: rögzíteni a Hónap fülön lehet. Keres a megjegyzésben,
    a kategóriában, az alkategóriában, a tárca nevében és az összegben –
