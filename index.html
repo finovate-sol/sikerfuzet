@@ -6913,6 +6913,33 @@
             .pz-uj-c .modal-body { max-height:none; }
             .modal-overlay > .modal.pz-uj-c > .modal-foot { padding-bottom:calc(16px + var(--sf-alul)); }
         }
+        /* ---- Edzések: kapszulás napcsík (Ez a hét) ---- */
+        .ezw-csik:has(.ezk) { gap:8px; margin:0 0 4px; padding-top:14px; }
+        .ezw-nap.ezk { position:relative; display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 0 12px; border-radius:999px;
+                       background:#fff; border:1px solid #e6e9ef; box-shadow:0 2px 6px rgba(15,23,42,.05); min-width:0; width:100%; max-width:64px; justify-self:center; }
+        .ezw-nap.ezk:hover { border-color:#c4b5fd; }
+        .ezw-nap.ezk.on { border-color:#7c3aed; box-shadow:0 0 0 2px #ede9fe, 0 4px 12px rgba(15,23,42,.08); }
+        .ezw-nap.ezk em { font-style:normal; font-size:11.5px; font-weight:600; color:#9ca3af; }
+        .ezw-nap.ezk b { font-size:17px; font-weight:600; color:#111827; line-height:1.1; font-variant-numeric:tabular-nums; }
+        .ezw-nap.ezk.mult b { color:#374151; }
+        .ezw-nap.ezk.ma b { color:#2563eb; }
+        .ezw-nap.ezk.ma::before { content:''; position:absolute; top:-13px; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top:7px solid #ea580c; border-bottom:0; }
+        .ezk-ik { position:relative; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; margin-top:2px; }
+        .ezk-ik svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+        .ezk-ik.terv { background:transparent !important; border:2px dashed currentColor; }
+        .ezk-ik.ki { opacity:.45; }
+        .ezk-ik.pih { background:#f3f4f6; color:#9ca3af; border:1.5px solid #e5e7eb; }
+        .ezk-ik.pih.jovo { background:transparent; border:1.5px dashed #d1d5db; }
+        .ezk-ik .zz { font-size:12px; font-weight:800; line-height:1; letter-spacing:-.5px; } .ezk-ik .zz small { font-size:9px; vertical-align:-3px; }
+        .ezk-db { position:absolute; top:-5px; right:-6px; min-width:17px; height:17px; padding:0 4px; border-radius:99px; background:#f59e0b; color:#fff;
+                  font-style:normal; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #fff; }
+        .ezk-vers { position:absolute; bottom:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:#f59e0b; box-shadow:0 0 0 2px #fff; }
+        @media (max-width:520px){
+            .ezw-csik:has(.ezk) { gap:4px; }
+            .ezw-nap.ezk { padding:8px 0 9px; gap:4px; }
+            .ezw-nap.ezk b { font-size:15px; }
+            .ezk-ik { width:32px; height:32px; } .ezk-ik svg { width:16px; height:16px; }
+        }
         /* ===== Kontrasztosabb megjelenés – az egész appon =====
            A színes felső sáv marad; a kártyák vékony, jól látható keretet kapnak (a közös
            kártya-árnyékban, így minden kártyára egyformán érvényes, a keret nélküliekre is);
@@ -17899,14 +17926,20 @@ function ezFejHtml(){
 // ---- Heti blokk (napcsík; egy napra kattintva a nap részletei) ----
 const ezTervSzo = e => [e.perc ? `${e.perc} perc` : '', e.km ? `${ezKm(e.km)} km` : ''].filter(Boolean).join(' · ') || e.cel || '—';
 function ezHetBlokk(het, st, ma){
+    // Kapszulás napcsík: nap betűje, dátum, alatta a nap edzésének ikonja körben – teli, ha
+    // teljesítve, szaggatott, ha tervezett; pihenőnap „Zz”. Több edzésnél darabszám-jelvény,
+    // a mai nap fölött kis háromszög.
     const strip = het.map((s, i) => {
-        const all = ezNapAll(s), sv = s <= ma ? ezSvNap(s) : null, extra = !!(sv && sv.extra.length) && all !== 'extra';
+        const all = ezNapAll(s), sv = s <= ma ? ezSvNap(s) : null;
+        const l = ezIdoRend(ezNapLista(s)).filter(e => e.sport !== 'pih'), db = l.length + (sv ? sv.extra.length : 0);
+        const fo = l[0] || (sv && sv.extra[0] ? { sport: ezTipSport(sv.extra[0].tip), n: sv.extra[0].n } : null);
         const vers = ezVersenyekNapon(s).length;
-        const bel = all === 'ok' ? '✓' : all === 'ki' ? '✕' : String(+s.slice(8));
-        const elso = ezIdoRend(ezNapLista(s)).find(e => e.sport !== 'pih');
-        const rov = elso ? elso.n : all === 'pih' ? 'pihenő' : '';
-        return `<button type="button" class="ezw-nap${s === ezHetNap && ezHetMod === 'nap' ? ' on' : ''}${s === ma ? ' ma' : ''}" data-ezhetnap="${s}" aria-pressed="${s === ezHetNap && ezHetMod === 'nap'}" aria-label="${EZ_NAP[i]}, ${ezRovidD(s)}">
-            <em>${s === ma ? 'Ma' : EZ_NAP_R[i]}</em><span class="ezw-kor k-${all}${s > ma && all === 'terv' ? ' jovo' : ''}">${bel}</span>${extra || vers ? `<i class="ezw-pont${vers ? ' vers' : ''}"></i>` : '<i class="ezw-pont nincs"></i>'}${rov ? `<span class="ezw-rov">${esc(rov)}</span>` : ''}</button>`;
+        const ikon = fo ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ezSp(fo.sport)[2]}"/></svg>` : '<span class="zz">z<small>z</small></span>';
+        const tele = all === 'ok' || all === 'extra' || all === 'resz';
+        const cls = fo ? `sz-${ezSp(fo.sport)[1]}${tele ? ' tele' : all === 'ki' ? ' ki' : ' terv'}` : `pih${s > ma ? ' jovo' : ''}`;
+        const cim = l.map(e => e.n).join(', ') || (fo ? fo.n : all === 'pih' ? 'Pihenőnap' : 'Nincs edzés');
+        return `<button type="button" class="ezw-nap ezk${s === ezHetNap && ezHetMod === 'nap' ? ' on' : ''}${s === ma ? ' ma' : ''}${s < ma ? ' mult' : ''}" data-ezhetnap="${s}" aria-pressed="${s === ezHetNap && ezHetMod === 'nap'}" aria-label="${EZ_NAP[i]}, ${ezRovidD(s)}: ${esc(cim)}" title="${esc(cim)}">
+            <em>${EZ_NAP_R[i]}</em><b>${+s.slice(8)}</b><span class="ezk-ik ${cls}">${ikon}${db > 1 ? `<i class="ezk-db">${db}</i>` : ''}${vers ? '<i class="ezk-vers" title="Verseny"></i>' : ''}</span></button>`;
     }).join('');
     const tartalom = ezHetMod === 'nap' ? ezNapReszlet(ezHetNap, ma) : '';
     return `<section class="card ez-het ezw${tartalom ? '' : ' zart'}">
