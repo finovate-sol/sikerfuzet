@@ -5286,7 +5286,8 @@
         .pz-szolg-av { --c:#6d28d9; width:36px; height:36px; border-radius:50%; flex:none; display:inline-flex; align-items:center; justify-content:center; font-style:normal;
                        font-size:13px; font-weight:800; letter-spacing:.02em; color:#fff; background:var(--c); overflow:hidden; }
         .pz-szolg-av.kep { background:#fff; box-shadow:inset 0 0 0 1px #e5e7eb; }
-        .pz-szolg-av img { width:100%; height:100%; object-fit:cover; display:block; }
+        .pz-szolg-av { position:relative; }
+        .pz-szolg-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#fff; }
         .pz-szolg-av.mini { width:22px; height:22px; font-size:9px; }
         .pz-szolg-av.kicsi { width:28px; height:28px; font-size:11px; }
         .pz-szolg-av.pz-a-av { width:34px; height:34px; }
@@ -10977,19 +10978,60 @@ function pzSzolgOf(m){
     return l.find(x => pzSzolgKulcs(x.n) === k)
         || l.find(x => { const xk = pzSzolgKulcs(x.n); return xk.length >= 3 && k.startsWith(xk) && /[^a-z0-9]/.test(k.charAt(xk.length) || ' '); }) || null;
 }
-const pzSzolgKep = x => x ? (x.kep || (x.web ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(x.web)}&sz=128` : '')) : '';
+// Beépített lista: gyakori szolgáltatók → weboldal; innen jön a logó magától
+// (a weboldal ikonja), ha nem töltöttél fel képet és nem adtál meg weboldalt.
+// A kulcs ékezet nélkül, kisbetűvel, szavakra bontva illeszkedik a megjegyzésre.
+const PZ_SZOLG_WEB = {
+    'spar': 'spar.hu', 'interspar': 'spar.hu', 'lidl': 'lidl.hu', 'aldi': 'aldi.hu', 'tesco': 'tesco.hu', 'auchan': 'auchan.hu', 'penny': 'penny.hu',
+    'cba': 'cba.hu', 'coop': 'coop.hu', 'metro': 'metro.hu', 'dm': 'dm.hu', 'rossmann': 'rossmann.hu', 'muller': 'mueller.hu', 'mueller': 'mueller.hu',
+    'ikea': 'ikea.com', 'decathlon': 'decathlon.hu', 'jysk': 'jysk.hu', 'obi': 'obi.hu', 'praktiker': 'praktiker.hu', 'bauhaus': 'bauhaus.hu',
+    'pepco': 'pepco.hu', 'action': 'action.com', 'zara': 'zara.com', 'reserved': 'reserved.com', 'deichmann': 'deichmann.com', 'hervis': 'hervis.hu',
+    'media markt': 'mediamarkt.hu', 'mediamarkt': 'mediamarkt.hu', 'euronics': 'euronics.hu', 'emag': 'emag.hu', 'alza': 'alza.hu',
+    'temu': 'temu.com', 'shein': 'shein.com', 'aliexpress': 'aliexpress.com', 'amazon': 'amazon.com', 'ebay': 'ebay.com', 'vinted': 'vinted.hu',
+    'mol': 'mol.hu', 'omv': 'omv.hu', 'shell': 'shell.hu', 'orlen': 'orlen.hu',
+    'wolt': 'wolt.com', 'foodora': 'foodora.hu', 'foodpanda': 'foodora.hu', 'mcdonald': 'mcdonalds.hu', 'mcdonalds': 'mcdonalds.hu',
+    'burger king': 'burgerking.hu', 'kfc': 'kfc.hu', 'starbucks': 'starbucks.hu', 'subway': 'subway.com', 'pizza hut': 'pizzahut.hu',
+    'bolt': 'bolt.eu', 'uber': 'uber.com', 'mav': 'mavcsoport.hu', 'bkk': 'bkk.hu', 'volanbusz': 'volanbusz.hu', 'flixbus': 'flixbus.hu',
+    'wizz': 'wizzair.com', 'wizzair': 'wizzair.com', 'ryanair': 'ryanair.com', 'parkl': 'parkl.net', 'nemzeti mobilfizetesi': 'nmzrt.hu',
+    'apple': 'apple.com', 'google': 'google.com', 'netflix': 'netflix.com', 'spotify': 'spotify.com', 'youtube': 'youtube.com',
+    'disney': 'disneyplus.com', 'hbo': 'max.com', 'microsoft': 'microsoft.com', 'adobe': 'adobe.com', 'anthropic': 'anthropic.com',
+    'claude': 'anthropic.com', 'openai': 'openai.com', 'chatgpt': 'openai.com', 'notion': 'notion.so', 'canva': 'canva.com',
+    'dropbox': 'dropbox.com', 'strava': 'strava.com', 'github': 'github.com', 'skool': 'skool.com', 'linkedin': 'linkedin.com',
+    'telekom': 'telekom.hu', 'yettel': 'yettel.hu', 'vodafone': 'one.hu', 'one hungary': 'one.hu', 'digi': 'digi.hu',
+    'mvm': 'mvm.hu', 'fotav': 'fotav.hu', 'dijnet': 'dijnet.hu', 'eon': 'eon.hu', 'vizmuvek': 'vizmuvek.hu',
+    'otp': 'otpbank.hu', 'revolut': 'revolut.com', 'wise': 'wise.com', 'erste': 'erstebank.hu', 'raiffeisen': 'raiffeisen.hu',
+    'mbh': 'mbhbank.hu', 'cib': 'cib.hu', 'granit': 'granitbank.hu', 'uniqa': 'uniqa.hu', 'allianz': 'allianz.hu', 'generali': 'generali.hu',
+    'groupama': 'groupama.hu', 'signal': 'signal.hu', 'paypal': 'paypal.com', 'barion': 'barion.com', 'airbnb': 'airbnb.com',
+    'booking': 'booking.com', 'szallas': 'szallas.hu', 'posta': 'posta.hu', 'foxpost': 'foxpost.hu', 'packeta': 'packeta.hu',
+    'gls': 'gls-group.eu', 'dpd': 'dpd.com', 'cinema city': 'cinemacity.hu', 'nav': 'nav.gov.hu',
+};
+const pzSzolgWebCache = new Map();
+function pzSzolgAutoWeb(m){
+    const n = ' ' + pzNorm(pzNevTiszta(m)).replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    if(pzSzolgWebCache.has(n)) return pzSzolgWebCache.get(n);
+    let w = '';
+    const dom = n.match(/ ([a-z0-9-]+ (?:hu|com|eu|net|io|org)) /);      // "parkl.hu" → "parkl hu"
+    if(dom) w = dom[1].replace(' ', '.');
+    else for(const [k, v] of Object.entries(PZ_SZOLG_WEB)) if(n.includes(' ' + k + ' ')){ w = v; break; }
+    pzSzolgWebCache.set(n, w);
+    return w;
+}
+const pzFavicon = w => `https://www.google.com/s2/favicons?domain=${encodeURIComponent(w)}&sz=128`;
+const pzSzolgKep = x => x ? (x.kep || (x.web ? pzFavicon(x.web) : (pzSzolgAutoWeb(x.n) ? pzFavicon(pzSzolgAutoWeb(x.n)) : ''))) : '';
 const PZ_SZOLG_SZIN = ['#6d28d9', '#2563eb', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#db2777', '#475569'];
 function pzSzolgAv(nev, cls){
-    const x = pzSzolgOf(nev), kep = pzSzolgKep(x), n = pzNevTiszta((x && x.n) || nev).trim();
-    if(kep) return `<i class="pz-szolg-av kep ${cls || ''}"><img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer"></i>`;
+    const x = pzSzolgOf(nev), n = pzNevTiszta((x && x.n) || nev).trim();
+    const kep = pzSzolgKep(x) || (pzSzolgAutoWeb(nev) ? pzFavicon(pzSzolgAutoWeb(nev)) : '');
     const szavak = n.split(/[\s.,\-–*]+/).filter(Boolean);
     const bet = ((szavak[0] || '?')[0] + (szavak[1] ? szavak[1][0] : (szavak[0] || '').slice(1, 2))).toUpperCase();
     let h = 0; for(const c of pzNorm(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return `<i class="pz-szolg-av ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}">${esc(bet)}</i>`;
+    // A monogram alatta marad: ha a logó nem tölthető be, az látszik.
+    return `<i class="pz-szolg-av${kep ? ' kep' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}">${esc(bet)}${kep
+        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('kep');this.remove()">` : ''}</i>`;
 }
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
-const pzTetelIkHtml = (t, ik, cls) => { const x = t && t.t !== 'atu' ? pzSzolgOf(t.m) : null;
-    return x && pzSzolgKep(x) ? pzSzolgAv(x.n, cls) : null; };
+const pzTetelIkHtml = (t, ik, cls) => { if(!t || t.t === 'atu' || !t.m) return null; const x = pzSzolgOf(t.m);
+    return (x && pzSzolgKep(x)) || pzSzolgAutoWeb(t.m) ? pzSzolgAv(x ? x.n : t.m, cls) : null; };
 // Javaslatok: a mentett szolgáltatók, a betöltött hónapok tételeiből számolt gyakoriság szerint.
 function pzSzolgJavas(szuro, tipus){
     const db = new Map(), utolso = new Map();
@@ -11055,7 +11097,7 @@ function pzSzolgModal(utana){
         ov.querySelector('#pzSzlLista').innerHTML = l.length ? l.map(x => `<div class="pz-szl-sor" data-szid="${esc(x.id)}">
             <button type="button" class="pz-szl-kep" data-szlkep title="Logó feltöltése">${pzSzolgAv(x.n)}</button>
             <span class="n"><input type="text" value="${esc(x.n)}" data-szlnev maxlength="40" aria-label="Név"><em>${x.db ? x.db + ' tétel a betöltött hónapokban' : 'nincs tétel a betöltött hónapokban'}</em></span>
-            <input type="text" class="pz-szl-web" value="${esc(x.web || '')}" data-szlweb placeholder="weboldal (pl. parkl.hu)" aria-label="Weboldal – innen jön a logó" maxlength="80">
+            <input type="text" class="pz-szl-web" value="${esc(x.web || '')}" data-szlweb placeholder="${esc(pzSzolgAutoWeb(x.n) ? 'magától: ' + pzSzolgAutoWeb(x.n) : 'weboldal (pl. parkl.hu)')}" aria-label="Weboldal – innen jön a logó" maxlength="80">
             ${x.kep ? '<button type="button" class="pz-szl-g" data-szlkepx>Kép törlése</button>' : ''}
             <button type="button" class="pz-szl-x" data-szlx aria-label="Törlés">×</button></div>`).join('')
             : '<div class="pz-ures">Nincs találat.</div>';
@@ -11063,7 +11105,7 @@ function pzSzolgModal(utana){
     ov.innerHTML = `<div class="modal pz-modal" style="max-width:640px;">
         <div class="modal-head"><h3>Szolgáltatók</h3><button class="modal-x" data-pzx>&times;</button></div>
         <div class="modal-body">
-            <p class="pz-sec-note" style="margin:0 0 10px;">A megjegyzésként beírt nevek gyűlnek itt, az Új tétel ablakban egy koppintással kiválaszthatók. Logót a körre koppintva tölthetsz fel, vagy írd be a weboldalukat, és annak az ikonja lesz a logó.</p>
+            <p class="pz-sec-note" style="margin:0 0 10px;">A megjegyzésként beírt nevek gyűlnek itt, az Új tétel ablakban egy koppintással kiválaszthatók. A gyakori szolgáltatók (Spar, Wolt, MOL, Apple…) logója magától betöltődik a weboldaluk ikonjából. Másikat a körre koppintva tölthetsz fel, vagy írd be a weboldalukat.</p>
             <div class="pz-szl-uj"><input type="text" id="pzSzlUj" placeholder="Új szolgáltató neve" maxlength="40"><button type="button" class="btn" id="pzSzlUjG">Hozzáadás</button>
                 <input type="search" id="pzSzlKer" placeholder="Keresés…" aria-label="Keresés"></div>
             <div class="pz-szl-lista" id="pzSzlLista"></div>
