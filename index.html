@@ -5288,6 +5288,8 @@
         .pz-szolg-av.kep { background:#fff; box-shadow:inset 0 0 0 1px #e5e7eb; }
         .pz-szolg-av { position:relative; }
         .pz-szolg-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#fff; }
+        .pz-szolg-av.fav img { inset:16%; width:68%; height:68%; object-fit:contain; background:none; }
+        .pz-szolg-av.fav { background:#fff; }
         .pz-szolg-av.mini { width:22px; height:22px; font-size:9px; }
         .pz-szolg-av.kicsi { width:28px; height:28px; font-size:11px; }
         .pz-szolg-av.pz-a-av { width:34px; height:34px; }
@@ -11026,8 +11028,10 @@ function pzSzolgAv(nev, cls){
     const bet = ((szavak[0] || '?')[0] + (szavak[1] ? szavak[1][0] : (szavak[0] || '').slice(1, 2))).toUpperCase();
     let h = 0; for(const c of pzNorm(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     // A monogram alatta marad: ha a logó nem tölthető be, az látszik.
-    return `<i class="pz-szolg-av${kep ? ' kep' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}">${esc(bet)}${kep
-        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('kep');this.remove()">` : ''}</i>`;
+    // A weboldal-ikon (favicon) nem négyzetre vágott kép: kis margóval, egészében látszik.
+    const fav = kep && !(x && x.kep);
+    return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}">${esc(bet)}${kep
+        ? `<img src="${esc(kep)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('kep','fav');this.remove()">` : ''}</i>`;
 }
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
 const pzTetelIkHtml = (t, ik, cls) => { if(!t || t.t === 'atu' || !t.m) return null; const x = pzSzolgOf(t.m);
