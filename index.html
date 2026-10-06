@@ -3712,9 +3712,6 @@
         .ezw { padding:14px 16px 16px; }
         .ezw-fej { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
         .ezw-fej > b { font-size:16px; color:var(--navy); } .ezw-fej > span { font-size:12.5px; color:var(--muted); }
-        .ezw-mod { margin-left:auto; display:flex; background:#f1f3f7; border-radius:999px; padding:3px; }
-        .ezw-mod button { border:0; background:none; font:inherit; font-size:12.5px; font-weight:700; color:#6b7280; padding:6px 14px; border-radius:999px; cursor:pointer; }
-        .ezw-mod button.on { background:#fff; color:var(--navy); box-shadow:0 1px 4px rgba(15,23,42,.12); }
         .ezw-csik { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:4px; margin:0 -4px 12px; }
         .ezw-nap { display:flex; flex-direction:column; align-items:center; gap:5px; padding:7px 0 6px; border:0; background:none; border-radius:16px; cursor:pointer; font:inherit; }
         .ezw-nap em { font-style:normal; font-size:11.5px; font-weight:700; color:#6b7280; }
@@ -17420,8 +17417,8 @@ function ezSzabaly(e){
 // ---- nézet ----
 let ezTab = 'ma', ezHet = null, ezHo = null;
 // A heti blokk: napcsík + "Nap" (a kiválasztott nap részletei) vagy "Hét" (kompakt napsorok).
-// '' = csak a napcsík látszik (alapból), 'nap' = a kiválasztott nap részletei, 'het' = a teljes heti lista.
-let ezHetMod = ['nap', 'het'].includes(store.load('sf_ez_hetmod2', '')) ? store.load('sf_ez_hetmod2', '') : '', ezHetNap = null;
+// '' = csak a napcsík látszik (alapból), 'nap' = a kiválasztott nap részletei.
+let ezHetMod = store.load('sf_ez_hetmod2', '') === 'nap' ? 'nap' : '', ezHetNap = null;
 let ezUz = null;             // { t, hiba } – a fejléc alatti üzenetsáv (Strava-összekötés, szinkron)
 async function renderEdz(){
     const body = document.getElementById('edzBody'); if(!body) return;
@@ -17472,18 +17469,8 @@ function ezFejHtml(){
         ${lep ? `<div class="ez-lepteto">${lep}</div>` : ''}</div>`;
 }
 
-// ---- Heti blokk (napcsík + Nap / Hét) ----
+// ---- Heti blokk (napcsík; egy napra kattintva a nap részletei) ----
 const ezTervSzo = e => [e.perc ? `${e.perc} perc` : '', e.km ? `${ezKm(e.km)} km` : ''].filter(Boolean).join(' · ') || e.cel || '—';
-// Állapot-kör egy edzéshez (a Hét nézet jobb széle); a múltbeli / mai tervezett kipipálható.
-function ezAllKor(e, s, ma){
-    const er = ezEr(e, s), a = er.a;
-    if(a === 'ok') return `<span class="ezw-st ok" title="${esc(ezAllCim(er))}">✓</span>`;
-    if(a === 'resz') return `<span class="ezw-st resz" title="${esc(ezAllCim(er))}">½</span>`;
-    if(a === 'ki') return `<span class="ezw-st ki" title="Kihagyva">✕</span>`;
-    if(a === 'var') return `<span class="ezw-st var" title="${esc(EZ_ALL.var)}">…</span>`;
-    if((a === 'terv' && s <= ma) || a === 'jel') return `<button type="button" class="ezw-st terv" data-ezjel="ok" data-ezd="${s}" data-ezid="${esc(e.id)}" title="Teljesítettnek jelölöm" aria-label="${esc(e.n)} – teljesítettnek jelölöm">✓</button>`;
-    return `<span class="ezw-st jovo" title="Tervezett"></span>`;
-}
 function ezHetBlokk(het, st, ma){
     const strip = het.map((s, i) => {
         const all = ezNapAll(s), sv = s <= ma ? ezSvNap(s) : null, extra = !!(sv && sv.extra.length) && all !== 'extra';
@@ -17494,10 +17481,9 @@ function ezHetBlokk(het, st, ma){
         return `<button type="button" class="ezw-nap${s === ezHetNap && ezHetMod === 'nap' ? ' on' : ''}${s === ma ? ' ma' : ''}" data-ezhetnap="${s}" aria-pressed="${s === ezHetNap && ezHetMod === 'nap'}" aria-label="${EZ_NAP[i]}, ${ezRovidD(s)}">
             <em>${s === ma ? 'Ma' : EZ_NAP_R[i]}</em><span class="ezw-kor k-${all}${s > ma && all === 'terv' ? ' jovo' : ''}">${bel}</span>${extra || vers ? `<i class="ezw-pont${vers ? ' vers' : ''}"></i>` : '<i class="ezw-pont nincs"></i>'}${rov ? `<span class="ezw-rov">${esc(rov)}</span>` : ''}</button>`;
     }).join('');
-    const mod = `<span class="ezw-mod" role="group" aria-label="Nézet"><button type="button" data-ezhetmod="nap"${ezHetMod === 'nap' ? ' class="on"' : ''}>Nap</button><button type="button" data-ezhetmod="het"${ezHetMod === 'het' ? ' class="on"' : ''}>Hét</button></span>`;
-    const tartalom = ezHetMod === 'nap' ? ezNapReszlet(ezHetNap, ma) : ezHetMod === 'het' ? ezHetSorok(het, ma) : '';
+    const tartalom = ezHetMod === 'nap' ? ezNapReszlet(ezHetNap, ma) : '';
     return `<section class="card ez-het ezw${tartalom ? '' : ' zart'}">
-        <div class="ezw-fej"><b>${ezHet === ezHetfo(ma) ? 'Ez a hét' : 'A hét'}</b><span>${ezHetCim(ezHet)}</span>${mod}</div>
+        <div class="ezw-fej"><b>${ezHet === ezHetfo(ma) ? 'Ez a hét' : 'A hét'}</b><span>${ezHetCim(ezHet)}</span></div>
         <div class="ezw-csik">${strip}</div>
         ${tartalom}
     </section>`;
@@ -17520,26 +17506,6 @@ function ezNapReszlet(s, ma){
     const ures = !l.length ? `<div class="ezw-ures"><b>${pih ? 'Pihenőnap' : vanExtra ? 'Nem volt betervezett edzés' : 'Nincs edzés erre a napra'}</b><span>${vanExtra ? 'A Strava szerint ezt csináltad:' : pih ? 'A regeneráció is az edzés része.' : 'Vegyél fel egyet a sablonjaid közül.'}</span></div>` : '';
     return `<div class="ezw-nap-r">${fej}${l.map(kartya).join('')}${ures}${vers}${extra}
         <button type="button" class="ezw-uj" data-ezuj="${s}">+ ${l.length ? 'Még egy edzés erre a napra' : 'Edzés hozzáadása'}</button></div>`;
-}
-// "Hét": naponta egy kompakt sor – balra a nap, középen terv + tény, jobbra az állapot.
-function ezHetSorok(het, ma){
-    return `<div class="ezw-lista">${het.map((s, i) => {
-        const l = ezIdoRend(ezNapLista(s).filter(e => e.sport !== 'pih')), pih = ezNapLista(s).some(e => e.sport === 'pih');
-        const sv = s <= ma ? ezSvNap(s) : null, extra = sv ? sv.extra : [], vers = ezVersenyekNapon(s);
-        const nap = `<button type="button" class="ezw-np${s === ma ? ' ma' : ''}" data-ezhetnap="${s}" aria-label="${EZ_NAP[i]} részletei"><em>${EZ_NAP_R[i]}</em><b>${+s.slice(8)}</b></button>`;
-        const chipek = [...vers.map(v => `<button type="button" class="ezw-chip vers" data-ezvszerk="${esc(v.id)}">🏁 ${esc(v.n)}</button>`),
-            ...extra.map(x => `<button type="button" class="ezw-chip" data-ezakt="${s}|${esc(x.id)}">${esc(ezTipNev(x.tip))} · ${esc(ezAktSzoveg(x))} · Strava</button>`)].join('');
-        if(!l.length) return `<div class="ezw-sor${extra.length || vers.length ? '' : ' halv'}">${nap}
-            <div class="ezw-k"><span class="ezw-nincs">${pih ? 'Pihenőnap' : extra.length ? 'Nincs terv' : 'Nincs edzés'}</span>${chipek ? `<span class="ezw-chipek">${chipek}</span>` : ''}</div>
-            <button type="button" class="ezw-st ures" data-ezuj="${s}" aria-label="Edzés hozzáadása – ${EZ_NAP[i]}">+</button></div>`;
-        return l.map((e, j) => { const er = ezEr(e, s), a = er.a, teny = ezTeny(e, er), van = a === 'ok' || a === 'resz';
-            return `<div class="ezw-sor${s > ma ? ' jovo' : ''}">${j ? '<span class="ezw-np ures"></span>' : nap}
-                <button type="button" class="ezw-k" data-ezszerk data-ezd="${s}" data-ezid="${esc(e.id)}"><b>${ezIk(e.sport)}<span>${e.ido ? `<em class="ezw-ido">${esc(e.ido)}</em>` : ''}${esc(e.n)}</span></b>
-                    <span class="ezw-cel">${esc(ezCel(e))}</span>
-                    ${van ? `<span class="ezw-teny ${a}">✓ ${esc(teny)}</span>` : a === 'ki' ? '<span class="ezw-teny ki">kihagyva</span>' : a === 'var' ? `<span class="ezw-teny var">${esc(EZ_ALL.var)}</span>` : ''}
-                    ${j === l.length - 1 && chipek ? `<span class="ezw-chipek">${chipek}</span>` : ''}</button>
-                ${ezAllKor(e, s, ma)}</div>`; }).join('');
-    }).join('')}</div>`;
 }
 const ezIdoSzo = p => p >= 60 ? `${Math.floor(p / 60)} ó ${p % 60 ? (p % 60) + ' p' : ''}`.trim() : `${p} p`;
 // ---- Ma (A terv: Fókusz) ----
@@ -19732,11 +19698,9 @@ document.addEventListener('visibilitychange', () => {
         const hn = e.target.closest('[data-ezhetnap]');
         if(hn){
             const n = hn.dataset.ezhetnap;
-            ezHetMod = ezHetMod === 'nap' && ezHetNap === n && hn.classList.contains('ezw-nap') ? '' : 'nap';
+            ezHetMod = ezHetMod === 'nap' && ezHetNap === n ? '' : 'nap';
             ezHetNap = n; store.save('sf_ez_hetmod2', ezHetMod); renderEdz(); return;
         }
-        const hm = e.target.closest('[data-ezhetmod]');
-        if(hm){ ezHetMod = ezHetMod === hm.dataset.ezhetmod ? '' : hm.dataset.ezhetmod; store.save('sf_ez_hetmod2', ezHetMod); renderEdz(); return; }
         if(e.target.closest('[data-ezkapcs]')){ ezKapcsNyit = !e.target.closest('details').open; return; }
         const t = e.target.closest('[data-eztab]');
         if(t){ ezTab = t.dataset.eztab === 'meres' ? 'ma' : t.dataset.eztab; renderEdz(); return; }
