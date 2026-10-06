@@ -5378,6 +5378,7 @@
         .pz-nezet-kompakt .pz-nt-ik { width:28px; height:28px; }
         .pz-nezet-kompakt .pz-nt-ik svg { width:15px; height:15px; }
         .pz-nezet-kompakt .pz-nt-av { width:28px; height:28px; font-size:11px; }
+        .pz-szolg-av.pz-ikon { border-radius:50%; }
         .pz-tarca .pz-tarca-logo { grid-row:1 / 4; width:42px; height:42px; font-size:13px; }
         .pz-w .pz-w-logo { width:28px; height:28px; font-size:10px; }
         .pz-atu-av { --s:36px; position:relative; display:inline-block; width:var(--s); height:var(--s); flex:none; }
@@ -11166,8 +11167,8 @@ function pzTarcaAv(w){
     return `<i class="pz-szolg-av pz-tarca-av">${w ? pzSvg(w.ikon || pzTarcaTip(w.tipus)[2]) : '?'}</i>`;
 }
 // Tárca logója (bank, pl. Revolut, Raiffeisen), ha felismerhető; különben null (marad az ikon).
-const pzTarcaLogo = (w, cls) => { if(!w) return null; const x = pzSzolgOf(w.n);
-    return pzSzolgAutoWeb(w.n) || (x && pzSzolgKep(x)) ? pzSzolgAv(w.n, cls) : null; };
+const pzNevLogo = (n, cls) => { const x = pzSzolgOf(n); return pzSzolgAutoWeb(n) || (x && pzSzolgKep(x)) ? pzSzolgAv(n, cls) : null; };
+const pzTarcaLogo = (w, cls) => w ? pzNevLogo(w.n, cls) : null;
 const pzAtuAvHtml = (t, cls) => { const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
     return a || b ? `<span class="pz-atu-av ${cls || ''}" title="${esc((a ? a.n : '?') + ' → ' + (b ? b.n : '?'))}"><span class="a">${pzTarcaAv(a)}</span><span class="b">${pzTarcaAv(b)}</span></span>` : null; };
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
@@ -12911,7 +12912,7 @@ async function renderPzAttek(csak){
         fiz: `<section class="card pz-a-kartya">
             <div class="pz-a-fej"><h4>Közelgő kifizetések</h4><a class="link" href="#" data-pzview="elofiz">Összes</a></div>
             ${fizet.length ? `<div class="pz-a-lista">${fizet.map(x => `
-                <div class="pz-a-li">${pzIk(x.ik, x.c)}<span class="n">${esc(x.n)}<em>${x.kesz ? (x.ev ? 'idén rögzítve' : 'ebben a hónapban rögzítve') : pzHatraSzo(x.h)} · ${x.nap}.${x.ev ? ' · éves' : ''}</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
+                <div class="pz-a-li">${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}<span class="n">${esc(x.n)}<em>${x.kesz ? (x.ev ? 'idén rögzítve' : 'ebben a hónapban rögzítve') : pzHatraSzo(x.h)} · ${x.nap}.${x.ev ? ' · éves' : ''}</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
             : `<div class="pz-ures">Nincs előfizetés vagy törlesztő.<br><a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
         </section>`,
         utolso: `<section class="card pz-a-kartya">
@@ -13594,7 +13595,7 @@ async function renderPzHonap(){
         return `<div class="pz-fix">
             <button type="button" class="pz-pipa${kesz ? ' on' : ''}" data-pzfix="${i}" aria-pressed="${kesz}"
                 title="${kesz ? 'Rögzítve a naplóban – kattints a visszavonáshoz' : 'Pipáld ki, és tételként rögzül a naplóban'}">${kesz ? '✓' : ''}</button>
-                ${pzIk(x.ik, x.c)}
+                ${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}
             <span class="n">${esc(x.n)}<em${esedekes ? ' class="pz-warn"' : ''}>${x.nap}. nap${esedekes ? ' · esedékes volt' : kesz ? ' · rögzítve' : ''}</em></span>
             <b>${pzFt(x.o)} Ft</b></div>`;
     }).join('');
@@ -13949,7 +13950,7 @@ async function renderPzNaplo(){
                 ${kovetkezo.length ? `<div class="pz-rs">${kovetkezo.map(x => `
                     <div class="pz-fix"><button type="button" class="pz-pipa${x.kesz ? ' on' : ''}" data-pzfix="${x.i}" aria-pressed="${x.kesz}"
                         title="${x.kesz ? 'Rögzítve – kattints a visszavonáshoz' : 'Pipáld ki, és tételként rögzül'}">${x.kesz ? '✓' : ''}</button>
-                ${pzIk(x.ik, x.c)}
+                ${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}
                         <span class="n">${esc(x.n)}<em>${x.kesz ? 'rögzítve' : pzHatraSzo(x.h)}</em></span><b>${pzFt(x.o)} Ft</b></div>`).join('')}</div>`
                 : `<div class="pz-ures">Nincs előfizetés vagy törlesztő.<br><a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
             </section>
@@ -22742,7 +22743,7 @@ async function renderPrivMa(){
         edzes: kartya('Mai edzés', 'edzes', edzHtml, 'ma-edz-k'),
         penz: kartya('Pénz', 'penzugyek', `${keret ? `<div class="ma-penz"><b class="${maradt < 0 ? 'neg' : ''}">${maradt < 0 ? '−' : ''}${pzFt(Math.abs(maradt))} Ft</b><span>${maradt < 0 ? 'túllépés a havi keretekben' : `maradt a havi keretekből · kb. <b>${pzFt(Math.max(0, maradt) / hatra)} Ft</b> naponta`}</span>
                 <span class="ma-csik"><i style="width:${Math.min(100, keret ? kolt / keret * 100 : 0).toFixed(0)}%" class="${kolt > keret ? 'tul' : kolt > keret * .85 ? 'fig' : ''}"></i></span></div>` : '<p class="pv-megj">Nincs beállított havi keret.</p>'}
-            ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${pzIk(x.ik, x.c)}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`),
+            ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${(pzNevLogo(x.n, 'pz-ikon') || pzIk(x.ik, x.c))}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`),
         kolt: kartya('Mai költések', 'penzugyek', maKoltHtml, 'ma-kolt-k'),
         olvas: kvOlvas.length ? kartya('Olvasás', 'konyvek', kvOlvas.map(kvOlvasKartya).join(''), 'ma-kv-k') : '',
         naplo: nlKartya,
