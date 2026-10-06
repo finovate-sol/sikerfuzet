@@ -6100,7 +6100,14 @@
         @media (min-width:900px){
             .ma-racs { grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:14px; align-items:stretch; }
             .ma-racs > section { display:flex; flex-direction:column; min-height:150px; box-sizing:border-box; }
-            .ma-racs > .ma-szok-k, .ma-racs > .ma-teljes { grid-column:1 / -1; min-height:0; }
+            .ma-racs > .ma-szok-k, .ma-racs > .ma-teljes, .ma-racs > .ma-edz-k { grid-column:1 / -1; min-height:0; }
+            /* a szokások gépen nagyobb csempék, több sorba törve (nem kell oldalra görgetni) */
+            .ma-racs .ma-szok { display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:16px 8px; padding:10px 18px 18px; overflow:visible; }
+            .ma-racs .ma-szok > .sz-pipa { width:auto; }
+            .ma-racs .ma-szok .sz-pipa i { width:64px; height:64px; }
+            .ma-racs .ma-szok .sz-pipa i svg { width:28px; height:28px; }
+            .ma-racs .ma-szok .sz-pipa span { font-size:13px; max-width:112px; }
+            .ma-edz-k .ma-edz { padding:4px 18px 12px; }
             .ma-racs > section > .ma-uj-kolt { margin-top:auto; align-self:flex-start; }
         }
         /* szokás-pipa: kerek ikon a terület színében, kipipálva teli */
@@ -22352,7 +22359,7 @@ async function renderPrivMa(){
             ? `<div class="ma-szok">${szl.map(h => szPipaHtml(sz, h, ma, true)).join('')}</div>`
             : `<p class="pv-megj">Még nincs mára esedékes szokás. <button type="button" class="pv-link" data-mamenj="szokasok">Szokás felvétele ›</button></p>`, 'ma-szok-k'),
         vallalas: (h => h ? kartya(`Havi vállalások<span class="pv-szam">${(v => `${v.filter(([k]) => oiVallKesz(oiVallHo(oiA, ma.slice(0, 7)), ma, k)).length} / ${v.length}`)(OI_VALL.filter(([k]) => (oiVallHo(oiA, ma.slice(0, 7)).v || {})[k]))}</span>`, '', `<div data-mavall>${h}</div><button type="button" class="pv-link ma-vall-l" data-oivugr>Havi áttekintés ›</button>`, 'ma-vall-k') : '')(oiA ? oiVallMaHtml(oiA) : ''),
-        edzes: kartya('Mai edzés', 'edzes', edzHtml),
+        edzes: kartya('Mai edzés', 'edzes', edzHtml, 'ma-edz-k'),
         penz: kartya('Pénz', 'penzugyek', `${keret ? `<div class="ma-penz"><b class="${maradt < 0 ? 'neg' : ''}">${maradt < 0 ? '−' : ''}${pzFt(Math.abs(maradt))} Ft</b><span>${maradt < 0 ? 'túllépés a havi keretekben' : `maradt a havi keretekből · kb. <b>${pzFt(Math.max(0, maradt) / hatra)} Ft</b> naponta`}</span>
                 <span class="ma-csik"><i style="width:${Math.min(100, keret ? kolt / keret * 100 : 0).toFixed(0)}%" class="${kolt > keret ? 'tul' : kolt > keret * .85 ? 'fig' : ''}"></i></span></div>` : '<p class="pv-megj">Nincs beállított havi keret.</p>'}
             ${fiz.length ? `<div class="ma-lista">${fiz.map(x => `<div class="ma-sor">${pzIk(x.ik, x.c)}<span class="t"><b>${esc(x.n)}</b><span>${pzHatraSzo(x.h)}</span></span><span class="o">${pzFt(x.o)} Ft</span></div>`).join('')}</div>` : ''}`),
@@ -22375,7 +22382,8 @@ async function renderPrivMa(){
     // este (17 óra után), ha még nincs mai bejegyzés, az Esti zárás a lap tetejére kerül (kikapcsolható)
     if(mb.esti && nlK && !nlK.kesz && ora >= 17 && sor.includes('naplo')) sor = ['naplo', ...sor.filter(k => k !== 'naplo')];
     // páratlan számú fél szélességű kártya egymás után → az utolsó teljes szélességű (ne maradjon félárva hely)
-    const TELJES = new Set(['szokas', 'idezet', 'vallalas']), lat = sor.filter(k => K[k]);
+    // a Mai edzés egy keskeny, teljes szélességű sáv (ne nyúljon meg egy magas kártya mellett)
+    const TELJES = new Set(['szokas', 'idezet', 'vallalas', 'edzes']), lat = sor.filter(k => K[k]);
     let fut = [];
     const lezar = () => { if(fut.length % 2) K[fut[fut.length - 1]] = K[fut[fut.length - 1]].replace('class="card pv-kartya', 'class="card pv-kartya ma-teljes'); fut = []; };
     for(const k of lat){ if(TELJES.has(k)) lezar(); else fut.push(k); }
