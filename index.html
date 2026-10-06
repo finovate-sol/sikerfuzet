@@ -5289,10 +5289,10 @@
         .pz-szolg-av { position:relative; }
         .pz-szolg-av img { -webkit-user-drag:none; pointer-events:none; }
         .pz-szolg-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#fff; }
-        .pz-szolg-av.fav img { inset:16%; width:68%; height:68%; object-fit:contain; background:none; }
+        .pz-szolg-av.fav img { inset:17%; width:66%; height:66%; object-fit:contain; background:none; }
         .pz-szolg-av.fav { background:#fff; }
         .pz-szolg-av.fav.tele { box-shadow:none; }
-        .pz-szolg-av.fav.tele img { inset:0; width:100%; height:100%; object-fit:cover; }
+        .pz-szolg-av.fav.tele img { inset:14.5%; width:71%; height:71%; object-fit:contain; }
         .pz-szolg-av.mini { width:22px; height:22px; font-size:9px; }
         .pz-szolg-av.kicsi { width:28px; height:28px; font-size:11px; }
         .pz-szolg-av.pz-a-av { width:34px; height:34px; }
@@ -11028,8 +11028,10 @@ const pzSzolgWebCache = new Map();
 // a böngészőben megjegyezve ('' = marad a fehér kör). Ha a kép pixelei nem
 // olvashatók (a szerver nem engedi), szintén marad a fehér kör.
 const pzFavInfo = (() => { try { return new Map(Object.entries(store.load('sf_pz_fav', {}) || {})); } catch(e){ return new Map(); } })();
+// A feltöltött kép (data: URL) hosszú – a megjegyzéshez rövid kulcsot képzünk belőle.
+const pzFavKulcs = u => { u = String(u || ''); if(!u.startsWith('data:')) return u; let h = 0; for(let i = 0; i < u.length; i += 7) h = (h * 31 + u.charCodeAt(i)) >>> 0; return 'd' + u.length + '_' + h.toString(36); };
 function pzFavElemez(img){
-    const u = img.getAttribute('src'); if(!u || pzFavInfo.has(u)) return;
+    const src = img.getAttribute('src'), u = pzFavKulcs(src); if(!src || pzFavInfo.has(u)) return;
     pzFavInfo.set(u, '');
     const i = new Image(); i.crossOrigin = 'anonymous';
     i.onload = () => {
@@ -11049,10 +11051,10 @@ function pzFavElemez(img){
         pzFavInfo.set(u, szin);
         try { store.save('sf_pz_fav', Object.fromEntries(pzFavInfo)); } catch(e){}
         if(szin) document.querySelectorAll('.pz-szolg-av.fav img').forEach(im => {
-            if(im.getAttribute('src') === u){ const av = im.parentNode; av.classList.add('tele'); av.style.background = szin; }
+            if(pzFavKulcs(im.getAttribute('src')) === u){ const av = im.parentNode; av.classList.add('tele'); av.style.background = szin; }
         });
     };
-    i.src = u;
+    i.src = src;
 }
 function pzSzolgAutoWeb(m){
     const n = ' ' + pzNorm(pzNevTiszta(m)).replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
@@ -11084,8 +11086,8 @@ function pzFavKov(img, kicsi){
 }
 function pzFavBetolt(img){
     const av = img.parentNode; if(!av || !av.classList.contains('fav')) return;
-    if(img.naturalWidth && img.naturalWidth <= 16) return pzFavKov(img, true);      // a "nincs ikon" földgömb 16 px-es
     const u = img.getAttribute('src');
+    if(!u.startsWith('data:') && img.naturalWidth && img.naturalWidth <= 16) return pzFavKov(img, true);      // a "nincs ikon" földgömb 16 px-es
     if(img.dataset.elso && pzFavJo.get(img.dataset.elso) !== u){ pzFavJo.set(img.dataset.elso, u); pzFavJoMent(); }
     pzFavElemez(img);
 }
@@ -11101,9 +11103,11 @@ function pzSzolgAv(nev, cls){
     // A monogram alatta marad: ha a logó nem tölthető be, az látszik.
     // A weboldal-ikon (favicon) nem négyzetre vágott kép: ha a széle egyszínű, azzal a
     // színnel töltjük ki a kört (lásd pzFavElemez), különben fehér körben, margóval látszik.
-    const fav = kep && !(x && x.kep), szin = fav ? pzFavInfo.get(kep) : '';
+    // B terv: minden logó a körbe írható négyzetben (a kör 71%-a) ül, így a négyzetes sarkok sem
+    // lógnak ki; ha a logó széle egyszínű, a kör azt a színt kapja, és a kettő összeolvad.
+    const sajat = !!(x && x.kep), fav = !!kep, szin = fav ? pzFavInfo.get(pzFavKulcs(kep)) : '';
     return `<i class="pz-szolg-av${kep ? ' kep' : ''}${fav ? ' fav' : ''}${szin ? ' tele' : ''} ${cls || ''}" style="--c:${PZ_SZOLG_SZIN[h % PZ_SZOLG_SZIN.length]}${szin ? ';background:' + szin : ''}">${esc(bet)}${kep
-        ? `<img src="${esc(kep)}" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer"${fav ? ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}" onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
+        ? `<img src="${esc(kep)}" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer"${fav ? `${sajat ? '' : ` data-elso="${esc(elso)}" data-alt="${esc(alt.join(' '))}"`} onload="pzFavBetolt(this)"` : ''} onerror="pzFavKov(this)">` : ''}</i>`;
 }
 // Átutalás ikonja: a két tárca egymásra csúsztatva – nagyban a forrás (pl. Revolut),
 // a jobb alsó sarokban a cél (pl. Raiffeisen). Banknál a logója, egyébként a tárca ikonja.
