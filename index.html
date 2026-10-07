@@ -3209,7 +3209,8 @@
             .rm-side, .rm-main { overflow-y:auto; overscroll-behavior:contain; }
         }
         /* ===== Sikerfüzet oldalsáv · Feladatok: ugyanaz az Emlékeztetők-megjelenés ===== */
-        #sideViewFeladatok > .card { display:flex; flex-direction:column; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); }
+        #sideViewFeladatok > .card { display:flex; flex-direction:column; }   /* a magasságát a naptár aljához igazítjuk (railIgazit) */
+        #railFeladatokMount { flex:1 1 auto; }
         #railFeladatokMount { overflow-y:auto; min-height:0; overscroll-behavior:contain;
             font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Inter, Arial, sans-serif; }
         #railFeladatokMount .rf-add { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:6px 8px; padding:2px 0 8px; margin-bottom:6px; border-bottom:1px solid #e5e5ea; }
@@ -24492,7 +24493,26 @@ document.addEventListener('keydown', e => {
         // Csak zsugorítunk: az "ideal" fölé sosem megyünk (görgetett oldalnál a
         // mért hely félrevezető lenne).
         wk.style.height = Math.max(240, Math.min(ideal, fits)) + "px";
+        // Ha az "egész nap" sor utólag megnő (később érkező feladatok, betöltődő
+        // emoji-képek), a rács alja lecsúszna a képernyőről – a kártya alsó kerete
+        // eltűnne. Ezért a sor méretváltozására újra igazítunk.
+        // Ugyanígy, ha az eszköztár két sorba törik (pl. megnyílik mellette az oldalsáv).
+        const ad = document.getElementById("wkAllday"), tb = wk.closest(".card")?.querySelector(".cal-toolbar");
+        if (window.ResizeObserver && ad && calAdFigyelt !== ad){
+            if (calAdRO) calAdRO.disconnect();
+            calAdFigyelt = ad;
+            let elozo = Math.round(wk.getBoundingClientRect().top);
+            calAdRO = new ResizeObserver(() => {
+                const w2 = document.querySelector("#calGrid .wk-grid"); if (!w2 || !w2.offsetParent) return;
+                const t = Math.round(w2.getBoundingClientRect().top);
+                if (t !== elozo){ elozo = t; fitTimeGridBottom(); }
+            });
+            calAdRO.observe(ad);
+            if (tb) calAdRO.observe(tb);
+        }
+        if (typeof window.sfRailIgazit === "function") window.sfRailIgazit();
     }
+    let calAdRO = null, calAdFigyelt = null;
 
     function renderTimeShell(grid, cols, now, pass){
         ROW = computeRow(grid);
@@ -28613,7 +28633,21 @@ document.addEventListener('keydown', e => {
             ${doneN ? `<button class="rf-donetoggle" id="rfDoneToggle">${railFeladatokDoneOpen ? "▾" : "▸"} ${doneN} kész feladat</button>` : ""}
             <a class="link rf-more" href="#" id="rfOpenFull">Összes megnyitása a Feladatok oldalon →</a>`;
         wireRailFeladatok();
+        requestAnimationFrame(railIgazit);
     }
+
+    // A Feladatok panel alja a naptár aljával egy vonalban (a lista belül görög).
+    function railIgazit(){
+        const k = document.querySelector("#sideViewFeladatok > .card");
+        if (!k || !k.offsetParent) return;
+        const cal = document.getElementById("calGrid"), calK = cal && cal.offsetParent ? cal.closest(".card") : null;
+        const content = document.querySelector(".content");
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const also = calK ? calK.getBoundingClientRect().bottom : window.innerHeight - padB;
+        k.style.height = Math.max(300, Math.round(also - k.getBoundingClientRect().top)) + "px";
+    }
+    window.sfRailIgazit = railIgazit;
+    window.addEventListener("resize", () => railIgazit());
 
     function renderRailFeladatokConnect(msg){
         const m = document.getElementById("railFeladatokMount"); if(!m) return;
