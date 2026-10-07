@@ -2909,6 +2909,21 @@
         .na-modal .modal-body { max-height:min(68vh,600px); overflow-y:auto; }
         .na-sec { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
         .na-sec.sep { border-top:1px solid var(--border); padding-top:14px; }
+        /* Ajánlólap (PDF) import */
+        #page-ugyfelek { position:relative; }
+        #page-ugyfelek.rpi-drop::after { content:"Engedd el – a PDF-ből felveszem az ügyfeleket"; position:absolute; inset:8px; z-index:50; display:grid; place-items:center;
+            border:2.5px dashed var(--blue); border-radius:18px; background:rgba(232,240,252,.88); color:var(--navy); font-size:17px; font-weight:800; pointer-events:none; }
+        .rpi-modal { max-width:860px; }
+        .rpi-lista { display:flex; flex-direction:column; gap:8px; }
+        .rpi-sor { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#fff; }
+        .rpi-sor.dup { background:#fafafa; }
+        .rpi-pipa { padding-top:9px; } .rpi-pipa input { width:17px !important; height:17px; margin:0; }
+        .rpi-mezok { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+        .rpi-harom { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; }
+        @media (max-width:620px){ .rpi-harom { grid-template-columns:1fr; } }
+        .rpi-info { font-size:11.5px; color:var(--muted); line-height:1.5; }
+        .rpi-info i { font-style:normal; color:#475569; }
+        .rpi-dup { display:inline-block; margin-left:6px; font-size:10.5px; color:#b45309; background:#fef3c7; border-radius:999px; padding:1px 8px; }
         .na-done { margin-right:auto; align-self:center; font-size:11.5px; font-weight:700; color:#15803d; }
         .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
         .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
@@ -7703,6 +7718,8 @@
                 </label>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+                <button class="btn" id="regPdfBtn" title="Ajánlólap (PDF) beolvasása – vagy egyszerűen húzd rá a PDF-et az oldalra"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg><span>PDF-ből</span></button>
+                <input type="file" id="regPdfInp" accept="application/pdf,.pdf" hidden>
                 <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
               </div>
             </div>
@@ -16908,6 +16925,225 @@ function openRegAddModal(){
     });
     document.getElementById('regAdd').addEventListener('click', openRegAddModal);
     renderRegistry();
+})();
+
+// ===== Ajánlólap (PDF) importja a 10 perces füzetbe =====
+// Az OVB "Ajánlott személyek" lapja: személyenként Név / Életkor, Település / Telefonszám,
+// Miért gondolt rá?, Lakáshelyzet / Családi állapot, Foglalkozás / Honnan ismeri?,
+// Gyerekek száma / Életkora, Megjegyzés. A PDF a böngészőben olvasódik (pdf.js), nem
+// töltődik fel sehova. A kitöltött űrlapmezőket és a sima (kinyomtatott) szöveget is
+// felismeri: a sor a bal oldali felirat, az oszlop a fölötte álló "N. személy" fejléc.
+let regPdfJsP = null;
+function regPdfJs(){
+    if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if(regPdfJsP) return regPdfJsP;
+    const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    regPdfJsP = new Promise((ok, hiba) => {
+        const s = document.createElement('script');
+        s.src = base + 'pdf.min.js';
+        s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js'; ok(window.pdfjsLib); };
+        s.onerror = () => { regPdfJsP = null; hiba(new Error('A PDF-olvasó nem töltődött be (nincs internet?).')); };
+        document.head.appendChild(s);
+    });
+    return regPdfJsP;
+}
+const REG_PDF_SOROK = [['nev', /^n[ée]v\b/], ['tel', /^telep[üu]l[ée]s/], ['miert', /^mi[ée]rt gondolt/], ['lakas', /^lak[áa]shelyzet/],
+    ['fogl', /^foglalkoz[áa]s/], ['gyerek', /^gyerekek/], ['megj', /^megjegyz[ée]s/]];
+async function regPdfOlvas(file){
+    const pdfjs = await regPdfJs();
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const nfc = s => String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+    const emberek = new Map(); let ajanlo = '';
+    for(let p = 1; p <= pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        // a szövegdarabok soronként, a közel eső darabok egy szakasszá fűzve
+        const dar = tc.items.filter(i => nfc(i.str)).map(i => ({ s: nfc(i.str), x: i.transform[4], y: i.transform[5], w: i.width || 0 }))
+            .sort((a, b) => b.y - a.y || a.x - b.x);
+        const szak = [];
+        for(const d of dar){
+            const u = szak[szak.length - 1];
+            if(u && Math.abs(u.y - d.y) < 2.5 && d.x - (u.x + u.w) < 9){ u.s += (d.x - (u.x + u.w) > 1.5 ? ' ' : '') + d.s; u.w = d.x + d.w - u.x; }
+            else szak.push({ ...d });
+        }
+        const kis = s => s.toLowerCase();
+        const cimkek = [], fejek = [];
+        let ajanloSzak = null, alairas = null;
+        for(const z of szak){
+            const t = kis(z.s);
+            const sor = REG_PDF_SOROK.find(([, re]) => re.test(t));
+            if(sor){ z.kulcs = sor[0]; cimkek.push(z); continue; }
+            const f = /^(\d{1,2})\.\s*személy$/i.exec(z.s);
+            if(f){ z.n = +f[1]; fejek.push(z); continue; }
+            if(/^ajánló neve/i.test(z.s)){ ajanloSzak = z; const m = /^ajánló neve:?\s*(.*)$/i.exec(z.s); if(m && m[1]) ajanlo = ajanlo || m[1]; continue; }
+            if(/^ajánló aláírása/i.test(z.s)) alairas = z;
+        }
+        const ann = (await page.getAnnotations()).filter(a => a.fieldType === 'Tx' && nfc(a.fieldValue))
+            .map(a => ({ s: nfc(a.fieldValue), x: a.rect[0], y: (a.rect[1] + a.rect[3]) / 2 - 3, w: a.rect[2] - a.rect[0] }));
+        if(ajanloSzak){
+            const jobb = alairas ? alairas.x : Infinity;
+            const v = [...ann, ...szak].filter(z => z !== ajanloSzak && Math.abs(z.y - ajanloSzak.y) < 8 && z.x > ajanloSzak.x + ajanloSzak.w - 2 && z.x < jobb - 2)
+                .sort((a, b) => a.x - b.x).map(z => z.s).join(' ');
+            if(v) ajanlo = v;
+        }
+        if(!cimkek.length || !fejek.length) continue;
+        const cimkeVeg = Math.max(...cimkek.map(c => c.x + c.w));
+        const ys = [...new Set(cimkek.map(c => Math.round(c.y)))].sort((a, b) => b - a);
+        const kozok = ys.slice(1).map((y, i) => ys[i] - y).filter(d => d > 4).sort((a, b) => a - b);
+        const tur = (kozok.length ? kozok[Math.floor(kozok.length / 2)] : 16) * 0.6;
+        const ertekek = [...ann, ...szak.filter(z => !z.kulcs && !z.n && z.x >= cimkeVeg - 2)];
+        for(const v of ertekek){
+            let cimke = null, d = Infinity;
+            for(const c of cimkek){ const e = Math.abs(c.y - v.y); if(e < d){ d = e; cimke = c; } }
+            if(!cimke || d > tur) continue;
+            // a blokk fejlécei: a sor fölötti legközelebbi "N. személy" sor, abból az x szerinti
+            const folott = fejek.filter(h => h.y > cimke.y);
+            if(!folott.length) continue;
+            const hy = Math.min(...folott.map(h => h.y - cimke.y));
+            const blokk = folott.filter(h => Math.abs(h.y - cimke.y - hy) < 3).sort((a, b) => a.x - b.x);
+            const fej = blokk.filter(h => h.x <= v.x + 30).pop() || blokk[0];
+            const em = emberek.get(fej.n) || {}; emberek.set(fej.n, em);
+            (em[cimke.kulcs] = em[cimke.kulcs] || []).push(v);
+        }
+    }
+    const lista = [...emberek.entries()].sort((a, b) => a[0] - b[0]).map(([n, em]) => {
+        const o = {}; for(const k in em) o[k] = em[k].sort((a, b) => b.y - a.y || a.x - b.x).map(v => v.s).join(' ');
+        return regPdfEmber(o);
+    }).filter(x => x.name);
+    if(!ajanlo){
+        // a fájlnévből: "Varga_Péter_Ajánló.pdf" → "Varga Péter"
+        const f = nfc(String(file.name || '').replace(/\.pdf$/i, '').replace(/[_]+/g, ' '));
+        if(/aj[áa]nl[óo]/i.test(f)) ajanlo = nfc(f.replace(/aj[áa]nl[óo](lap)?/ig, '').replace(/[-–]+\s*$/, ''));
+    }
+    return { lista, ajanlo: nfc(ajanlo) };
+}
+// Egy személy mezői → ügyfél-adatok. A választós mezők (családi állapot, gyerekek) az
+// app saját értékeire képződnek; ami ennél több (pl. „Külön élnek”, a gyerekek kora),
+// az a megjegyzésbe kerül, hogy ne vesszen el.
+function regPdfEmber(o){
+    const t = s => String(s || '').trim();
+    let name = t(o.nev), eletkor = '';
+    let m = /^(.*?)[\s,]*\(?\s*(\d{1,3})\s*(?:év(?:es)?)?\s*\)?\s*$/.exec(name);
+    if(m && m[1] && +m[2] < 120){ name = t(m[1]); eletkor = m[2]; }
+    let tel = t(o.tel), phone = '', lakhely = tel;
+    m = /(\+?\d[\d\s\/().-]{6,}\d)\s*$/.exec(tel) || /(\+?\d[\d\s\/().-]{6,}\d)/.exec(tel);
+    if(m){ phone = t(m[1]); lakhely = t(tel.replace(m[1], '')).replace(/^[,;:\/–-]+|[,;:\/–-]+$/g, '').trim(); }
+    const megj = [];
+    const lk = t(o.lakas), l = lk.toLowerCase();
+    const lakas = /özvegy/.test(l) ? 'Özvegy' : /elvált/.test(l) ? 'Elvált' : /házas|feleség|férj/.test(l) ? 'Házas'
+        : /élettárs/.test(l) ? 'Élettársi kapcsolatban él' : /párkapcsolat|barátn|barát/.test(l) ? 'Párkapcsolatban él'
+        : /egyedül|szingli|single/.test(l) ? 'Egyedülálló' : '';
+    if(lk && (!lakas || !/^(házas|élettárs(i kapcsolatban( él)?)?|elvált|özvegy|egyedülálló|párkapcsolatban( él)?)$/i.test(lk))) megj.push('Családi állapot: ' + lk);
+    const gy = t(o.gyerek), gm = /(\d+)/.exec(gy), gn = /nincs|nincsen/i.test(gy) ? 0 : gm ? +gm[1] : null;
+    const gyerekek = gn == null ? '' : gn === 0 ? 'Nincs gyermeke' : gn >= 4 ? '4 vagy több gyermek' : gn + ' gyermek';
+    if(gy && (gn == null || !/^(\d+|nincs)\s*(gyereke?k?|gyermeke?k?)?$/i.test(gy))) megj.push('Gyerekek: ' + gy);
+    if(t(o.megj)) megj.unshift(t(o.megj));
+    const details = {};
+    const put = (k, v) => { if(t(v)) details[k] = t(v); };
+    put('eletkor', eletkor); put('miert', o.miert); put('lakas', lakas); put('foglalkozas', o.fogl); put('gyerekek', gyerekek); put('megjegyzes', megj.join('\n'));
+    return { name, phone, lakhely, details };
+}
+async function regPdfImport(file){
+    let adat;
+    try { adat = await regPdfOlvas(file); }
+    catch(e){ alert('A PDF-et nem sikerült beolvasni: ' + (e && e.message || e)); return; }
+    if(!adat.lista.length){ alert('Ebben a PDF-ben nem találtam kitöltött személyt. Az OVB ajánlólapját (Ajánlott személyek…) ismerem fel.'); return; }
+    const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
+    const telKulcs = v => String(v || '').replace(/\D/g, '').replace(/^36/, '').replace(/^06/, '');
+    const nevKulcs = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const sajat = registry.filter(r => !r.ownerUid || !owner.uid || r.ownerUid === owner.uid);
+    const marVan = e => sajat.some(r => nevKulcs(r.name) === nevKulcs(e.name) && (!telKulcs(e.phone) || !telKulcs(r.phone) || telKulcs(r.phone) === telKulcs(e.phone)));
+    const sorok = adat.lista.map(e => ({ ...e, dup: marVan(e) }));
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal na-modal rpi-modal" role="dialog" aria-modal="true">
+            <div class="modal-head">Ügyfelek a PDF-ből · ${esc(file.name || '')}</div>
+            <div class="modal-body">
+                <div class="na-two">
+                    <div><label for="rpiAjanlo">Ajánló személy</label><input id="rpiAjanlo" type="text" value="${esc(adat.ajanlo)}"></div>
+                    <div><label for="rpiMt">Tanácsadó</label><input id="rpiMt" type="text" value="${esc(owner.name || '')}"></div>
+                </div>
+                <div class="na-sec sep">${sorok.length} személyt találtam – javíthatod, és kiveheted, akit nem kérsz</div>
+                <div class="rpi-lista">${sorok.map((e, i) => `
+                    <div class="rpi-sor${e.dup ? ' dup' : ''}" data-rpi="${i}">
+                        <label class="rpi-pipa"><input type="checkbox" data-rpik${e.dup ? '' : ' checked'}></label>
+                        <div class="rpi-mezok">
+                            <div class="rpi-harom">
+                                <input type="text" data-rpif="name" value="${esc(e.name)}" placeholder="Név" aria-label="Név">
+                                <input type="text" data-rpif="phone" value="${esc(e.phone)}" placeholder="Telefonszám" aria-label="Telefonszám">
+                                <input type="text" data-rpif="lakhely" value="${esc(e.lakhely)}" placeholder="Település" aria-label="Település">
+                            </div>
+                            <div class="rpi-info">${[e.details.eletkor ? e.details.eletkor + ' éves' : '', e.details.lakas, e.details.gyerekek, e.details.foglalkozas, e.details.miert ? 'Miért: ' + e.details.miert : '']
+                                .filter(Boolean).map(esc).join(' · ')}${e.details.megjegyzes ? `<br><i>${esc(e.details.megjegyzes).replace(/\n/g, ' · ')}</i>` : ''}
+                                ${e.dup ? '<b class="rpi-dup">Már szerepel a füzetben</b>' : ''}</div>
+                        </div>
+                    </div>`).join('')}</div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" id="rpiCancel">Mégse</button>
+                <button class="btn primary" id="rpiSave"></button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const $ = id => overlay.querySelector('#' + id);
+    const close = () => { document.removeEventListener('keydown', onKey); overlay.remove(); };
+    function onKey(e){ if(e.key === 'Escape') close(); }
+    document.addEventListener('keydown', onKey);
+    $('rpiCancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
+    const szamol = () => { const n = overlay.querySelectorAll('[data-rpik]:checked').length;
+        $('rpiSave').textContent = n ? `${n} ügyfél felvétele` : 'Nincs kiválasztva'; $('rpiSave').disabled = !n; };
+    overlay.addEventListener('change', e => { if(e.target.matches('[data-rpik]')) szamol(); });
+    szamol();
+    $('rpiSave').addEventListener('click', () => {
+        const ajanlo = $('rpiAjanlo').value.trim(), munkatars = $('rpiMt').value.trim();
+        let db = 0;
+        overlay.querySelectorAll('[data-rpi]').forEach(sor => {
+            if(!sor.querySelector('[data-rpik]').checked) return;
+            const e = sorok[+sor.dataset.rpi], f = k => sor.querySelector(`[data-rpif="${k}"]`).value.trim();
+            const name = f('name'); if(!name) return;
+            const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+            const r = { name, munkatars, ajanlo, phone: f('phone'), lakhely: f('lakhely'), status: 'Új', tp: false,
+                        mt: false, elemzes: false, portal: false, tanacsadas: false, ajanlasok: '',
+                        details: { ...e.details }, celok: {},
+                        ownerUid: owner.uid || '', ownerEmail: owner.email || '', ownerName: owner.name || '',
+                        created: new Date(Date.now() - db).toISOString(), _localKey: localKey };   // a lap sorrendje marad (az első kerül felülre)
+            registry.push(r); db++;
+            if(typeof window.sfAddClient === 'function'){
+                window.sfAddClient(regClientPayload(r)).then(id => {
+                    if(!id) return;
+                    const rec = registry.find(x => x._localKey === localKey);
+                    if(rec){ rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); }
+                }).catch(err => console.warn('Ügyfél mentése sikertelen:', err));
+            }
+        });
+        store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer();
+        close();
+        if(typeof sfToast === 'function') sfToast(`${db} ügyfél felvéve a PDF-ből.`);
+    });
+}
+// Ráhúzás a 10 perces füzet oldalára + a „PDF-ből” gomb
+(function(){
+    const lap = document.getElementById('page-ugyfelek'); if(!lap) return;
+    const pdfOf = dt => [...((dt && dt.files) || [])].find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    const vanFajl = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+    let mely = 0;
+    lap.addEventListener('dragenter', e => { if(!vanFajl(e)) return; e.preventDefault(); mely++; lap.classList.add('rpi-drop'); });
+    lap.addEventListener('dragover', e => { if(!vanFajl(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    lap.addEventListener('dragleave', e => { if(!vanFajl(e)) return; if(--mely <= 0){ mely = 0; lap.classList.remove('rpi-drop'); } });
+    lap.addEventListener('drop', e => {
+        if(!vanFajl(e)) return;
+        e.preventDefault(); mely = 0; lap.classList.remove('rpi-drop');
+        const f = pdfOf(e.dataTransfer);
+        if(f) regPdfImport(f); else alert('Ide PDF-et húzz (az ajánlólapot).');
+    });
+    // Delegálva: az eszköztár újrarajzolódhat, a gomb és a fájlmező akkor is működjön.
+    document.addEventListener('click', e => { if(e.target.closest('#regPdfBtn')){ const inp = document.getElementById('regPdfInp'); if(inp) inp.click(); } });
+    document.addEventListener('change', e => {
+        const inp = e.target; if(!inp || inp.id !== 'regPdfInp') return;
+        const f = inp.files && inp.files[0]; inp.value = ''; if(f) regPdfImport(f);
+    });
 })();
 
 // ===== 2 ÓRÁS FÜZET (munkatárs-toborzás) =====
