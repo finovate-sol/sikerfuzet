@@ -2865,7 +2865,7 @@
         .cal-apple .wk-ev { border-radius:5px; padding:3px 5px 3px 6px; font-size:11px; }
         .cal-apple .wk-ev:hover { transform:none; filter:brightness(.97); }
         .cal-apple .wk-ev-title { font-weight:600; }
-        .cal-apple .wk-ev b { font-size:10.5px; font-weight:400; opacity:.85; }
+        .cal-apple .wk-ev b { font-size:10.5px; font-weight:400; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
         .cal-apple .wk-ev-loc { font-size:10.5px; font-weight:400; opacity:.85; }
         .cal-apple .wk-travel { background:repeating-linear-gradient(135deg, #f1f1f3 0 4px, #fff 4px 8px); border:1px dashed #dcdce0; border-left:1px dashed #dcdce0;
             border-radius:5px; color:var(--ap-mu); font-weight:500; font-size:10px; }
@@ -3106,6 +3106,93 @@
         body.fd-drag-on .fd-group-empty { display:block; }
         .fd-group.fd-drop { outline:2px dashed var(--blue); outline-offset:3px; background:var(--blue-light); }
         .fd-group-drop { color:var(--muted); font-size:12px; padding:12px 2px; }
+        /* ===== Feladatok: Apple Emlékeztetők elrendezés ===== */
+        .rm { --rm-tx:#1d1d1f; --rm-mu:#8e8e93; --rm-sep:#e5e5ea; --rm-side:#f2f2f5;
+              display:grid; grid-template-columns:260px minmax(0,1fr); background:#fff; border:1px solid var(--sf-keret, #d9dde5);
+              border-radius:14px; overflow:hidden; min-height:calc(100vh - 140px);
+              font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Inter, Arial, sans-serif; }
+        .rm-side { background:var(--rm-side); border-right:1px solid var(--rm-sep); padding:14px 12px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+        .rm-side input[type="search"] { height:30px; border:0; border-radius:8px; background:#e3e3e8; padding:0 10px; font:inherit; font-size:13px; color:var(--rm-tx); outline:none; }
+        .rm-side input[type="search"]:focus { box-shadow:0 0 0 3px rgba(0,122,255,.35); }
+        .rm-tiles { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .rm-tile { position:relative; display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; gap:4px; text-align:left;
+                   background:#fff; border:0; border-radius:10px; padding:8px 10px 7px; cursor:pointer; font:inherit; box-shadow:0 .5px 1.5px rgba(0,0,0,.12); }
+        .rm-tile:last-child:nth-child(odd) { grid-column:1 / -1; }
+        .rm-tile .rm-ik { width:26px; height:26px; }
+        .rm-tile b { font-size:20px; font-weight:700; color:var(--rm-tx); line-height:26px; font-variant-numeric:tabular-nums; }
+        .rm-tile .rm-tn { grid-column:1 / -1; font-size:12.5px; font-weight:600; color:var(--rm-mu); }
+        .rm-tile.active { background:var(--lc); }
+        .rm-tile.active b, .rm-tile.active .rm-tn { color:#fff; }
+        .rm-tile.active .rm-ik { background:#fff; color:var(--lc); }
+        .rm-ik { display:grid; place-items:center; border-radius:50%; background:var(--lc); color:#fff; flex:none; }
+        .rm-ik svg { width:58%; height:58%; }
+        .rm-lh { font-size:11.5px; font-weight:700; color:var(--rm-mu); padding:4px 6px 0; }
+        .rm-lists { display:flex; flex-direction:column; gap:1px; }
+        .rm-li { display:flex; align-items:center; gap:9px; padding:5px 8px; border:0; background:none; border-radius:7px; cursor:pointer; font:inherit; text-align:left; color:var(--rm-tx); }
+        .rm-li .rm-ik { width:24px; height:24px; }
+        .rm-li:hover { background:rgba(0,0,0,.04); }
+        .rm-li.active { background:#dcdce1; }
+        .rm-ln { flex:1; min-width:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .rm-lc { font-size:13px; color:var(--rm-mu); font-variant-numeric:tabular-nums; }
+        .rm-li.fd-drop, .rm-li.fd-listdrop { outline:2px solid var(--lc); outline-offset:-2px; background:#fff; }
+        .rm-gt { margin-top:auto; font-size:11.5px; color:var(--rm-mu); padding:0 6px; }
+        .rm-main { padding:18px 26px 30px; min-width:0; }
+        .rm-fej { display:flex; align-items:flex-start; gap:12px; margin-bottom:10px; }
+        .rm-fej h1 { margin:0; font-size:28px; font-weight:700; color:var(--lc); letter-spacing:-.02em; flex:1; min-width:0; }
+        .rm-db { font-size:28px; font-weight:600; color:var(--lc); line-height:1.2; font-variant-numeric:tabular-nums; }
+        .rm-szuro { display:flex; gap:6px; padding-top:7px; }
+        .rm-szuro select { height:26px; border:1px solid var(--rm-sep); border-radius:6px; background:#fff; font:inherit; font-size:12px; color:var(--rm-mu); padding:0 6px; }
+        .rm .fd-add { display:flex; align-items:center; gap:8px; margin:0 0 6px; padding:6px 0; border-bottom:1px solid var(--rm-sep); }
+        .rm .fd-add .rm-plusz { width:20px; height:20px; border-radius:50%; background:var(--lc); flex:none; position:relative; }
+        .rm .fd-add .rm-plusz::before, .rm .fd-add .rm-plusz::after { content:""; position:absolute; left:50%; top:50%; width:10px; height:2px; background:#fff; border-radius:1px; transform:translate(-50%,-50%); }
+        .rm .fd-add .rm-plusz::after { transform:translate(-50%,-50%) rotate(90deg); }
+        .rm .fd-add input[type="text"] { flex:1 1 200px; height:30px; border:0; padding:0 4px; font-size:14px; color:var(--rm-tx); background:none; outline:none; }
+        .rm .fd-add input[type="text"]::placeholder { color:var(--rm-mu); }
+        .rm .fd-add input[type="date"], .rm .fd-add select { height:26px; border:1px solid var(--rm-sep); border-radius:6px; font-size:12px; padding:0 6px; color:var(--rm-mu); background:#fff; }
+        .rm .fd-add .rm-add { height:26px; border:0; border-radius:6px; background:var(--lc); color:#fff; font:inherit; font-size:12px; font-weight:600; padding:0 12px; cursor:pointer; }
+        .rm .fd-group { margin:14px 0 0; overflow:visible; border:0; background:none; box-shadow:none; container-type:inline-size; }
+        .rm .fd-group > .card-head { background:none; padding:6px 0 4px; border-bottom:1px solid var(--rm-sep); display:flex; align-items:center; }
+        .rm .fd-group > .card-head h2 { color:var(--lc); font-size:19px; font-weight:700; margin:0; }
+        .rm .fd-fold { color:var(--rm-mu); }
+        .rm .fd-fold:hover:not(:disabled) { background:rgba(0,0,0,.05); color:var(--rm-tx); }
+        .rm .fd-head-acts { opacity:0; transition:opacity .12s; }
+        .rm .fd-group > .card-head:hover .fd-head-acts, .rm .fd-head-acts:focus-within { opacity:1; }
+        .rm .fd-group.fd-drop, .rm .fd-group.fd-listdrop { outline:2px dashed var(--lc); background:none; border-radius:8px; }
+        .rm .fd-list { padding:0; }
+        .rm .fd-row { align-items:flex-start; gap:10px; padding:0; border:0; background:none; }
+        .rm .fd-row:hover { background:none; }
+        .rm .fd-row.open { background:rgba(0,122,255,.06); border-radius:8px; }
+        .rm .fd-check { padding-top:9px; }
+        .rm .fd-check input { appearance:none; -webkit-appearance:none; width:19px; height:19px; margin:0; border-radius:50%;
+                              border:1.5px solid #c7c7cc; background:#fff; cursor:pointer; transition:border-color .12s, background .12s; }
+        .rm .fd-check input:hover { border-color:var(--lc); }
+        .rm .fd-check input:checked { border-color:var(--lc); background:radial-gradient(circle, var(--lc) 0 5px, transparent 5.5px); }
+        .rm .fd-check input:focus-visible { outline:2px solid var(--lc); outline-offset:2px; }
+        .rm .fd-main { gap:2px; padding:8px 0 9px; border-bottom:1px solid var(--rm-sep); }
+        .rm .fd-title { font-size:14px; font-weight:400; color:var(--rm-tx); white-space:normal; }
+        .rm .fd-row.done .fd-title { text-decoration:none; color:var(--rm-mu); }
+        .rm .fd-prio, .rm .fd-prio.low, .rm .fd-prio.mid, .rm .fd-prio.high { color:var(--lc); font-weight:700; font-size:14px; margin-right:5px; letter-spacing:0; }
+        .rm .fd-note-preview { font-size:12.5px; color:var(--rm-mu); white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+        .rm .fd-meta { display:flex; flex-wrap:wrap; gap:4px 8px; font-size:12.5px; color:var(--rm-mu); }
+        .rm .fd-due, .rm .fd-due.timed { font-size:12.5px; font-weight:400; color:var(--rm-mu); }
+        .rm .fd-due.overdue { color:#ff3b30; }
+        .rm .fd-rep { font-size:12.5px; font-weight:400; color:var(--rm-mu); background:none; padding:0; }
+        .rm .fd-tag { font-size:12.5px; font-weight:400; color:#007aff; background:none; border:0; padding:0; }
+        .rm .fd-del { align-self:center; color:var(--rm-mu); font-weight:400; font-size:18px; }
+        .rm .fd-detail { margin:4px 0 10px 29px; background:#f7f7f9; border-color:var(--rm-sep); }
+        .rm .fd-empty { color:var(--rm-mu); font-size:13px; padding:40px 12px; }
+        .rm .fd-group-drop { padding:10px 0 10px 29px; color:var(--rm-mu); }
+        @media (max-width:760px){
+            .rm { grid-template-columns:1fr; min-height:0; }
+            .rm-side { border-right:0; border-bottom:1px solid var(--rm-sep); }
+            .rm-main { padding:14px 14px 22px; }
+            .rm-fej h1, .rm-db { font-size:24px; }
+            .rm .fd-head-acts { opacity:1; }
+        }
+        /* Oldalsáv (Heti terv mellett): ugyanaz a kör alakú pipa */
+        .rf-check input { appearance:none; -webkit-appearance:none; width:17px; height:17px; margin:0; border-radius:50%;
+                          border:1.5px solid #c7c7cc; background:#fff; cursor:pointer; }
+        .rf-check input:checked { border-color:#007aff; background:radial-gradient(circle, #007aff 0 4.5px, transparent 5px); }
         /* ===== JEGYZETEK ===== */
         .jg-wrap { display:grid; grid-template-columns:300px 1fr; gap:16px; align-items:start; }
         @media (max-width:900px){ .jg-wrap { grid-template-columns:1fr; } }
@@ -24346,7 +24433,11 @@ document.addEventListener('keydown', e => {
             // indult csoport tart még – nem a kezdések sorszáma. Így egy hosszú
             // eseménybe eső, egymást NEM fedő események mind egy szintre kerülnek,
             // a tényleges többszörös átfedés viszont továbbra is mélyebbre.
-            const depth = groups.filter(x => x.start < g.start && x.items.some(e => e.endDec > g.start)).length;
+            // Egy szinttel a még futó korábbi csoportok legmélyebbike ALÁ (nem csak darabszám
+            // szerint): így két, ugyanazon a szinten lévő esemény sosem fedi el egymást.
+            const futo = groups.filter(x => x.start < g.start && x.items.some(e => e.endDec > g.start));
+            const depth = futo.length ? Math.max(...futo.map(x => x.depth)) + 1 : 0;
+            g.depth = depth;
             g.items.forEach((it, slot) => {
                 it.depth = Math.min(depth, 4);
                 it.slot = slot;
@@ -24355,27 +24446,6 @@ document.addEventListener('keydown', e => {
         });
     }
 
-    // Apple-nézet: az egyszerre futó események egymás mellett, egyenlő oszlopokban;
-    // ha a jobb oldali szomszéd oszlopban épp nincs vele egyidejű esemény, odáig kiszélesedik.
-    function layoutApple(list){
-        list.sort((a,b) => a.startDec - b.startDec || b.endDec - a.endDec);
-        let csop = [], veg = -1;
-        const zar = () => {
-            const osz = [];
-            for (const it of csop){
-                let j = osz.findIndex(v => v <= it.startDec);
-                if (j < 0){ j = osz.length; osz.push(0); }
-                osz[j] = it.endDec; it.slot = j;
-            }
-            csop.forEach(it => {
-                it.depth = 0; it.slots = osz.length; it.span = 1;
-                while (it.slot + it.span < it.slots && !csop.some(o => o.slot === it.slot + it.span && o.startDec < it.endDec && o.endDec > it.startDec)) it.span++;
-            });
-            csop = [];
-        };
-        for (const it of list){ if (it.startDec >= veg && csop.length) zar(); csop.push(it); veg = Math.max(veg, it.endDec); }
-        if (csop.length) zar();
-    }
     // Apple-nézetben a ✅ helyett kis pipa; a ❌ (elmaradt) áthúzással látszik (CSS).
     const appleTitle = (clean, status) => (status === "yes" ? "✓ " : "") + (clean || "(névtelen)");
 
@@ -24513,20 +24583,23 @@ document.addEventListener('keydown', e => {
             timed.push({ ev, clean, status, hex, s, e, idx, startDec, endDec, top, height, kind: evKind(ev), depth:0, slot:0, slots:1 });
         });
 
-        for (let c = 0; c < n; c++) (calStyle === "apple" ? layoutApple : layoutOverlaps)(timed.filter(t => t.idx === c));
+        // Átfedés (az Apple Naptárban is így): az azonos időben kezdődők egymás mellé, a futó
+        // esemény belsejében később kezdődő pedig kicsit beljebb húzva, rá.
+        for (let c = 0; c < n; c++) layoutOverlaps(timed.filter(t => t.idx === c));
 
         const colPct = 100 / n;
-        const INDENT = 14;                       // behúzás átfedésenként (px)
+        const INDENT = calStyle === "apple" ? 10 : 14;   // behúzás átfedésenként (px)
         const TITLE_LINE_H = 14;                 // a cím egy sorának magassága (11px × 1.25)
         const LOC_LINE_H = 13;                   // a helyszín-sor magassága (10px × 1.2 + margó)
         const LOC_MIN_W = 54;                    // ennél keskenyebb blokkon a helyszín olvashatatlanul csonkolódna
         timed.forEach(t => {
             const indent = t.depth * INDENT;
-            const pad = 6 + indent + t.depth * 4;          // teljes vízszintes levonás
+            const pad = calStyle === "apple" ? 4 + indent : 6 + indent + t.depth * 4;   // teljes vízszintes levonás
             const slotW = `((${colPct}% - ${pad}px) / ${t.slots})`;
-            const left = `calc(${t.idx*colPct}% + ${3 + indent}px + ${slotW} * ${t.slot})`;
-            const width = `calc(${slotW}${t.span > 1 ? " * " + t.span : ""}${t.slots > 1 ? " - 3px" : ""})`;
+            const left = `calc(${t.idx*colPct}% + ${(calStyle === "apple" ? 2 : 3) + indent}px + ${slotW} * ${t.slot})`;
+            const width = `calc(${slotW}${t.slots > 1 ? " - 3px" : ""})`;
             const hh = pad2(t.s.getHours()) + ":" + pad2(t.s.getMinutes());
+            const hhKiir = calStyle === "apple" && !t.folyt ? `${t.s.getHours()}:${pad2(t.s.getMinutes())}–${t.e.getHours()}:${pad2(t.e.getMinutes())}` : hh;
             const div = document.createElement("div");
             const isTask = t.kind === "task";
             // A feladatoknak (isTask) saját, calStyle-tól független megjelenésük
@@ -24615,7 +24688,7 @@ document.addEventListener('keydown', e => {
             const wkMeetHtml = wkMeetUrl
                 ? `<a class="wk-ev-meet" draggable="false" href="${escM(wkMeetUrl)}" target="_blank" rel="noopener" title="Csatlakozás a Google Meethez">${calSvg("video")}</a>`
                 : "";
-            const timeLocHtml = `${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hh}</b>${wkMeetHtml}</span>` : ""}
+            const timeLocHtml = `${showTime ? `<span class="wk-ev-head">${isTask ? calSvg("clock") : ""}<b>${hhKiir}</b>${wkMeetHtml}</span>` : ""}
                 ${showLoc ? `<span class="wk-ev-loc">${calSvg("pin")}<span>${escM(locText)}</span></span>` : ""}`;
             div.innerHTML = mode === "split"
                 // "Kétszínű sáv": a cím és az időpont/helyszín külön, saját hátterű
@@ -27671,8 +27744,18 @@ document.addEventListener('keydown', e => {
     // "!!", magas "!!!". A JEL IS hordozza a szintet, nem csak a szín – aki a
     // zöldet és a pirosat nem különbözteti meg, annak is egyértelmű marad.
     const FD_PRIO_MARK = { "Alacsony":"!", "Közepes":"!!", "Magas":"!!!" };
-    const FD_FILTERS = [["aktiv","Aktív"],["ma","Mai és lejárt"],["het","Ezen a héten"],["lejart","Lejárt"],["kesz","Kész"]];
-    let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false;
+    const FD_FILTERS = [["ma","Ma"],["het","Ezen a héten"],["aktiv","Összes"],["lejart","Lejárt"],["kesz","Kész"]];
+    // Apple Emlékeztetők: az okos listák saját színe és ikonja, a saját listák sorban kapnak színt.
+    const FD_SMART = { ma:["#007aff","naptar"], het:["#ff3b30","ora"], aktiv:["#3a3a3c","talca"], lejart:["#ff9500","jel"], kesz:["#8e8e93","pipa"] };
+    const FD_SMART_SVG = {
+        naptar:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+        ora:'<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+        talca:'<path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
+        jel:'<path d="M12 4v10M12 18.5v.5"/>',
+        pipa:'<path d="M6 12.5l4 4 8-9"/>',
+    };
+    const FD_LIST_COLORS = ["#007aff","#ff9500","#34c759","#ff3b30","#af52de","#a2845e","#ff2d55","#5ac8fa","#ffcc00"];
+    let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false, fdListSel = "";
     // Az összecsukott listák a böngészőben megmaradnak – különben minden
     // betöltéskor újra be kellene csukni őket.
     const FD_FOLD_KEY = "sf_fd_folded";
@@ -27740,21 +27823,33 @@ document.addEventListener('keydown', e => {
     }
     const fdVisible = t => fdInFilter(t, fdFilter) && fdInSide(t);
 
+    // "Ma", "Holnap", "Tegnap", különben "okt. 12." – az Emlékeztetők szóhasználatával.
+    function fdNapSzo(ymd){
+        const d0 = new Date(fdToday() + "T00:00:00"), d = new Date(ymd + "T00:00:00");
+        const k = Math.round((d - d0) / 864e5);
+        if(k === 0) return "Ma"; if(k === 1) return "Holnap"; if(k === -1) return "Tegnap";
+        const HO = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
+        return (d.getFullYear() !== d0.getFullYear() ? d.getFullYear() + ". " : "") + HO[d.getMonth()] + " " + d.getDate() + ".";
+    }
     function fdRowHtml(t){
         const done = taskIsDone(t), due = taskDue(t), prio = taskPrio(t);
         const overdue = due && due.ymd < fdToday() && !done;
-        const label = taskDueLabel(t);
+        const tm = due ? taskTimeLabel(due) : "";
         const note = taskNote(t).replace(/\s+/g, " ").trim();
         const open = fdOpenId === t.id;
-        return `<div class="fd-row${done ? " done" : ""}${open ? " open" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true">
+        const rp = taskRepeat(t), tags = taskTags(t);
+        const meta = [
+            due ? `<span class="fd-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${escM(fdNapSzo(due.ymd) + (tm ? ", " + tm : ""))}</span>` : "",
+            rp ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(rp))}">↻ ${escM(FD_REPEAT_LABEL(rp))}</span>` : "",
+            ...tags.map(x => `<span class="fd-tag">#${escM(x)}</span>`),
+        ].filter(Boolean).join("");
+        return `<div class="fd-row${done ? " done" : ""}${open ? " open" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true" style="--lc:${fdListColor(t.listId)}">
             <label class="fd-check" title="Kész"><input type="checkbox" data-fdtoggle="${escM(t.id)}"${done ? " checked" : ""}></label>
             <span class="fd-main">
                 <span class="fd-title">${prio ? `<span class="fd-prio ${FD_PRIO_CLASS[prio] || "mid"}" title="${escM(prio)} prioritás">${escM(FD_PRIO_MARK[prio] || "!")}</span>` : ""}${escM(t.title || "(névtelen feladat)")}</span>
                 ${note ? `<span class="fd-note-preview">${sfLinkify(escM(note.slice(0, 300)))}</span>` : ""}
+                ${meta ? `<span class="fd-meta">${meta}</span>` : ""}
             </span>
-            ${taskTags(t).map(x => `<span class="fd-tag">${escM(x)}</span>`).join("")}
-            ${taskRepeat(t) ? `<span class="fd-rep" title="Ismétlődő: ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}">↻ ${escM(FD_REPEAT_LABEL(taskRepeat(t)))}</span>` : ""}
-            ${label ? `<span class="fd-due${overdue ? " overdue" : ""}${due.timed ? " timed" : ""}">${escM(label)}</span>` : `<span class="fd-due none">nincs határidő</span>`}
             <button class="fd-del" data-fddel="${escM(t.id)}" title="Törlés">×</button>
         </div>${open ? fdDetailHtml(t) : ""}`;
     }
@@ -27822,67 +27917,61 @@ document.addEventListener('keydown', e => {
         </div>`;
     }
 
+    // A lista színe: a saját sorrendjében a következő Apple-szín (mint az Emlékeztetőkben).
+    function fdListColor(id){
+        const sorrend = gtLists.map(l => l.id).sort((a, b) => fdRank(a) - fdRank(b));
+        const i = sorrend.indexOf(id);
+        return FD_LIST_COLORS[(i < 0 ? 0 : i) % FD_LIST_COLORS.length];
+    }
+    // Apple Emlékeztetők elrendezés: balra a kereső, az okos listák csempéi és a saját
+    // listák; jobbra a kiválasztott nézet nagy, színes címmel, alatta a listák szakaszai.
     function fdShellHtml(){
         if(!gtLists.length && pgTasks.length && pgListId) gtLists = [{ id: pgListId, title: PG_LIST_TITLE }];
+        if(fdListSel && !gtLists.some(l => l.id === fdListSel)) fdListSel = "";
         if(!fdAddListId || !gtLists.some(l => l.id === fdAddListId))
             fdAddListId = pgListId || (gtLists[0] && gtLists[0].id) || "";
+        const addList = fdListSel || fdAddListId;
         const counts = {};
         FD_FILTERS.forEach(([k]) => { counts[k] = gtTasks.filter(t => fdInFilter(t, k) && fdInSide(t)).length; });
-        const tabs = FD_FILTERS.map(([k, lab]) =>
-            `<button class="fd-tab${fdFilter === k ? " active" : ""}" data-fdfilter="${k}">${lab}<span class="fd-tab-n">${counts[k]}</span></button>`).join("");
-        const groups = gtLists.map(l => ({
+        const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${FD_SMART_SVG[k]}</svg>`;
+        const tiles = FD_FILTERS.map(([k, lab]) => { const [c, ik] = FD_SMART[k];
+            return `<button class="rm-tile${!fdListSel && fdFilter === k ? " active" : ""}" data-fdfilter="${k}" style="--lc:${c}">
+                <span class="rm-ik">${svg(ik)}</span><b>${counts[k]}</b><span class="rm-tn">${lab}</span></button>`; }).join("");
+        const sorrend = gtLists.slice().sort((a, b) => fdRank(a.id) - fdRank(b.id));
+        const listak = sorrend.map(l => {
+            const db = gtTasks.filter(t => t.listId === l.id && !taskIsDone(t) && fdInSide(t)).length;
+            return `<button class="rm-li${fdListSel === l.id ? " active" : ""}" data-fdlist="${escM(l.id)}" data-fdgroup="${escM(l.id)}" style="--lc:${fdListColor(l.id)}">
+                <span class="rm-ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 7h10M9 12h10M9 17h10"/><circle cx="5" cy="7" r=".6"/><circle cx="5" cy="12" r=".6"/><circle cx="5" cy="17" r=".6"/></svg></span>
+                <span class="rm-ln">${escM(l.title)}</span><span class="rm-lc">${db}</span></button>`; }).join("");
+
+        const groups = sorrend.filter(l => !fdListSel || l.id === fdListSel).map(l => ({
             list: l,
             items: gtTasks.filter(t => t.listId === l.id && fdVisible(t)).sort(taskSortKey),
-        })).sort((a, b) => fdRank(a.list.id) - fdRank(b.list.id));
-        // Az üres listák hátulra: húzás közben bukkannak elő, és ha közéjük
-        // ékelődnének, az egész lap megugrana a kurzor alatt, épp ejtés közben.
-        // A lap aljára kerülve semmit nem tolnak el maguk fölött.
-        groups.sort((a, b) => (a.items.length ? 0 : 1) - (b.items.length ? 0 : 1));
-        // Az üres listák is ledobási felületek, különben oda nem lehetne áthúzni
-        // semmit. Húzáson kívül rejtve maradnak (lásd .fd-group-empty), hogy a
-        // szokásos nézet ne legyen tele üres dobozokkal.
-        // Csak a nem üres listák számítanak: az üresek rejtve vannak, egy üres
-        // oszlopot foglalnának a semmiért.
-        const lathatoDb = groups.filter(g => g.items.length).length;
-        const kartya = (g, gi) => `
-            <section class="card fd-group${g.items.length ? "" : " fd-group-empty"}${fdFolded.has(g.list.id) ? " folded" : ""}" data-fdgroup="${escM(g.list.id)}">
-                <div class="card-head" draggable="true" title="Fogd meg és húzd a helyére"><h2>${escM(g.list.title)}</h2><span class="fd-group-n">${g.items.length}</span>
+        }));
+        const lathato = groups.filter(g => g.items.length);
+        const egyLista = !!fdListSel;
+        const szakasz = (g, gi) => `
+            <section class="fd-group rm-sec${g.items.length ? "" : " fd-group-empty"}${fdFolded.has(g.list.id) ? " folded" : ""}" data-fdgroup="${escM(g.list.id)}" style="--lc:${fdListColor(g.list.id)}">
+                ${egyLista ? "" : `<div class="card-head" draggable="true" title="Fogd meg és húzd a helyére"><h2>${escM(g.list.title)}</h2>
                     <span class="fd-head-acts">
                         <button class="fd-fold" draggable="false" data-fdmove="${escM(g.list.id)}" data-fddir="-1" title="Előrébb"${gi === 0 ? " disabled" : ""}>↑</button>
-                        <button class="fd-fold" draggable="false" data-fdmove="${escM(g.list.id)}" data-fddir="1" title="Hátrébb"${gi === lathatoDb - 1 ? " disabled" : ""}>↓</button>
+                        <button class="fd-fold" draggable="false" data-fdmove="${escM(g.list.id)}" data-fddir="1" title="Hátrébb"${gi === lathato.length - 1 ? " disabled" : ""}>↓</button>
                         <button class="fd-fold" draggable="false" data-fdfold="${escM(g.list.id)}"
                                 title="${fdFolded.has(g.list.id) ? "Kinyitás" : "Összecsukás"}"
                                 aria-expanded="${fdFolded.has(g.list.id) ? "false" : "true"}">${fdFolded.has(g.list.id) ? "▸" : "▾"}</button>
-                    </span></div>
-                <div class="card-body fd-list">${g.items.length
+                    </span></div>`}
+                <div class="fd-list">${g.items.length
                     ? g.items.map(fdRowHtml).join("")
                     : `<div class="fd-group-drop">Húzd ide, ami ebbe a listába való.</div>`}</div>
             </section>`;
-
-        // A CSS-hasábok (column-count) igazítása böngészőnként eltér: a hasábok
-        // teteje nem mindenhol esik egy vonalba. Ezért KÉT VALÓDI OSZLOPOT
-        // építünk – két testvér elemnek szerkezetileg lehetetlen elcsúsznia.
-        //
-        // A listákat súly szerint osztjuk szét: mindig az éppen alacsonyabb
-        // oszlopba kerül a következő. Így csúszik fel minden kártya közvetlenül
-        // az előző alá, üres folt nélkül. Az összecsukott lista csak a fejléce.
-        const suly = g => fdFolded.has(g.list.id) ? 1.6 : 1.6 + g.items.length;
-        const oszlopok = [[], []];
-        const magassag = [0, 0];
-        groups.forEach((g, gi) => {
-            if(!g.items.length) return;                       // üres lista: rejtett, nem foglal oszlopot
-            const hova = lathatoDb < 2 ? 0 : (magassag[0] <= magassag[1] ? 0 : 1);
-            oszlopok[hova].push(kartya(g, gi));
-            magassag[hova] += suly(g);
-        });
-        // Az üres listák a lap aljára: húzás közben bukkannak elő, ledobási
-        // felületnek. Ha az oszlopok közé kerülnének, ejtés közben ugrana a lap.
-        const uresek = groups.map((g, gi) => g.items.length ? "" : kartya(g, gi)).join("");
-        const body = lathatoDb
-            ? `<div class="fd-groups${lathatoDb < 2 ? " egy" : ""}">`
-              + oszlopok.map(o => `<div class="fd-col">${o.join("")}</div>`).join("")
-              + `</div>${uresek}`
-            : `<section class="card"><div class="card-body fd-empty">Nincs a szűrőnek megfelelő feladat.</div></section>${uresek}`;
+        const selList = fdListSel && gtLists.find(l => l.id === fdListSel);
+        const fejCim = selList ? selList.title : (FD_FILTERS.find(f => f[0] === fdFilter) || [, "Összes"])[1];
+        const fejSzin = selList ? fdListColor(selList.id) : FD_SMART[fdFilter][0];
+        const fejDb = groups.reduce((a, g) => a + g.items.length, 0);
+        const body = (lathato.length || egyLista)
+            ? lathato.map((g, gi) => szakasz(g, gi)).join("") + groups.filter(g => !g.items.length).map(g => szakasz(g, 0)).join("")
+              + (egyLista && !lathato.length ? `<div class="fd-empty">Nincs emlékeztető.</div>` : "")
+            : `<div class="fd-empty">Nincs a szűrőnek megfelelő feladat.</div>` + groups.map(g => szakasz(g, 0)).join("");
         return `
         ${taskMetaError ? `<div class="card jg-err"><div class="card-body">
             <b>A prioritás és az ismétlődés nem érhető el.</b>
@@ -27891,26 +27980,39 @@ document.addEventListener('keydown', e => {
             beolvasni: ${escM(taskMetaError)}
             <div style="margin-top:6px;">Amíg ez fennáll, ezek a mezők üresen látszanak, és menteni sem lehet őket.</div>
         </div></div>` : ""}
-        <div class="fd-add">
-            ${gtLists.length > 1 ? `<select id="fdList" title="Melyik listába kerüljön">${gtLists.map(l => `<option value="${escM(l.id)}"${l.id === fdAddListId ? " selected" : ""}>${escM(l.title)}</option>`).join("")}</select>` : ""}
-            <input type="text" id="fdInput" placeholder="Új feladat…" maxlength="500">
-            <input type="date" id="fdNewDate" title="Határidő (nem kötelező)">
-            <button class="btn primary" id="fdAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Hozzáadás</button>
-        </div>
-        <div class="fd-bar">
-            <div class="fd-tabs">${tabs}</div>
-            <select id="fdPrioSel" title="Prioritás szerint">
-                <option value=""${fdPrio ? "" : " selected"}>Minden prioritás</option>
-                ${FD_PRIOS.map(o => `<option value="${escM(o)}"${o === fdPrio ? " selected" : ""}>${escM(FD_PRIO_MARK[o])} ${escM(o)}</option>`).join("")}
-            </select>
-            ${(() => { const c = fdAllTags(); return c.length ? `<select id="fdTagSel" title="Címke szerint">
-                <option value=""${fdTag ? "" : " selected"}>Minden címke</option>
-                ${c.map(x => `<option${x === fdTag ? " selected" : ""}>${escM(x)}</option>`).join("")}
-            </select>` : ""; })()}
-            <input type="search" id="fdSearch" placeholder="Keresés…" value="${escM(fdSearch)}">
-            <a class="link fd-gt" href="https://tasks.google.com" target="_blank" rel="noopener">Google Tasks ↗</a>
-        </div>
-        ${body}`;
+        <div class="rm">
+            <aside class="rm-side">
+                <input type="search" id="fdSearch" placeholder="Keresés" value="${escM(fdSearch)}">
+                <div class="rm-tiles">${tiles}</div>
+                <div class="rm-lh">Saját listák</div>
+                <div class="rm-lists">${listak}</div>
+                <a class="rm-gt" href="https://tasks.google.com" target="_blank" rel="noopener">Megnyitás a Google Tasksban ↗</a>
+            </aside>
+            <div class="rm-main" style="--lc:${fejSzin}">
+                <div class="rm-fej">
+                    <h1>${escM(fejCim)}</h1>
+                    <span class="rm-szuro">
+                        <select id="fdPrioSel" title="Prioritás szerint">
+                            <option value=""${fdPrio ? "" : " selected"}>Minden prioritás</option>
+                            ${FD_PRIOS.map(o => `<option value="${escM(o)}"${o === fdPrio ? " selected" : ""}>${escM(FD_PRIO_MARK[o])} ${escM(o)}</option>`).join("")}
+                        </select>
+                        ${(() => { const c = fdAllTags(); return c.length ? `<select id="fdTagSel" title="Címke szerint">
+                            <option value=""${fdTag ? "" : " selected"}>Minden címke</option>
+                            ${c.map(x => `<option${x === fdTag ? " selected" : ""}>${escM(x)}</option>`).join("")}
+                        </select>` : ""; })()}
+                    </span>
+                    <b class="rm-db">${fejDb}</b>
+                </div>
+                <div class="fd-add" style="--lc:${fdListColor(addList)}">
+                    <span class="rm-plusz" aria-hidden="true"></span>
+                    <input type="text" id="fdInput" placeholder="Új emlékeztető" maxlength="500">
+                    <input type="date" id="fdNewDate" title="Határidő (nem kötelező)">
+                    ${gtLists.length > 1 && !fdListSel ? `<select id="fdList" title="Melyik listába kerüljön">${sorrend.map(l => `<option value="${escM(l.id)}"${l.id === fdAddListId ? " selected" : ""}>${escM(l.title)}</option>`).join("")}</select>` : ""}
+                    <button class="rm-add" id="fdAdd">Hozzáadás</button>
+                </div>
+                ${body}
+            </div>
+        </div>`;
     }
 
     function renderFeladatok(){
@@ -27949,7 +28051,11 @@ document.addEventListener('keydown', e => {
         const body = document.getElementById("feladatokBody"); if(!body) return;
 
         body.querySelectorAll("[data-fdfilter]").forEach(b => b.addEventListener("click", () => {
-            fdFilter = b.dataset.fdfilter; fdOpenId = null; renderFeladatok();
+            fdFilter = b.dataset.fdfilter; fdListSel = ""; fdOpenId = null; renderFeladatok();
+        }));
+        // Saját lista kiválasztása (Emlékeztetők): csak az a lista, a nyitott tételeivel.
+        body.querySelectorAll("[data-fdlist]").forEach(b => b.addEventListener("click", () => {
+            fdListSel = b.dataset.fdlist; fdFilter = "aktiv"; fdOpenId = null; renderFeladatok();
         }));
         const ps = document.getElementById("fdPrioSel");
         if(ps) ps.addEventListener("change", () => { fdPrio = ps.value; renderFeladatok(); });
