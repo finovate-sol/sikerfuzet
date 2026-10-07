@@ -2850,7 +2850,6 @@
         .cal-apple .wk-allday .cell { border-left-color:var(--ap-racs2); padding:2px; }
         .cal-apple .wk-allday .cell.hetvege { background:var(--ap-hv); }
         .cal-apple .allday-ev { font-size:11px; border-radius:4px; }
-        .cal-apple .allday-ev.elmaradt, .cal-apple .wk-ev.elmaradt .wk-ev-title { text-decoration:line-through; opacity:.65; }
         .cal-apple .wk-times .t { font-size:10.5px; color:var(--ap-mu); padding:0 8px 0 0; line-height:0; font-variant-numeric:tabular-nums; }
         .cal-apple .wk-line { border-top-color:var(--ap-racs); }
         .cal-apple .wk-col { border-left-color:var(--ap-racs2); }
@@ -24446,8 +24445,6 @@ document.addEventListener('keydown', e => {
         });
     }
 
-    // Apple-nézetben a ✅ helyett kis pipa; a ❌ (elmaradt) áthúzással látszik (CSS).
-    const appleTitle = (clean, status) => (status === "yes" ? "✓ " : "") + (clean || "(névtelen)");
 
     // A naptárban megjelenő Google Task chipje. Az "egész nap" sorba kerül,
     // mert a Tasks API a due mezőben csak dátumot garantál – ha mégis van
@@ -24519,7 +24516,6 @@ document.addEventListener('keydown', e => {
                     } else if (calStyle === "apple"){
                         chip.style.background = appleBg(hex);
                         chip.style.color = appleTx(hex);
-                        if (status === "no") chip.classList.add("elmaradt");
                     } else if (calStyle === "light"){
                         chip.style.background = tintHex(hex);
                         chip.style.color = deepHex(hex);
@@ -24548,7 +24544,7 @@ document.addEventListener('keydown', e => {
                     const elo = timedSav && ni === 0 ? `<b>${pad2(sT.getHours())}:${pad2(sT.getMinutes())}&nbsp;</b>` : "";
                     const uto = timedSav && ni === napok.length - 1 && napok.length > 1 ? `<b>&nbsp;→&nbsp;${pad2(eT.getHours())}:${pad2(eT.getMinutes())}</b>` : "";
                     chip.innerHTML = (chipTask ? `<span class="wk-task-dot${status === "yes" ? " done" : status === "no" ? " no" : ""}" style="--c:${hex}"></span>` : "")
-                        + elo + escM(chipTask ? (clean || "(névtelen)") : calStyle === "apple" ? appleTitle(clean, status) : statusTitle(clean, status)) + uto;
+                        + elo + escM(chipTask ? (clean || "(névtelen)") : statusTitle(clean, status)) + uto;
                     alldayCells[idx].appendChild(chip);
                     if (ev.id && ev.id === pendingHighlightId){
                         chip.classList.add("cal-highlight");
@@ -24606,7 +24602,7 @@ document.addEventListener('keydown', e => {
             // van (lásd PR "esemény vagy feladat" – fehér, bal szegéllyel); minden
             // más esemény az öt naptár-stílus egyikét kapja.
             const mode = isTask ? "task" : calStyle;
-            const modeClass = { task:" wk-task", apple:" wk-ev-apple" + (t.status === "no" ? " elmaradt" : ""), light:" wk-ev-light", outline:" wk-ev-outline", gradient:" wk-ev-gradient", split:" wk-ev-split" }[mode] || "";
+            const modeClass = { task:" wk-task", apple:" wk-ev-apple", light:" wk-ev-light", outline:" wk-ev-outline", gradient:" wk-ev-gradient", split:" wk-ev-split" }[mode] || "";
             div.className = "wk-ev" + modeClass;
             div.draggable = true;
             if (mode === "task"){
@@ -24678,7 +24674,7 @@ document.addEventListener('keydown', e => {
             const dot = isTask
                 ? `<span class="wk-task-dot${t.status === "yes" ? " done" : t.status === "no" ? " no" : ""}" style="--c:${t.hex}"></span>`
                 : "";
-            const label = isTask ? (t.clean || "(névtelen)") : mode === "apple" ? appleTitle(t.clean, t.status) : statusTitle(t.clean, t.status);
+            const label = isTask ? (t.clean || "(névtelen)") : statusTitle(t.clean, t.status);
             const titleHtml = `<span class="wk-ev-title" style="-webkit-line-clamp:${lines}">${dot}${escM(label)}</span>`;
             // Google Meet: az időpont mellé kerül egy kattintható ikon, mert a
             // blokk magassága ritkán enged meg még egy teljes sort. A kattintást
@@ -25267,7 +25263,7 @@ document.addEventListener('keydown', e => {
                 const hex = eventColorHex(ev, clean);
                 const t = folyt ? "↳ " : ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
                 const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
-                return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="${calStyle === "apple" ? `background:${appleBg(hex)};color:${appleTx(hex)}` : `background:${hex};color:${contrastTextColor(hex)}`};">${t}${escM(calStyle === "apple" ? appleTitle(clean, status) : statusTitle(clean, status))}</span>`;
+                return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="${calStyle === "apple" ? `background:${appleBg(hex)};color:${appleTx(hex)}` : `background:${hex};color:${contrastTextColor(hex)}`};">${t}${escM(statusTitle(clean, status))}</span>`;
             }).join("");
             if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
