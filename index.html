@@ -2133,6 +2133,7 @@
 
         /* --- vízió --- */
         .cl-vision { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; }
+        .cl-vis-nyil { display:none; }
         .cl-vis { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; position:relative; overflow:hidden; }
         .cl-vis::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--blue); }
         .cl-vis h4 { font-size:10px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.06em; margin:0 0 6px; }
@@ -2425,8 +2426,13 @@
             .cl-ido-s { grid-template-columns:10px minmax(0,1fr) auto; } .cl-ido-s em { display:none; }
             .cl-ter-p { padding:14px; }
             /* telefonon a vízió és a területek vízszintesen görgethető sor – ne tolják le a célokat */
-            .cl-vision { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:4px; }
-            .cl-vis { flex:0 0 82%; scroll-snap-align:start; }
+            /* a vízió középen, egyszerre egy; két oldalt nyíllal lapozható */
+            .cl-vis-keret { display:flex; align-items:center; gap:8px; }
+            .cl-vis-nyil { display:grid !important; place-items:center; flex:none; width:34px; height:34px; border-radius:50%; border:1px solid #e5e5ea; background:#fff;
+                           color:#1d1d1f; font-size:22px; line-height:1; padding:0 0 3px; cursor:pointer; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+            .cl-vision { flex:1; min-width:0; display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 0 6px; scrollbar-width:none; }
+            .cl-vision::-webkit-scrollbar { display:none; }
+            .cl-vis { flex:0 0 100%; scroll-snap-align:center; }
             .cl-ter-bal { flex-direction:row; flex-wrap:nowrap; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 2px 6px; }
             .cl-ter-cim, .cl-ter-bal > .cl-megj { display:none; }
             .cl-tc { flex:0 0 230px; scroll-snap-align:start; }
@@ -29401,6 +29407,14 @@ document.addEventListener('keydown', e => {
     const CL_TIP = { cel:'Cél', bakancs:'Bakancslista', challenge:'Challenge', szokas:'Szokás', havi:'Havi cél' };
     const CL_STAT = { nincs:['Nincs elkezdve','#eef1f5','#475569'], fut:['Folyamatban','#dbeafe','#1d4ed8'], kesz:['Sikerült','#dcf5e6','#166534'], arch:['Archív','#f3f4f6','#6b7280'] };
     const CL_NEH = ['', 'Könnyű', 'Közepes', 'Nehéz', 'Kurva nehéz'];
+    // Vízió lapozása a nyilakkal (telefonon): körbe is ér, az utolsó után az első jön.
+    document.addEventListener('click', e => {
+        const b = e.target.closest('[data-clvisnyil]'); if(!b) return;
+        const sor = b.parentElement.querySelector('.cl-vision'); if(!sor) return;
+        const w = sor.clientWidth + 10, n = sor.children.length;
+        const i = Math.round(sor.scrollLeft / w), j = (i + Number(b.dataset.clvisnyil) + n) % n;
+        sor.scrollTo({ left: j * w, behavior: 'smooth' });
+    });
     const CL_VISION = [['y1','1 év múlva'], ['y3','3 év múlva'], ['y5','5 év múlva']];
 
     const clIc = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -29848,10 +29862,12 @@ document.addEventListener('keydown', e => {
                 <button type="button" class="btn primary cl-uj" id="clNew">+ Új cél</button></div>
         </div>
         ${banner}
+        <div class="cl-vis-keret"><button type="button" class="cl-vis-nyil" data-clvisnyil="-1" aria-label="Előző vízió">‹</button>
         <div class="cl-vision">${CL_VISION.map(([k, label]) => `<div class="cl-vis">
             <h4>Vízió · ${label}</h4>
             <textarea data-clvis="${k}" rows="2" placeholder="Hol tartok, mit csinálok, hogy élek?">${escM((clData.vizio || {})[k] || '')}</textarea>
         </div>`).join('')}</div>
+        <button type="button" class="cl-vis-nyil" data-clvisnyil="1" aria-label="Következő vízió">›</button></div>
         <div class="cl-nav"><div class="cl-tabs" role="tablist">${CL_NEZ.map(([k, n]) => `<button type="button" role="tab" data-clnez="${k}" aria-selected="${clNezet === k}" class="${clNezet === k ? 'on' : ''}">${n}</button>`).join('')}</div>${szuro}</div>
         ${nezet}
         ${sfAlsoHtml({ id: 'clTobb', cim: 'Célok nézetei', tobbOn: ['tabla', 'mer', 'fal'].includes(clNezet),
