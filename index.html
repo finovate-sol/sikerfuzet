@@ -11407,11 +11407,16 @@ const PZ_SZOLG_WEB = {
     'mvm': 'mvm.hu', 'fotav': 'fotav.hu', 'dijnet': 'dijnet.hu', 'eon': 'eon.hu', 'vizmuvek': 'vizmuvek.hu',
     'otp': 'otpbank.hu', 'revolut': 'revolut.com', 'wise': 'wise.com', 'erste': 'erstebank.hu', 'raiffeisen': 'raiffeisen.hu',
     'mbh': 'mbhbank.hu', 'cib': 'cib.hu', 'granit': 'granitbank.hu', 'uniqa': 'uniqa.hu|uniqa.at|uniqagroup.com', 'allianz': 'allianz.hu', 'generali': 'generali.hu',
-    'mezopotamya': 'germandonerkebab.com', 'mezopotamia': 'germandonerkebab.com', 'idbc': 'idbc.hu',
+    'mezopotamya': 'germandonerkebab.com', 'mezopotamia': 'germandonerkebab.com',
     'ovb': 'ovb.hu', 'black sheep': 'blacksheep-barbershop.hu', 'blacksheep': 'blacksheep-barbershop.hu', 'groupama': 'groupama.hu', 'signal': 'signal.hu', 'paypal': 'paypal.com', 'barion': 'barion.com', 'airbnb': 'airbnb.com',
     'booking': 'booking.com', 'szallas': 'szallas.hu', 'posta': 'posta.hu', 'foxpost': 'foxpost.hu', 'packeta': 'packeta.hu',
     'gls': 'gls-group.eu', 'dpd': 'dpd.com', 'cinema city': 'cinemacity.hu', 'nav': 'nav.gov.hu',
 };
+// Saját, a repóban tárolt logók (ahol a weboldal ikonja nem jó): kulcs → [kép, a kör színe].
+const PZ_SZOLG_SAJAT_KEP = { 'idbc': ['icons/szolg/idbc.png', '#1e2c2f'] };
+const pzSzolgSajatKep = m => { const n = ' ' + pzNorm(pzNevTiszta(m || '')).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    for(const [k, v] of Object.entries(PZ_SZOLG_SAJAT_KEP)) if(n.includes(' ' + k + ' ')) return v;
+    return null; };
 const pzSzolgWebCache = new Map();
 // A favicon szélének színe: ha a kép szélei (a sarkokat kihagyva) egyszínűek és
 // nem fehérek, ez lesz a kör háttere, és a kép kitölti a kört. Eredmény URL-enként
@@ -11462,7 +11467,7 @@ const pzFavicon = w => `https://www.google.com/s2/favicons?domain=${encodeURICom
 // Egy szolgáltatóhoz több weboldal is tartozhat ("uniqa.hu|uniqa.at") – sorra próbáljuk.
 const pzFavForrasok = w => String(w || '').split('|').filter(Boolean).flatMap(d => [pzFavicon(d), `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`]);
 const pzSzolgWeb = (x, nev) => (x && x.web) || (x && pzSzolgAutoWeb(x.n)) || (nev ? pzSzolgAutoWeb(nev) : '');
-const pzSzolgKep = x => x ? (x.kep || pzFavForrasok(pzSzolgWeb(x))[0] || '') : '';
+const pzSzolgKep = x => x ? (x.kep || (pzSzolgSajatKep(x.n) || [])[0] || pzFavForrasok(pzSzolgWeb(x))[0] || '') : '';
 // Melyik forrás vált be egy szolgáltatónál (az első forrás URL-je → a jó URL; '' = egyik sem,
 // mert csak üres / 16 px-es "nincs ikon" kép jött). Hálózati hibát nem jegyzünk meg.
 const pzFavJo = (() => { try { return new Map(Object.entries(store.load('sf_pz_fav_jo', {}) || {})); } catch(e){ return new Map(); } })();
@@ -11485,8 +11490,10 @@ function pzFavBetolt(img){
 const PZ_SZOLG_SZIN = ['#6d28d9', '#2563eb', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#db2777', '#475569'];
 function pzSzolgAv(nev, cls){
     const x = pzSzolgOf(nev), n = pzNevTiszta((x && x.n) || nev).trim();
-    const forr = x && x.kep ? [x.kep] : pzFavForrasok(pzSzolgWeb(x, nev)), elso = forr[0] || '';
-    const jo = elso && !(x && x.kep) && pzFavJo.has(elso) ? pzFavJo.get(elso) : null;
+    const beep = !(x && x.kep) && pzSzolgSajatKep((x && x.n) || nev);
+    const sajatKep = (x && x.kep) || (beep ? beep[0] : '');
+    const forr = sajatKep ? [sajatKep] : pzFavForrasok(pzSzolgWeb(x, nev)), elso = forr[0] || '';
+    const jo = elso && !sajatKep && pzFavJo.has(elso) ? pzFavJo.get(elso) : null;
     const kep = jo === '' ? '' : (jo || elso), alt = jo ? [] : forr.slice(1);
     const szavak = n.split(/[\s.,\-–*]+/).filter(Boolean);
     const bet = ((szavak[0] || '?')[0] + (szavak[1] ? szavak[1][0] : (szavak[0] || '').slice(1, 2))).toUpperCase();
@@ -11496,7 +11503,7 @@ function pzSzolgAv(nev, cls){
     // színnel töltjük ki a kört (lásd pzFavElemez), különben fehér körben, margóval látszik.
     // B terv: minden logó a körbe írható négyzetben (a kör 71%-a) ül, így a négyzetes sarkok sem
     // lógnak ki; ha a logó széle egyszínű, a kör azt a színt kapja, és a kettő összeolvad.
-    const sajat = !!(x && x.kep), fav = !!kep, szin = fav ? pzFavInfo.get(pzFavKulcs(kep)) : '';
+    const sajat = !!sajatKep, fav = !!kep, szin = beep ? beep[1] : fav ? pzFavInfo.get(pzFavKulcs(kep)) : '';
     // A kör kitöltése a logó szélének színével úgy is, ha a kép pixelei nem olvashatók (idegen
     // szerver): háttérként maga a logó, 40-szeresre nagyítva, a bal szélének közepére igazítva –
     // így a körben csak a logó széle látszik. (A saját, feltöltött képnél a szín kiolvasható.)
@@ -11511,13 +11518,13 @@ function pzTarcaAv(w){
     return `<i class="pz-szolg-av pz-tarca-av">${w ? pzSvg(w.ikon || pzTarcaTip(w.tipus)[2]) : '?'}</i>`;
 }
 // Tárca logója (bank, pl. Revolut, Raiffeisen), ha felismerhető; különben null (marad az ikon).
-const pzNevLogo = (n, cls) => { const x = pzSzolgOf(n); return pzSzolgAutoWeb(n) || (x && pzSzolgKep(x)) ? pzSzolgAv(n, cls) : null; };
+const pzNevLogo = (n, cls) => { const x = pzSzolgOf(n); return pzSzolgSajatKep(n) || pzSzolgAutoWeb(n) || (x && pzSzolgKep(x)) ? pzSzolgAv(n, cls) : null; };
 const pzTarcaLogo = (w, cls) => w ? pzNevLogo(w.n, cls) : null;
 const pzAtuAvHtml = (t, cls) => { const a = pzTarcaOf(t.p), b = pzTarcaOf(t.p2);
     return a || b ? `<span class="pz-atu-av ${cls || ''}" title="${esc((a ? a.n : '?') + ' → ' + (b ? b.n : '?'))}"><span class="a">${pzTarcaAv(a)}</span><span class="b">${pzTarcaAv(b)}</span></span>` : null; };
 // Tételsor ikonja: a szolgáltató logója, ha van; különben a kategória ikonja.
 const pzTetelIkHtml = (t, ik, cls) => { if(!t || t.t === 'atu' || !t.m) return null; const x = pzSzolgOf(t.m);
-    return (x && pzSzolgKep(x)) || pzSzolgAutoWeb(t.m) ? pzSzolgAv(x ? x.n : t.m, cls) : null; };
+    return (x && pzSzolgKep(x)) || pzSzolgSajatKep(t.m) || pzSzolgAutoWeb(t.m) ? pzSzolgAv(x ? x.n : t.m, cls) : null; };
 // Javaslatok: a mentett szolgáltatók, a betöltött hónapok tételeiből számolt gyakoriság szerint.
 function pzSzolgJavas(szuro, tipus){
     const db = new Map(), utolso = new Map();
