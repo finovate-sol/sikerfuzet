@@ -6132,6 +6132,23 @@
             .mb-title { font-size:23px; font-weight:800; letter-spacing:-.02em; color:#111827; }
             .card { border-radius:24px; }
         }
+        /* ===== Sikerfüzet kezdőlap telefonon: csak a naptár; a 4 oldalsó panel a jobb felső sarokból nyílik lapként ===== */
+        .mb-oldal { display:none; }
+        @media (max-width:1000px){
+            body:not(.sf-privat):has(#page-home:not([hidden])) .mb-oldal { display:flex; gap:6px; margin-left:auto; }
+            .mb-oldal button { width:40px; height:40px; padding:0; border:0; border-radius:50%; background:#fff; color:#1f2937; box-shadow:0 2px 10px rgba(15,23,42,.07);
+                display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+            .mb-oldal button svg { width:19px; height:19px; }
+            .mb-oldal button.on { background:var(--blue); color:#fff; }
+            .mb-title { min-width:0; }
+            #page-home .rail { display:none; }
+            #page-home .col-side { display:none; }
+            body.sf-mob-oldal #page-home .col-side { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:60; max-height:82vh; max-height:82dvh; overflow-y:auto;
+                overscroll-behavior:contain; background:var(--bg); border-radius:24px 24px 0 0; padding:22px 12px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow:0 -12px 40px rgba(15,23,42,.18); }
+            body.sf-mob-oldal #page-home .col-side::before { content:""; position:absolute; top:8px; left:50%; width:40px; height:5px; margin-left:-20px; border-radius:3px; background:#cbd5e1; }
+            body.sf-mob-oldal #page-home .side-panel.collapsed { display:flex; }
+            #mbOldalHatter { position:fixed; inset:0; z-index:59; background:rgba(15,23,42,.35); }
+        }
 
         /* ===== Közös telefonos hős (C terv): középen kis felirat, nagy szám, alatta egy sor ===== */
         .sf-hos { display:none; }
@@ -7513,6 +7530,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
             <span class="mb-title" id="mbTitle">Sikerfüzet</span>
+            <span class="mb-oldal" id="mbOldal" role="group" aria-label="Oldalsó panelek">
+                <button type="button" data-mboldal="sikerfuzet" aria-label="Sikerfüzet (pénz, karrier)" title="Sikerfüzet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></button>
+                <button type="button" data-mboldal="terv" aria-label="Heti terv" title="Heti terv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14h3"/></svg></button>
+                <button type="button" data-mboldal="feladatok" aria-label="Feladatok" title="Feladatok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+                <button type="button" data-mboldal="info" aria-label="Info / Starter" title="Info / Starter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg></button>
+            </span>
             <button type="button" class="mb-ker" id="mbKereso" aria-label="Keresés" aria-expanded="false" hidden>
                 <svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>
                 <svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
@@ -8705,6 +8728,29 @@ if(store.load('sf_side_collapsed', false)){
     if(p) p.classList.add('collapsed');
     if(c) c.classList.add('side-collapsed');
 }
+
+// Telefonon a Sikerfüzet kezdőlap oldalsó paneljei a felső sáv ikonjaiból nyílnak alsó lapként.
+(function(){
+    const zar = () => { document.body.classList.remove('sf-mob-oldal'); document.getElementById('mbOldalHatter')?.remove();
+        document.querySelectorAll('[data-mboldal]').forEach(b => b.classList.remove('on')); };
+    document.addEventListener('click', e => {
+        if(e.target.id === 'mbOldalHatter'){ zar(); return; }
+        const b = e.target.closest('[data-mboldal]'); if(!b) return;
+        const v = b.dataset.mboldal, nyitva = document.body.classList.contains('sf-mob-oldal');
+        if(nyitva && b.classList.contains('on')){ zar(); return; }
+        const panel = document.getElementById('sidePanel');
+        if(panel && panel.classList.contains('collapsed')){ panel.classList.remove('collapsed'); document.querySelector('.content')?.classList.remove('side-collapsed'); }
+        const btn = document.getElementById(SF_SIDE_VIEWS[v].btn);
+        if(btn && btn.classList.contains('active')){ const show = SF_SIDE_VIEWS[v].onShow; if(show) try { show(); } catch(err){} }
+        else sfSelectView(v);
+        document.querySelectorAll('[data-mboldal]').forEach(x => x.classList.toggle('on', x === b));
+        if(!nyitva){ const h = document.createElement('div'); h.id = 'mbOldalHatter'; const cs = document.querySelector('#page-home .col-side'); (cs?.parentNode || document.body).insertBefore(h, cs || null); document.body.classList.add('sf-mob-oldal'); }
+        const cs = document.querySelector('#page-home .col-side'); if(cs) cs.scrollTop = 0;
+    });
+    // másik oldalra lépve vagy széles képernyőn ne maradjon nyitva
+    document.addEventListener('click', e => { if(e.target.closest('.nav a[data-page]')) zar(); });
+    window.addEventListener('resize', () => { if(innerWidth > 1000) zar(); });
+})();
 
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
@@ -25575,6 +25621,11 @@ document.addEventListener('keydown', e => {
         if (addBtn) addBtn.addEventListener("click", () => openEventModal(defaultNewEventStart()));
         if (prev)  prev.addEventListener("click",  () => { shiftAnchor(-1); initCalendar(); pushWeekFromCalendar(); });
         if (next)  next.addEventListener("click",  () => { shiftAnchor(1);  initCalendar(); pushWeekFromCalendar(); });
+        // telefonon alapból a napi nézet
+        if (seg && window.matchMedia && matchMedia("(max-width:1000px)").matches && viewMode === "week"){
+            viewMode = "day";
+            seg.querySelectorAll("button[data-view]").forEach(x => x.classList.toggle("active", x.dataset.view === "day"));
+        }
         if (seg) seg.addEventListener("click", e => {
             const b = e.target.closest("button[data-view]"); if (!b) return;
             viewMode = b.dataset.view;
