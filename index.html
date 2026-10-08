@@ -5050,6 +5050,10 @@
         .pz-feed { padding:4px 0 6px; margin:0; }
         .pz-szuro { display:flex; align-items:center; gap:8px; padding:10px 14px 4px; font-size:11.5px; color:var(--muted); }
         .pz-szuro b { color:var(--navy); }
+        .pz-ho-valt { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin:22px 10px 2px; padding:0 4px; }
+        .pz-ho-valt b { font-size:20px; font-weight:800; color:var(--navy); letter-spacing:-.01em; }
+        .pz-ho-valt span { font-size:12.5px; color:var(--muted); }
+        .pz-tovabb { text-align:center; color:var(--muted); font-size:12.5px; padding:18px 0 26px; }
         .pz-het { display:flex; justify-content:space-between; gap:10px; margin:10px 10px 0; padding:7px 10px; border-radius:9px;
                   background:#f4f6f9; font-size:10.5px; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums; }
         .pz-het:first-child { margin-top:6px; }
@@ -14448,6 +14452,7 @@ function pzKerIlleszk(t, szavak){
     return szavak.every(sz => szoveg.includes(sz) || (/^[\d\s]+$/.test(sz) && osszeg.includes(sz.replace(/\s/g, ''))));
 }
 
+let pzTovabb = 0, pzTovabbAlap = '', pzTovabbIO = null, pzTovabbFut = false;
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
@@ -14464,17 +14469,23 @@ async function renderPzNaplo(){
               while(h <= pzKerIg.slice(0, 7) && l.length < 36){ l.push(h); h = pzHoLep(h, 1); } return l; })()
         : [pzTHo];
     if(hok.length > 1) await Promise.all(hok.map(h => pzLoadTranz(h)));
+    // Folytatólagos görgetés: havi nézetben (legújabb elöl) a lista alján az előző
+    // hónap(ok) tételei is betöltődnek, így a hónap elejéről tovább lehet görgetni.
+    if(pzTovabbAlap !== pzTHo){ pzTovabbAlap = pzTHo; pzTovabb = 0; }
+    const vegtelen = pzKerHat === 'ho' && pzNezet !== 'tabla' && pzSz.rend === 'uj';
+    const plusz = vegtelen ? Array.from({ length: pzTovabb }, (_, i) => pzHoLep(pzTHo, -(i + 1))) : [];
+    if(plusz.length) await Promise.all(plusz.map(h => pzLoadTranz(h)));
     if(pzView !== 'naplo') return;
     const pzKerEv = pzKerHat !== 'ho';       // több hónap: hónaponként csoportosítunk
 
     const torzs = pzTorzsGet();
     if(pzNTarca && !pzTarcaOf(pzNTarca)) pzNTarca = '';
-    const osszes = hok.flatMap(h => (pzTranz[h] || []).map((t, i) => ({ ...t, _i:i })));
+    const osszes = hok.concat(plusz).flatMap(h => (pzTranz[h] || []).map((t, i) => ({ ...t, _i:i })));
     const szavak = pzNorm(pzKer).split(' ').filter(Boolean);
     const keres = szavak.length > 0 || pzKerTip !== 'mind' || pzSzAktivDb() > 0;
     // Húzással rendezni a havi listában lehet, tárcára szűrve is (a nem látszó tételek a helyükön
     // maradnak); kereséssel / szűrőkkel nem, mert ott a lista nem napokra bontott teljes kép.
-    pzHuzhato = pzNezet !== 'tabla' && !pzJelol && pzKerHat === 'ho' && !keres && (pzSz.rend === 'uj' || pzSz.rend === 'regi');
+    pzHuzhato = pzNezet !== 'tabla' && !pzJelol && pzKerHat === 'ho' && !keres && !plusz.length && (pzSz.rend === 'uj' || pzSz.rend === 'regi');
     // Alap: tárca, típus, időszak és a szöveg. Ebből számoljuk a kategória-
     // címkék darabszámát, hogy lásd, mire érdemes még szűkíteni.
     const alap = osszes.filter(t => !pzNTarca || t.p === pzNTarca || (t.t === 'atu' && t.p2 === pzNTarca))
@@ -14495,7 +14506,8 @@ async function renderPzNaplo(){
     const katDb = new Map(), alDb = new Map();
     for(const t of alap){ if(!t.k) continue; katDb.set(t.k, (katDb.get(t.k) || 0) + 1);
         if(pzSz.kat.includes(t.k) && t.a) alDb.set(t.k + '|' + t.a, (alDb.get(t.k + '|' + t.a) || 0) + 1); }
-    const be = pzOsszBe(lista), ki = pzOsszKi(lista), nagy = Math.max(be, ki, 1);
+    const listaHo = plusz.length ? lista.filter(t => String(t.d).startsWith(pzTHo)) : lista;   // az összesítők csak a kiválasztott hónapé
+    const be = pzOsszBe(listaHo), ki = pzOsszKi(listaHo), nagy = Math.max(be, ki, 1);
     const szuro = pzNTarca ? pzTarcaOf(pzNTarca).n : '';
 
     // Hetekre, azon belül napokra bontva – hétfővel kezdődő hetek, a hónapon belül.
@@ -14554,10 +14566,16 @@ async function renderPzNaplo(){
             const ht = lista.filter(t => String(t.d).startsWith(h));
             return ht.length ? `<div class="pz-het"><span>${pzHoNev(h)}</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
         }).join('')
-        : (pzSz.rend === 'regi' ? hetek.slice().reverse() : hetek).map(h => {
-            const ht = lista.filter(t => nap(t.d) >= h.tol && nap(t.d) <= h.ig);
-            return ht.length ? `<div class="pz-het"><span>${hoRov} ${h.tol}–${h.ig}.</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
-        }).join('');
+        : [pzTHo].concat(plusz).map((m, mi) => {
+            const ml = lista.filter(t => String(t.d).startsWith(m)), mr = PZ_MONTHS[+m.slice(5, 7) - 1].toLowerCase();
+            const mh = m === pzTHo ? hetek : pzHetek(m).slice().reverse();
+            return (mi && ml.length ? `<div class="pz-ho-valt"><b>${esc(pzHoNev(m))}</b><span>${ml.length} tétel · ${elojel(egyenleg(ml))}</span></div>` : '')
+                + (pzSz.rend === 'regi' ? mh.slice().reverse() : mh).map(h => {
+                const ht = ml.filter(t => nap(t.d) >= h.tol && nap(t.d) <= h.ig);
+                return ht.length ? `<div class="pz-het"><span>${mr} ${h.tol}–${h.ig}.</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
+            }).join('');
+        }).join('') + (!vegtelen ? '' : pzTovabb < 24 && !(plusz.length >= 3 && plusz.slice(-3).every(m => !(pzTranz[m] || []).length))
+            ? `<div class="pz-tovabb" id="pzTovabb">Előző hónap betöltése…</div>` : `<div class="pz-tovabb">Nincs korábbi tétel.</div>`);
     const hatokor = pzKerHat === 'ev' ? `${ev} egész éve` : pzKerHat === 'idoszak' ? `${pzKerTol.replace(/-/g,'.')}. – ${pzKerIg.replace(/-/g,'.')}.` : pzHoNev(pzTHo);
 
     const kovetkezo = pzFixek().map((x, i) => ({ ...x, i, h: pzHatra(x.nap),
@@ -14647,7 +14665,7 @@ async function renderPzNaplo(){
                 ${pzJelol ? `<div class="pz-tomeg" id="pzTomeg">${pzTomegSavHtml()}</div>` : ''}
                 ${szuro ? `<div class="pz-szuro">Csak: <b>${esc(szuro)}</b> <button type="button" class="pz-chip" data-pzntarca="">× Összes</button></div>` : ''}
                 <div class="pz-feed-lista pz-nezet-${pzNezet}" id="pzFeedLista">
-                ${!lista.length ? `<div class="pz-ures">${keres ? 'Nincs a keresésnek megfelelő tétel.' : `${szuro ? 'Ebben a tárcában' : (pzKerHat === 'ev' ? 'Ebben az évben' : pzKerHat === 'idoszak' ? 'Ebben az időszakban' : 'Ebben a hónapban')} még nincs tétel.`}
+                ${!lista.length && !vegtelen ? `<div class="pz-ures">${keres ? 'Nincs a keresésnek megfelelő tétel.' : `${szuro ? 'Ebben a tárcában' : (pzKerHat === 'ev' ? 'Ebben az évben' : pzKerHat === 'idoszak' ? 'Ebben az időszakban' : 'Ebben a hónapban')} még nincs tétel.`}
                     ${!keres ? '<br><button type="button" class="link pz-ures-uj" data-pzuj>+ Új tétel felvétele</button>' : ''}</div>`
                   : pzNezet === 'tabla' ? tablaHtml() : feed}
                 </div>
@@ -14672,6 +14690,21 @@ async function renderPzNaplo(){
     </div>`;
     pzMobHokGorget('pzMhok');
     pzNaploMagassag();
+    pzTovabbFigyel();
+}
+function pzTovabbFigyel(){
+    if(pzTovabbIO){ pzTovabbIO.disconnect(); pzTovabbIO = null; }
+    const el = document.getElementById('pzTovabb'); if(!el || !window.IntersectionObserver) return;
+    pzTovabbIO = new IntersectionObserver(async es => {
+        if(!es.some(e => e.isIntersecting) || pzTovabbFut) return;
+        pzTovabbFut = true;
+        const fl = document.getElementById('pzFeedLista'), st = fl ? fl.scrollTop : 0, y = window.scrollY;
+        pzTovabb++;
+        try { await renderPzNaplo(); } finally { pzTovabbFut = false; }
+        const fl2 = document.getElementById('pzFeedLista'); if(fl2) fl2.scrollTop = st;
+        window.scrollTo(0, y);
+    }, { rootMargin: '300px 0px' });
+    pzTovabbIO.observe(el);
 }
 // Csak a lista görög: a lista annyi magas, hogy az oldal alja a képernyő aljára
 // essen – így az oldal maga nem görög, a fejléc, a kereső és a sávok a helyükön
