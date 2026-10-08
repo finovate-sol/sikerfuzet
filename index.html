@@ -7060,6 +7060,7 @@
         .pz-uj-c .pz-osszeg input { flex:0 1 auto; width:1.2ch; min-width:1.2ch; max-width:100%; text-align:center; font-size:53px; font-weight:800; font-variant-numeric:tabular-nums;
                                     letter-spacing:-.035em; color:#111827; caret-color:#7c3aed; padding:0; }
         .pz-uj-c .pz-osszeg input::placeholder { color:#c4c8d0; }
+        .pz-uj-c .pz-osszeg.bev .jel, .pz-uj-c .pz-osszeg.bev input, .pz-uj-c .pz-osszeg.bev > span:last-child { color:#16a34a; }
         .pz-uj-c .pz-osszeg > span:last-child { font-size:25px; font-weight:700; color:#374151; }
         .pz-uj-c .pz-napok { justify-content:center; align-items:center; gap:8px; margin:6px 0 18px; }
         .pz-uj-c .pz-napok .pz-nap { border:0; border-radius:999px; background:#fff; color:#374151; font-size:12.5px; font-weight:600; padding:9px 15px;
@@ -11961,7 +11962,12 @@ function pzTetelModal(letezo, elotolt){
             [[maStr,'Ma'],[tegnapStr,'Tegnap']].map(([v,l]) =>
                 `<button type="button" class="pz-nap${t.d===v?' on':''}" data-pznap="${v}">${l}</button>`).join('')
             + `<label class="pz-nap pz-nap-d${t.d!==maStr && t.d!==tegnapStr ? ' on' : ''}">${pzSvg('naptar')}<span>${t.d ? esc(PZ_HO_ROV[+t.d.slice(5,7) - 1] + ' ' + (+t.d.slice(8,10)) + '.') : 'Dátum'}</span><input type="date" id="pzfD" value="${esc(t.d)}" aria-label="Dátum"></label>`;
+        jelRajz();
+    };
+    // Az összeg előjele a típushoz igazodik: kiadás −, bevétel + (zölden), átutalás jel nélkül.
+    const jelRajz = () => {
         const jel = ov.querySelector('#pzfJel'); if(jel) jel.textContent = tipus === 'ki' ? '−' : tipus === 'bev' ? '+' : '';
+        const o = jel && jel.closest('.pz-osszeg'); if(o) o.classList.toggle('bev', tipus === 'bev');
     };
     napokRajz();
 
@@ -12099,7 +12105,7 @@ function pzTetelModal(letezo, elotolt){
             // Típusváltáskor a kategória elveszti értelmét – ne maradjon ott
             // egy kiadás-kategória a bevételnél.
             if(tipus === 'atu' || !pzKatOf(tipus, kat)){ kat = ''; alkat = ''; }
-            racsRajz(); tarcaRajz(); return;
+            racsRajz(); tarcaRajz(); jelRajz(); return;
         }
         const nap = e.target.closest('[data-pznap]');
         if(nap){ t.d = nap.dataset.pznap; napokRajz(); return; }
