@@ -1430,11 +1430,17 @@
         .sb-modal { max-width:620px; } .sb-modal .modal-body { display:flex; flex-direction:column; gap:12px; padding:16px 22px; }
         .sb-ta { resize:vertical; min-height:220px; line-height:1.5; font-size:14px; }
         .sb-hiba { color:#b91c1c; font-size:12.5px; min-height:1em; }
-        .oi-v-fej { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
-        .oi-v-fej b { font-size:16px; color:var(--navy); min-width:150px; text-align:center; }
-        .oi-v-fej button { width:34px; height:34px; border:1px solid var(--border); border-radius:10px; background:var(--card); font:inherit; font-size:18px; color:var(--navy); cursor:pointer; }
+        /* hónapváltó: a többi oldal léptetője (fehér kapszula, kerek szürke nyilak, középen a hónap) */
+        .oi-v-fej { display:flex; align-items:center; gap:4px; margin:0 0 12px; background:#fff; border-radius:999px; padding:4px; box-shadow:0 2px 10px rgba(15,23,42,.07); }
+        .oi-v-fej b { flex:1; font-size:14px; font-weight:700; color:#111827; text-align:center; min-width:0; padding:0 10px; }
+        .oi-v-fej button { width:36px; height:36px; flex:none; border:0; border-radius:50%; background:#f3f4f6; font:inherit; font-size:17px; font-weight:700; color:#374151; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+        .oi-v-fej button:hover:not(:disabled) { background:#e5e7eb; }
         .oi-v-fej button:disabled { opacity:.35; cursor:default; }
-        .oi-v-fej .oi-v-most { width:auto; font-size:12px; font-weight:700; padding:0 12px; color:#6d28d9; }
+        .oi-v-fej .oi-v-most { width:auto; border-radius:999px; background:#111827; color:#fff; padding:0 13px; font-size:12px; }
+        .oi-v-fej .oi-v-most:hover { background:#1f2937; }
+        .oi-v-jav { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .oi-v-jav button { border:1px dashed color-mix(in srgb, var(--c) 45%, transparent); background:#fff; color:var(--c); border-radius:999px; padding:6px 11px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; text-align:left; }
+        .oi-v-jav button:hover { background:var(--b); border-style:solid; }
         .oi-v-hos { display:flex; align-items:center; gap:16px; padding:18px 20px; margin:0 0 12px; background:linear-gradient(135deg,#f5f3ff,#fdf2f8); border-color:#ece6fb; }
         .oi-v-hos .k { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
         .oi-v-hos .c { font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#7c6a9a; }
@@ -9049,6 +9055,14 @@ const OI_VALL = [
     ['me', 'Mentális fejlődés', 'sz'],
     ['ve', 'Vezetői működés', 'ov'],
 ];
+// Témakörönként öt javaslat – naponta kipipálható, konkrét vállalások. Kattintásra a mezőbe kerül.
+const OI_VALL_JAV = {
+    eg: ['Minden nap 7 óra alvás', 'Napi 2 liter víz', 'Nincs cukor és édesség', 'Nincs alkohol', 'Lefekvés este 22:30-ig'],
+    sp: ['Napi 10 000 lépés', 'Minden nap 20 perc mozgás', 'Az edzésterv minden edzése', 'Napi 10 perc nyújtás', 'Napi 50 fekvőtámasz'],
+    ka: ['Napi 20 perc minőségi idő a páromnak', 'Minden nap egy üzenet vagy hívás egy barátnak', 'Telefon nélküli vacsora', 'Minden nap egy őszinte dicséret', 'Esti beszélgetés a napról'],
+    me: ['Napi 10 perc olvasás', 'Napi 10 perc meditáció', 'Esti napló: 3 dolog, amiért hálás vagyok', 'Napi 15 perc tanulás', 'Közösségi média legfeljebb 30 perc'],
+    ve: ['Minden nap egy visszajelzés a csapatnak', 'Reggel 10 perc tervezés', 'A napi 3 legfontosabb feladat lezárva', 'Minden nap egy coaching-beszélgetés', 'Napi 20 hívás vagy kapcsolatfelvétel'],
+};
 const OI_HO = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 let oiHo = '';   // a Havi vállalás fülön nézett hónap ('' = az aktuális)
 const oiHoLep = (ho, n) => { const [y, m] = ho.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
@@ -9107,6 +9121,7 @@ function oiVallHtml(a){
             <div class="oi-v-kf"><span class="ik">${prvTerIk(t)}</span><div class="k"><b>${esc(n)}</b><em>Célok: ${esc(t.nt)}</em></div>
                 ${szov ? `<span class="db"><b>${st.db}</b> / ${st.ossz} nap${st.sor >= 2 ? `<em>🔥 ${st.sor} nap egymás után</em>` : ''}</span>` : ''}</div>
             <textarea data-oivtxt="${k}" rows="1" maxlength="200" placeholder="Mit vállalsz erre a hónapra? pl. minden nap 7 óra alvás">${esc(szov)}</textarea>
+            ${szov ? '' : `<div class="oi-v-jav" role="group" aria-label="Javaslatok">${(OI_VALL_JAV[k] || []).map(j => `<button type="button" data-oivjav="${k}" data-szov="${esc(j)}">${esc(j)}</button>`).join('')}</div>`}
             ${szov ? `<div class="oi-v-sav"><i style="width:${Math.round(st.db / st.ossz * 100)}%"></i></div>` : ''}
             <div class="oi-v-racs" role="group" aria-label="${esc(n)} – napok">${racs}</div></section>`;
     }).join('');
@@ -9312,6 +9327,12 @@ document.addEventListener('change', e => {
     if(v) h.v[k] = v; else delete h.v[k];
     if(!Object.keys(h.v).length && !Object.keys(h.p || {}).length) delete oiAdat.vall[ho];
     oiMent(); renderOnismeret();
+});
+// Javaslatra kattintva a vállalás szövege lesz (ugyanaz a mentés, mint kézi beírásnál).
+document.addEventListener('click', e => {
+    const j = e.target.closest('#page-onismeret [data-oivjav]'); if(!j) return;
+    const t = document.querySelector(`#page-onismeret textarea[data-oivtxt="${j.dataset.oivjav}"]`); if(!t) return;
+    t.value = j.dataset.szov; t.dispatchEvent(new Event('change', { bubbles: true }));
 });
 // Napi pipa – az Önismeret rácsán, a mai gombsoron és a Ma oldal kártyáján is.
 document.addEventListener('click', e => {
