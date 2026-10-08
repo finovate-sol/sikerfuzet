@@ -14480,6 +14480,9 @@ async function renderPzNaplo(){
     const vegtelen = pzKerHat === 'ho' && pzNezet !== 'tabla' && pzSz.rend === 'uj';
     const plusz = vegtelen ? Array.from({ length: pzTovabb }, (_, i) => pzHoLep(pzTHo, -(i + 1))) : [];
     if(plusz.length) await Promise.all(plusz.map(h => pzLoadTranz(h)));
+    // a kiválasztott és a mai hónap közötti hónapok is kellenek a futó egyenleghez
+    const lanc = []; if(vegtelen) for(let h = pzMaHo(); h > pzTHo && lanc.length < 36; h = pzHoLep(h, -1)) lanc.push(h);
+    if(lanc.length) await Promise.all(lanc.map(h => pzLoadTranz(h)));
     if(pzView !== 'naplo') return;
     const pzKerEv = pzKerHat !== 'ho';       // több hónap: hónaponként csoportosítunk
 
@@ -14513,6 +14516,20 @@ async function renderPzNaplo(){
         if(pzSz.kat.includes(t.k) && t.a) alDb.set(t.k + '|' + t.a, (alDb.get(t.k + '|' + t.a) || 0) + 1); }
     const listaHo = plusz.length ? lista.filter(t => String(t.d).startsWith(pzTHo)) : lista;   // az összesítők csak a kiválasztott hónapé
     // görgetéskor a fejléc (cash-flow, hónap-kapszula) annak a hónapnak az adatait mutatja, ahol éppen jársz
+    // Futó egyenleg (mint a Revolutban): a mai tárca-egyenlegből visszafelé levonjuk a
+    // későbbi tételek hatását → minden nap végén mennyi volt (összesen vagy a szűrt tárcában).
+    pzNapEgyl = {};
+    if(vegtelen){
+        const hat = t => { const o = t.o || 0;
+            if(t.t === 'atu') return pzNTarca ? (t.p2 === pzNTarca ? o : 0) - (t.p === pzNTarca ? o : 0)
+                : (pzTarcaOf(t.p2) ? o : 0) - (pzTarcaOf(t.p) ? o : 0);
+            if(!t.p || (pzNTarca ? t.p !== pzNTarca : !pzTarcaOf(t.p))) return 0;
+            return t.t === 'bev' ? o : -o; };
+        let e = pzNTarca ? ((pzTarcaOf(pzNTarca) || {}).o || 0) : pzTarcaOssz();
+        const mind = lanc.concat([pzTHo], plusz).flatMap(h => pzTranz[h] || []).slice().sort((a, b) => String(b.d).localeCompare(String(a.d)));
+        let i = 0;
+        while(i < mind.length){ const d = mind[i].d; pzNapEgyl[d] = e; while(i < mind.length && mind[i].d === d){ e -= hat(mind[i]); i++; } }
+    }
     pzGorgOssz = {};
     [pzTHo].concat(plusz).forEach(m => { const ml = m === pzTHo ? listaHo : lista.filter(t => String(t.d).startsWith(m)); pzGorgOssz[m] = { be: pzOsszBe(ml), ki: pzOsszKi(ml) }; });
     const be = pzOsszBe(listaHo), ki = pzOsszKi(listaHo), nagy = Math.max(be, ki, 1);
@@ -14699,22 +14716,31 @@ async function renderPzNaplo(){
     pzMobHokGorget('pzMhok');
     pzNaploMagassag();
     pzTovabbFigyel();
-    pzHoAkt = pzTHo;
+    pzHoAkt = '';
     document.getElementById('pzFeedLista')?.addEventListener('scroll', pzHoKovet, { passive:true });
+    requestAnimationFrame(pzHoKovet);
 }
 // Melyik hónapnál jár a görgetés: az utolsó hónap-jelölő, ami már a fejléc alá ért.
-let pzGorgOssz = {}, pzHoAkt = '';
+let pzGorgOssz = {}, pzHoAkt = '', pzNapEgyl = {};
 function pzHoKovet(){
     if(pzView !== 'naplo' || !document.querySelector('#pzNaplo [data-pzhojel]')) return;
     const fej = document.querySelector('#pzNaplo .pz-kereso'), hatar = (fej ? fej.getBoundingClientRect().bottom : 0) + 8;
     let m = pzTHo;
     document.querySelectorAll('#pzNaplo [data-pzhojel]').forEach(j => { if(j.getBoundingClientRect().top <= hatar) m = j.dataset.pzhojel; });
-    if(m === pzHoAkt) return;
-    pzHoAkt = m;
+    // ha a lista már a fejléc alá görgött: a legfelső látható nap végi egyenleg
+    const napok = [...document.querySelectorAll('#pzNaplo .pz-nap-sorok[data-pznap]')];
+    let nap = '';
+    if(napok.length && napok[0].getBoundingClientRect().top < hatar){ const x = napok.find(n => n.getBoundingClientRect().bottom > hatar); if(x) nap = x.dataset.pznap; }
+    if(nap && pzNapEgyl[nap] == null) nap = '';
+    if(m + '|' + nap === pzHoAkt) return;
+    pzHoAkt = m + '|' + nap;
     const o = pzGorgOssz[m]; if(!o) return;
-    const n = o.be - o.ki, b = document.querySelector('#pzNaplo .pz-mcf .bal b'), sz = document.querySelector('#pzNaplo .pz-mcf .bal span');
+    const b = document.querySelector('#pzNaplo .pz-mcf .bal b'), sz = document.querySelector('#pzNaplo .pz-mcf .bal span');
+    const n = nap ? pzNapEgyl[nap] : o.be - o.ki;
     if(b){ b.textContent = `${n < 0 ? '−' : ''}${pzFt(Math.abs(n))} Ft`; b.classList.toggle('neg', n < 0); }
-    if(sz) sz.textContent = 'Cash-flow · ' + (m === pzMaHo() ? 'Ez a hónap' : pzHoNevKis(m));
+    if(sz){ const x = nap ? new Date(nap + 'T12:00:00') : null;
+        sz.textContent = nap ? `Egyenleg · ${PZ_MONTHS[x.getMonth()].toLowerCase()} ${x.getDate()}. végén${pzNTarca ? ' · ' + ((pzTarcaOf(pzNTarca) || {}).n || '') : ''}`
+            : 'Cash-flow · ' + (m === pzMaHo() ? 'Ez a hónap' : pzHoNevKis(m)); }
     const pb = document.querySelector('#pzNaplo .pz-mcf-p.be'), pk = document.querySelector('#pzNaplo .pz-mcf-p.ki');
     if(pb) pb.innerHTML = `<i>+</i>${pzFt(o.be)} Ft`;
     if(pk) pk.innerHTML = `<i>−</i>${pzFt(o.ki)} Ft`;
