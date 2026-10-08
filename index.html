@@ -3263,7 +3263,7 @@
         @media (max-width:760px){
             /* iPhone Emlékeztetők: áttekintő ↔ lista részletei, keret nélkül, színátmenetes csempék */
             .rm { grid-template-columns:1fr; min-height:0; background:none; border:0; border-radius:0; overflow:visible; }
-            .rm:not(.rm-reszlet) .rm-main, .rm.rm-reszlet .rm-side, .rm.rm-reszlet .rm-fab { display:none; }
+            .rm:not(.rm-reszlet) .rm-main, .rm.rm-reszlet .rm-side { display:none; }
             .rm-side { background:none; border:0 !important; padding:0 2px 90px; gap:14px; }
             .rm-side > input[type="search"], .rm-gt, .rm-lh:empty { display:none; }
             .rm-mtb { display:flex; justify-content:flex-end; margin-top:-62px; min-height:48px; pointer-events:none; }
@@ -3294,12 +3294,27 @@
                       width:58px; height:58px; border-radius:50%; border:0; background:#007aff; color:#fff; cursor:pointer;
                       box-shadow:0 6px 18px rgba(0,122,255,.4); }
             .rm-fab svg { width:26px; height:26px; }
-            .rm-main { background:#fff; border-radius:22px; padding:12px 16px 26px; }
-            .rm-vissza { display:inline-flex; align-items:center; gap:2px; border:0; background:none; color:var(--lc); font:inherit; font-size:16.5px; padding:4px 0 8px; margin-left:-6px; cursor:pointer; }
-            .rm-vissza svg { width:22px; height:22px; }
+            /* Megnyitott lista: fehér lap, kerek vissza gomb, jobbra kapszula; nagy színes cím, elválasztók nélkül */
+            body:has(#page-feladatok:not([hidden]) .rm.rm-reszlet) { --bg:#fff; --sf-teteje:#fff; background:#fff; }
+            .rm-main { background:none; border-radius:0; padding:0 4px 110px; }
+            .rm-dtb { display:flex; align-items:center; justify-content:space-between; margin:0 0 14px; }
+            .rm-vissza { display:grid; place-items:center; width:48px; height:48px; border-radius:50%; border:1px solid #e5e5ea; background:#fff; color:#1d1d1f;
+                         box-shadow:0 2px 10px rgba(0,0,0,.07); cursor:pointer; padding:0; }
+            .rm-vissza svg { width:24px; height:24px; }
+            .rm-main .rm-pill { border-color:#e5e5ea; }
+            .rm-db { display:none; }
+            .rm-main:not(.szuro-on) .rm-szuro { display:none; }
+            .rm-main:not(.uj-on) .fd-add { display:none; }
+            .rm .fd-add { margin-top:6px; }
+            .rm .fd-main { border-bottom:0; padding:10px 0 10px; }
+            .rm .fd-check { padding-top:10px; }
+            .rm .fd-check input { width:24px; height:24px; }
+            .rm .fd-check input:checked { background:radial-gradient(circle, var(--lc) 0 7px, transparent 7.5px); }
+            .rm .fd-meta, .rm .fd-due, .rm .fd-due.timed, .rm .fd-rep { font-size:14px; }
+            .rm .fd-group > .card-head { border-bottom:0; }
             .rm-mker { display:block; width:100%; height:36px; border:0; border-radius:10px; background:#e9e9ee; padding:0 12px; font:inherit; font-size:16px; margin-bottom:10px; outline:none; }
             .rm-fej { flex-wrap:wrap; }
-            .rm-fej h1 { font-size:32px; }
+            .rm-fej h1 { font-size:40px; font-weight:800; letter-spacing:-.02em; }
             .rm-db { font-size:32px; }
             .rm-szuro { order:3; flex-basis:100%; padding-top:0; }
             .rm-szuro select { flex:1; min-width:0; height:32px; font-size:14px; border-radius:9px; }
@@ -28467,7 +28482,7 @@ document.addEventListener('keydown', e => {
     const FD_LIST_COLORS = ["#007aff","#ff9500","#34c759","#ff3b30","#af52de","#a2845e","#ff2d55","#5ac8fa","#ffcc00"];
     let fdFilter = "aktiv", fdPrio = "", fdTag = "", fdSearch = "", fdOpenId = null, fdAddListId = "", fdBusy = false, fdListSel = "";
     // Telefonon (mint az iPhone Emlékeztetők): előbb az áttekintő (csempék + listák), koppintásra a lista részletei.
-    let fdMobReszlet = false, fdMobKeres = false;
+    let fdMobReszlet = false, fdMobKeres = false, fdMobSzuro = false, fdMobUj = false;
     // Az összecsukott listák a böngészőben megmaradnak – különben minden
     // betöltéskor újra be kellene csukni őket.
     const FD_FOLD_KEY = "sf_fd_folded";
@@ -28701,8 +28716,9 @@ document.addEventListener('keydown', e => {
                 <div class="rm-lists">${listak}</div>
                 <a class="rm-gt" href="https://tasks.google.com" target="_blank" rel="noopener">Megnyitás a Google Tasksban ↗</a>
             </aside>
-            <div class="rm-main" style="--lc:${fejSzin}">
-                <button type="button" class="rm-vissza" data-fdvissza><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>Listák</button>
+            <div class="rm-main${fdMobSzuro ? " szuro-on" : ""}${fdMobUj ? " uj-on" : ""}" style="--lc:${fejSzin}">
+                <div class="rm-dtb"><button type="button" class="rm-vissza" data-fdvissza title="Vissza a listákhoz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
+                    <span class="rm-pill"><button type="button" data-fdmszuro title="Szűrés"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button><button type="button" data-fdmker title="Keresés"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></span></div>
                 ${fdMobKeres || fdSearch ? `<input type="search" class="rm-mker" id="fdSearchM" placeholder="Keresés" value="${escM(fdSearch)}">` : ""}
                 <div class="rm-fej">
                     <h1>${escM(fejCim)}</h1>
@@ -28776,12 +28792,17 @@ document.addEventListener('keydown', e => {
             fdListSel = b.dataset.fdlist; fdFilter = "aktiv"; fdOpenId = null; fdMobReszlet = true; renderFeladatok(); fdMobFel();
         }));
         body.querySelector("[data-fdvissza]")?.addEventListener("click", () => {
-            fdMobReszlet = false; fdMobKeres = false; fdSearch = ""; fdOpenId = null; renderFeladatok(); fdMobFel(); });
+            fdMobReszlet = false; fdMobKeres = false; fdMobSzuro = false; fdMobUj = false; fdSearch = ""; fdOpenId = null; renderFeladatok(); fdMobFel(); });
+        body.querySelector("[data-fdmszuro]")?.addEventListener("click", () => { fdMobSzuro = !fdMobSzuro; renderFeladatok(); });
+        body.querySelector("[data-fdmker]")?.addEventListener("click", () => {
+            if(fdMobKeres && !fdSearch){ fdMobKeres = false; renderFeladatok(); return; }
+            fdMobKeres = true; renderFeladatok(); document.getElementById("fdSearchM")?.focus(); });
         body.querySelector("[data-fdmkeres]")?.addEventListener("click", () => {
             fdMobKeres = true; fdMobReszlet = true; fdListSel = ""; fdFilter = "aktiv"; renderFeladatok();
             document.getElementById("fdSearchM")?.focus(); });
         body.querySelector("[data-fdfab]")?.addEventListener("click", () => {
-            fdMobReszlet = true; renderFeladatok(); fdMobFel(); document.getElementById("fdInput")?.focus(); });
+            const marNyitva = fdMobReszlet; fdMobReszlet = true; fdMobUj = true; renderFeladatok(); if(!marNyitva) fdMobFel();
+            const fi = document.getElementById("fdInput"); if(fi){ fi.focus(); fi.scrollIntoView({ block:"center" }); } });
         const srm = document.getElementById("fdSearchM");
         if(srm) srm.addEventListener("input", () => { fdSearch = srm.value; renderFeladatok(); });
         const ps = document.getElementById("fdPrioSel");
