@@ -5901,9 +5901,13 @@
             .pz-a-mfej { display:block; margin:0 0 14px; }
             /* Pénztárcák: hős + vízszintes bankkártya-sor, alatta a lista; a régi leíró sáv és összesítő nem kell */
             .pz-t-mfej { display:block; margin:0 0 16px; }
-            .pz-t-kartyak { display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 -11px; padding:4px 11px 10px; scroll-snap-type:x mandatory; }
+            /* egyszerre egy tárca középen, két oldalt nyíllal lapozható */
+            .pz-t-keret { display:flex; align-items:center; gap:8px; }
+            .pz-t-nyil { display:grid; place-items:center; flex:none; width:34px; height:34px; border-radius:50%; border:1px solid #e5e5ea; background:#fff;
+                         color:#1d1d1f; font-size:22px; line-height:1; padding:0 0 3px; cursor:pointer; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+            .pz-t-kartyak { flex:1; min-width:0; display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0; padding:4px 0 10px; scroll-snap-type:x mandatory; }
             .pz-t-kartyak::-webkit-scrollbar { display:none; }
-            .pz-t-kartyak .pz-a-szamla { flex:0 0 72%; scroll-snap-align:start; }
+            .pz-t-kartyak .pz-a-szamla { flex:0 0 100%; scroll-snap-align:center; }
             #pzTorzs:has(.pz-t-mfej) .pz-kbar, #pzTorzs .pz-tarca-ossz { display:none; }
             #pzTerv .pz-kpis > :first-child { display:none; }
             #pzTerv .pz-kpis .val { font-size:19px; }
@@ -13154,10 +13158,10 @@ function renderPzTarcak(){
         <b>${pzTarcaOssz() < 0 ? '−' : ''}${pzFt(Math.abs(pzTarcaOssz()))}<small> Ft</small></b>
         <span class="pz-egy-gombok"><button type="button" class="pz-a-hos-gomb" id="pzTarcaUj3">${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}Új tárca</button>
         ${lista.length ? `<button type="button" class="pz-a-hos-gomb" data-pzegyeztet>${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'}Egyenlegek egyeztetése</button>` : ''}</span></div>
-        ${lista.length ? `<div class="pz-a-szamla-sor pz-t-kartyak">${lista.map((w, i) => `
+        ${lista.length ? `<div class="pz-t-keret"><button type="button" class="pz-t-nyil" data-sornyil="-1" aria-label="Előző tárca">‹</button><div class="pz-a-szamla-sor pz-t-kartyak">${lista.map((w, i) => `
             <button type="button" class="pz-a-szamla" data-pztarca="${i}" title="${esc(w.n)} – szerkesztés" style="--k:${['#2563eb','#0f766e','#7c3aed','#b45309','#be185d','#15803d'][i % 6]}">
                 <span class="f"><i>${pzSvg(w.ikon || pzTarcaTip(w.tipus)[2])}</i><em>${esc(pzTarcaTip(w.tipus)[1])}</em></span>
-                <span class="n">${esc(w.n)}</span><b>${(w.o || 0) < 0 ? '−' : ''}${pzFt(Math.abs(w.o || 0))} Ft</b></button>`).join('')}</div>` : ''}</div>
+                <span class="n">${esc(w.n)}</span><b>${(w.o || 0) < 0 ? '−' : ''}${pzFt(Math.abs(w.o || 0))} Ft</b></button>`).join('')}</div><button type="button" class="pz-t-nyil" data-sornyil="1" aria-label="Következő tárca">›</button></div>` : ''}</div>
     <div class="pz-tarcak">
         ${lista.map(pzTarcaKartyaHtml).join('')}
         <button type="button" class="pz-tarca pz-tarca-uj" id="pzTarcaUj2">+ Új pénztárca hozzáadása</button>
@@ -29452,6 +29456,14 @@ document.addEventListener('keydown', e => {
     const CL_TIP = { cel:'Cél', bakancs:'Bakancslista', challenge:'Challenge', szokas:'Szokás', havi:'Havi cél' };
     const CL_STAT = { nincs:['Nincs elkezdve','#eef1f5','#475569'], fut:['Folyamatban','#dbeafe','#1d4ed8'], kesz:['Sikerült','#dcf5e6','#166534'], arch:['Archív','#f3f4f6','#6b7280'] };
     const CL_NEH = ['', 'Könnyű', 'Közepes', 'Nehéz', 'Kurva nehéz'];
+    // Pénztárca-kártyák lapozása a nyilakkal (telefonon), körbe érve.
+    document.addEventListener('click', e => {
+        const b = e.target.closest('[data-sornyil]'); if(!b) return;
+        const sor = b.parentElement.querySelector('.pz-t-kartyak'); if(!sor || !sor.children.length) return;
+        const w = sor.children[0].offsetWidth + 12, n = sor.children.length;
+        const i = Math.round(sor.scrollLeft / w), j = (i + Number(b.dataset.sornyil) + n) % n;
+        sor.scrollTo({ left: j * w, behavior: 'smooth' });
+    });
     // Vízió lapozása a nyilakkal (telefonon): körbe is ér, az utolsó után az első jön.
     document.addEventListener('click', e => {
         const b = e.target.closest('[data-clvisnyil]'); if(!b) return;
