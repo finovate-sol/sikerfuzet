@@ -1447,6 +1447,18 @@
         .oi-v-hos .k > b { font-size:22px; color:#2e1065; } .oi-v-hos .s { font-size:13px; color:#4b3f63; } .oi-v-hos .s b { color:#6d28d9; }
         .oi-v-pct { display:flex; flex-direction:column; align-items:center; background:#fff; border-radius:14px; padding:10px 16px; }
         .oi-v-pct b { font-size:26px; color:#6d28d9; line-height:1; } .oi-v-pct span { font-size:11px; color:var(--muted); margin-top:3px; }
+        .oi-kuld-emlek { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; margin:0 0 10px; padding:11px 14px; border:0; border-radius:14px; cursor:pointer; text-align:left; font:inherit;
+            background:linear-gradient(135deg,#8b5cf6,#6d28d9); color:#fff; box-shadow:0 6px 16px rgba(109,40,217,.25); }
+        .oi-kuld-emlek b { font-size:14.5px; } .oi-kuld-emlek span { font-size:12.5px; opacity:.9; }
+        .oi-kuld-g { display:block; width:100%; margin:0 0 12px; height:44px; border:0; border-radius:999px; background:#efe9fe; color:#6d28d9; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+        .oi-kuld-g:hover { background:#e4dcfd; }
+        .oi-kuld .modal-body { display:flex; flex-direction:column; gap:12px; }
+        .oi-kuld-mezo label { display:block; font-size:12px; font-weight:700; color:#6b7280; margin-bottom:4px; }
+        .oi-kuld-mezo > div { display:flex; gap:6px; } .oi-kuld-mezo > div input { flex:1; min-width:0; }
+        .oi-kuld-mezo input, .oi-kuld-mezo textarea { width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:13.5px; }
+        .oi-kuld-mezo textarea { font-size:13px; line-height:1.5; resize:vertical; }
+        .oi-kuld-gombok { display:flex; flex-wrap:wrap; gap:8px; } .oi-kuld-gombok .pv-ment { flex:1 1 100%; height:46px; }
+        .oi-kuld-gombok .btn { flex:1 1 0; justify-content:center; text-decoration:none; }
         .oi-v-ma { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; margin:0 0 12px; }
         .oi-v-mab { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid var(--border); border-radius:14px; background:var(--card); font:inherit; text-align:left; cursor:pointer; color:var(--text); min-width:0; }
         .oi-v-mab i { width:34px; height:34px; flex:none; border-radius:10px; background:var(--b); color:var(--c); display:flex; align-items:center; justify-content:center; }
@@ -9095,7 +9107,9 @@ function oiVallMaHtml(a){
     const ma = oiMaStr(), ho = ma.slice(0, 7), h = oiVallHo(a, ho);
     const l = OI_VALL.filter(([k]) => (h.v || {})[k]);
     if(!l.length) return '';
-    return `<div class="oi-v-ma">${l.map(([k, n]) => { const on = oiVallKesz(h, ma, k);
+    // csütörtökön emlékeztető, amíg az e heti beszámoló el nem ment
+    const csut = new Date().getDay() === 4 && !oiKuldveEhet();
+    return `${csut ? `<button type="button" class="oi-kuld-emlek" data-oivkuld><b>Csütörtök – küldd el a havi vállalásodat</b><span>E-mail-sablon és képernyőkép egy helyen ›</span></button>` : ''}<div class="oi-v-ma">${l.map(([k, n]) => { const on = oiVallKesz(h, ma, k);
         return `<button type="button" class="oi-v-mab${on ? ' on' : ''}" data-oivnap="${ma}|${k}" aria-pressed="${on}" style="${oiVallSzin(k)}">
             <i>${on ? oiPipaSvg : oiVallIk(k)}</i><span><b>${esc(n)}</b><em>${esc(h.v[k])}</em></span></button>`; }).join('')}</div>`;
 }
@@ -9125,9 +9139,110 @@ function oiVallHtml(a){
             ${szov ? `<div class="oi-v-sav"><i style="width:${Math.round(st.db / st.ossz * 100)}%"></i></div>` : ''}
             <div class="oi-v-racs" role="group" aria-label="${esc(n)} – napok">${racs}</div></section>`;
     }).join('');
-    return fej + hos + (ho === akt ? oiVallMaHtml(a) : '') + atvesz + `<div class="oi-v-lista">${kartyak}</div>
+    const kuldG = ho === akt && vall.length ? `<button type="button" class="oi-kuld-g" data-oivkuld>Heti beszámoló küldése</button>` : '';
+    return fej + hos + kuldG + (ho === akt ? oiVallMaHtml(a) : '') + atvesz + `<div class="oi-v-lista">${kartyak}</div>
         <p class="oi-v-megj">A vállalások a Célok életterületeihez tartoznak: a Célok → Területek nézetben az adott területnél is látszik, hogy állsz.</p>`;
 }
+// ===== Heti beszámoló a havi vállalásról (csütörtökönként) =====
+// E-mail-sablon (címzett, tárgy, szöveg – külön másolhatók), képernyőkép a vállalásokról,
+// és csütörtökön emlékeztető a Ma oldalon / az Önismeretben, amíg az adott hétre el nem ment.
+const OI_KULD_ALAP = { to: 'nyujto.ferenc@ovb.hu', koszon: 'Szia Árnyék tesó!' };
+const oiKuldBeall = () => Object.assign({}, OI_KULD_ALAP, store.load('sf_oi_kuld', {}) || {});
+const oiHetKulcs = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() + 3 - ((x.getDay() + 6) % 7));
+    const j = new Date(x.getFullYear(), 0, 4); return x.getFullYear() + '-W' + (1 + Math.round(((x - j) / 864e5 - 3 + ((j.getDay() + 6) % 7)) / 7)); };
+const oiKuldveEhet = () => store.load('sf_oi_kuldve', '') === oiHetKulcs(new Date());
+// A beszámoló adatai: a hónap eddigi napjai és az aktuális hét (hétfőtől máig, a hónapon belül).
+function oiKuldAdat(a){
+    const ma = oiMaStr(), ho = ma.slice(0, 7), h = oiVallHo(a, ho);
+    const vall = OI_VALL.filter(([k]) => (h.v || {})[k]);
+    const napok = oiHoNapok(ho).filter(d => d <= ma);
+    const hetfo = (() => { const d = new Date(ma + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; })();
+    const het = napok.filter(d => new Date(d + 'T00:00:00') >= hetfo);
+    const sor = vall.map(([k, n]) => { const db = napok.filter(d => oiVallKesz(h, d, k)).length, hdb = het.filter(d => oiVallKesz(h, d, k)).length;
+        return { k, n, t: h.v[k], db, hdb, pct: napok.length ? Math.round(db / napok.length * 100) : 0 }; });
+    const ossz = sor.reduce((s, x) => s + x.db, 0), lehet = vall.length * napok.length;
+    const hossz = sor.reduce((s, x) => s + x.hdb, 0), hlehet = vall.length * het.length;
+    return { ho, nap: napok.length, het, sor, pct: lehet ? Math.round(ossz / lehet * 100) : 0, hossz, hlehet };
+}
+function oiKuldSzoveg(a){
+    const b = oiKuldBeall(), x = oiKuldAdat(a);
+    const nev = ((window.sfCurrentUser && window.sfCurrentUser.displayName) || '').trim().split(/\s+/).pop() || '';
+    const honev = OI_HO[+x.ho.slice(5, 7) - 1];
+    const hetCim = x.het.length ? `${honev.slice(0, 3)}. ${+x.het[0].slice(8)}–${+x.het[x.het.length - 1].slice(8)}.` : '';
+    const targy = `Havi vállalásom – ${x.ho.slice(0, 4)}. ${honev}, ${x.nap}. nap`;
+    const sorok = x.sor.map(s => `${s.pct >= 80 ? '✅' : s.pct >= 50 ? '🟡' : '⬜'} ${s.n}: ${s.t} – ${s.db}/${x.nap} nap (${s.pct}%)${x.het.length ? `, a héten ${s.hdb}/${x.het.length}` : ''}`);
+    const szoveg = [b.koszon, '', `Küldöm a havi vállalásaim állását (${x.ho.slice(0, 4)}. ${honev}, ${x.nap}. nap):`, '',
+        ...(sorok.length ? sorok : ['Erre a hónapra még nem rögzítettem vállalást.']), '',
+        sorok.length ? `Összesen: ${x.pct}%${x.hlehet ? ` · ezen a héten (${hetCim}) ${x.hossz}/${x.hlehet} pipa` : ''}` : '', '',
+        'Üdv,', nev].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return { to: b.to, targy, szoveg, adat: x };
+}
+// Képernyőkép: egy külön, letisztult kártya a vállalásokról (html2canvas), megosztásra vagy mentésre.
+async function oiKuldKep(a){
+    if(typeof window.html2canvas !== 'function') throw new Error('A képkészítő nem töltődött be.');
+    const { targy, adat: x } = oiKuldSzoveg(a);
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;left:-10000px;top:0;width:440px;padding:22px;background:#faf8ff;font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1f1235;';
+    el.innerHTML = `<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7c6a9a">SZEM · Havi vállalás</div>
+        <div style="font-size:21px;font-weight:800;margin:4px 0 2px">${esc(targy.replace('Havi vállalásom – ', ''))}</div>
+        <div style="font-size:14px;color:#6b7280;margin-bottom:14px">Összesen <b style="color:#6d28d9">${x.pct}%</b>${x.hlehet ? ` · a héten ${x.hossz}/${x.hlehet} pipa` : ''}</div>
+        ${x.sor.map(s => { const t = prvTer((OI_VALL.find(v => v[0] === s.k) || [])[2]);
+            return `<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;border-left:4px solid ${t.c}">
+                <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:700;color:${t.c}"><span>${esc(s.n)}</span><span>${s.db}/${x.nap} nap</span></div>
+                <div style="font-size:15px;font-weight:700;margin:3px 0 8px">${esc(s.t)}</div>
+                <div style="height:7px;border-radius:9px;background:${t.b}"><div style="height:7px;border-radius:9px;width:${s.pct}%;background:${t.c}"></div></div></div>`; }).join('')
+            || '<div style="font-size:14px;color:#6b7280">Erre a hónapra még nincs vállalás.</div>'}`;
+    document.body.appendChild(el);
+    try {
+        const c = await window.html2canvas(el, { backgroundColor: '#faf8ff', scale: 2 });
+        return await new Promise(r => c.toBlob(r, 'image/png'));
+    } finally { el.remove(); }
+}
+function oiKuldModal(){
+    const a = PRV.onismeret; if(!a){ alert('Az Önismeret adatai még töltődnek, próbáld újra egy pillanat múlva.'); return; }
+    const b = oiKuldBeall(), sz = oiKuldSzoveg(a);
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal pv-modal oi-kuld"><div class="modal-head"><h3>Heti beszámoló</h3><button class="modal-x" data-okx aria-label="Bezárás">&times;</button></div>
+        <div class="modal-body">
+            <div class="oi-kuld-mezo"><label for="okTo">Címzett</label><div><input id="okTo" type="email" value="${esc(b.to)}"><button type="button" class="btn" data-okmas="okTo">Másolás</button></div></div>
+            <div class="oi-kuld-mezo"><label for="okTargy">Tárgy</label><div><input id="okTargy" type="text" value="${esc(sz.targy)}"><button type="button" class="btn" data-okmas="okTargy">Másolás</button></div></div>
+            <div class="oi-kuld-mezo"><label for="okSzov">Levél</label><textarea id="okSzov" rows="12">${esc(sz.szoveg)}</textarea></div>
+            <div class="oi-kuld-gombok">
+                <button type="button" class="pv-ment" data-okmas="okSzov">Levél másolása</button>
+                <button type="button" class="btn" data-okkep>Képernyőkép</button>
+                <a class="btn" data-okmail href="#">Megnyitás levélben</a>
+            </div>
+            <p class="pv-megj" id="okAll">A képernyőképet a levélhez csatolhatod (megosztás vagy mentés után).</p>
+        </div></div>`;
+    document.body.appendChild(ov);
+    const $ = id => ov.querySelector('#' + id), all = t => { $('okAll').textContent = t; };
+    const kesz = () => { try { store.save('sf_oi_kuldve', oiHetKulcs(new Date())); } catch(e){}
+        try { store.save('sf_oi_kuld', { to: $('okTo').value.trim() || OI_KULD_ALAP.to, koszon: oiKuldBeall().koszon }); } catch(e){}
+        if(typeof renderPrivMa === 'function' && document.getElementById('privMaBody')?.offsetParent) renderPrivMa(); };
+    const masol = async id => { const v = $(id).value;
+        try { await navigator.clipboard.writeText(v); } catch(e){ $(id).select(); document.execCommand && document.execCommand('copy'); }
+        all(id === 'okSzov' ? 'A levél szövege a vágólapon – illeszd be a levélbe.' : 'Kimásolva.'); if(id === 'okSzov') kesz(); };
+    const frissMail = () => { ov.querySelector('[data-okmail]').href = `mailto:${encodeURIComponent($('okTo').value.trim())}?subject=${encodeURIComponent($('okTargy').value)}&body=${encodeURIComponent($('okSzov').value)}`; };
+    frissMail(); ov.addEventListener('input', frissMail);
+    ov.addEventListener('click', async e => {
+        if(e.target === ov || e.target.closest('[data-okx]')){ ov.remove(); return; }
+        const m = e.target.closest('[data-okmas]'); if(m){ masol(m.dataset.okmas); return; }
+        if(e.target.closest('[data-okmail]')){ kesz(); return; }
+        const kb = e.target.closest('[data-okkep]');
+        if(kb){
+            kb.disabled = true; all('Kép készül…');
+            try {
+                const blob = await oiKuldKep(a);
+                const f = new File([blob], `havi-vallalas-${oiMaStr()}.png`, { type: 'image/png' });
+                if(navigator.canShare && navigator.canShare({ files: [f] })){ await navigator.share({ files: [f], title: $('okTargy').value }); all('Megosztva.'); }
+                else { const u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = f.name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); all('A kép letöltve – csatold a levélhez.'); }
+                kesz();
+            } catch(err){ if(err && err.name !== 'AbortError') all('A kép nem készült el: ' + (err.message || err)); else all(''); }
+            kb.disabled = false;
+        }
+    });
+}
+document.addEventListener('click', e => { if(e.target.closest('[data-oivkuld]')) oiKuldModal(); });
 window.sfVallElore = () => ezMasNezet() ? Promise.resolve(null) : prvBetolt('onismeret');
 // A Célok területi paneljének: a terület havi vállalásai és állásuk.
 window.sfVallTerStat = function(ter){
