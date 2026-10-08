@@ -6083,17 +6083,6 @@
                                                         box-shadow:0 1px 0 rgba(15,23,42,.06); }
             #pzNaplo .pz-ker-fo .pz-fej-burger { display:inline-flex; }
             .pz-mhok { display:flex; gap:4px; position:relative; overflow-x:auto; scrollbar-width:none; margin:0 -11px; padding:2px 11px 4px; }
-            /* a minta szerint: egy sorban a + / − összeg, a kiválasztott hónap középen vékony keretes fehér kapszulában */
-            .pz-mcf { align-items:flex-start; padding:4px 4px 0; }
-            .pz-mcf .bal b { font-size:30px; font-weight:800; color:#1a1a1a; }
-            .pz-mcf .bal span { font-size:14px; color:#6b7280; }
-            .pz-mcf .jobb { flex-direction:row; align-items:center; gap:10px; padding-top:6px; }
-            .pz-mcf-p { font-size:14.5px; font-weight:500; gap:5px; padding:2px; }
-            .pz-mcf-p i { width:22px; height:22px; font-size:16px; }
-            .pz-mcf-p.be { color:#3fb67f; } .pz-mcf-p.ki { color:#e5534b; }
-            #pzNaplo .pz-mhok { padding:4px calc(50% - 60px) 6px; gap:2px; }
-            .pz-mhok button { font-size:14px; color:#b0b5bd; padding:8px 16px; }
-            .pz-mhok button.on { background:#fff; color:#4b5563; font-weight:400; border:1px solid #dcdfe4; box-shadow:none; min-width:120px; }
             .sf-gorg #pzNaplo .pz-kereso:not(.nyitva) { background:#f6f6f7; -webkit-backdrop-filter:none; backdrop-filter:none; }
         }
 
@@ -14523,6 +14512,9 @@ async function renderPzNaplo(){
     for(const t of alap){ if(!t.k) continue; katDb.set(t.k, (katDb.get(t.k) || 0) + 1);
         if(pzSz.kat.includes(t.k) && t.a) alDb.set(t.k + '|' + t.a, (alDb.get(t.k + '|' + t.a) || 0) + 1); }
     const listaHo = plusz.length ? lista.filter(t => String(t.d).startsWith(pzTHo)) : lista;   // az összesítők csak a kiválasztott hónapé
+    // görgetéskor a fejléc (cash-flow, hónap-kapszula) annak a hónapnak az adatait mutatja, ahol éppen jársz
+    pzGorgOssz = {};
+    [pzTHo].concat(plusz).forEach(m => { const ml = m === pzTHo ? listaHo : lista.filter(t => String(t.d).startsWith(m)); pzGorgOssz[m] = { be: pzOsszBe(ml), ki: pzOsszKi(ml) }; });
     const be = pzOsszBe(listaHo), ki = pzOsszKi(listaHo), nagy = Math.max(be, ki, 1);
     const szuro = pzNTarca ? pzTarcaOf(pzNTarca).n : '';
 
@@ -14585,7 +14577,7 @@ async function renderPzNaplo(){
         : [pzTHo].concat(plusz).map((m, mi) => {
             const ml = lista.filter(t => String(t.d).startsWith(m)), mr = PZ_MONTHS[+m.slice(5, 7) - 1].toLowerCase();
             const mh = m === pzTHo ? hetek : pzHetek(m).slice().reverse();
-            return (mi && ml.length ? `<div class="pz-ho-valt"><b>${esc(pzHoNev(m))}</b><span>${ml.length} tétel · ${elojel(egyenleg(ml))}</span></div>` : '')
+            return `<div data-pzhojel="${m}"></div>` + (mi && ml.length ? `<div class="pz-ho-valt"><b>${esc(pzHoNev(m))}</b><span>${ml.length} tétel · ${elojel(egyenleg(ml))}</span></div>` : '')
                 + (pzSz.rend === 'regi' ? mh.slice().reverse() : mh).map(h => {
                 const ht = ml.filter(t => nap(t.d) >= h.tol && nap(t.d) <= h.ig);
                 return ht.length ? `<div class="pz-het"><span>${mr} ${h.tol}–${h.ig}.</span><span>${ht.length} tétel · ${elojel(egyenleg(ht))}</span></div>` + napokHtml(ht) : '';
@@ -14631,7 +14623,7 @@ async function renderPzNaplo(){
                 </div>
                 <div class="pz-mcf">
                     <div class="bal"><b class="${be - ki < 0 ? 'neg' : ''}">${be - ki < 0 ? '−' : ''}${pzFt(Math.abs(be - ki))} Ft</b>
-                        <span>Cash-Flow · ${esc(mobCim)}</span></div>
+                        <span>Cash-flow · ${esc(mobCim)}</span></div>
                     <div class="jobb">
                         <button type="button" class="pz-mcf-p be${pzKerTip === 'bev' ? ' on' : ''}" data-pzkertip="${pzKerTip === 'bev' ? 'mind' : 'bev'}" aria-pressed="${pzKerTip === 'bev'}" title="Csak a bevételek"><i>+</i>${pzFt(be)} Ft</button>
                         <button type="button" class="pz-mcf-p ki${pzKerTip === 'ki' ? ' on' : ''}" data-pzkertip="${pzKerTip === 'ki' ? 'mind' : 'ki'}" aria-pressed="${pzKerTip === 'ki'}" title="Csak a kiadások"><i>−</i>${pzFt(ki)} Ft</button>
@@ -14707,7 +14699,30 @@ async function renderPzNaplo(){
     pzMobHokGorget('pzMhok');
     pzNaploMagassag();
     pzTovabbFigyel();
+    pzHoAkt = pzTHo;
+    document.getElementById('pzFeedLista')?.addEventListener('scroll', pzHoKovet, { passive:true });
 }
+// Melyik hónapnál jár a görgetés: az utolsó hónap-jelölő, ami már a fejléc alá ért.
+let pzGorgOssz = {}, pzHoAkt = '';
+function pzHoKovet(){
+    if(pzView !== 'naplo' || !document.querySelector('#pzNaplo [data-pzhojel]')) return;
+    const fej = document.querySelector('#pzNaplo .pz-kereso'), hatar = (fej ? fej.getBoundingClientRect().bottom : 0) + 8;
+    let m = pzTHo;
+    document.querySelectorAll('#pzNaplo [data-pzhojel]').forEach(j => { if(j.getBoundingClientRect().top <= hatar) m = j.dataset.pzhojel; });
+    if(m === pzHoAkt) return;
+    pzHoAkt = m;
+    const o = pzGorgOssz[m]; if(!o) return;
+    const n = o.be - o.ki, b = document.querySelector('#pzNaplo .pz-mcf .bal b'), sz = document.querySelector('#pzNaplo .pz-mcf .bal span');
+    if(b){ b.textContent = `${n < 0 ? '−' : ''}${pzFt(Math.abs(n))} Ft`; b.classList.toggle('neg', n < 0); }
+    if(sz) sz.textContent = 'Cash-flow · ' + (m === pzMaHo() ? 'Ez a hónap' : pzHoNevKis(m));
+    const pb = document.querySelector('#pzNaplo .pz-mcf-p.be'), pk = document.querySelector('#pzNaplo .pz-mcf-p.ki');
+    if(pb) pb.innerHTML = `<i>+</i>${pzFt(o.be)} Ft`;
+    if(pk) pk.innerHTML = `<i>−</i>${pzFt(o.ki)} Ft`;
+    const hs = document.getElementById('pzMhok');
+    if(hs){ hs.querySelectorAll('[data-pzmho]').forEach(x => { const on = x.dataset.pzmho === m; x.classList.toggle('on', on); on ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
+        pzMobHokGorget(hs); }
+}
+window.addEventListener('scroll', pzHoKovet, { passive:true });
 function pzTovabbFigyel(){
     if(pzTovabbIO){ pzTovabbIO.disconnect(); pzTovabbIO = null; }
     const el = document.getElementById('pzTovabb'); if(!el || !window.IntersectionObserver) return;
