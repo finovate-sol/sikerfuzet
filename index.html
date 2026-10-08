@@ -2943,6 +2943,11 @@
         .rpi-info { font-size:11.5px; color:var(--muted); line-height:1.5; }
         .rpi-info i { font-style:normal; color:#475569; }
         .rpi-dup { display:inline-block; margin-left:6px; font-size:10.5px; color:#b45309; background:#fef3c7; border-radius:999px; padding:1px 8px; }
+        .reg-uj-jegy { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:0 0 12px; padding:10px 14px; border-radius:14px; background:#fff7ed; border:1px solid #fed7aa; }
+        .reg-uj-jegy .t { display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; color:#9a3412; }
+        .reg-uj-jegy .t .cli-dot { margin:0; }
+        .reg-uj-jegy button { border:0; border-radius:999px; background:#fff; box-shadow:0 0 0 1px #fdba74 inset; color:#9a3412; font:inherit; font-size:12.5px; font-weight:700; padding:6px 12px; cursor:pointer; }
+        .reg-uj-jegy button:hover { background:#ffedd5; }
         .na-done { margin-right:auto; align-self:center; font-size:11.5px; font-weight:700; color:#15803d; }
         .modal-foot { padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
         .modal .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
@@ -8762,7 +8767,7 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'feladatok' && typeof window.sfShowFeladatok === 'function') window.sfShowFeladatok();
         if(p === 'admin' && typeof window.sfShowAdmin === 'function') window.sfShowAdmin();
         const mbt = document.getElementById('mbTitle');
-        if(mbt) mbt.textContent = a.textContent.trim() || 'Sikerfüzet';
+        if(mbt) mbt.textContent = ((a.querySelector('.nav-label') || a).textContent || '').trim() || 'Sikerfüzet';   // a számláló-jelvény nélkül
     }));
 })();
 
@@ -16407,7 +16412,35 @@ function renderRegistry(){
     if(tog) tog.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === regView));
     if(regView === 'pipeline') renderRegPipeline(matched);
     else renderRegTable(matched);
+    regUjJegyzetSav();
 }
+// Új jegyzet érkezett (ez adja a menü számát is): a lista fölött név szerint, egy koppintással
+// megnyitható – akkor is, ha a sor egy összecsukott csoportban, szűrő mögött vagy az archívumban van.
+function regUjJegyzetSav(){
+    const views = document.getElementById('regViews'); if(!views) return;
+    const uj = registry.map((r, i) => ({ r, i })).filter(({ r }) => !r.mt && cliHasUnread(r));
+    let sav = document.getElementById('regUjJegy');
+    if(!sav){ sav = document.createElement('div'); sav.id = 'regUjJegy'; sav.className = 'reg-uj-jegy'; views.prepend(sav); }
+    sav.hidden = !uj.length;
+    sav.innerHTML = uj.length ? `<span class="t"><i class="cli-dot"></i>Új jegyzet érkezett${uj.length > 1 ? ` · ${uj.length} ügyfél` : ''}:</span>`
+        + uj.map(({ r, i }) => `<button type="button" data-ujjegy="${i}">${esc(r.name || 'Nincs név megadva')} ›</button>`).join('') : '';
+}
+document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ujjegy]'); if(!b) return;
+    const idx = +b.dataset.ujjegy, r = registry[idx]; if(!r) return;
+    // ha szűrő vagy az archívum rejti, előbb láthatóvá tesszük
+    if(!regMatched().some(o => o.i === idx)){
+        regFilters = []; regSearch = ''; regLive.value = '';
+        const s = document.getElementById('regSearch'); if(s) s.value = '';
+        regShowArchived = regIsArchived(r.status);
+        renderRegFilters();
+    }
+    const kulcs = regGroupBy === 'status' ? (r.status || '') : regGroupBy === 'kezelo' ? (r.ownerName || '') : regGroupBy === 'munkatars' ? (r.munkatars || '') : null;
+    if(kulcs !== null) regGroupClosed[kulcs] = false;
+    regExpandedIdx = idx; regDetailTab = 'jegyzetek'; cliMarkSeen(idx);
+    renderRegistry(); if(typeof refreshMoneyCareer === 'function') refreshMoneyCareer();
+    requestAnimationFrame(() => { const el = document.querySelector(`#regViews [data-open="${idx}"]`); if(el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+});
 // Melyik fül aktív a kártyás adatlapon.
 let regDetailTab = 'adatok';
 const RC_DEL_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
