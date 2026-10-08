@@ -5991,6 +5991,7 @@
         /* ===== Tranzakciók telefonon: banki app minta =====
            Kerek kereső, cash-flow összesítő, hónap-csúszka; napfejléc a kártya fölött,
            a nap tételei egy lekerekített fehér kártyában, elválasztó vonalak nélkül. */
+        .pz-mini { display:none; }
         .pz-mcf, .pz-mhok, .pz-sz-mob, .pz-mal, .pz-mjegy, .pz-mtag, .pz-cim-m { display:none; }
         /* Közös (gépen is): kerek kereső, cash-flow, hónap-csúszka, napokra bontott kártyák */
         #pzNaplo .pz-sz-mob { display:flex; }
@@ -6082,6 +6083,18 @@
             .sf-gorg #pzNaplo .pz-kereso:not(.nyitva) { background:rgba(240,243,247,.8); -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
                                                         box-shadow:0 1px 0 rgba(15,23,42,.06); }
             #pzNaplo .pz-ker-fo .pz-fej-burger { display:inline-flex; }
+            /* a teljes fejléc nem tapad: elgörög, helyette az egysoros sáv (pz-mini) áll fent */
+            #pzNaplo .pz-kereso:not(.nyitva) { position:relative; top:auto; }
+            .pz-mini { display:flex; align-items:center; gap:8px; position:fixed; left:0; right:0; top:0; z-index:45;
+                       padding:calc(var(--sf-felul, 0px) + 6px) 12px 8px; background:#f6f6f7; border-radius:0 0 20px 20px; box-shadow:0 1px 0 rgba(15,23,42,.06);
+                       transform:translateY(-110%); transition:transform .18s ease; }
+            .pz-mini.on { transform:none; }
+            .pz-mini-g { flex:none; width:38px; height:38px; border-radius:50%; border:0; background:#fff; color:#1c2b45; display:grid; place-items:center;
+                         box-shadow:0 2px 8px rgba(15,23,42,.07); padding:0; cursor:pointer; }
+            .pz-mini-g svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+            .pz-mini-o { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.15; padding-left:2px; }
+            .pz-mini-o b { font-size:18px; font-weight:800; color:#111827; letter-spacing:-.02em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+            .pz-mini-o span { font-size:11px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             /* a fejléc a lap hátterén áll: az üveg-elmosás nélkül (különben egy elmosott téglalap látszik a cím mögött) */
             #page-penzugyek #pzFej { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; background:transparent !important; border:0 !important; box-shadow:none !important; }
             .pz-mhok { display:flex; gap:4px; position:relative; overflow-x:auto; scrollbar-width:none; margin:0 -11px; padding:2px 11px 4px; }
@@ -14615,6 +14628,12 @@ async function renderPzNaplo(){
     const mobCim = (pzKerHat === 'ho' ? (pzTHo === maHo ? 'Ez a hónap' : pzHoNevKis(pzTHo)) : hatokor)
         + (szuro ? ' · ' + szuro : '') + (keres ? ' · szűrve' : '');
     host.innerHTML = `
+    <div class="pz-mini" id="pzMini" aria-hidden="true">
+        <button type="button" class="pz-mini-g" data-sfburger aria-label="Menü megnyitása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+        <span class="pz-mini-o"><b></b><span></span></span>
+        <button type="button" class="pz-mini-g" data-pzmini="ker" aria-label="Keresés">${pzSvg('kereses')}</button>
+        <button type="button" class="pz-mini-g" data-pzmini="sz" aria-label="Szűrők">${pzSvg('szuro')}</button>
+    </div>
     <div class="pz-b-lay${pzNezet === 'tabla' ? ' tabla' : ''}${pzHuzhato ? ' pz-huzhato' : ''}">
         <aside class="card pz-b-bal">
             <div class="pz-netto"><span class="c">Nettó vagyon</span><b>${pzNetto() < 0 ? '−' : ''}${pzFt(Math.abs(pzNetto()))} Ft</b>
@@ -14722,11 +14741,29 @@ async function renderPzNaplo(){
     document.getElementById('pzFeedLista')?.addEventListener('scroll', pzHoKovet, { passive:true });
     requestAnimationFrame(pzHoKovet);
 }
+// Telefonon a teljes fejléc a lappal együtt elgörög; helyette egy egysoros sáv áll fent
+// (☰ · egyenleg / cash-flow · keresés · szűrő). A lap tetején újra a teljes fejléc látszik.
+function pzMiniFrissit(){
+    const mini = document.getElementById('pzMini'), fej = document.querySelector('#pzNaplo .pz-kereso'); if(!mini || !fej) return;
+    const felul = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sf-felul')) || 0;
+    const on = window.innerWidth <= 760 && fej.getBoundingClientRect().bottom < felul + 8;
+    mini.classList.toggle('on', on); mini.setAttribute('aria-hidden', on ? 'false' : 'true');
+    const b = document.querySelector('#pzNaplo .pz-mcf .bal b'), sz = document.querySelector('#pzNaplo .pz-mcf .bal span');
+    if(b) mini.querySelector('.pz-mini-o b').textContent = b.textContent;
+    if(sz) mini.querySelector('.pz-mini-o span').textContent = sz.textContent;
+}
+document.addEventListener('click', e => {
+    const g = e.target.closest('[data-pzmini]'); if(!g) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => { if(g.dataset.pzmini === 'ker') document.getElementById('pzKer')?.focus(); else document.getElementById('pzSzGomb')?.click(); }, 350);
+});
 // Melyik hónapnál jár a görgetés: az utolsó hónap-jelölő, ami már a fejléc alá ért.
 let pzGorgOssz = {}, pzHoAkt = '', pzNapEgyl = {};
 function pzHoKovet(){
-    if(pzView !== 'naplo' || !document.querySelector('#pzNaplo [data-pzhojel]')) return;
-    const fej = document.querySelector('#pzNaplo .pz-kereso'), hatar = (fej ? fej.getBoundingClientRect().bottom : 0) + 8;
+    if(pzView !== 'naplo') return;
+    if(!document.querySelector('#pzNaplo [data-pzhojel]')){ pzMiniFrissit(); return; }
+    const fej = document.querySelector('#pzNaplo .pz-kereso'), mini = document.getElementById('pzMini');
+    const hatar = Math.max(fej ? fej.getBoundingClientRect().bottom : 0, mini && mini.classList.contains('on') ? mini.getBoundingClientRect().bottom : 0) + 8;
     let m = pzTHo;
     document.querySelectorAll('#pzNaplo [data-pzhojel]').forEach(j => { if(j.getBoundingClientRect().top <= hatar) m = j.dataset.pzhojel; });
     // ha a lista már a fejléc alá görgött: a legfelső látható nap végi egyenleg
@@ -14734,7 +14771,7 @@ function pzHoKovet(){
     let nap = '';
     if(napok.length && napok[0].getBoundingClientRect().top < hatar){ const x = napok.find(n => n.getBoundingClientRect().bottom > hatar); if(x) nap = x.dataset.pznap; }
     if(nap && pzNapEgyl[nap] == null) nap = '';
-    if(m + '|' + nap === pzHoAkt) return;
+    if(m + '|' + nap === pzHoAkt){ pzMiniFrissit(); return; }
     pzHoAkt = m + '|' + nap;
     const o = pzGorgOssz[m]; if(!o) return;
     const b = document.querySelector('#pzNaplo .pz-mcf .bal b'), sz = document.querySelector('#pzNaplo .pz-mcf .bal span');
@@ -14749,6 +14786,7 @@ function pzHoKovet(){
     const hs = document.getElementById('pzMhok');
     if(hs){ hs.querySelectorAll('[data-pzmho]').forEach(x => { const on = x.dataset.pzmho === m; x.classList.toggle('on', on); on ? x.setAttribute('aria-current', 'true') : x.removeAttribute('aria-current'); });
         pzMobHokGorget(hs); }
+    pzMiniFrissit();
 }
 window.addEventListener('scroll', pzHoKovet, { passive:true });
 function pzTovabbFigyel(){
