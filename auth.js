@@ -637,7 +637,12 @@ export async function loginWithGoogle() {
     // A Tasks jogot a PG modul kéri külön (reconnectCalendar → incremental).
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
-    provider.setCustomParameters({ prompt: "select_account" });
+    // Ha a naptárlista olvasását korábban már engedélyezte, a belépés tokenje is
+    // kapja meg – különben belépés után csak a fő naptár látszik (a lista lekérése
+    // jog nélkül elbukik). Az include_granted_scopes a már megadott jogokat is
+    // beleteszi a tokenbe, új engedélyt nem kér.
+    if (hasCalListGrant()) provider.addScope(CALLIST_SCOPE);
+    provider.setCustomParameters({ prompt: "select_account", include_granted_scopes: "true" });
 
     const result = await signInWithPopup(auth, provider);
     const email = result.user.email;

@@ -23685,7 +23685,7 @@ document.addEventListener('keydown', e => {
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=78";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=79";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -26444,7 +26444,7 @@ document.addEventListener('keydown', e => {
     // így a bekapcsolt naptárak akkor is rögtön látszanak, ha a lista lekérése (lejárt
     // token, lassú hálózat) csak később sikerül.
     const calListaKulcs = () => "sf_cal_lista_cache_" + ((window.sfCurrentUser && window.sfCurrentUser.uid) || "");
-    let calListaFriss = false;
+    let calListaFriss = false, calListaNemaProba = false;
     function calListaMentett(){
         if (calLista) return calLista;
         try { const l = JSON.parse(localStorage.getItem(calListaKulcs()) || "null"); if (Array.isArray(l) && l.length) calLista = l; } catch(e){}
@@ -26460,6 +26460,13 @@ document.addEventListener('keydown', e => {
             // lejárt token (pl. újra be kellett jelentkezni): csendben új tokent kérünk, és még egyszer próbáljuk
             if (res.status === 401){ const friss = await silentOnce(true); if (friss) res = await kerj(friss); }
             if (res.status === 401){ calListaMentett(); return calLista; }   // átmeneti – a következő rajzolásnál újra próbáljuk
+            // 403: a token nem hordozza a naptárlista-jogot (pl. a belépés tokenje). Ha a
+            // jogot korábban már megadta, egy néma új token megkapja – egyszer megpróbáljuk.
+            if (res.status === 403 && !calListaNemaProba){
+                calListaNemaProba = true;
+                const friss = await silentOnce(true);
+                if (friss && friss !== token) res = await kerj(friss);
+            }
             if (res.status === 403){ calListaHiba = "jog"; return calListaMentett(); }
             if (!res.ok){ calListaHiba = "A naptárlista nem tölthető be (" + res.status + ")."; return calLista; }
             const data = await res.json();
@@ -26797,7 +26804,18 @@ document.addEventListener('keydown', e => {
                 fetchEvents(token, rangeStart, rangeEnd),
                 ownCal ? tasksForCalendar() : Promise.resolve([]),
                 // Egy átfedő naptár hibája (pl. megszűnt hozzáférés) ne vigye el az egészet.
-                ...atfedok.map(c => fetchEvents(token, rangeStart, rangeEnd, c.id).catch(() => [])),
+                // Átmeneti hibánál (lejárt token, túl sok egyidejű kérés belépéskor) újrapróbáljuk,
+                // különben az a naptár csendben kimaradna.
+                ...atfedok.map(c => fetchEvents(token, rangeStart, rangeEnd, c.id).catch(async e => {
+                    try {
+                        if (e.status === 401){ const friss = await silentOnce(true); if (friss) return await fetchEvents(friss, rangeStart, rangeEnd, c.id); return []; }
+                        if (e.status === 403 || e.status === 429 || e.status >= 500){
+                            await new Promise(r => setTimeout(r, 700 + Math.random() * 800));
+                            return await fetchEvents(getCalendarToken() || token, rangeStart, rangeEnd, c.id);
+                        }
+                    } catch(_){}
+                    return [];
+                })),
             ]);
             if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
             eventsById = {};
