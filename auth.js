@@ -657,7 +657,7 @@ export async function loginWithGoogle() {
     // A Google OAuth access token a Calendar API híváshoz (session-re eltesszük).
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential && credential.accessToken) {
-        try { sessionStorage.setItem("sf_gcal_token", credential.accessToken); } catch (e) {}
+        tokMent(credential.accessToken);
     }
 
     // A munkatárs profil létrehozása/frissítése – lásd ensureEmployeeProfile
@@ -697,7 +697,21 @@ async function ensureEmployeeProfile(user, attempt) {
 }
 
 // --- A session-re eltárolt Google naptár access token ---
+// Tartósan (localStorage) a lejárati idővel együtt, hogy az app bezárása és
+// újranyitása után ne kelljen újra csatlakozni, amíg a token érvényes (~1 óra).
+const TOK_KULCS = "sf_gcal_tok";
+function tokMent(t, mp) {
+    if (!t) return;
+    const lejar = Date.now() + Math.max(300, (Number(mp) || 3600) - 120) * 1000;
+    try { localStorage.setItem(TOK_KULCS, JSON.stringify({ t, lejar })); } catch (e) {}
+    try { sessionStorage.setItem("sf_gcal_token", t); } catch (e) {}
+}
+function tokTorol() {
+    try { localStorage.removeItem(TOK_KULCS); } catch (e) {}
+    try { sessionStorage.removeItem("sf_gcal_token"); } catch (e) {}
+}
 export function getCalendarToken() {
+    try { const x = JSON.parse(localStorage.getItem(TOK_KULCS) || "null"); if (x && x.t && x.lejar > Date.now()) return x.t; } catch (e) {}
     try { return sessionStorage.getItem("sf_gcal_token"); } catch (e) { return null; }
 }
 
@@ -740,7 +754,7 @@ export async function silentCalendarToken() {
                 login_hint: (user && user.email) || "",
                 callback: resp => {
                     if (resp && resp.access_token) {
-                        try { sessionStorage.setItem("sf_gcal_token", resp.access_token); } catch (e) {}
+                        tokMent(resp.access_token, resp.expires_in);
                         finish(resp.access_token);
                     } else finish(null);
                 },
@@ -761,7 +775,7 @@ export async function reconnectCalendar() {
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
-    if (token) { try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {} }
+    if (token) { tokMent(token); }
     return token;
 }
 
@@ -777,7 +791,7 @@ export async function connectTasks() {
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
-    if (token) { try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {} }
+    if (token) { tokMent(token); }
     return token;
 }
 
@@ -792,7 +806,7 @@ export async function connectCalendarList() {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
     if (token) {
-        try { sessionStorage.setItem("sf_gcal_token", token); } catch (e) {}
+        tokMent(token);
         try { localStorage.setItem("sf_gcal_lista", "1"); } catch (e) {}
     }
     return token;
@@ -800,7 +814,7 @@ export async function connectCalendarList() {
 
 // --- Kilépés ---
 export async function logout() {
-    try { sessionStorage.removeItem("sf_gcal_token"); } catch (e) {}
+    tokTorol();
     if (isConfigured && auth) await signOut(auth);
     window.location.href = "login.html";
 }

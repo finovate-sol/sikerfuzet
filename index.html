@@ -115,6 +115,25 @@
     })();
     </script>
     <meta name="theme-color" content="#f0f3f7">
+    <meta name="sf-build" content="__SF_BUILD__">
+    <script>
+    // Új verzió esetén automatikus frissítés: a telepített (iPhone) app sokáig a
+    // gyorsítótárból nyílik. Induláskor és előtérbe kerüléskor megnézzük a szerveren
+    // lévő verziót; ha más, egyszer újratöltünk gyorsítótár nélkül.
+    (function(){
+        var sajat = (document.querySelector('meta[name="sf-build"]') || {}).content || '';
+        if (!sajat || sajat.indexOf('SF_BUILD') >= 0) return;
+        var nez = function(){
+            fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.text(); }).then(function(t){
+                var m = t.match(/name="sf-build" content="([^"]+)"/); if (!m || m[1] === sajat) return;
+                try { if (sessionStorage.getItem('sf_build_proba') === m[1]) return; sessionStorage.setItem('sf_build_proba', m[1]); } catch(e){}
+                location.replace(location.pathname + '?v=' + m[1] + location.hash);
+            }).catch(function(){});
+        };
+        addEventListener('load', nez);
+        document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') nez(); });
+    })();
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24069,7 +24088,7 @@ document.addEventListener('keydown', e => {
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=79";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=80";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -26943,7 +26962,7 @@ document.addEventListener('keydown', e => {
             const mk = tok => fetch(url, Object.assign({}, opt, { headers: Object.assign({ Authorization: "Bearer " + tok }, opt.body ? { "Content-Type": "application/json" } : {}) }));
             let res = await mk(token);
             if (res.status === 401){
-                try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
+                try { sessionStorage.removeItem("sf_gcal_token"); localStorage.removeItem("sf_gcal_tok"); } catch(_){}
                 const friss = await silentOnce(true);
                 if (friss){ token = friss; res = await mk(token); }
             }
@@ -27295,7 +27314,7 @@ document.addEventListener('keydown', e => {
                 const emp = (window.sfViewAsEmployees || []).find(x => x.uid === window.sfViewedUid);
                 showConnect(grid, "Ez a munkatárs (" + escM(emp ? (emp.name || emp.email) : "") + ") még nem osztotta meg a Google Naptárát a te fiókoddal, vagy nincs hozzá jogosultságod.");
             } else if (e.status === 401 || e.status === 403){
-                try { sessionStorage.removeItem("sf_gcal_token"); } catch(_){}
+                try { sessionStorage.removeItem("sf_gcal_token"); localStorage.removeItem("sf_gcal_tok"); } catch(_){}
                 // Lejárt token: előbb csendben kérünk újat – a Google-ban élő
                 // munkamenet mellett ez ablak nélkül megy.
                 const fresh = await silentOnce(true);
