@@ -8055,8 +8055,8 @@
                 </label>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
-                <button class="btn" id="regPdfBtn" title="Ajánlólap (PDF) beolvasása – vagy egyszerűen húzd rá a PDF-et az oldalra"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg><span>PDF-ből</span></button>
-                <input type="file" id="regPdfInp" accept="application/pdf,.pdf" hidden>
+                <button class="btn" id="regPdfBtn" title="Ajánlólap beolvasása PDF-ből vagy fotóról / képernyőképről – vagy egyszerűen húzd rá az oldalra"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg><span>PDF / kép</span></button>
+                <input type="file" id="regPdfInp" accept="application/pdf,.pdf,image/*" hidden>
                 <button class="btn primary" id="regAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új ügyfél</button>
               </div>
             </div>
@@ -8097,6 +8097,8 @@
                     <option value="kezelo">Kezelő</option>
                   </select>
                 </label>
+                <button class="btn" id="ketPdfBtn" title="Ajánlólap beolvasása PDF-ből vagy fotóról / képernyőképről – vagy húzd rá az oldalra"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg><span>PDF / kép</span></button>
+                <input type="file" id="ketPdfInp" accept="application/pdf,.pdf,image/*" hidden>
                 <button class="btn primary" id="ketorasAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Új jelölt</button>
               </div>
             </div>
@@ -17581,14 +17583,26 @@ async function regPdfOlvas(file){
         const page = await pdf.getPage(p);
         const tc = await page.getTextContent();
         // a szövegdarabok soronként, a közel eső darabok egy szakasszá fűzve
-        const dar = tc.items.filter(i => nfc(i.str)).map(i => ({ s: nfc(i.str), x: i.transform[4], y: i.transform[5], w: i.width || 0 }))
-            .sort((a, b) => b.y - a.y || a.x - b.x);
-        const szak = [];
-        for(const d of dar){
-            const u = szak[szak.length - 1];
-            if(u && Math.abs(u.y - d.y) < 2.5 && d.x - (u.x + u.w) < 9){ u.s += (d.x - (u.x + u.w) > 1.5 ? ' ' : '') + d.s; u.w = d.x + d.w - u.x; }
-            else szak.push({ ...d });
-        }
+        const szak = regSzakok(tc.items.filter(i => nfc(i.str)).map(i => ({ s: nfc(i.str), x: i.transform[4], y: i.transform[5], w: i.width || 0 })));
+        const ann = (await page.getAnnotations()).filter(a => a.fieldType === 'Tx' && nfc(a.fieldValue))
+            .map(a => ({ s: nfc(a.fieldValue), x: a.rect[0], y: (a.rect[1] + a.rect[3]) / 2 - 3, w: a.rect[2] - a.rect[0] }));
+        ajanlo = regLapElemez(szak, ann, emberek, ajanlo);
+    }
+    return regOlvasEredmeny(emberek, ajanlo, file);
+}
+// Szövegdarabok (y felfelé nő) → szakaszok: az egy sorban, közel álló darabok egy szakasszá fűzve.
+function regSzakok(dar){
+    dar = dar.slice().sort((a, b) => b.y - a.y || a.x - b.x);
+    const szak = [];
+    for(const d of dar){
+        const u = szak[szak.length - 1];
+        if(u && Math.abs(u.y - d.y) < 2.5 && d.x - (u.x + u.w) < 9){ u.s += (d.x - (u.x + u.w) > 1.5 ? ' ' : '') + d.s; u.w = d.x + d.w - u.x; }
+        else szak.push({ ...d });
+    }
+    return szak;
+}
+// Egy lap feldolgozása: a sor a bal oldali felirat, az oszlop a fölötte álló „N. személy” fejléc.
+function regLapElemez(szak, ann, emberek, ajanlo){
         const kis = s => s.toLowerCase();
         const cimkek = [], fejek = [];
         let ajanloSzak = null, alairas = null;
@@ -17601,15 +17615,13 @@ async function regPdfOlvas(file){
             if(/^ajánló neve/i.test(z.s)){ ajanloSzak = z; const m = /^ajánló neve:?\s*(.*)$/i.exec(z.s); if(m && m[1]) ajanlo = ajanlo || m[1]; continue; }
             if(/^ajánló aláírása/i.test(z.s)) alairas = z;
         }
-        const ann = (await page.getAnnotations()).filter(a => a.fieldType === 'Tx' && nfc(a.fieldValue))
-            .map(a => ({ s: nfc(a.fieldValue), x: a.rect[0], y: (a.rect[1] + a.rect[3]) / 2 - 3, w: a.rect[2] - a.rect[0] }));
         if(ajanloSzak){
             const jobb = alairas ? alairas.x : Infinity;
             const v = [...ann, ...szak].filter(z => z !== ajanloSzak && Math.abs(z.y - ajanloSzak.y) < 8 && z.x > ajanloSzak.x + ajanloSzak.w - 2 && z.x < jobb - 2)
                 .sort((a, b) => a.x - b.x).map(z => z.s).join(' ');
             if(v) ajanlo = v;
         }
-        if(!cimkek.length || !fejek.length) continue;
+        if(!cimkek.length || !fejek.length) return ajanlo;
         const cimkeVeg = Math.max(...cimkek.map(c => c.x + c.w));
         const ys = [...new Set(cimkek.map(c => Math.round(c.y)))].sort((a, b) => b - a);
         const kozok = ys.slice(1).map((y, i) => ys[i] - y).filter(d => d > 4).sort((a, b) => a - b);
@@ -17628,17 +17640,54 @@ async function regPdfOlvas(file){
             const em = emberek.get(fej.n) || {}; emberek.set(fej.n, em);
             (em[cimke.kulcs] = em[cimke.kulcs] || []).push(v);
         }
-    }
+        return ajanlo;
+}
+function regOlvasEredmeny(emberek, ajanlo, file){
+    const nfc = s => String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim();
     const lista = [...emberek.entries()].sort((a, b) => a[0] - b[0]).map(([n, em]) => {
         const o = {}; for(const k in em) o[k] = em[k].sort((a, b) => b.y - a.y || a.x - b.x).map(v => v.s).join(' ');
         return regPdfEmber(o);
     }).filter(x => x.name);
     if(!ajanlo){
         // a fájlnévből: "Varga_Péter_Ajánló.pdf" → "Varga Péter"
-        const f = nfc(String(file.name || '').replace(/\.pdf$/i, '').replace(/[_]+/g, ' '));
+        const f = nfc(String(file.name || '').replace(/\.(pdf|jpe?g|png|heic|webp)$/i, '').replace(/[_]+/g, ' '));
         if(/aj[áa]nl[óo]/i.test(f)) ajanlo = nfc(f.replace(/aj[áa]nl[óo](lap)?/ig, '').replace(/[-–]+\s*$/, ''));
     }
     return { lista, ajanlo: nfc(ajanlo) };
+}
+// Fotó / képernyőkép az ajánlólapról: szövegfelismerés (Tesseract.js, magyar nyelv) a
+// böngészőben, a szavak helyzetéből ugyanazzal az elemzéssel, mint a PDF-nél.
+let regOcrP = null;
+function regOcrJs(){
+    if(window.Tesseract) return Promise.resolve(window.Tesseract);
+    if(regOcrP) return regOcrP;
+    regOcrP = new Promise((ok, hiba) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+        sc.onload = () => ok(window.Tesseract);
+        sc.onerror = () => { regOcrP = null; hiba(new Error('A szövegfelismerő nem töltődött be (nincs internet?).')); };
+        document.head.appendChild(sc);
+    });
+    return regOcrP;
+}
+async function regKepOlvas(file, jelez){
+    const T = await regOcrJs();
+    const { data } = await T.recognize(file, 'hun', { logger: m => { if(jelez && m && m.status === 'recognizing text') jelez(Math.round((m.progress || 0) * 100)); } });
+    const nfc = s => String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+    // A szavak a felismert sorukkal együtt: egy soron belül mindegyik a sor közepének magasságát kapja
+    // (különben a betűk eltérő magassága miatt a sor szétesne).
+    const szavak = [];
+    for(const l of (data.lines || [])){
+        const ky = (l.bbox.y0 + l.bbox.y1) / 2;
+        for(const w of (l.words || [])) if(nfc(w.text) && (w.confidence == null || w.confidence > 25)) szavak.push({ w, ky });
+    }
+    if(!szavak.length) return { lista: [], ajanlo: '' };
+    // a kép magasságát egy A4-es PDF lap (842 pont) méretére hozzuk, hogy a PDF-es küszöbök itt is jók legyenek
+    const mag = Math.max(...szavak.map(x => x.w.bbox.y1)), k = 842 / Math.max(1, mag);
+    const szak = regSzakok(szavak.map(({ w, ky }) => ({ s: nfc(w.text), x: w.bbox.x0 * k, y: (mag - ky) * k, w: (w.bbox.x1 - w.bbox.x0) * k })));
+    const emberek = new Map();
+    const ajanlo = regLapElemez(szak, [], emberek, '');
+    return regOlvasEredmeny(emberek, ajanlo, file);
 }
 // Egy személy mezői → ügyfél-adatok. A választós mezők (családi állapot, gyerekek) az
 // app saját értékeire képződnek; ami ennél több (pl. „Külön élnek”, a gyerekek kora),
@@ -17666,11 +17715,16 @@ function regPdfEmber(o){
     put('eletkor', eletkor); put('miert', o.miert); put('lakas', lakas); put('foglalkozas', o.fogl); put('gyerekek', gyerekek); put('megjegyzes', megj.join('\n'));
     return { name, phone, lakhely, details };
 }
-async function regPdfImport(file){
-    let adat;
-    try { adat = await regPdfOlvas(file); }
-    catch(e){ alert('A PDF-et nem sikerült beolvasni: ' + (e && e.message || e)); return; }
-    if(!adat.lista.length){ alert('Ebben a PDF-ben nem találtam kitöltött személyt. Az OVB ajánlólapját (Ajánlott személyek…) ismerem fel.'); return; }
+const regKepE = f => /^image\//.test(f.type || '') || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name || '');
+async function regPdfImport(file, mod){
+    const mt = mod === 'mt', kep = regKepE(file);
+    let adat, varj = null;
+    if(kep && typeof sfToast === 'function') sfToast('Kép beolvasása… (szövegfelismerés, ez fél percig is eltarthat)');
+    try { adat = kep ? await regKepOlvas(file) : await regPdfOlvas(file); }
+    catch(e){ alert((kep ? 'A képet' : 'A PDF-et') + ' nem sikerült beolvasni: ' + (e && e.message || e)); return; }
+    if(!adat.lista.length){ alert(kep
+        ? 'A képen nem találtam kitöltött személyt. Éles, egyenesen fotózott, jól megvilágított (vagy képernyőképes) ajánlólappal működik a legjobban; kézírást nehezen ismer fel.'
+        : 'Ebben a PDF-ben nem találtam kitöltött személyt. Az OVB ajánlólapját (Ajánlott személyek…) ismerem fel.'); return; }
     const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
     const telKulcs = v => String(v || '').replace(/\D/g, '').replace(/^36/, '').replace(/^06/, '');
     const nevKulcs = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -17681,13 +17735,13 @@ async function regPdfImport(file){
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
         <div class="modal na-modal rpi-modal" role="dialog" aria-modal="true">
-            <div class="modal-head">Ügyfelek a PDF-ből · ${esc(file.name || '')}</div>
+            <div class="modal-head">${mt ? 'Munkatárs-jelöltek' : 'Ügyfelek'} ${kep ? 'a képről' : 'a PDF-ből'} · ${esc(file.name || '')}</div>
             <div class="modal-body">
                 <div class="na-two">
                     <div><label for="rpiAjanlo">Ajánló személy</label><input id="rpiAjanlo" type="text" value="${esc(adat.ajanlo)}"></div>
                     <div><label for="rpiMt">Tanácsadó</label><input id="rpiMt" type="text" value="${esc(owner.name || '')}"></div>
                 </div>
-                <div class="na-sec sep">${sorok.length} személyt találtam – javíthatod, és kiveheted, akit nem kérsz</div>
+                <div class="na-sec sep">${sorok.length} személyt találtam – javíthatod, és kiveheted, akit nem kérsz${kep ? ' (képről olvastam: nézd át a neveket és a számokat)' : ''}</div>
                 <div class="rpi-lista">${sorok.map((e, i) => `
                     <div class="rpi-sor${e.dup ? ' dup' : ''}" data-rpi="${i}">
                         <label class="rpi-pipa"><input type="checkbox" data-rpik${e.dup ? '' : ' checked'}></label>
@@ -17716,7 +17770,7 @@ async function regPdfImport(file){
     $('rpiCancel').addEventListener('click', close);
     overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
     const szamol = () => { const n = overlay.querySelectorAll('[data-rpik]:checked').length;
-        $('rpiSave').textContent = n ? `${n} ügyfél felvétele` : 'Nincs kiválasztva'; $('rpiSave').disabled = !n; };
+        $('rpiSave').textContent = n ? `${n} ${mt ? 'jelölt' : 'ügyfél'} felvétele` : 'Nincs kiválasztva'; $('rpiSave').disabled = !n; };
     overlay.addEventListener('change', e => { if(e.target.matches('[data-rpik]')) szamol(); });
     szamol();
     $('rpiSave').addEventListener('click', () => {
@@ -17727,9 +17781,10 @@ async function regPdfImport(file){
             const e = sorok[+sor.dataset.rpi], f = k => sor.querySelector(`[data-rpif="${k}"]`).value.trim();
             const name = f('name'); if(!name) return;
             const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-            const r = { name, munkatars, ajanlo, phone: f('phone'), lakhely: f('lakhely'), status: 'Új', tp: false,
-                        mt: false, elemzes: false, portal: false, tanacsadas: false, ajanlasok: '',
+            const r = { name, munkatars, ajanlo, phone: f('phone'), lakhely: f('lakhely'), status: mt ? '' : 'Új', tp: false,
+                        mt, elemzes: false, portal: false, tanacsadas: false, ajanlasok: '',
                         details: { ...e.details }, celok: {},
+                        ...(mt ? { karrierTp: false, toborzas: { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] } } : {}),
                         ownerUid: owner.uid || '', ownerEmail: owner.email || '', ownerName: owner.name || '',
                         created: new Date(Date.now() - db).toISOString(), _localKey: localKey };   // a lap sorrendje marad (az első kerül felülre)
             registry.push(r); db++;
@@ -17742,14 +17797,15 @@ async function regPdfImport(file){
             }
         });
         store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer();
+        if(mt && typeof renderKetorasList === 'function') renderKetorasList();
         close();
-        if(typeof sfToast === 'function') sfToast(`${db} ügyfél felvéve a PDF-ből.`);
+        if(typeof sfToast === 'function') sfToast(`${db} ${mt ? 'jelölt' : 'ügyfél'} felvéve ${kep ? 'a képről' : 'a PDF-ből'}.`);
     });
 }
 // Ráhúzás a 10 perces füzet oldalára + a „PDF-ből” gomb
-(function(){
-    const lap = document.getElementById('page-ugyfelek'); if(!lap) return;
-    const pdfOf = dt => [...((dt && dt.files) || [])].find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+(function(){ for(const [lapId, mod] of [['page-ugyfelek', ''], ['page-ketoras', 'mt']]){
+    const lap = document.getElementById(lapId); if(!lap) continue;
+    const pdfOf = dt => [...((dt && dt.files) || [])].find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name) || regKepE(f));
     const vanFajl = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
     let mely = 0;
     lap.addEventListener('dragenter', e => { if(!vanFajl(e)) return; e.preventDefault(); mely++; lap.classList.add('rpi-drop'); });
@@ -17759,13 +17815,14 @@ async function regPdfImport(file){
         if(!vanFajl(e)) return;
         e.preventDefault(); mely = 0; lap.classList.remove('rpi-drop');
         const f = pdfOf(e.dataTransfer);
-        if(f) regPdfImport(f); else alert('Ide PDF-et húzz (az ajánlólapot).');
+        if(f) regPdfImport(f, mod); else alert('Ide PDF-et vagy képet húzz (az ajánlólapot).');
     });
+    }
     // Delegálva: az eszköztár újrarajzolódhat, a gomb és a fájlmező akkor is működjön.
-    document.addEventListener('click', e => { if(e.target.closest('#regPdfBtn')){ const inp = document.getElementById('regPdfInp'); if(inp) inp.click(); } });
+    document.addEventListener('click', e => { const b = e.target.closest('#regPdfBtn, #ketPdfBtn'); if(b){ const inp = document.getElementById(b.id === 'ketPdfBtn' ? 'ketPdfInp' : 'regPdfInp'); if(inp) inp.click(); } });
     document.addEventListener('change', e => {
-        const inp = e.target; if(!inp || inp.id !== 'regPdfInp') return;
-        const f = inp.files && inp.files[0]; inp.value = ''; if(f) regPdfImport(f);
+        const inp = e.target; if(!inp || (inp.id !== 'regPdfInp' && inp.id !== 'ketPdfInp')) return;
+        const f = inp.files && inp.files[0]; inp.value = ''; if(f) regPdfImport(f, inp.id === 'ketPdfInp' ? 'mt' : '');
     });
 })();
 
