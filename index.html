@@ -5705,6 +5705,13 @@
         .modal-body .pz-szl-web { width:170px; flex:none; padding:6px 8px; font-size:12.5px; }
         .pz-szl-g { border:0; background:none; padding:2px 4px; font:inherit; font-size:12px; font-weight:700; color:var(--blue); cursor:pointer; }
         @media (max-width:560px){ .modal-body .pz-szl-web { width:100%; flex:1 1 100%; } }
+        .pz-ik-cim { margin:6px 0 6px; font-size:14px; font-weight:700; color:var(--text); }
+        .pz-ik-cim + .pz-sec-note { font-size:12.5px; }
+        .pz-iksz-lista { max-height:none; overflow:visible; margin-bottom:6px; }
+        .modal-body .pz-iksz-sor .pz-szl-web { flex:1 1 120px; width:auto; }
+        .pz-iksz-nyil { color:var(--muted); font-weight:700; }
+        .pz-iksz-kep { flex:1 1 120px; font-size:12.5px; color:var(--muted); }
+        .pz-iksz-uj { margin:0 0 16px; padding:6px 0; }
         .pz-ik-fej { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:10px; }
         .pz-ik-sor > .pz-szolg-av, .pz-ik-sor > .pz-ikon, .pz-ik-sor > i:first-child { flex:none; }
         .pz-ik-sor .n b { font-size:14px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -9356,6 +9363,9 @@ renderMoney(); renderCareer(); renderInfo();
                     <h4 class="zb-cim">Színvilág</h4>
                     <div class="zb-temak">${Object.entries(window.SF_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbtema="${k}" class="${window.sfTema && window.sfTema() === k ? 'on' : ''}" aria-pressed="${window.sfTema && window.sfTema() === k}">
                         <i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>
+                    <h4 class="zb-cim">Tranzakciók ikonjai</h4>
+                    <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
+                        <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
                     <h4 class="zb-cim">App-ikon</h4>
                     <div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
                     <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
@@ -9384,6 +9394,7 @@ renderMoney(); renderCareer(); renderInfo();
             if(e.target === m || e.target.closest('[data-zbx]')){ m.remove(); return; }
             const tm = e.target.closest('[data-zbtema]');
             if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('Színvilág: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
+            if(e.target.closest('[data-zbikonok]')){ m.remove(); if(typeof pzIkonModal === 'function') pzIkonModal(); return; }
             const ik = e.target.closest('[data-zbikon]');
             if(ik){ try { localStorage.setItem('sf_elet_icon', JSON.stringify(ik.dataset.zbikon)); } catch(_){}
                 if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A SZEM ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.'); return; }
@@ -11844,7 +11855,7 @@ function pzIkon(nev){
    pz_tranz gyűjteményben. Így nem kell újabb Firestore-szabály – ami annál is
    fontosabb, mert a meglévők még nincsenek közzétéve. Együtt is pár kB. */
 let pzTorzsData = null;
-const PZ_TORZS_URES = { elofiz:[], vagyon:[], hitel:[], cel:[], penztarca:[], szabalyok:[], ismNem:[], kivan:[], kint:[], szolg:[] };
+const PZ_TORZS_URES = { elofiz:[], vagyon:[], hitel:[], cel:[], penztarca:[], szabalyok:[], ismNem:[], kivan:[], kint:[], szolg:[], ikonSzab:[] };
 const PZ_VAGYON_TIP = [['befektetes','Befektetés'],['keszpenz','Készpénz'],['ingatlan','Ingatlan'],['egyeb','Egyéb']];
 // Pénztárca = ahol a pénz FIZIKAILAG van (bankszámla, készpénz, digitális
 // tárca). Ez más, mint a Vagyon lap: ott a nem likvid dolgok (ingatlan,
@@ -12065,7 +12076,16 @@ const PZ_SZOLG_WEB = {
 };
 // Saját, a repóban tárolt logók (ahol a weboldal ikonja nem jó): kulcs → [kép, a kör színe].
 const PZ_SZOLG_SAJAT_KEP = { 'idbc': ['icons/szolg/idbc.png', '#1e2c2f'], 'spotify': ['icons/szolg/spotify.svg', '#1ed760'] };
-const pzSzolgSajatKep = m => { const n = ' ' + pzNorm(pzNevTiszta(m || '')).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+// Saját ikon-szabályok (Továbbiak → Ikonok): "ha a név tartalmazza: X" → weboldal-logó vagy feltöltött kép.
+// torzs.ikonSzab: [{ id, q, web?, kep? }] – a szolgáltatónként beállított logó ezeknél is erősebb.
+const pzIkSzNorm = m => ' ' + pzNorm(pzNevTiszta(m || '')).replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+function pzIkonSzabOf(m){
+    const l = (pzTorzsData && pzTorzsData.ikonSzab) || []; if(!l.length || !m) return null;
+    const n = pzIkSzNorm(m);
+    return l.find(r => { const q = pzIkSzNorm(r.q).trim(); return q && (r.kep || r.web) && (q.length >= 3 ? n.includes(q) : n.includes(' ' + q + ' ')); }) || null;
+}
+const pzSzolgSajatKep = m => { const sz = pzIkonSzabOf(m); if(sz && sz.kep) return [sz.kep, ''];
+    const n = ' ' + pzNorm(pzNevTiszta(m || '')).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
     for(const [k, v] of Object.entries(PZ_SZOLG_SAJAT_KEP)) if(n.includes(' ' + k + ' ')) return v;
     return null; };
 const pzSzolgWebCache = new Map();
@@ -12104,6 +12124,7 @@ function pzFavElemez(img){
     i.src = src;
 }
 function pzSzolgAutoWeb(m){
+    const sz = pzIkonSzabOf(m); if(sz && sz.web) return sz.web;
     const n = ' ' + pzNorm(pzNevTiszta(m)).replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
     if(pzSzolgWebCache.has(n)) return pzSzolgWebCache.get(n);
     let w = '';
@@ -12303,14 +12324,30 @@ async function pzIkonModal(){
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
     ov.innerHTML = `<div class="modal pz-modal" style="max-width:680px;">
-        <div class="modal-head"><h3>Ikonok</h3><button class="modal-x" data-pzx>&times;</button></div>
-        <div class="modal-body"><p class="pz-sec-note" style="margin:0 0 10px;">Az elmúlt 6 hónap tételeinek szolgáltatói. Ahol nincs még logó, koppints a felkínált ikonok egyikére – onnantól minden ilyen tételnél az látszik. A <b>Kép</b> gombbal sajátot tölthetsz fel, vagy írd be a weboldalukat.</p>
+        <div class="modal-head"><h3>Tranzakciók ikonjai</h3><button class="modal-x" data-pzx>&times;</button></div>
+        <div class="modal-body">
+            <h4 class="pz-ik-cim">Saját szabályok</h4>
+            <p class="pz-sec-note" style="margin:0 0 8px;">Egyszerre minden tételre: ha a név tartalmazza a szöveget (pl. <b>M12</b>), az összes ilyen tétel ezt a logót kapja. Adj meg weboldalt (pl. <b>otpbank.hu</b>) vagy tölts fel képet.</p>
+            <div class="pz-szl-lista pz-iksz-lista" id="pzIkSz"></div>
+            <button type="button" class="pz-szl-g pz-iksz-uj" data-ikszuj>+ Új szabály</button>
+            <h4 class="pz-ik-cim">Szolgáltatók az elmúlt 6 hónapban</h4>
+            <p class="pz-sec-note" style="margin:0 0 10px;">Egyenként, szolgáltatónként. Ahol nincs még logó, koppints a felkínált ikonok egyikére – onnantól minden ilyen tételnél az látszik. A <b>Kép</b> gombbal sajátot tölthetsz fel, vagy írd be a weboldalukat.</p>
             <div class="pz-ik-fej" id="pzIkFej">Tételek betöltése…</div>
             <div class="pz-szl-lista pz-ik-lista" id="pzIkLista"></div></div>
         <div class="modal-foot"><button class="btn primary" data-pzx style="background:var(--blue);color:#fff;border-color:var(--blue);">Kész</button></div></div>`;
     document.body.appendChild(ov);
     let l = [], mind = false;
-    const rajz = () => {
+    const szRajz = () => {
+        const sz = pzTorzsGet().ikonSzab;
+        ov.querySelector('#pzIkSz').innerHTML = sz.map(r => `<div class="pz-szl-sor pz-iksz-sor" data-ikszid="${esc(r.id)}">
+            ${r.kep || r.web ? pzSzolgAv(r.q || '?') : `<i class="pz-szolg-av" style="--c:#9ca3af">?</i>`}
+            <input type="text" class="pz-szl-web pz-iksz-q" value="${esc(r.q || '')}" data-ikszq placeholder="a név tartalmazza…" maxlength="40" aria-label="A név tartalmazza">
+            <span class="pz-iksz-nyil">→</span>
+            ${r.kep ? '<span class="pz-iksz-kep">saját kép</span><button type="button" class="pz-szl-g" data-ikszkepx>Kép törlése</button>'
+              : `<input type="text" class="pz-szl-web" value="${esc(r.web || '')}" data-ikszweb placeholder="weboldal (pl. otpbank.hu)" maxlength="80" aria-label="Weboldal"><button type="button" class="pz-szl-g" data-ikszkep>Kép</button>`}
+            <button type="button" class="pz-szl-x" data-ikszx aria-label="Szabály törlése">×</button></div>`).join('') || '<div class="pz-ures" style="padding:8px 0;">Még nincs saját szabály.</div>';
+    };
+    const rajz = () => { szRajz();
         const nincs = l.filter(x => !pzVanLogo(x.n)), lat = mind ? l : nincs;
         ov.querySelector('#pzIkFej').innerHTML = `<span><b>${l.length}</b> szolgáltató · <b>${l.length - nincs.length}</b> logóval · <b>${nincs.length}</b> logó nélkül</span>
             <button type="button" class="pz-szl-g" data-pzikmind>${mind ? 'Csak a logó nélküliek' : 'Mind mutatása'}</button>`;
@@ -12326,8 +12363,14 @@ async function pzIkonModal(){
     };
     const szolgOf = el => { const n = el.closest('[data-ikn]').dataset.ikn; return pzSzolgOf(n) || pzSzolgFelvesz(n, false); };
     const kesz = () => { pzSzolgWebCache.clear(); pzSaveTorzs(); rajz(); };
+    const szOf = el => pzTorzsGet().ikonSzab.find(r => r.id === el.closest('[data-ikszid]').dataset.ikszid);
     ov.addEventListener('click', async e => {
-        if(e.target === ov || e.target.closest('[data-pzx]')){ ov.remove(); if(typeof pzFrissit === 'function') pzFrissit(); return; }
+        if(e.target === ov || e.target.closest('[data-pzx]')){ ov.remove(); const pg = document.getElementById('page-penzugyek'); if(typeof pzFrissit === 'function' && pg && !pg.hidden) pzFrissit(); return; }
+        if(e.target.closest('[data-ikszuj]')){ pzTorzsGet().ikonSzab.push({ id: 'ik' + Date.now().toString(36), q: '' }); szRajz();
+            const i = ov.querySelectorAll('[data-ikszq]'); if(i.length) i[i.length - 1].focus(); return; }
+        if(e.target.closest('[data-ikszx]')){ const r = szOf(e.target), sz = pzTorzsGet().ikonSzab; if(r){ sz.splice(sz.indexOf(r), 1); kesz(); } return; }
+        if(e.target.closest('[data-ikszkep]')){ const r = szOf(e.target), d = await pzSzolgKepValaszt(); if(d && r){ r.kep = d; delete r.web; kesz(); } return; }
+        if(e.target.closest('[data-ikszkepx]')){ const r = szOf(e.target); if(r){ delete r.kep; kesz(); } return; }
         if(e.target.closest('[data-pzikmind]')){ mind = !mind; rajz(); return; }
         const w = e.target.closest('[data-ikweb]');
         if(w){ const x = szolgOf(w); if(x){ x.web = w.dataset.ikweb; kesz(); } return; }
@@ -12335,11 +12378,13 @@ async function pzIkonModal(){
         if(e.target.closest('[data-ikvissza]')){ const x = pzSzolgOf(e.target.closest('[data-ikn]').dataset.ikn); if(x){ delete x.kep; delete x.web; kesz(); } return; }
     });
     ov.addEventListener('change', e => {
+        if(e.target.matches('[data-ikszq]')){ const r = szOf(e.target); if(r){ r.q = e.target.value.trim(); kesz(); } return; }
+        if(e.target.matches('[data-ikszweb]')){ const r = szOf(e.target); if(r){ const v = e.target.value.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase(); if(v) r.web = v; else delete r.web; kesz(); } return; }
         if(!e.target.matches('[data-ikwebi]')) return;
         const v = e.target.value.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase(); if(!v) return;
         const x = szolgOf(e.target); if(x){ x.web = v; kesz(); }
     });
-    try { await Promise.all([pzLoadKat(), pzLoadTorzs()]); l = (await pzIkonGyujt()).sort((a, b) => b.db - a.db || b.o - a.o); }
+    try { await Promise.all([pzLoadKat(), pzLoadTorzs()]); szRajz(); l = (await pzIkonGyujt()).sort((a, b) => b.db - a.db || b.o - a.o); }
     catch(err){ ov.querySelector('#pzIkFej').textContent = 'A tételek betöltése nem sikerült: ' + (err.message || err); return; }
     rajz();
 }
