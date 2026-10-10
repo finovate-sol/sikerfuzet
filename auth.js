@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp
+    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp, increment
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
@@ -115,6 +115,21 @@ export async function saveKovQuarter(key, data){
 export async function saveActivityTimer(key, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, "activity_timers", key), data, { merge: true });
+}
+
+// Napi aktivitás (Tudásbázis és Control → Control): havonta egy dokumentum
+// activity_timers/{uid}_nap_{YYYY-MM} = { napok: { 'YYYY-MM-DD': { p10, p2, ossz } } } (másodperc).
+// Növeléssel írjuk, így több eszköz egyszerre is számolhat, nem írják felül egymást.
+export async function addActivityNap(uid, name, ho, nap, d){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const n = {}; for(const k of ["p10", "p2", "ossz"]) if(d[k] > 0) n[k] = increment(Math.round(d[k]));
+    if(!Object.keys(n).length) return;
+    await setDoc(doc(db, "activity_timers", `${uid}_nap_${ho}`), { uid, name: name || "", col: "nap", period: ho, napok: { [nap]: n }, updatedAt: Date.now() }, { merge: true });
+}
+export async function getActivityTimer(key){
+    if(!isConfigured || !db) return null;
+    try { const snap = await getDoc(doc(db, "activity_timers", key)); return snap.exists() ? (snap.data() || null) : null; }
+    catch(e){ console.warn("Aktivitás olvasása sikertelen:", e); return null; }
 }
 
 // Megosztott csapat-ügyféllista – collection "clients". Minden dokumentum egy
