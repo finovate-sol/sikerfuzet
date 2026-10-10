@@ -1414,6 +1414,14 @@
         .ct-pipe td { background:#fbfcfe; white-space:normal; }
         .ct-pipe-b { padding:4px 4px 10px 26px; }
         .ct-pipe-cim { font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; margin:6px 0 8px; }
+        .reg-terv-badge { display:inline-flex; align-items:center; gap:4px; margin-left:6px; flex:none; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px 2px 6px;
+                          border:1.5px solid #93b4f5; color:var(--blue); background:#fff; white-space:nowrap; vertical-align:middle; }
+        .reg-terv-badge svg { width:12px; height:12px; }
+        .reg-terv-pipe { margin-left:0; }
+        .reg-name-cell:has(.reg-terv-badge) .reg-name { width:auto; min-width:0; flex:0 1 auto; }
+        .reg-name-cell .reg-terv-badge { margin-left:0; }
+        .reg-terv-badge.most { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .reg-terv-badge.mult { border-color:#fca5a5; color:#dc2626; }
         .rd-terv { display:flex; align-items:center; gap:12px; margin:0 0 14px; padding:12px 14px; border-radius:12px; background:#fff7ed; border:1.5px solid #fdba74; }
         .rd-terv.van { background:#eef4ff; border-color:#93b4f5; }
         .rd-terv-ik { width:38px; height:38px; flex:none; border-radius:10px; display:grid; place-items:center; background:#f97316; color:#fff; }
@@ -17380,6 +17388,15 @@ const RD_LAKAS_OPTS  = ['Egyedülálló','Párkapcsolatban él','Élettársi kap
 const RD_GYEREK_OPTS = ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 vagy több gyermek'];
 // Tervezett hónap (ÉÉÉÉ-HH): melyik hónapban akarja vele lezárni – a Csapattervben az aktuális
 // hónap tervezett ügyfelei jelennek meg. A választó a 3 hónappal korábbitól 12 hónappal későbbiig kínál.
+// A sorban: kis jelvény a tervezett hónappal (a mostani hónap kék, kitöltött; a többi körvonalas, a lejárt piros).
+const REG_HO_ROV = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+function regTervBadge(r){
+    const v = r && r.tervHo; if(!v || !/^\d{4}-\d{2}$/.test(v)) return '';
+    const ma = new Date(), most = `${ma.getFullYear()}-${String(ma.getMonth() + 1).padStart(2, '0')}`;
+    const cls = v === most ? 'most' : v < most ? 'mult' : '';
+    const nev = (v.slice(0, 4) !== String(ma.getFullYear()) ? v.slice(0, 4) + '. ' : '') + REG_HO_ROV[+v.slice(5) - 1];
+    return `<span class="reg-terv-badge ${cls}" title="Tervezett hónap: ${esc(v.slice(0, 4) + '. ' + HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase())}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>${esc(nev)}</span>`;
+}
 function regTervHoOpts(v){
     const ma = new Date(), l = [];
     for(let i = -3; i <= 12; i++){ const d = new Date(ma.getFullYear(), ma.getMonth() + i, 1); l.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
@@ -17582,7 +17599,7 @@ function renderRegTable(matched){
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
                 <div class="reg-person-meta">
-                    <div class="reg-name-cell">${cliDot(r)}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
+                    <div class="reg-name-cell">${cliDot(r)}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button>${regTervBadge(r)}</div>
                     <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r, !open)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"${lk}></div>
                 </div>
             </div>
@@ -17712,6 +17729,7 @@ function regPipeCardHtml(r, i){
             <div style="min-width:0;">
                 <div class="pipe-nm${hasName?'':' empty'}">${hasName?esc(r.name):'Nincs név megadva'}</div>
                 ${r.ajanlo?`<div class="pipe-sub">Ajánló: ${esc(r.ajanlo)}</div>`:''}
+                ${r.tervHo?`<div style="margin-top:4px">${regTervBadge(r).replace('reg-terv-badge', 'reg-terv-badge reg-terv-pipe')}</div>`:''}
             </div>
         </div>
         ${(r.phone||r.lakhely)?`<div class="pipe-meta">
