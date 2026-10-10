@@ -5716,6 +5716,8 @@
         .pz-ik-sor > .pz-szolg-av, .pz-ik-sor > .pz-ikon, .pz-ik-sor > i:first-child { flex:none; }
         .pz-ik-sor .n b { font-size:14px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .pz-ik-ok { font-size:12px; font-weight:700; color:#16a34a; }
+        .pz-ik-mod { border:1px solid #e5e7eb; border-radius:999px; padding:6px 14px; }
+        .pz-ik-szerk { flex:1 1 100%; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:-4px; }
         .pz-ik-jel { display:flex; gap:6px; }
         .pz-ik-j { width:36px; height:36px; border-radius:50%; border:1px solid #e5e7eb; background:#fff; padding:6px; cursor:pointer; display:grid; place-items:center; }
         .pz-ik-j:hover { outline:2px solid #a78bfa; outline-offset:1px; }
@@ -12084,7 +12086,7 @@ function pzIkonSzabOf(m){
     const n = pzIkSzNorm(m);
     return l.find(r => { const q = pzIkSzNorm(r.q).trim(); return q && (r.kep || r.web) && (q.length >= 3 ? n.includes(q) : n.includes(' ' + q + ' ')); }) || null;
 }
-const pzSzolgSajatKep = m => { const sz = pzIkonSzabOf(m); if(sz && sz.kep) return [sz.kep, ''];
+const pzSzolgSajatKep = m => { const sz = pzIkonSzabOf(m); if(sz) return sz.kep ? [sz.kep, ''] : null;
     const n = ' ' + pzNorm(pzNevTiszta(m || '')).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
     for(const [k, v] of Object.entries(PZ_SZOLG_SAJAT_KEP)) if(n.includes(' ' + k + ' ')) return v;
     return null; };
@@ -12139,7 +12141,7 @@ const pzFavicon = w => `https://www.google.com/s2/favicons?domain=${encodeURICom
 // Egy szolgáltatóhoz több weboldal is tartozhat ("uniqa.hu|uniqa.at") – sorra próbáljuk.
 const pzFavForrasok = w => String(w || '').split('|').filter(Boolean).flatMap(d => [pzFavicon(d), `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`]);
 const pzSzolgWeb = (x, nev) => (x && x.web) || (x && pzSzolgAutoWeb(x.n)) || (nev ? pzSzolgAutoWeb(nev) : '');
-const pzSzolgKep = x => x ? (x.kep || (pzSzolgSajatKep(x.n) || [])[0] || pzFavForrasok(pzSzolgWeb(x))[0] || '') : '';
+const pzSzolgKep = x => x ? (x.kep || (!x.web && (pzSzolgSajatKep(x.n) || [])[0]) || pzFavForrasok(pzSzolgWeb(x))[0] || '') : '';
 // Melyik forrás vált be egy szolgáltatónál (az első forrás URL-je → a jó URL; '' = egyik sem,
 // mert csak üres / 16 px-es "nincs ikon" kép jött). Hálózati hibát nem jegyzünk meg.
 const pzFavJo = (() => { try { return new Map(Object.entries(store.load('sf_pz_fav_jo', {}) || {})); } catch(e){ return new Map(); } })();
@@ -12162,7 +12164,7 @@ function pzFavBetolt(img){
 const PZ_SZOLG_SZIN = ['#6d28d9', '#2563eb', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#db2777', '#475569'];
 function pzSzolgAv(nev, cls){
     const x = pzSzolgOf(nev), n = pzNevTiszta((x && x.n) || nev).trim();
-    const beep = !(x && x.kep) && pzSzolgSajatKep((x && x.n) || nev);
+    const beep = !(x && (x.kep || x.web)) && pzSzolgSajatKep((x && x.n) || nev);
     const sajatKep = (x && x.kep) || (beep ? beep[0] : '');
     const forr = sajatKep ? [sajatKep] : pzFavForrasok(pzSzolgWeb(x, nev)), elso = forr[0] || '';
     const jo = elso && !sajatKep && pzFavJo.has(elso) ? pzFavJo.get(elso) : null;
@@ -12336,7 +12338,7 @@ async function pzIkonModal(){
             <div class="pz-szl-lista pz-ik-lista" id="pzIkLista"></div></div>
         <div class="modal-foot"><button class="btn primary" data-pzx style="background:var(--blue);color:#fff;border-color:var(--blue);">Kész</button></div></div>`;
     document.body.appendChild(ov);
-    let l = [], mind = false;
+    let l = [], mind = true; const nyit = new Set();
     const szRajz = () => {
         const sz = pzTorzsGet().ikonSzab;
         ov.querySelector('#pzIkSz').innerHTML = sz.map(r => `<div class="pz-szl-sor pz-iksz-sor" data-ikszid="${esc(r.id)}">
@@ -12348,21 +12350,21 @@ async function pzIkonModal(){
             <button type="button" class="pz-szl-x" data-ikszx aria-label="Szabály törlése">×</button></div>`).join('') || '<div class="pz-ures" style="padding:8px 0;">Még nincs saját szabály.</div>';
     };
     const rajz = () => { szRajz();
-        const nincs = l.filter(x => !pzVanLogo(x.n)), lat = mind ? l : nincs;
+        const nincs = l.filter(x => !pzVanLogo(x.n)), lat = mind ? [...nincs, ...l.filter(x => pzVanLogo(x.n))] : nincs;
         ov.querySelector('#pzIkFej').innerHTML = `<span><b>${l.length}</b> szolgáltató · <b>${l.length - nincs.length}</b> logóval · <b>${nincs.length}</b> logó nélkül</span>
             <button type="button" class="pz-szl-g" data-pzikmind>${mind ? 'Csak a logó nélküliek' : 'Mind mutatása'}</button>`;
         ov.querySelector('#pzIkLista').innerHTML = lat.length ? lat.map(x => { const van = pzVanLogo(x.n), ik = pzIkon(x.k), sz = pzSzolgOf(x.n);
             return `<div class="pz-szl-sor pz-ik-sor" data-ikn="${esc(x.n)}">
             ${van ? pzSzolgAv(x.n) : pzIk(ik.i, ik.c)}
             <span class="n"><b>${esc(x.n)}</b><em>${x.db} tétel · ${pzFt(x.o)} Ft${x.k ? ' · ' + esc(x.k) : ''}</em></span>
-            ${van ? `<span class="pz-ik-ok">✓ van logó</span>${sz && (sz.kep || sz.web) ? '<button type="button" class="pz-szl-g" data-ikvissza>Visszaállítás</button>' : ''}`
-              : `<span class="pz-ik-jel">${pzIkonJeloltek(x.n).map(d => `<button type="button" class="pz-ik-j" data-ikweb="${esc(d)}" title="${esc(d)}" hidden><img src="${esc(pzFavicon(d))}" alt="" referrerpolicy="no-referrer" onload="this.naturalWidth>16?this.parentNode.hidden=false:0"></button>`).join('')}</span>
+            ${van && !nyit.has(x.n) ? `<button type="button" class="pz-szl-g pz-ik-mod" data-ikmod>Módosítás</button>`
+              : `${van ? `<span class="pz-ik-szerk">Új logó:</span>` : ''}<span class="pz-ik-jel">${pzIkonJeloltek(x.n).map(d => `<button type="button" class="pz-ik-j" data-ikweb="${esc(d)}" title="${esc(d)}" hidden><img src="${esc(pzFavicon(d))}" alt="" referrerpolicy="no-referrer" onload="this.naturalWidth>16?this.parentNode.hidden=false:0"></button>`).join('')}</span>
                 <input type="text" class="pz-szl-web" data-ikwebi placeholder="weboldal (pl. parkl.hu)" maxlength="80" aria-label="Weboldal">
-                <button type="button" class="pz-szl-g" data-ikkep>Kép</button>`}</div>`; }).join('')
+                <button type="button" class="pz-szl-g" data-ikkep>Kép</button>${sz && (sz.kep || sz.web) ? '<button type="button" class="pz-szl-g" data-ikvissza>Visszaállítás</button>' : ''}`}</div>`; }).join('')
             : `<div class="pz-ures">${l.length ? 'Minden szolgáltatónak van logója. 🎉' : 'Az elmúlt 6 hónapban nincs megjegyzéssel (szolgáltatóval) rögzített tétel.'}</div>`;
     };
     const szolgOf = el => { const n = el.closest('[data-ikn]').dataset.ikn; return pzSzolgOf(n) || pzSzolgFelvesz(n, false); };
-    const kesz = () => { pzSzolgWebCache.clear(); pzSaveTorzs(); rajz(); };
+    const kesz = () => { pzSzolgWebCache.clear(); nyit.clear(); pzSaveTorzs(); rajz(); };
     const szOf = el => pzTorzsGet().ikonSzab.find(r => r.id === el.closest('[data-ikszid]').dataset.ikszid);
     ov.addEventListener('click', async e => {
         if(e.target === ov || e.target.closest('[data-pzx]')){ ov.remove(); const pg = document.getElementById('page-penzugyek'); if(typeof pzFrissit === 'function' && pg && !pg.hidden) pzFrissit(); return; }
@@ -12372,6 +12374,7 @@ async function pzIkonModal(){
         if(e.target.closest('[data-ikszkep]')){ const r = szOf(e.target), d = await pzSzolgKepValaszt(); if(d && r){ r.kep = d; delete r.web; kesz(); } return; }
         if(e.target.closest('[data-ikszkepx]')){ const r = szOf(e.target); if(r){ delete r.kep; kesz(); } return; }
         if(e.target.closest('[data-pzikmind]')){ mind = !mind; rajz(); return; }
+        const md = e.target.closest('[data-ikmod]'); if(md){ nyit.add(md.closest('[data-ikn]').dataset.ikn); rajz(); return; }
         const w = e.target.closest('[data-ikweb]');
         if(w){ const x = szolgOf(w); if(x){ x.web = w.dataset.ikweb; kesz(); } return; }
         if(e.target.closest('[data-ikkep]')){ const x = szolgOf(e.target), d = await pzSzolgKepValaszt(); if(d && x){ x.kep = d; kesz(); } return; }
