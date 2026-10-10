@@ -3364,9 +3364,12 @@
         .fx-eszk input, .fx-eszk select { border:1px solid var(--border); background:#fff; border-radius:999px; padding:8px 14px; font:inherit; font-size:13px; color:#374151; }
         .fx-eszk input { width:220px; }
         .fx-kartya { background:#fff; border:1px solid #e3e8f0; border-radius:14px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
-        .fx-racs { display:grid; grid-template-columns:220px minmax(0,1fr) 320px; gap:16px; align-items:start; }
-        .fx-oldal { padding:8px; position:sticky; top:16px; }
-        .fx-oldal hr { border:0; border-top:1px solid #eef0f4; margin:6px 4px; }
+        .fx-racs { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:16px; align-items:start; }
+        .fx-listak { display:flex; gap:6px; overflow-x:auto; margin:0 0 12px; padding-bottom:2px; scrollbar-width:none; }
+        .fx-listak::-webkit-scrollbar { display:none; }
+        .fx-listak .fx-li { width:auto; flex:none; background:#fff; border:1px solid #e3e8f0; border-radius:999px; padding:7px 14px; font-size:13px; }
+        .fx-listak .fx-li:hover { background:#f5f7fb; }
+        .fx-listak .fx-li.on { background:var(--navy); border-color:var(--navy); color:#fff; } .fx-listak .fx-li.on em { color:rgba(255,255,255,.75); }
         .fx-li { display:flex; align-items:center; gap:9px; width:100%; border:0; background:none; padding:8px 10px; border-radius:9px; font:inherit; font-size:13px; font-weight:600; color:#374151; cursor:pointer; text-align:left; }
         .fx-li i { width:9px; height:9px; border-radius:50%; background:var(--lc); flex:none; }
         .fx-li span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -3405,16 +3408,12 @@
             .fx .fx-reszl .fd-lap-fogo { display:none; }
             .fx .fx-reszl .fd-detail { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         }
-        @media (max-width:1180px){ .fx-racs { grid-template-columns:210px minmax(0,1fr); } .fx-reszl-ures { display:none; } }
+        @media (max-width:1180px){ .fx-racs { grid-template-columns:minmax(0,1fr); } .fx-reszl-ures { display:none; } }
         @media (max-width:760px){
             .fx-fej { margin-bottom:10px; } .fx-fej h1 { display:none; } .fx-fej small { font-size:13.5px; font-weight:600; color:#374151; }
             .fx-eszk { width:100%; } .fx-eszk input { flex:1; width:auto; min-width:0; }
             .fx-racs { grid-template-columns:1fr; gap:10px; }
-            .fx-oldal { position:static; display:flex; gap:6px; overflow-x:auto; padding:0; background:none; border:0; box-shadow:none; scrollbar-width:none; }
-            .fx-oldal::-webkit-scrollbar { display:none; }
-            .fx-oldal hr, .fx-gt { display:none; }
-            .fx-li { width:auto; flex:none; background:#fff; border:1px solid #e3e8f0; border-radius:999px; padding:6px 12px; font-size:12.5px; }
-            .fx-li.on { background:var(--navy); border-color:var(--navy); color:#fff; } .fx-li.on em { color:rgba(255,255,255,.75); }
+            .fx-listak .fx-li { padding:6px 12px; font-size:12.5px; }
             .fx-szaml { gap:6px; } .fx-sz { padding:8px 10px; } .fx-sz b { font-size:19px; }
             .fx-cimke { max-width:90px; }
         }
@@ -29758,13 +29757,12 @@ document.addEventListener('keydown', e => {
                         ${c.map(x => `<option${x === fdTag ? " selected" : ""}>${escM(x)}</option>`).join("")}</select>` : ""; })()}
                 </div>
             </div>
+            <div class="fx-listak" role="tablist">
+                <button type="button" class="fx-li${!fdListSel && fdFilter !== "kesz" ? " on" : ""}" data-fdfilter="aktiv" style="--lc:#1f5fd0"><i></i><span>Összes</span><em>${db("aktiv")}</em></button>
+                ${sorrend.map(l => `<button type="button" class="fx-li${fdListSel === l.id ? " on" : ""}" data-fdlist="${escM(l.id)}" data-fdgroup="${escM(l.id)}" style="--lc:${fdListColor(l.id)}"><i></i><span>${escM(l.title)}</span><em>${gtTasks.filter(t => t.listId === l.id && !taskIsDone(t)).length}</em></button>`).join("")}
+                <button type="button" class="fx-li${!fdListSel && fdFilter === "kesz" ? " on" : ""}" data-fdfilter="kesz" style="--lc:#16a34a"><i></i><span>✓ Kész</span></button>
+            </div>
             <div class="fx-racs">
-                <aside class="fx-kartya fx-oldal">
-                    ${FX_NEZET.map(([k, n, c]) => `<button type="button" class="fx-li${!fdListSel && fdFilter === k ? " on" : ""}" data-fdfilter="${k}" style="--lc:${c}"><i></i><span>${n}</span><em>${db(k)}</em></button>`).join("")}
-                    <hr>
-                    ${sorrend.map(l => `<button type="button" class="fx-li${fdListSel === l.id ? " on" : ""}" data-fdlist="${escM(l.id)}" data-fdgroup="${escM(l.id)}" style="--lc:${fdListColor(l.id)}"><i></i><span>${escM(l.title)}</span><em>${gtTasks.filter(t => t.listId === l.id && !taskIsDone(t)).length}</em></button>`).join("")}
-                    <a class="fx-gt" href="https://tasks.google.com" target="_blank" rel="noopener">Google Tasks ↗</a>
-                </aside>
                 <div class="fx-kozep">
                     ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="fx-kartya fx-sz${k === "lej" && v ? " lej" : ""}" data-fxugrik="${k}"><b>${v}</b><span>${n}</span></button>`).join("")}</div>`}
                     ${torzs}
