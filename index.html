@@ -2126,6 +2126,7 @@
         .rc-tabs .cli-dot { margin-left:5px; }
         /* Bal menü számláló – összecsukott sávban is látszik, csak kisebben. */
         .nav-badge { margin-left:auto; min-width:19px; height:19px; padding:0 6px; border-radius:10px; background:var(--red); color:#fff; font-size:10px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-badge.semleges { background:rgba(255,255,255,.16); color:#fff; }
         .nav a.active .nav-badge { background:rgba(255,255,255,.28); }
         @media (min-width:1001px){
             .sidebar.collapsed .nav-badge { position:absolute; top:5px; right:5px; min-width:15px; height:15px; padding:0 3px; font-size:9.5px; margin-left:0; }
@@ -28236,6 +28237,25 @@ document.addEventListener('keydown', e => {
         pgTasks = gtTasks.filter(t => t.listId === pgListId).sort(pgTaskOrder);
         return gtTasks;
     }
+    // A bal menüben a Feladatok mellett: hány feladat van még hátra (a PG Modul listája nélkül).
+    // Piros, ha van lejárt határidejű; különben semleges. Pár másodpercenként frissül, így a
+    // pipálás, felvétel, törlés után is magától igazodik.
+    let fdSzamProba = false;
+    function fdMenuSzam(){
+        const link = document.querySelector('.nav a[data-page="feladatok"]'); if(!link) return;
+        if(!gtLoadedAt){ if(!fdSzamProba && typeof getCalendarToken === "function"){ fdSzamProba = true; tasksForCalendar().catch(() => {}); } return; }
+        const ma = new Date(); ma.setHours(0, 0, 0, 0);
+        const l = gtTasks.filter(t => !t.deleted && t.listId !== pgListId && String(t.title || "").trim() && !taskIsDone(t));
+        const kesik = l.some(t => { const d = taskDue(t); return d && d.d < ma; });
+        let b = link.querySelector('.nav-badge');
+        if(!l.length){ if(b) b.remove(); return; }
+        if(!b){ b = document.createElement('span'); b.className = 'nav-badge'; link.appendChild(b); }
+        b.classList.toggle('semleges', !kesik);
+        const sz = l.length > 99 ? '99+' : String(l.length);
+        if(b.textContent !== sz) b.textContent = sz;
+        b.title = `${l.length} feladat van hátra` + (kesik ? ' – van lejárt határidejű is' : '');
+    }
+    setTimeout(() => { fdMenuSzam(); setInterval(fdMenuSzam, 2500); }, 4000);
     function pgTaskOrder(a, b){
         const ca = taskIsDone(a), cb = taskIsDone(b);
         if(ca !== cb) return ca ? 1 : -1;
