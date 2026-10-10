@@ -159,6 +159,11 @@
         #sfSplash i { width:26px; height:26px; margin-top:10px; border-radius:50%; border:3px solid #ede9fe; border-top-color:#7c3aed; animation:sfSpl .8s linear infinite; }
         @keyframes sfSpl { to { transform:rotate(360deg); } }
         #sfSplash.el { opacity:0; pointer-events:none; }
+        .zb-temak { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:6px 0 14px; }
+        .zb-temak button { display:flex; flex-direction:column; align-items:center; gap:6px; border:2px solid transparent; border-radius:14px; background:none; padding:8px 4px; cursor:pointer; font:inherit; font-size:12px; font-weight:600; color:inherit; }
+        .zb-temak button.on { border-color:#7c3aed; }
+        .zb-temak i { width:44px; height:44px; border-radius:12px; position:relative; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
+        .zb-temak i b { position:absolute; right:6px; bottom:6px; width:16px; height:16px; border-radius:50%; }
         /* Privát módban a Sikerfüzet kezdőlapja (Naptár) sosem látszik – a bejelentkezésig
            sem, amíg az app át nem lép a privát Ma oldalra. */
         body.sf-privat #page-home, html.sf-priv-indul #page-home { display:none !important; }
@@ -9157,7 +9162,7 @@ renderMoney(); renderCareer(); renderInfo();
         window.sfTer = ter;
         document.body.classList.toggle('sf-privat', ter === 'priv');
         // A telefon státuszsora a lap tetejének színét kapja (a színes sáv legfelső árnyalata).
-        const teteje = ter === 'priv' ? '#e6ddfa' : '#f0f3f7';   // OVB: sima háttér, nincs színes sáv
+        const teteje = ter === 'priv' ? (window.sfTemaTeteje ? window.sfTemaTeteje() : '#e6ddfa') : '#f0f3f7';   // OVB: sima háttér, nincs színes sáv
         document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', teteje));
         document.documentElement.style.backgroundColor = teteje;
         btn.setAttribute('aria-checked', ter === 'priv' ? 'true' : 'false');
@@ -9338,6 +9343,9 @@ renderMoney(); renderCareer(); renderInfo();
         const r = (uzi) => {
             m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>SZEM</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
                 <div class="modal-body">
+                    <h4 class="zb-cim">Színvilág</h4>
+                    <div class="zb-temak">${Object.entries(window.SF_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbtema="${k}" class="${window.sfTema && window.sfTema() === k ? 'on' : ''}" aria-pressed="${window.sfTema && window.sfTema() === k}">
+                        <i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>
                     <h4 class="zb-cim">App-ikon</h4>
                     <div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
                     <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
@@ -9364,6 +9372,8 @@ renderMoney(); renderCareer(); renderInfo();
         });
         m.addEventListener('click', async e => {
             if(e.target === m || e.target.closest('[data-zbx]')){ m.remove(); return; }
+            const tm = e.target.closest('[data-zbtema]');
+            if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('Színvilág: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
             const ik = e.target.closest('[data-zbikon]');
             if(ik){ try { localStorage.setItem('sf_elet_icon', JSON.stringify(ik.dataset.zbikon)); } catch(_){}
                 if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A SZEM ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.'); return; }
@@ -10832,6 +10842,108 @@ window.sfApplyPageAccess = function(map){
     const g = () => { const on = scrollY > 6; document.querySelector('.mobile-bar')?.classList.toggle('gorgetve', on); document.documentElement.classList.toggle('sf-gorg', on); };
     addEventListener('scroll', g, { passive:true }); g();
 })();
+// ===== SZEM SZÍNVILÁG (választható téma) =====
+// A lila az alap. A többi téma nem kézzel átírt CSS: az app összes stílusszabályából
+// futás közben készül egy „átszínezett” másolat, ami csak privát módban (body.sf-privat)
+// érvényes. Így minden oldal és minden jövőbeli elem is egyszerre vált.
+window.SF_TEMAK = { lila:['Lila','#7c3aed','#e4dcfb'], ejszaka:['Éjszaka','#34d399','#0b1020'], zsalya:['Zsálya','#4f7a63','#f5f2ea'], ocean:['Óceán','#2563eb','#e8f1ff'] };
+window.sfTema = () => { try { const t = JSON.parse(localStorage.getItem('sf_szem_tema') || '"lila"'); return window.SF_TEMAK[t] ? t : 'lila'; } catch(e){ return 'lila'; } };
+window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK.lila)[2];
+(function(){
+    const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s2 = 0; const l = (mx + mn) / 2;
+        if(mx !== mn){ const d = mx - mn; s2 = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+            h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
+        return [h, s2, l]; };
+    const rgb = (h, s2, l) => { const k = n => (n + h / 30) % 12, a = s2 * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+        return [f(0), f(8), f(4)].map(v => Math.round(Math.max(0, Math.min(1, v)) * 255)); };
+    const lila = h => h >= 240 && h <= 345;
+    // téma → színátalakítás (szöveg- vagy felület-szín)
+    const ATAL = {
+        ejszaka(h, s2, l, tx){
+            if(s2 > .22 && lila(h)) h = 158;
+            if(tx){ if(l < .62) l = .93 - l * .45; return [h, s2, l]; }
+            if(l > .55){ l = .075 + (1 - l) * .32; if(s2 < .15){ h = 228; s2 = .38; } else s2 = Math.min(s2, .42); }
+            else if(l < .32 && s2 > .15){ h = 228; s2 = .45; }
+            return [h, s2, l]; },
+        zsalya(h, s2, l, tx){
+            if(s2 > .12 && h >= 235 && h <= 345){ h = 148; s2 = s2 * .45; }
+            else if(s2 > .25 && h >= 200 && h < 235 && !tx){ h = 150; s2 = s2 * .45; }
+            if(!tx && l > .93 && s2 < .12){ h = 42; s2 = .7; l = Math.max(l, .985); }
+            return [h, s2, l]; },
+        ocean(h, s2, l, tx){
+            if(s2 > .18 && h >= 245 && h <= 345) h = 218;
+            return [h, s2, l]; },
+    };
+    const SZOVEG = /^(color|fill|stroke|caret-color|-webkit-text-fill-color|text-decoration-color|column-rule-color)$/;
+    const SZIN = /#[0-9a-f]{8}\b|#[0-9a-f]{6}\b|#[0-9a-f]{3,4}\b|rgba?\([^)]*\)|\b(white|black)\b/gi;
+    function szinAt(tok, f, tx){
+        let r, g, b, a = 1; const t = tok.toLowerCase();
+        if(t === 'white'){ r = g = b = 255; } else if(t === 'black'){ r = g = b = 0; }
+        else if(t[0] === '#'){ let x = t.slice(1); if(x.length <= 4) x = x.split('').map(c => c + c).join('');
+            r = parseInt(x.slice(0, 2), 16); g = parseInt(x.slice(2, 4), 16); b = parseInt(x.slice(4, 6), 16); if(x.length === 8) a = parseInt(x.slice(6, 8), 16) / 255; }
+        else { const n = t.match(/[\d.]+%?/g) || []; if(n.length < 3) return tok; r = +n[0]; g = +n[1]; b = +n[2]; if(n[3] != null) a = n[3].endsWith('%') ? parseFloat(n[3]) / 100 : +n[3]; }
+        const [h, s2, l] = f(...hsl(r, g, b), tx), [R2, G2, B2] = rgb(h, s2, l);
+        return a < 1 ? `rgba(${R2},${G2},${B2},${+a.toFixed(3)})` : `rgb(${R2},${G2},${B2})`;
+    }
+    const elotag = sel => sel.split(/,(?![^(]*\))/).map(x => { x = x.trim();
+        if(/^:root\b/.test(x)) return x.replace(':root', 'body.sf-privat');
+        if(/^html\b/.test(x)) return /\sbody\b/.test(x) ? x.replace(/\sbody\b/, ' body.sf-privat') : x.replace(/^(html\S*)/, '$1 body.sf-privat');
+        if(/^body\b/.test(x)) return x.replace(/^body/, 'body.sf-privat');
+        return 'body.sf-privat ' + x; }).join(', ');
+    // cssText → [[név, érték, !important]] (a shorthandek var()-os értéke is megmarad)
+    function dekl(css){
+        const ki = []; let mely = 0, q = '', kezd = 0;
+        for(let i = 0; i <= css.length; i++){ const c = css[i];
+            if(q){ if(c === q && css[i - 1] !== '\\') q = ''; continue; }
+            if(c === '"' || c === "'") q = c; else if(c === '(') mely++; else if(c === ')') mely--;
+            else if((c === ';' && !mely) || i === css.length){ const x = css.slice(kezd, i).trim(); kezd = i + 1; const k = x.indexOf(':'); if(k < 1) continue;
+                let v = x.slice(k + 1).trim(); const fontos = /!\s*important$/i.test(v); if(fontos) v = v.replace(/!\s*important$/i, '').trim();
+                ki.push([x.slice(0, k).trim(), v, fontos]); } }
+        return ki;
+    }
+    function szabalyok(lista, f, ki){
+        for(const r of lista){
+            if(r.type === 1){   // stílusszabály
+                const d = []; let van = false;
+                for(const [nev, v0, fontos] of dekl(r.style.cssText)){
+                    const tx = SZOVEG.test(nev) || (nev.startsWith('--') && /(^--(tx|text|muted|mu|ap-tx|ap-mu|rm-tx|rm-mu|pzk-tx|pzk-mu)$|-tx$|-mu$)/.test(nev));
+                    // Sötét témában: a --navy főleg szövegszín, ezért világos lesz – a felületként használt helyei a --navy-fel-t kapják;
+                    // a sablonokba írt pasztell --b háttér pedig a sötét alapba keveredik.
+                    let v = v0; const ej = f === ATAL.ejszaka && !tx && !nev.startsWith('--');
+                    if(ej && /var\(--(navy|b)\)/.test(v)) v = v.replace(/var\(--navy\)/g, 'var(--navy-fel)').replace(/var\(--b\)/g, 'color-mix(in srgb, var(--b) 16%, #121a2e)');
+                    else if(!SZIN.test(v)){ SZIN.lastIndex = 0; continue; }
+                    SZIN.lastIndex = 0; van = true;
+                    d.push(`${nev}:${(/-image$|^background$|^mask$/.test(nev) ? v.replace(/\binitial\b/g, 'none') : v).replace(SZIN, m => szinAt(m, f, tx))}${fontos ? ' !important' : ''}`); }
+                if(van && r.selectorText) ki.push(`${elotag(r.selectorText)}{${d.join(';')}}`);
+            } else if(r.cssRules && (r.type === 4 || r.type === 12 || (r.conditionText != null && r.constructor && /Container|Supports|Media/.test(r.constructor.name)))){
+                const bel = []; szabalyok(r.cssRules, f, bel);
+                if(bel.length) ki.push(`${r.type === 4 ? '@media ' + r.media.mediaText : r.type === 12 ? '@supports ' + r.conditionText : '@container ' + r.conditionText}{${bel.join('')}}`);
+            }
+        }
+    }
+    const EXTRA = {
+        ejszaka: `body.sf-privat{color-scheme:dark;color:#e8ecf7;--navy:#e8ecf7;--navy-fel:#1f2a4a}
+            body.sf-privat :is(input,select,textarea):not([type=checkbox]):not([type=radio]):not([type=range]){background-color:#1a2136;color:#e8ecf7;border-color:#2a3350}
+            body.sf-privat ::placeholder{color:#7d86a0}`,
+        zsalya: '', ocean: '' };
+    let tag = null;
+    window.sfTemaKeszit = function(){
+        const t = window.sfTema();
+        if(!tag){ tag = document.createElement('style'); tag.id = 'sfTemaCss'; document.head.appendChild(tag); }
+        if(t === 'lila'){ tag.textContent = ''; return; }
+        const f = ATAL[t], ki = [];
+        for(const sh of [...document.styleSheets]){ if(sh.ownerNode === tag) continue; let rs; try { rs = sh.cssRules; } catch(e){ continue; } if(rs) szabalyok(rs, f, ki); }
+        tag.textContent = ki.join('\n') + (EXTRA[t] || '');
+    };
+    window.sfTemaBeallit = function(t){
+        try { localStorage.setItem('sf_szem_tema', JSON.stringify(t)); } catch(e){}
+        window.sfTemaKeszit();
+        if(document.body.classList.contains('sf-privat')){ const c = window.sfTemaTeteje();
+            document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c)); }
+    };
+    window.sfTemaKeszit();
+})();
+
 // ===== MOBIL MENÜ (hamburger + kicsúszó sidebar) =====
 (function(){
     const btn = document.getElementById('mobileMenuBtn');
