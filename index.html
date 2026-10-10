@@ -1429,8 +1429,12 @@
         .rd-terv-ik svg { width:20px; height:20px; }
         .rd-terv label { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
         .rd-terv label b { font-size:14px; color:#111827; } .rd-terv label span { font-size:12px; color:var(--muted); }
+        .rd-terv-eh { flex:none; display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #cfd8e6; border-radius:10px; padding:0 10px 0 4px; }
+        .rd-terv-eh input { width:64px; border:0; outline:none; font:inherit; font-size:14px; font-weight:700; color:var(--navy); text-align:right; padding:8px 2px; background:none; }
+        .rd-terv-eh em { font-style:normal; font-size:12px; font-weight:700; color:var(--muted); }
+        .ct-uf-eh { float:right; font-size:11px; font-weight:800; color:var(--blue); background:#eef4ff; border-radius:999px; padding:1px 7px; }
         .rd-terv select { flex:none; font:inherit; font-size:14px; font-weight:700; color:var(--navy); background:#fff; border:1px solid #cfd8e6; border-radius:10px; padding:8px 10px; min-width:160px; cursor:pointer; }
-        @media (max-width:560px){ .rd-terv { flex-wrap:wrap; } .rd-terv select { width:100%; } }
+        @media (max-width:560px){ .rd-terv { flex-wrap:wrap; } .rd-terv select { flex:1; } }
         .ct-osl-k { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; }
         .ct-osl-l { max-height:330px; overflow-y:auto; padding-right:2px; }   /* kb. 5 kártya, a többi görgethető */
         .ct-osl { background:#fff; border:1px solid #eef0f3; border-radius:12px; padding:8px; min-width:0; }
@@ -10888,11 +10892,19 @@ function ctSor(t, honap){
     const van = a ? a.van : ctSzam(s.van);
     const darabTerv = ctVan(s.darabTerv) ? ctSzam(s.darabTerv) : (a ? a.darabTerv : 0);
     const darabVan = a ? a.darabVan : ctSzam(s.darabVan);
-    return { s, a, terv, van, darabTerv, darabVan, zaras: ctSzam(s.zaras), infoCel: ctSzam(s.infoCel), infoVan: ctSzam(s.infoVan),
+    const ufEH = ctTervEH(t.uid);
+    return { s, a, terv, van, darabTerv, darabVan, ufEH, zaras: ctVan(s.zaras) ? ctSzam(s.zaras) : ufEH, infoCel: ctSzam(s.infoCel), infoVan: ctSzam(s.infoVan),
         infosok: String(s.infosok || '').split(',').map(x => x.trim()).filter(Boolean), k: (a && a.rang) || s.k || t.k || '' };
 }
 const ctSzin = p => p >= 80 ? '#16a34a' : p >= 50 ? '#eab308' : '#ef4444';
 function ctMini(v, t){ const p = t ? Math.round(v / t * 100) : 0; return `<div class="ct-mini"><i><s style="width:${Math.min(100, p)}%;background:${ctSzin(p)}"></s></i>${t ? p + '%' : '–'}</div>`; }
+// Az ügyfelekhez könyvelt tervezett egység (EH) az adott hónapra – a nem ügyfélként lezártak és inaktívak nélkül.
+const ctUfEH = r => parseFloat(String((r && r.egyseg) || '').replace(',', '.')) || 0;
+function ctTervUf(uid){
+    const ho = ctKulcs(ctHo);
+    return (window.sfAllClients || []).filter(r => r && r.ownerUid === uid && r.tervHo === ho && !regIsArchived(r.status) && !['Lezárt – Nem ügyfél', 'Inaktív'].includes(regStatusNorm(r.status)));
+}
+const ctTervEH = uid => uid ? ctTervUf(uid).reduce((a, r) => a + ctUfEH(r), 0) : 0;
 function ctPipe(t){
     if(!t.uid) return '<div class="ct-ures">Kézzel felvett munkatárs – az ügyfelei nincsenek a Sikerfüzetben.</div>';
     // Csak azok az ügyfelek, akiknél a „Tervezett hónap” a nézett hónap.
@@ -10900,11 +10912,13 @@ function ctPipe(t){
     const l = (window.sfAllClients || []).filter(r => r && r.ownerUid === t.uid && !regIsArchived(r.status) && r.tervHo === ho);
     const cs = [['Új', s => !s || s === 'Új'], ['Telefonra vár', s => s === 'Telefonra Vár'], ['Elemzés', s => s === 'Időpont egyeztetve' || s === 'Elemzés'],
         ['TA', s => s === 'Tanácsadás'], ['Lezárva', s => s === 'Lezárt – Ügyfél' || s === 'Lezárt – Nem ügyfél' || s === 'Inaktív']];
-    const kartya = r => `<div class="ct-uf"><b>${esc(r.name || 'Névtelen')}</b>${esc(r.status || 'Új')}${r.ajanlo ? ' · ajánló: ' + esc(r.ajanlo) : ''}<div>${r.mt ? '<span class="ct-t mt">MT</span>' : ''}${r.elemzes ? '<span class="ct-t">Elemzés ✓</span>' : ''}${r.tanacsadas ? '<span class="ct-t">Tanácsadás ✓</span>' : ''}${ctVan(r.ajanlasok) ? `<span class="ct-t">${esc(r.ajanlasok)} ajánlás</span>` : ''}</div></div>`;
-    return `<div class="ct-pipe-cim">${esc(t.n)} – tervezett ügyfelek · ${esc(ctHoNev(ctHo).split(' · ')[0])} (${l.length})</div>
+    const kartya = r => `<div class="ct-uf"><b>${esc(r.name || 'Névtelen')}${ctUfEH(r) ? `<span class="ct-uf-eh">${ctFt(ctUfEH(r))} EH</span>` : ''}</b>${esc(r.status || 'Új')}${r.ajanlo ? ' · ajánló: ' + esc(r.ajanlo) : ''}<div>${r.mt ? '<span class="ct-t mt">MT</span>' : ''}${r.elemzes ? '<span class="ct-t">Elemzés ✓</span>' : ''}${r.tanacsadas ? '<span class="ct-t">Tanácsadás ✓</span>' : ''}${ctVan(r.ajanlasok) ? `<span class="ct-t">${esc(r.ajanlasok)} ajánlás</span>` : ''}</div></div>`;
+    const ehOssz = ctTervEH(t.uid), ehLez = l.filter(r => regStatusNorm(r.status) === 'Lezárt – Ügyfél').reduce((a, r) => a + ctUfEH(r), 0);
+    return `<div class="ct-pipe-cim">${esc(t.n)} – tervezett ügyfelek · ${esc(ctHoNev(ctHo).split(' · ')[0])} (${l.length})${ehOssz ? ` · <b>${ctFt(ehOssz)} EH</b> tervezve, ebből ${ctFt(ehLez)} EH lezárva` : ''}</div>
         ${l.length ? '' : '<div class="ct-ures" style="margin-bottom:8px">Ehhez a hónaphoz még nincs tervezett ügyfél – a 10 perces füzetben az ügyfél adatlapján a „Tervezett hónap” mezőben állítható.</div>'}
         <div class="ct-osl-k">${cs.map(([n, f]) => { const x = l.filter(r => f(regStatusNorm(r.status)));
-        return `<div class="ct-osl"><h4>${n} <span>${x.length}</span></h4><div class="ct-osl-l">${x.map(kartya).join('') || '<div class="ct-ures">Nincs.</div>'}</div></div>`; }).join('')}</div>`;
+        const eh = x.reduce((a, r) => a + ctUfEH(r), 0);
+        return `<div class="ct-osl"><h4>${n} <span>${x.length}${eh ? ` · ${ctFt(eh)} EH` : ''}</span></h4><div class="ct-osl-l">${x.map(kartya).join('') || '<div class="ct-ures">Nincs.</div>'}</div></div>`; }).join('')}</div>`;
 }
 function ctInp(t, mezo, ertek, cls, ph){ return `<input class="${cls || ''}" data-ctf="${esc(t.id)}|${mezo}" value="${esc(ctVan(ertek) ? ertek : '')}" inputmode="${cls === 'szo' ? 'text' : 'decimal'}" placeholder="${esc(ph || '')}">`; }
 function ctHtml(){
@@ -10923,7 +10937,7 @@ function ctHtml(){
         return `<tr><td>${i + 1}</td><td><button type="button" class="ct-nev ${ny ? 'nyitva' : ''}" data-ctnyit="${esc(t.id)}">${esc(t.n)}</button> ${r.k ? `<span class="ct-k ${esc(r.k)}">${esc(r.k)}</span>` : ''}</td>
         <td>${ctInp(t, 'terv', r.s.terv, '', r.a && r.a.terv ? String(r.a.terv) : '')}</td>
         <td>${r.a ? `${ctFt(r.van)}<span class="ct-auto" title="A munkatárs Havi tervéből">AUTO</span>` : ctInp(t, 'van', r.s.van)}</td>
-        <td>${ctMini(r.van, r.terv)}</td><td>${ctInp(t, 'zaras', r.s.zaras)}</td>
+        <td>${ctMini(r.van, r.terv)}</td><td>${ctInp(t, 'zaras', r.s.zaras, '', r.ufEH ? String(r.ufEH) : '')}${r.ufEH && !ctVan(r.s.zaras) ? '<span class="ct-auto" title="Az ügyfeleihez könyvelt, erre a hónapra tervezett egység">ÜF</span>' : ''}</td>
         <td>${r.a ? ctFt(r.darabVan) : ctInp(t, 'darabVan', r.s.darabVan, 'kicsi')} / ${ctInp(t, 'darabTerv', r.s.darabTerv, 'kicsi', r.a && r.a.darabTerv ? String(r.a.darabTerv) : '')}</td>
         <td>${ctInp(t, 'infoVan', r.s.infoVan, 'kicsi')} / ${ctInp(t, 'infoCel', r.s.infoCel, 'kicsi')}</td>
         <td>${ctInp(t, 'infosok', r.s.infosok, 'szo', 'nevek vesszővel')}</td>
@@ -17395,7 +17409,8 @@ function regTervBadge(r){
     const ma = new Date(), most = `${ma.getFullYear()}-${String(ma.getMonth() + 1).padStart(2, '0')}`;
     const cls = v === most ? 'most' : v < most ? 'mult' : '';
     const nev = (v.slice(0, 4) !== String(ma.getFullYear()) ? v.slice(0, 4) + '. ' : '') + REG_HO_ROV[+v.slice(5) - 1];
-    return `<span class="reg-terv-badge ${cls}" title="Tervezett hónap: ${esc(v.slice(0, 4) + '. ' + HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase())}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>${esc(nev)}</span>`;
+    const eh = parseFloat(String(r.egyseg || '').replace(',', '.')) || 0;
+    return `<span class="reg-terv-badge ${cls}" title="Tervezett hónap: ${esc(v.slice(0, 4) + '. ' + HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase())}${eh ? ' · ' + eh + ' EH' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>${esc(nev)}${eh ? ` · ${eh} EH` : ''}</span>`;
 }
 function regTervHoOpts(v){
     const ma = new Date(), l = [];
@@ -17417,8 +17432,9 @@ function rdAdatokFields(r, i){
     };
     return `<div class="rd-terv${r.tervHo ? ' van' : ''}">
             <span class="rd-terv-ik">${RD_TARGET_IC}</span>
-            <label><b>Tervezett hónap</b><span>${r.tervHo ? 'Ebben a hónapban látszik a Csapattervben' : 'Állítsd be, hogy a Csapattervben megjelenjen'}</span></label>
+            <label><b>Tervezett hónap és egység</b><span>${r.tervHo ? 'Ebben a hónapban, ennyi egységgel számol a Csapatterv' : 'Állítsd be, hogy a Csapattervben megjelenjen'}</span></label>
             <select data-ri="${i}" data-rf="tervHo" aria-label="Tervezett hónap">${regTervHoOpts(r.tervHo)}</select>
+            <span class="rd-terv-eh"><input type="number" min="0" step="1" inputmode="decimal" data-ri="${i}" data-rf="egyseg" value="${esc(r.egyseg||'')}" placeholder="0" aria-label="Tervezett egység (EH)"><em>EH</em></span>
         </div>
         <div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
