@@ -1414,11 +1414,14 @@
         .ct-pipe td { background:#fbfcfe; white-space:normal; }
         .ct-pipe-b { padding:4px 4px 10px 26px; }
         .ct-pipe-cim { font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; margin:6px 0 8px; }
-        .reg-terv-badge { display:inline-flex; align-items:center; gap:4px; margin-left:6px; flex:none; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px 2px 6px;
+        .reg-terv-badge { display:inline-flex; align-items:center; gap:3px; margin-left:6px; flex:none; font-size:10.5px; font-weight:700; border-radius:999px; padding:1px 7px 1px 5px;
                           border:1.5px solid #93b4f5; color:var(--blue); background:#fff; white-space:nowrap; vertical-align:middle; }
         .reg-terv-badge svg { width:12px; height:12px; }
         .reg-terv-pipe { margin-left:0; }
-        .reg-name-cell:has(.reg-terv-badge) .reg-name { width:auto; min-width:0; flex:0 1 auto; }
+        .reg-name-cell:has(.reg-kt-mini) .reg-name { width:auto; min-width:0; flex:0 1 auto; }
+        .reg-kt-mini { flex:none; font-size:10px; font-weight:800; color:#15803d; background:#dcfce7; border-radius:999px; padding:1px 6px; white-space:nowrap; }
+        .reg-st-cell { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
+        .reg-st-cell .reg-terv-badge { margin-left:2px; }
         .reg-name-cell .reg-terv-badge { margin-left:0; }
         .reg-terv-badge.most { background:var(--blue); border-color:var(--blue); color:#fff; }
         .reg-terv-badge.mult { border-color:#fca5a5; color:#dc2626; }
@@ -6267,6 +6270,12 @@
             .pz-fk-kartya > .pz-fk-sor:only-child { border-radius:26px; }
             .pz-fk-sor:hover { background:rgba(255,255,255,.35); }
             .pz-fk-sor.sel { background:rgba(99,102,241,.12); }
+            .pz-fk-sor.jelolt { background:rgba(37,99,235,.13); box-shadow:inset 3px 0 0 var(--blue); }
+            .pz-fk-sor.jelolt .pz-jelolo { background:var(--blue); border-color:var(--blue); color:#fff; }
+            .pz-fk-sor .j { display:flex; align-items:center; }
+            .pz-reszlet-ures { align-items:center; justify-content:center; text-align:center; min-height:260px; }
+            .pz-reszlet-ures > div { display:flex; flex-direction:column; align-items:center; gap:6px; color:#6b7280; font-size:12.5px; line-height:1.45; padding:10px; }
+            .pz-reszlet-ures b { font-size:14px; color:#111827; } .pz-reszlet-ures svg { width:26px; height:26px; color:#a5b4fc; } .pz-reszlet-ures small { color:#9ca3af; margin-top:4px; }
             .pz-fk-sor:focus { outline:none; }
             .pz-fk-sor > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
             .pz-fk-sor .w { color:#6b7280; font-size:13px; }
@@ -15159,7 +15168,9 @@ function pzReszletTalal(){
 const pzKereskKulcs = x => pzSlug(pzNevTiszta(x.m || '')) || ('k:' + (x.k || '') + '|' + (x.a || ''));
 const pzReszletHonapok = () => { const l = []; for(let i = 5; i >= 0; i--) l.push(pzHoLep(pzMaHo(), -i)); return l; };
 function pzReszletHtml(){
-    const t = pzReszletTalal(); if(!t) return '';
+    const t = pzReszletTalal();
+    // Üresen is ott a hely (a lista szélessége ne változzon kijelöléskor, ne ugorjon a sor).
+    if(!t) return `<aside class="card pz-reszlet pz-reszlet-ures" aria-label="Tétel részletei"><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><b>Válassz ki egy tételt</b><span>Itt szerkesztheted az összegét, kategóriáját, tárcáját, dátumát, és csatolhatsz hozzá számlát.</span><small>↑ ↓ – lépkedés a tételek között</small></div></aside>`;
     const atu = t.t === 'atu', ik = atu ? { i:'atutal', c:'kek' } : pzIkon(t.k), x = new Date(t.d + 'T12:00:00');
     const w = t.p ? pzTarcaOf(t.p) : null, a = atu ? pzTarcaOf(t.p) : null, b2 = atu ? pzTarcaOf(t.p2) : null;
     const nev = pzNevTiszta(t.m) || t.a || t.k || (atu ? 'Átutalás' : '—');
@@ -15202,8 +15213,11 @@ function pzReszletHtml(){
     </aside>`;
 }
 function pzReszletNyit(id){
+    // A kijelölt sor maradjon a helyén a képernyőn (az újrarajzolás ne görgessen el).
+    const sorEl = id && document.querySelector(`#pzNaplo [data-pztid="${CSS.escape(id)}"]`), elotte = sorEl ? sorEl.getBoundingClientRect().top : null;
     pzReszletId = id || '';
-    renderPzNaplo();
+    const r = renderPzNaplo();
+    if(elotte != null) Promise.resolve(r).then(() => { const uj = document.querySelector(`#pzNaplo [data-pztid="${CSS.escape(id)}"]`); if(uj){ const d = uj.getBoundingClientRect().top - elotte; if(Math.abs(d) > 1) window.scrollBy(0, d); } });
     if(id){ const hok = pzReszletHonapok().filter(h => !pzTranz[h]);
         if(hok.length) Promise.all(hok.map(h => pzLoadTranz(h))).then(() => { if(pzReszletId === id && pzView === 'naplo') renderPzNaplo(); }); }
 }
@@ -15474,7 +15488,7 @@ async function renderPzNaplo(){
         <button type="button" class="pz-mini-g" data-pzmini="ker" aria-label="Keresés">${pzSvg('kereses')}</button>
         <button type="button" class="pz-mini-g" data-pzmini="sz" aria-label="Szűrők">${pzSvg('szuro')}</button>
     </div>
-    <div class="pz-b-lay${pzNezet === 'tabla' ? ' tabla' : ''}${pzHuzhato ? ' pz-huzhato' : ''}${pzAszt && pzNezet !== 'tabla' ? ' fk' : ''}${pzAszt && pzReszletTalal() ? ' reszlet' : ''}">
+    <div class="pz-b-lay${pzNezet === 'tabla' ? ' tabla' : ''}${pzHuzhato ? ' pz-huzhato' : ''}${pzAszt && pzNezet !== 'tabla' ? ' fk' : ''}${pzAszt && pzNezet !== 'tabla' ? ' reszlet' : ''}">
         <aside class="card pz-b-bal">
             <div class="pz-netto"><span class="c">Nettó vagyon</span><b>${pzNetto() < 0 ? '−' : ''}${pzFt(Math.abs(pzNetto()))} Ft</b>
                 <span class="s">${pzTarcaOssz() < 0 ? '−' : ''}${pzFt(Math.abs(pzTarcaOssz()))} Ft a tárcákban</span></div>
@@ -17692,7 +17706,7 @@ function renderRegTable(matched){
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
                 <div class="reg-person-meta">
-                    <div class="reg-name-cell">${cliDot(r)}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-badge" title="Kiértékelő telefon elvégezve">Értékelve</span>' : ''}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}">${hasName?esc(r.name):'Nincs név megadva'}</button>${regTervBadge(r)}</div>
+                    <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button>${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<span class="reg-kt-mini" title="Kiértékelő telefon elvégezve">✓ Értékelve</span>' : ''}</div>
                     <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r, !open)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"${lk}></div>
                 </div>
             </div>
@@ -17700,7 +17714,7 @@ function renderRegTable(matched){
             <div><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="telefonszám"${lk}></div>
             <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp,!open)}</div></div>
             <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="település"${lk}></div>
-            <div>${regStatusSelect(i, r.status, !open)}</div>
+            <div class="reg-st-cell">${regStatusSelect(i, r.status, !open)}${regTervBadge(r)}</div>
             <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"${lk}></div>
             <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes,!open)}${flagChip(i,'portal','PF',r.portal,!open)}${flagChip(i,'tanacsadas','TA',r.tanacsadas,!open)}</div></div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
