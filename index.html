@@ -1458,7 +1458,7 @@
         .ct-uf-eh { float:right; font-size:11px; font-weight:800; color:var(--blue); background:#eef4ff; border-radius:999px; padding:1px 7px; }
         .rd-terv select { flex:none; font:inherit; font-size:14px; font-weight:700; color:var(--navy); background:#fff; border:1px solid #cfd8e6; border-radius:10px; padding:8px 10px; min-width:160px; cursor:pointer; }
         @media (max-width:560px){ .rd-terv { flex-wrap:wrap; } .rd-terv select { flex:1; } }
-        .ct-osl-k { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; }
+        .ct-osl-k { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:10px; }
         .ct-osl-l { max-height:330px; overflow-y:auto; padding-right:2px; }   /* kb. 5 kártya, a többi görgethető */
         .ct-osl { background:#fff; border:1px solid #eef0f3; border-radius:12px; padding:8px; min-width:0; }
         .ct-osl h4 { margin:0 0 7px; font-size:11.5px; display:flex; justify-content:space-between; color:#374151; }
@@ -10953,8 +10953,8 @@ function ctPipe(t){
     // Csak azok az ügyfelek, akiknél a „Tervezett hónap” a nézett hónap.
     const ho = ctKulcs(ctHo);
     const l = (window.sfAllClients || []).filter(r => r && r.ownerUid === t.uid && !regIsArchived(r.status) && r.tervHo === ho);
-    const cs = [['Új', s => !s || s === 'Új'], ['Telefonra vár', s => s === 'Telefonra Vár'], ['Elemzés', s => s === 'Időpont egyeztetve' || s === 'Elemzés'],
-        ['TA', s => s === 'Tanácsadás'], ['Lezárva', s => s === 'Lezárt – Ügyfél' || s === 'Lezárt – Nem ügyfél' || s === 'Inaktív']];
+    const cs = [['Új', s => !s || s === 'Új'], ['Telefonra vár', s => s === 'Telefonra Vár'], ['Elemzés', s => s === 'Elemzés'],
+        ['TA', s => s === 'Tanácsadás'], ['Szerviz', s => s === 'Szerviz'], ['Lezárva', s => s === 'Lezárt – Ügyfél' || s === 'Lezárt – Nem ügyfél' || s === 'Inaktív']];
     const kartya = r => `<div class="ct-uf"><b>${esc(r.name || 'Névtelen')}${ctUfEH(r) ? `<span class="ct-uf-eh">${ctFt(ctUfEH(r))} EH</span>` : ''}</b>${esc(r.status || 'Új')}${r.ajanlo ? ' · ajánló: ' + esc(r.ajanlo) : ''}<div>${r.mt ? '<span class="ct-t mt">MT</span>' : ''}${r.elemzes ? '<span class="ct-t">Elemzés ✓</span>' : ''}${r.tanacsadas ? '<span class="ct-t">Tanácsadás ✓</span>' : ''}${ctVan(r.ajanlasok) ? `<span class="ct-t">${esc(r.ajanlasok)} ajánlás</span>` : ''}</div></div>`;
     const ehOssz = ctTervEH(t.uid), ehLez = l.filter(r => regStatusNorm(r.status) === 'Lezárt – Ügyfél').reduce((a, r) => a + ctUfEH(r), 0);
     return `<div class="ct-pipe-cim">${esc(t.n)} – tervezett ügyfelek · ${esc(ctHoNev(ctHo).split(' · ')[0])} (${l.length})${ehOssz ? ` · <b>${ctFt(ehOssz)} EH</b> tervezve, ebből ${ctFt(ehLez)} EH lezárva` : ''}</div>
@@ -17139,15 +17139,15 @@ const REG_FIELDS = [
     {key:'ajanlasok', label:'Adott ajánlás', type:'text'},
 ];
 const REG_STATUS = [
-    ['Folyamatban', ['Új','Telefonra Vár','Időpont egyeztetve','Elemzés','Tanácsadás']],
+    ['Folyamatban', ['Új','Telefonra Vár','Elemzés','Tanácsadás','Szerviz']],
     ['Lezárt', ['Lezárt – Ügyfél','Lezárt – Nem ügyfél','Inaktív']],
     // Az archivált sor nem vész el, csak kikerül a listából – a Szűrők panel
     // "Archivált" kapcsolójával bármikor visszahozható.
     ['Archív', ['Archív']],
 ];
 const REG_STATUS_COLOR = {
-    'Új':'gray', 'Telefonra Vár':'green', 'Időpont egyeztetve':'blue',
-    'Elemzés':'amber', 'Tanácsadás':'purple',
+    'Új':'gray', 'Telefonra Vár':'green',
+    'Elemzés':'amber', 'Tanácsadás':'purple', 'Szerviz':'blue',
     'Lezárt – Ügyfél':'teal', 'Lezárt – Nem ügyfél':'red', 'Inaktív':'gray',
     'Archív':'slate'
 };
@@ -17155,7 +17155,8 @@ const REG_STATUS_COLOR = {
 // ügyfél, ezért kiment a listából – a meglévő adatot a beszélgetés szerint
 // ügyfélnek vesszük. A normalizálás betöltéskor fut, így a következő mentéssel
 // magától átíródik; ez a tábla csak az átállás idejére kell.
-const REG_STATUS_LEGACY = { 'Elemzés folyamatban':'Elemzés', 'Lezárt':'Lezárt – Ügyfél' };
+// Az „Időpont egyeztetve” kikerült (2026-10): az ilyen ügyfelek az Elemzésbe kerülnek.
+const REG_STATUS_LEGACY = { 'Elemzés folyamatban':'Elemzés', 'Lezárt':'Lezárt – Ügyfél', 'Időpont egyeztetve':'Elemzés' };
 function regStatusNorm(s){ const v = String(s||''); return REG_STATUS_LEGACY[v] || v; }
 const regIsClosed = s => String(s||'').indexOf('Lezárt') === 0;
 const REG_ARCHIVE = 'Archív';
@@ -17829,9 +17830,9 @@ function regCardDetailHtml(i){
 const REG_PIPE_COLS = [
     { key:'Új',                  label:'Új',            color:'#94a3b8' },
     { key:'Telefonra Vár',       label:'Telefonra vár', color:'#16a34a' },
-    { key:'Időpont egyeztetve',  label:'Időpont',       color:'#2563eb' },
     { key:'Elemzés',             label:'Elemzés',       color:'#d97706' },
     { key:'Tanácsadás',          label:'Tanácsadás',    color:'#7c3aed' },
+    { key:'Szerviz',             label:'Szerviz',       color:'#2563eb' },
 ];
 // A lezárt oldal: külön oszlop annak, akiből ügyfél lett, és annak, akiből nem.
 // A KPI-sáv csak a folyamatban lévő oszlopokat számolja, ezért maradnak külön.
