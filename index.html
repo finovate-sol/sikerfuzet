@@ -923,7 +923,7 @@
         .rc-head { display:grid; grid-template-columns:var(--rc-cols); gap:12px; padding:0 16px 9px; font-size:9.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:800; }
         .rc-head > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .rc-head .c { text-align:center; }
-        #regRows { --rc-cols:minmax(190px,1.1fr) minmax(120px,1fr) 118px minmax(90px,.75fr) minmax(150px,.9fr) 150px 56px 168px 44px; }
+        #regRows { --rc-cols:minmax(190px,1.1fr) minmax(120px,1fr) 118px minmax(90px,.75fr) minmax(150px,.9fr) 150px 56px 168px 54px 40px; }
         #regRows .rc-head { display:none; }
         #regRows .rc-line { gap:10px; padding:10px 14px; min-height:64px; }
         .rc-mezo { min-width:0; display:flex; flex-direction:column; gap:2px; }
@@ -1451,6 +1451,22 @@
         .reg-name-cell .reg-terv-badge { margin-left:0; }
         .reg-terv-badge.most { background:var(--blue); border-color:var(--blue); color:#fff; }
         .reg-terv-badge.mult { border-color:#fca5a5; color:#dc2626; }
+        .rc-rating { position:relative; display:inline-grid; place-items:center; width:42px; height:42px; border-radius:50%;
+                     background:conic-gradient(var(--c) calc(var(--p) * 1%), #e8edf4 0); }
+        .rc-rating::before { content:""; position:absolute; inset:4px; border-radius:50%; background:#fff; }
+        .rc-rating b { position:relative; font-size:11px; font-weight:800; color:#111827; }
+        .rc-rating i { position:absolute; right:-3px; top:-3px; width:15px; height:15px; border-radius:50%; background:#f59e0b; color:#fff; border:2px solid #fff;
+                       font-style:normal; font-size:9px; font-weight:900; display:grid; place-items:center; box-sizing:content-box; }
+        .rc-rating.ures { background:#eef1f5; color:#9ca3af; font-weight:800; } .rc-rating.ures::before { display:none; }
+        .rc-rating.nagy { width:58px; height:58px; } .rc-rating.nagy::before { inset:5px; } .rc-rating.nagy b { font-size:14px; }
+        .rd-rating { border:1px solid #e3e8f0; border-radius:12px; padding:12px 14px; margin:0 0 14px; background:#fbfcfe; }
+        .rd-rating-fej { display:flex; align-items:center; gap:12px; } .rd-rating-fej > div { display:flex; flex-direction:column; gap:2px; }
+        .rd-rating-fej b { font-size:14px; color:#111827; } .rd-rating-fej span { font-size:12px; color:var(--muted); } .rd-rating-fej em { font-style:normal; color:#d97706; font-weight:700; }
+        .rd-rating-sz { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+        .rd-rating-sz span { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#374151; background:#fff; border:1px solid #e3e8f0; border-radius:999px; padding:3px 4px 3px 10px; }
+        .rd-rating-sz span b { min-width:20px; height:20px; border-radius:999px; background:var(--blue); color:#fff; font-size:11px; display:grid; place-items:center; }
+        .rd-rating-sz span.hiany { color:#9ca3af; } .rd-rating-sz span.hiany b { background:#e5e7eb; color:#9ca3af; }
+        .rd-pt { font-style:normal; color:#f59e0b; }
         .rd-terv { display:flex; align-items:center; gap:12px; margin:0 0 14px; padding:12px 14px; border-radius:12px; background:#fff7ed; border:1.5px solid #fdba74; }
         .rd-terv.van { background:#eef4ff; border-color:#93b4f5; }
         .rd-terv-ik { width:38px; height:38px; flex:none; border-radius:10px; display:grid; place-items:center; background:#f97316; color:#fff; }
@@ -8385,6 +8401,7 @@
                     <option value="munkatars">Tanácsadó</option>
                   </select>
                 </label>
+                <label class="reg-group" title="Rendezés"><select class="reg-groupsel" id="regRendSel"><option value="">Legújabb elöl</option><option value="rating">Rating szerint</option></select></label>
                 <button class="btn" id="regFToggle" title="Szűrők"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg><span>Szűrők</span><span class="reg-fcount" id="regFCount" hidden></span></button>
                 <button class="btn icon-btn" id="regReset" title="Szűrők és keresés törlése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
                 <button class="btn" id="regPdfBtn" title="Ajánlólap beolvasása PDF-ből vagy fotóról / képernyőképről – vagy egyszerűen húzd rá az oldalra"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg><span>PDF / kép</span></button>
@@ -17562,10 +17579,45 @@ function regTervHoOpts(v){
     const nev = k => `${k.slice(0, 4)}. ${HU_MONTHS_FULL[+k.slice(5) - 1].toLowerCase()}`;
     return `<option value=""${v ? '' : ' selected'}>—</option>` + l.map(k => `<option value="${k}"${k === v ? ' selected' : ''}>${nev(k)}</option>`).join('');
 }
+// ===== Rating: mennyire könnyű az ügyféltalálkozó (az Excel „Telefonparty ToDo” pontozása) =====
+// Öt szempont, egyenként 1–5 pont, egyenlő súllyal. A % a KITÖLTÖTT szempontokból számol;
+// ha valami hiányzik, a sorban „!” jelzi.
+const RD_LAKHELYZET_OPTS = [['Albérlet', 3], ['Szülőknél lakik', 3], ['Hiteles ingatlan', 4], ['Tehermentes saját ingatlan', 5]];
+const RD_LEGKISEBB_OPTS = [['0–3 év', 5], ['3–8 év', 5], ['8–12 év', 5], ['12–18 év', 4], ['Terveznek gyereket', 3], ['Nincs / felnőttek', 3]];
+const RD_KAPCSOLAT_OPTS = [['Távoli ismerős', 1], ['Régen beszéltek', 2], ['Haveri kategória', 3], ['Jó ismerős', 4], ['Legjobb barát / közeli hozzátartozó', 5]];
+const RD_VAGYON_OPTS = [['Pénzügyi helyzet könnyítése', 1], ['Tud megtakarítani / meglévők átnézése', 3], ['Befektetés és megtakarítás is aktuális', 5]];
+const rdKorPont = v => { const n = parseInt(String(v || '').replace(/[^\d]/g, ''), 10); if(!n) return null;
+    return n < 18 ? 1 : n < 25 ? 2 : n < 35 ? 4 : n < 55 ? 5 : 2; };
+const rdOptPont = (l, v) => { const x = l.find(o => o[0] === v); return x ? x[1] : null; };
+function regRating(r){
+    const d = (r && r.details) || {};
+    const reszek = [
+        ['Életkor', rdKorPont(d.eletkor), d.eletkor ? d.eletkor + ' év' : ''],
+        ['Lakáshelyzet', rdOptPont(RD_LAKHELYZET_OPTS, d.lakhelyzet), d.lakhelyzet],
+        ['Legkisebb gyerek', rdOptPont(RD_LEGKISEBB_OPTS, d.legkisebb), d.legkisebb],
+        ['Kapcsolat', rdOptPont(RD_KAPCSOLAT_OPTS, d.kapcsolat), d.kapcsolat],
+        ['Vagyoni helyzet', rdOptPont(RD_VAGYON_OPTS, d.vagyon), d.vagyon]];
+    const meg = reszek.filter(x => x[1] != null), pont = meg.reduce((a, x) => a + x[1], 0);
+    return { pct: meg.length ? Math.round(pont / (meg.length * 5) * 100) : null, n: meg.length, pont, max: meg.length * 5, reszek };
+}
+const regRatingSzin = p => p == null ? '#cbd5e1' : p >= 80 ? '#16a34a' : p >= 60 ? '#d97706' : '#dc2626';
+function regRatingHtml(r){
+    const x = regRating(r), hiany = 5 - x.n;
+    const tip = x.reszek.map(([n, p, v]) => `${n}: ${p != null ? p + ' pont (' + v + ')' : 'hiányzik'}`).join('\n');
+    if(x.pct == null) return `<span class="rc-rating ures" title="Rating: még nincs adat\n${esc(tip)}">–</span>`;
+    return `<span class="rc-rating" style="--p:${x.pct};--c:${regRatingSzin(x.pct)}" title="Rating: ${x.pct}% (${x.pont}/${x.max} pont, ${x.n}/5 adat)\n${esc(tip)}"><b>${x.pct}%</b>${hiany ? '<i>!</i>' : ''}</span>`;
+}
+function rdRatingDoboz(r){
+    const x = regRating(r);
+    return `<div class="rd-rating"><div class="rd-rating-fej"><span class="rc-rating nagy" style="--p:${x.pct || 0};--c:${regRatingSzin(x.pct)}"><b>${x.pct == null ? '–' : x.pct + '%'}</b></span>
+        <div><b>Rating – mennyire könnyű a találkozó</b><span>${x.n ? `${x.pont}/${x.max} pont · ${x.n}/5 szempont kitöltve` : 'Töltsd ki az alábbi mezőket'}${x.n < 5 ? ' · <em>! hiányzó adat</em>' : ''}</span></div></div>
+        <div class="rd-rating-sz">${x.reszek.map(([n, p, v]) => `<span class="${p == null ? 'hiany' : ''}">${esc(n)}<b>${p == null ? '–' : p}</b></span>`).join('')}</div></div>`;
+}
 function rdAdatokFields(r, i){
     const f = (key,label) => `<div class="rd-field"><label>${label}</label><input data-d="${key}" value="${esc(r.details[key]||'')}"></div>`;
     // Lenyíló lista, de a korábban szabadon beírt, a felsorolásban nem szereplő
     // érték sem vész el – bekerül egy extra, kiválasztott opcióként.
+    const fPont = (key, label, opts) => fSel(key, label.replace(' ★', ' <i class="rd-pt" title="Beleszámít a ratingbe">★</i>'), opts.map(o => o[0]));
     const fSel = (key,label,options) => {
         const val = r.details[key] || '';
         const extra = (val && !options.includes(val)) ? `<option value="${esc(val)}" selected>${esc(val)}</option>` : '';
@@ -17579,14 +17631,20 @@ function rdAdatokFields(r, i){
             <select data-ri="${i}" data-rf="tervHo" aria-label="Tervezett hónap">${regTervHoOpts(r.tervHo)}</select>
             <span class="rd-terv-eh"><input type="number" min="0" step="1" inputmode="decimal" data-ri="${i}" data-rf="egyseg" value="${esc(r.egyseg||'')}" placeholder="0" aria-label="Tervezett egység (EH)"><em>EH</em></span>
         </div>
+        ${rdRatingDoboz(r)}
         <div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
-            ${f('eletkor','Életkor')}
+            <div class="rd-field"><label>Életkor (év) <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><input data-d="eletkor" type="number" min="0" max="120" inputmode="numeric" value="${esc(String(r.details.eletkor||'').replace(/[^\d]/g,''))}"></div>
             <div class="rd-field"><label>Település</label><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely||'')}" placeholder="település"></div>
             ${f('miert','Miért gondolt rá')}
-            ${fSel('lakas','Lakáshelyzet / Családi állapot', RD_LAKAS_OPTS)}
-            ${f('foglalkozas','Foglalkozás / Honnan ismeri')}
-            ${fSel('gyerekek','Gyerekek száma / Életkora', RD_GYEREK_OPTS)}
+            ${fPont('lakhelyzet','Lakáshelyzet ★', RD_LAKHELYZET_OPTS)}
+            ${fSel('lakas','Családi állapot', RD_LAKAS_OPTS)}
+            ${fPont('kapcsolat','Mennyire közeli ★', RD_KAPCSOLAT_OPTS)}
+            ${f('honnan','Honnan ismeri')}
+            ${f('foglalkozas','Foglalkozás')}
+            ${fPont('vagyon','Vagyoni helyzet / cél ★', RD_VAGYON_OPTS)}
+            ${fSel('gyerekek','Gyerekek száma', RD_GYEREK_OPTS)}
+            ${fPont('legkisebb','Legkisebb gyerek életkora ★', RD_LEGKISEBB_OPTS)}
             <div class="rd-field"><label>Tőle kapott ajánlások száma</label><input type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}"></div>
         </div>
         <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div>`;
@@ -17624,6 +17682,7 @@ function regDetailHtml(i){
 function regArchivedVisible(){
     return regShowArchived || regActiveFilters().some(f => f.field === 'status' && f.value === REG_ARCHIVE);
 }
+let regRend = store.load('sf_regrend', '');   // '' = legújabb elöl, 'rating' = legkönnyebb találkozó elöl
 function regMatched(){
     const q=(regSearch||'').trim().toLowerCase();
     const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
@@ -17635,6 +17694,7 @@ function regMatched(){
     // adatot csak azért, hogy az újak felülre kerüljenek. Az eredeti registry-
     // indexet (i) végig magával viszi minden sor, így a szerkesztés és a mentés
     // ugyanarra a rekordra mutat, mint rendezés nélkül.
+    if(regRend === 'rating') return out.sort((a,b) => (regRating(b.r).pct ?? -1) - (regRating(a.r).pct ?? -1) || a.i - b.i);
     out.sort((a,b)=>{
         const ta = a.r.created || '', tb = b.r.created || '';
         if(ta && tb) return tb.localeCompare(ta);
@@ -17771,6 +17831,7 @@ function renderRegTable(matched){
             <div class="rc-mezo"><small>Státusz</small>${regStatusSelect(i, r.status, false).replace('class="status-sel', 'class="status-sel szabad')}</div>
             <div class="rc-ajanl" title="Az ügyféltől kapott ajánlások száma"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0"${lk}><span>ajánlás</span></div>
             <div class="rc-lepesek">${regLepesek(i, r, false)}</div>
+            <div class="c">${regRatingHtml(r)}</div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
         ${open ? regCardDetailHtml(i) : ''}</div>`;
@@ -18312,6 +18373,8 @@ function openRegAddModal(){
     });
     tbl.addEventListener('change', e=>{
         const t=e.target;
+        // a rating szempontjai: a kiválasztás után a % (sorban és adatlapon) frissüljön
+        if(t.dataset.d!==undefined && ['eletkor','lakhelyzet','legkisebb','kapcsolat','vagyon'].includes(t.dataset.d)){ renderRegistry(); return; }
         if(t.dataset.ri===undefined) return;
         const idx=+t.dataset.ri;
         if(t.type==='checkbox'){
@@ -18355,6 +18418,8 @@ function openRegAddModal(){
     if(gSel){
         gSel.value = regGroupBy;
         gSel.addEventListener('change', ()=>{ regGroupBy = gSel.value; store.save('sf_reggroup', regGroupBy); renderRegistry(); });
+        const rSel = document.getElementById('regRendSel');
+        if(rSel){ rSel.value = regRend; rSel.addEventListener('change', ()=>{ regRend = rSel.value; store.save('sf_regrend', regRend); renderRegistry(); }); }
     }
     renderRegFilters();
     tbl.addEventListener('click', e=>{
