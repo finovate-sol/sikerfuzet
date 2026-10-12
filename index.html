@@ -17194,6 +17194,14 @@ let regChipsOpen = false;
 // A "Mező" sor élő szűrő: gépelés közben azonnal szűkíti a listát, nem kell
 // a "+ Hozzáad". Az csak rögzíti chipként, hogy egy másik mezőre is lehessen.
 let regLive = { field: 'name', value: '' };
+// A 10 perces füzet szűrői, keresése és az összecsukott csoportok megmaradnak (böngészőnként).
+const REG_ALLAPOT_KEY = 'sf_reg_allapot';
+(() => { const a = store.load(REG_ALLAPOT_KEY, null); if(!a || typeof a !== 'object') return;
+    if(Array.isArray(a.f)) regFilters = a.f.filter(x => x && x.field && !x.live);
+    if(typeof a.s === 'string') regSearch = a.s;
+    if(a.l && typeof a.l === 'object'){ regLive.field = a.l.field || 'name'; regLive.value = a.l.value || ''; }
+    regShowArchived = !!a.a; })();
+const regAllapotMent = () => { try { store.save(REG_ALLAPOT_KEY, { f: regFilters, s: regSearch, l: regLive, a: regShowArchived, g: regGroupClosed }); } catch(e){} };
 // A ténylegesen érvényes feltételek: a rögzített chipek + az éppen gépelt.
 function regActiveFilters(){
     const v = (regLive.value || '').trim();
@@ -17636,6 +17644,7 @@ function regArchivedHidden(){
 let regGroupBy = store.load('sf_reggroup', '');
 let ketGroupBy = store.load('sf_ketgroup', '');
 const regGroupClosed = {}, ketGroupClosed = {};
+{ const a = store.load(REG_ALLAPOT_KEY, null); if(a && a.g && typeof a.g === 'object') Object.assign(regGroupClosed, a.g); }
 const GROUP_CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
 function groupColorOf(mode, key){
     if(mode === 'status'){
@@ -17672,6 +17681,7 @@ function groupedRows(list, keyOf, order, closedMap, mode, rowHtml){
 }
 // Melyik nézet aktív – a táblázat/pipeline konténerek ki-be kapcsolása.
 function renderRegistry(){
+    regAllapotMent();
     const matched = regMatched();
     const card = document.getElementById('regTableCard');
     const pipe = document.getElementById('regPipeline');
@@ -18321,7 +18331,8 @@ function openRegAddModal(){
     });
     const searchEl = document.getElementById('regSearch');
     // A keresés is megjelenik az aktív szűrők sávjában, ezért az is újrarajzol.
-    if(searchEl) searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegActive(); renderRegistry(); });
+    if(searchEl){ if(regSearch) searchEl.value = regSearch;
+        searchEl.addEventListener('input', ()=>{ regSearch = searchEl.value; renderRegActive(); renderRegistry(); }); }
     const resetBtn=document.getElementById('regReset');
     if(resetBtn) resetBtn.addEventListener('click', ()=>{ regChipsOpen=false; regFilterClearAll(); });
     const fToggle=document.getElementById('regFToggle');
