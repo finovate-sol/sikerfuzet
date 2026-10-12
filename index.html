@@ -917,6 +917,26 @@
         .rc-head { display:grid; grid-template-columns:var(--rc-cols); gap:12px; padding:0 16px 9px; font-size:9.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:800; }
         .rc-head > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .rc-head .c { text-align:center; }
+        #regRows { --rc-cols:minmax(190px,1.1fr) minmax(120px,1fr) 118px minmax(90px,.75fr) minmax(150px,.9fr) 150px 56px 168px 44px; }
+        #regRows .rc-head { display:none; }
+        #regRows .rc-line { gap:10px; padding:10px 14px; min-height:64px; }
+        .rc-mezo { min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .rc-mezo > small { font-size:9.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; padding-left:9px; white-space:nowrap; }
+        .rc-mezo input.rc-cell { font-size:13px; font-weight:600; padding:4px 9px; }
+        .rc-mezo .status-sel { align-self:flex-start; }
+        .rc-kt .reg-person-sub { display:flex; align-items:center; gap:4px; min-width:0; font-size:12px; padding-left:9px; }
+        .rc-kt .reg-person-sub > * { min-width:0; }
+        .reg-terv-sor { margin-top:3px; padding-left:8px; } .reg-terv-sor .reg-terv-badge { margin-left:0; }
+        .rc-ajanl { display:flex; flex-direction:column; align-items:center; line-height:1.1; }
+        .rc-ajanl input.rc-num { width:52px; text-align:center; font-size:16px; font-weight:800; color:#111827; padding:2px 4px; }
+        .rc-ajanl span { font-size:10.5px; color:var(--muted); }
+        .rc-lepesek { display:flex; align-items:center; justify-content:flex-end; }
+        .rc-lepesek .lp { width:26px; height:26px; flex:none; border-radius:50%; border:2px solid #dbe2ec; background:#fff; display:grid; place-items:center; font-size:9.5px; font-weight:800; color:#9ca3af; cursor:pointer; position:relative; }
+        .rc-lepesek .lp input { position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
+        .rc-lepesek .lp input:disabled { cursor:default; }
+        .rc-lepesek .lp.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .rc-lepesek span.lp { cursor:default; } .rc-lepesek span.lp.on { background:#16a34a; border-color:#16a34a; }
+        .rc-lepesek .lp-v { width:9px; height:2px; background:#dbe2ec; flex:none; } .rc-lepesek .lp-v.on { background:var(--blue); }
         .rc-body { display:flex; flex-direction:column; gap:8px; }
         .rc { background:var(--card); border-radius:12px; box-shadow:var(--shadow); border:1px solid transparent; cursor:pointer; }
         .rc:hover { border-color:#c9d6e8; box-shadow:0 2px 10px rgba(15,47,95,.09); }
@@ -17476,6 +17496,14 @@ function cliRefreshBadges(){
 }
 window.sfRefreshCliBadges = cliRefreshBadges;
 
+// A folyamat lépései a sorban (TP → EL → PF → KT → TA), összekötve; a KT a kiértékelő telefon (csak kijelzés).
+function regLepesek(i, r, locked){
+    const kt = !!(r.kiertekelo && r.kiertekelo.status === 'elvegezve');
+    const l = [['tp','TP','Telefonos partner',!!r.tp],['elemzes','EL','Elemzés',!!r.elemzes],['portal','PF','Portálon fent',!!r.portal],['kt','KT','Kiértékelő telefon',kt],['tanacsadas','TA','Tanácsadás',!!r.tanacsadas]];
+    return l.map(([f, n, cim, on], j) => (j ? `<i class="lp-v${on ? ' on' : ''}"></i>` : '') + (f === 'kt'
+        ? `<span class="lp${on ? ' on' : ''}" title="${cim}${on ? ': elvégezve' : ''}">${n}</span>`
+        : `<label class="lp${on ? ' on' : ''}" title="${cim}"><input type="checkbox" data-ri="${i}" data-rf="${f}"${on ? ' checked' : ''}${locked ? ' disabled' : ''}><span>${n}</span></label>`)).join('');
+}
 const flagChip = (i,field,label,checked,locked) => `<label class="flagchip" title="${label}"><input type="checkbox" data-ri="${i}" data-rf="${field}" ${checked?'checked':''}${locked?' disabled':''}><span>${label}</span></label>`;
 let regExpandedIdx = null;   // a kinyitott / kiválasztott ügyfél indexe (mindhárom nézetben)
 // Nézetmód: 'tabla' (eredeti táblázat), 'pipeline' (állapot-oszlopok), 'adatlap' (kétpaneles)
@@ -17706,17 +17734,17 @@ function renderRegTable(matched){
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<i class="reg-av-pipa" title="Kiértékelő telefon elvégezve">✓</i>' : ''}</span>
                 <div class="reg-person-meta">
-                    <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button>${regTervBadge(r)}</div>
-                    <div class="reg-person-sub"><span>Kezelő:</span>${regKezeloControl(i, r, !open)}<span>· Tanácsadó:</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}"${lk}></div>
+                    <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
+                    ${r.tervHo ? `<div class="reg-terv-sor">${regTervBadge(r)}</div>` : ''}
                 </div>
             </div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="ajánló"${lk}></div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="telefonszám"${lk}></div>
-            <div class="c"><div class="flaggroup">${flagChip(i,'tp','TP',r.tp,!open)}</div></div>
-            <div><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="település"${lk}></div>
-            <div>${regStatusSelect(i, r.status, !open)}</div>
-            <div class="c"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0" title="Az ügyféltől kapott ajánlások száma"${lk}></div>
-            <div class="c"><div class="flaggroup">${flagChip(i,'elemzes','EL',r.elemzes,!open)}${flagChip(i,'portal','PF',r.portal,!open)}${flagChip(i,'tanacsadas','TA',r.tanacsadas,!open)}</div></div>
+            <div class="rc-mezo"><small>Ajánló</small><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="—"${lk}></div>
+            <div class="rc-mezo"><small>Telefon</small><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="—"${lk}></div>
+            <div class="rc-mezo"><small>Település</small><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="—"${lk}></div>
+            <div class="rc-mezo rc-kt"><small>Kezelő / Tanácsadó</small><div class="reg-person-sub">${regKezeloControl(i, r, !open)}<span>/</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}" placeholder="—"${lk}></div></div>
+            <div class="rc-mezo"><small>Státusz</small>${regStatusSelect(i, r.status, !open)}</div>
+            <div class="rc-ajanl" title="Az ügyféltől kapott ajánlások száma"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0"${lk}><span>ajánlás</span></div>
+            <div class="rc-lepesek">${regLepesek(i, r, !open)}</div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
         ${open ? regCardDetailHtml(i) : ''}</div>`;
