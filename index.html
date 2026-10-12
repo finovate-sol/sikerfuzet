@@ -3402,6 +3402,12 @@
         }
         /* ===== Feladatok – idő szerinti csoportok + bal oldali lista (fx) ===== */
         .fx { padding-bottom:90px; }
+        .fx.fx-fix { display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+        .fx.fx-fix > .fx-racs { flex:1; min-height:0; align-items:stretch; grid-template-rows:minmax(0,1fr); }
+        .fx.fx-fix .fx-kozep { display:flex; flex-direction:column; min-height:0; }
+        .fx.fx-fix .fx-lista { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 2px 96px; margin:0 -2px; }
+        .fx.fx-fix .fx-reszl-ures { align-self:start; }
+        html:has(#page-feladatok:not([hidden]) .fx-fix), body:has(#page-feladatok:not([hidden]) .fx-fix) { overflow:hidden; }
         .fx-fej { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
         .fx-fej h1 { margin:0; font-size:26px; color:var(--navy); line-height:1.15; }
         .fx-fej small { font-size:13px; color:var(--muted); } .fx-fej small b { color:var(--red); }
@@ -3490,6 +3496,7 @@
             .fx .fx-reszl { position:sticky; top:16px; left:auto; right:auto; bottom:auto; transform:none; width:auto; max-height:calc(100vh - 32px); z-index:1;
                             border-radius:14px; border:1px solid #e3e8f0; box-shadow:0 1px 2px rgba(15,23,42,.04); padding:14px 16px 12px; }
             .fx .fx-reszl .fd-lap-fogo { display:none; }
+            .fx.fx-fix .fx-reszl { position:relative; top:auto; max-height:100%; overflow-y:auto; align-self:start; }
             .fx .fx-reszl .fd-detail { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         }
         @media (max-width:1180px){ .fx-racs { grid-template-columns:minmax(0,1fr); } .fx-reszl-ures { display:none; } }
@@ -30058,7 +30065,7 @@ document.addEventListener('keydown', e => {
             <div class="fx-racs">
                 <div class="fx-kozep">
                     ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="fx-kartya fx-ik${fxIdo === k ? " on" : ""}${k === "lej" && v ? " lej" : ""}" data-fxido="${k}" style="--c:${FX_IDO[k][0]}" aria-pressed="${fxIdo === k}"><span class="fx-ik-ic">${FX_IDO[k][1]}</span><span><b>${v}</b><span>${n}</span></span></button>`).join("")}</div>`}
-                    ${torzs}
+                    <div class="fx-lista">${torzs}</div>
                 </div>
                 ${ot ? `<div class="fd-lap-h" data-fdcancel></div><div class="fd-lap fx-reszl" role="dialog" aria-label="Részletek"><div class="fd-lap-fogo"></div><button type="button" class="fx-x" data-fdcancel aria-label="Bezárás">×</button>${fxReszlHtml(ot)}</div>`
                     : `<div class="fx-kartya fx-reszl-ures">Válassz ki egy feladatot – itt szerkesztheted a határidejét, időpontját, listáját és jegyzetét.</div>`}
@@ -30084,13 +30091,22 @@ document.addEventListener('keydown', e => {
     window.addEventListener("scroll", () => { const d = document.querySelector(".rm-reszlet .rm-dtb"), h = document.querySelector(".rm-reszlet .rm-fej h1");
         if (d && h) d.classList.toggle("kicsi", h.getBoundingClientRect().bottom < d.getBoundingClientRect().bottom); }, { passive:true });
     function fdMobFel(){ if(window.matchMedia && matchMedia("(max-width:760px)").matches) window.scrollTo(0, 0); }
+    // A Feladatok oldal a képernyő magasságát tölti ki: a lap nem görög, csak a feladatlista (és a részletek).
+    function fxMeret(){
+        const pg = document.getElementById('page-feladatok'), fx = pg && pg.querySelector('.fx'); if(!fx || pg.hidden) return;
+        const top = fx.getBoundingClientRect().top + window.scrollY;
+        fx.style.height = Math.max(320, window.innerHeight - top - 10) + 'px'; fx.classList.add('fx-fix');
+    }
+    window.addEventListener('resize', () => fxMeret());
     function renderFeladatok(){
         const body = document.getElementById("feladatokBody"); if(!body) return;
         const focus = document.activeElement;
         const keepSearch = focus && (focus.id === "fdSearch" || focus.id === "fdSearchM");
         const keepId = keepSearch ? focus.id : "";
         const selStart = keepSearch ? focus.selectionStart : 0;
+        const regiLista = body.querySelector('.fx-lista'), listaPoz = regiLista ? regiLista.scrollTop : 0;
         body.innerHTML = fdShellHtml();
+        fxMeret(); const ujLista = body.querySelector('.fx-lista'); if(ujLista && listaPoz) ujLista.scrollTop = listaPoz;
         wireFeladatok();
         if(fdUjFokusz){ fdUjFokusz = false; const ni = document.getElementById("fdInput"); if(ni){ ni.focus(); ni.scrollIntoView({ block:"nearest" }); } }
         // telefonon a keresés / ··· kapszula az app fejlécébe kerül (a ☰ Feladatok sor jobb szélére)
