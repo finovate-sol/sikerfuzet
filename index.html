@@ -17498,6 +17498,7 @@ function cliRefreshBadges(){
 window.sfRefreshCliBadges = cliRefreshBadges;
 
 // A folyamat lépései a sorban (TP → EL → P → KT → TA), összekötve; a KT a kiértékelő telefon (csak kijelzés).
+// A lépések a sor kinyitása nélkül is kattinthatók (a többi mező csak a nyitott sorban szerkeszthető).
 function regLepesek(i, r, locked){
     const kt = !!(r.kiertekelo && r.kiertekelo.status === 'elvegezve');
     const l = [['tp','TP','Telefonos partner',!!r.tp],['elemzes','EL','Elemzés',!!r.elemzes],['portal','P','Portálon fent',!!r.portal],['kt','KT','Kiértékelő telefon',kt],['tanacsadas','TA','Tanácsadás',!!r.tanacsadas]];
@@ -17745,7 +17746,7 @@ function renderRegTable(matched){
             <div class="rc-mezo rc-kt"><small>Kezelő / Tanácsadó</small><div class="reg-person-sub">${regKezeloControl(i, r, !open)}<span>/</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}" placeholder="—"${lk}></div></div>
             <div class="rc-mezo"><small>Státusz</small>${regStatusSelect(i, r.status, !open)}</div>
             <div class="rc-ajanl" title="Az ügyféltől kapott ajánlások száma"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0"${lk}><span>ajánlás</span></div>
-            <div class="rc-lepesek">${regLepesek(i, r, !open)}</div>
+            <div class="rc-lepesek">${regLepesek(i, r, false)}</div>
             <div class="reg-actions"><button class="reg-ico reg-ico-del" data-rdel="${i}" title="Törlés">${RC_DEL_IC}</button><span class="reg-chev">${RC_CHEV_IC}</span></div>
         </div>
         ${open ? regCardDetailHtml(i) : ''}</div>`;
@@ -18293,6 +18294,8 @@ function openRegAddModal(){
             const field=t.dataset.rf;
             registry[idx][field]=t.checked; store.save('sf_registry', registry); refreshMoneyCareer();
             persistReg(idx);
+            // a sor lépéssora azonnal kövesse (kör és a hozzá vezető vonal)
+            const lp = t.closest('.lp'); if(lp){ lp.classList.toggle('on', t.checked); const v = lp.previousElementSibling; if(v && v.classList.contains('lp-v')) v.classList.toggle('on', t.checked); }
             if(field==='portal' && t.checked) openKiertekeloModal(idx, t);
         }
         else if(t.dataset.rf === 'kezelo'){
