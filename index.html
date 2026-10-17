@@ -18848,15 +18848,15 @@ function renderRegTable(matched){
 // bármikor folytatható, és a vezető ránézésnél is látja. Minden mező automatikusan mentődik.
 // [kulcs, cél, a füzetben alatta álló fejezetek, melyik oldal(ak)hoz tartozik]
 const EF_CELOK = [
-    ['vedelem', 'Pénzügyi védelem Önnek és családjának', 'Vagyonfelépítés, befektetés', ['felelos']],
-    ['egeszseg', 'Optimális védelem betegség vagy baleset esetén', 'Felelősségteljes élet, Vagyonfelépítés, befektetés', ['felelos']],
-    ['vagyonved', 'Megszerzett vagyon védelme', 'Vagyonfelépítés, befektetés', ['felelos']],
-    ['lakas', 'Saját lakás vagy családi ház', 'Saját otthon, Vagyonfelépítés, befektetés', ['otthon', 'felelos']],
-    ['gyerek', 'Gyermekek aktív támogatása (továbbtanulás, lakás stb.)', 'Gyermekeink jövője, Vagyonfelépítés, befektetés', ['otthon', 'felelos']],
-    ['nyugdij', 'Megszokott életminőség nyugdíjas évei alatt', 'Gondtalan nyugdíjas évek, Vagyonfelépítés, befektetés', ['nyugdij', 'felelos']],
-    ['toke', 'Rendelkezésre álló tőke optimális befektetése', 'Vagyonfelépítés, befektetés', ['felelos']],
-    ['ado', 'Adókedvezmények, állami támogatások kihasználása', 'Vagyonfelépítés, befektetés', ['felelos']],
-    ['kiadas', 'Rendszeres kiadások, aktuális vágyak megvalósítása (utazás, hobbi, vásárlás)', 'Vagyonfelépítés, befektetés', ['felelos']]
+    ['vedelem', 'Pénzügyi védelem Önnek és családjának', 'Vagyonfelépítés, befektetés', ['felelos', 'vagyon']],
+    ['egeszseg', 'Optimális védelem betegség vagy baleset esetén', 'Felelősségteljes élet, Vagyonfelépítés, befektetés', ['felelos', 'vagyon']],
+    ['vagyonved', 'Megszerzett vagyon védelme', 'Vagyonfelépítés, befektetés', ['felelos', 'vagyon']],
+    ['lakas', 'Saját lakás vagy családi ház', 'Saját otthon, Vagyonfelépítés, befektetés', ['otthon', 'vagyon']],
+    ['gyerek', 'Gyermekek aktív támogatása (továbbtanulás, lakás stb.)', 'Gyermekeink jövője, Vagyonfelépítés, befektetés', ['gyerek', 'vagyon']],
+    ['nyugdij', 'Megszokott életminőség nyugdíjas évei alatt', 'Gondtalan nyugdíjas évek, Vagyonfelépítés, befektetés', ['nyugdij', 'vagyon']],
+    ['toke', 'Rendelkezésre álló tőke optimális befektetése', 'Vagyonfelépítés, befektetés', ['vagyon']],
+    ['ado', 'Adókedvezmények, állami támogatások kihasználása', 'Vagyonfelépítés, befektetés', ['vagyon']],
+    ['kiadas', 'Rendszeres kiadások, aktuális vágyak megvalósítása (utazás, hobbi, vásárlás)', 'Vagyonfelépítés, befektetés', ['vagyon']]
 ];
 const EF_K = 'elemzo/';
 // fejezetnyitó sáv a füzetből: bal oldalt ciánkék ferde mező a címmel, jobbra a fotó
@@ -18865,8 +18865,8 @@ const efIdezet = (t, ki) => `<p class="ef-idezet">»${t}« <span>${ki}</span></p
 // Az oldalak a papíros füzet oldalait követik, ugyanabban a sorrendben.
 const EF_FEJ = [
     ['torodik', 'Törődik pénzügyeivel?', ['kezdes', 'celok']], ['kapcs', 'Banki, biztosítói kapcsolatok', ['kapcs']],
-    ['otthon', 'Saját otthon · Gyermekeink jövője', ['otthon', 'gyerek']], ['nyugdij', 'Gondtalan nyugdíjas évek', ['nyugdij']],
-    ['felelos', 'Felelősségteljes élet · Vagyonfelépítés', ['felelos', 'vagyon']], ['koltseg', 'Költségvetés', ['koltseg']],
+    ['otthon', 'Saját otthon', ['otthon']], ['gyerek', 'Gyermekeink jövője', ['gyerek']], ['nyugdij', 'Gondtalan nyugdíjas évek', ['nyugdij']],
+    ['felelos', 'Felelősségteljes élet', ['felelos']], ['vagyon', 'Vagyonfelépítés, befektetés', ['vagyon']], ['koltseg', 'Költségvetés', ['koltseg']],
     ['lepesek', 'Következő lépések · Ajánlás', ['lepesek', 'ajanlas']], ['szemelyes', 'Személyes adatok', ['szemelyes']], ['jegyzet', 'Feljegyzések', ['jegyzet']]
 ];
 const efLap = id => (EF_FEJ.find(x => x[0] === id) || EF_FEJ[0])[2].map(efFejHtml).join('');
@@ -18949,7 +18949,7 @@ function efFejHtml(f){
             <div class="ef-racs2">${efInp('ot.mikorra', 'Mikorra tervezi?')}${efInp('ot.bank', 'Bank')}${efInp('ot.oner', 'Önerő nagysága', { szam: 1, me: 'eFt' })}${efInp('ot.hitelosszeg', 'Tervezett hitelösszeg', { szam: 1, me: 'eFt' })}
             ${efInp('ot.szukseges', 'Szükséges összeg nagysága', { szam: 1, me: 'eFt' })}${efInp('ot.torleszto', 'Tervezett törlesztőrészlet', { szam: 1, me: 'Ft/hó' })}${efInp('ot.hitel', 'Ebből hitel', { szam: 1, me: 'eFt' })}${efInp('ot.futamido', 'Tervezett futamidő', { me: 'év' })}</div>
             <div class="ef-racs2">${efIN('ot.csok', 'Számít CSOK-ra / egyéb állami támogatásra?')}${efIN('ot.munkaltatoi', 'Munkáltatói lakástámogatás?')}</div>`)}`;
-    if(f === 'gyerek') return `<h2 class="ef-h ef-h2">Gyermekeink jövője</h2>
+    if(f === 'gyerek') return `<h2 class="ef-h">Gyermekeink jövője</h2>
         <div class="ef-racs4">${[1, 2, 3, 4].map(n => `<div>${efInp(`gy.${n}.nev`, `${n}. gyermek neve`)}${efInp(`gy.${n}.szul`, 'Születési idő', { tip: 'date' })}</div>`).join('')}</div>
         ${efIN('gy.tervez', 'Gyermekvállalást tervez-e a következő három évben?')}
         <div class="ef-mezo"><span>Ön elsődlegesen mely célokban szeretné gyermekeit aktívan támogatni?</span>${efJel('gy.celok', ['Továbbtanulás', 'Saját lakás', 'Esküvő', 'Életkezdés támogatása', 'Autó, jogosítvány', 'Egyéb'])}</div>
@@ -18973,7 +18973,7 @@ function efFejHtml(f){
         ${efIdezet('Nem az számít, honnan indulsz, hanem az, hogy milyen döntéseket hozol arról, hogy hová akarsz végül eljutni.', 'Anthony Robbins')}`;
     if(f === 'felelos') return `<h2 class="ef-h">Felelősségteljes élet</h2>
         ${efInp('fe.sajat', 'Gondoskodott-e már a saját védelméről?', { szeles: 1 })}${efInp('fe.csalad', 'Gondoskodott-e már családja védelméről?', { szeles: 1 })}${efInp('fe.osszeg', 'Mekkora összeget szán ilyen jellegű védelemre?', { szam: 1, me: 'Ft/hó' })}`;
-    if(f === 'vagyon') return `<h2 class="ef-h ef-h2">Vagyonfelépítés, befektetés</h2>
+    if(f === 'vagyon') return `<h2 class="ef-h">Vagyonfelépítés, befektetés</h2>
         ${efKot(`<div class="ef-mezo"><span>Ön milyen jellegű befektetésben vagy megtakarításban gondolkodik?</span>${efJel('va.jelleg', ['Egyösszegű befektetés', 'Rendszeres megtakarítás', 'A kettő együtt'], { egy: 1 })}</div>
             ${efInp('va.elegedett', 'Jelenlegi befektetésében / megtakarításában mi az, amivel elégedett, és mi az, amivel esetleg nem?', { sor: 2, szeles: 1 })}
             <h4>Milyen távú programban gondolkodik?</h4>
@@ -19026,8 +19026,8 @@ function efFejHtml(f){
         ${efIdezet('Nem az számít, honnan indulsz, hanem az, hogy milyen döntéseket hozol arról, hogy hová akarsz végül eljutni.', 'Anthony Robbins')}`;
 }
 // Mennyi van kitöltve egy fejezetben (a kulcs eleje alapján).
-const EF_ELO = { torodik: ['ugyfel', 'ajanlo', 'tanacsado', 'tajekoztatas', 'honnan', 'volt', 'cel.'], kapcs: ['kb.', 'mt.', 'bf.', 'fsz.', 'hit.'], otthon: ['ot.', 'gy.'],
-    nyugdij: ['ny.'], felelos: ['fe.', 'va.'], koltseg: ['kv.'], lepesek: ['lp.', 'aj.'], szemelyes: ['sz.'], jegyzet: ['jegyzet'] };
+const EF_ELO = { torodik: ['ugyfel', 'ajanlo', 'tanacsado', 'tajekoztatas', 'honnan', 'volt', 'cel.'], kapcs: ['kb.', 'mt.', 'bf.', 'fsz.', 'hit.'], otthon: ['ot.'], gyerek: ['gy.'],
+    nyugdij: ['ny.'], felelos: ['fe.'], vagyon: ['va.'], koltseg: ['kv.'], lepesek: ['lp.', 'aj.'], szemelyes: ['sz.'], jegyzet: ['jegyzet'] };
 const efKitoltott = f => Object.entries(efA()).filter(([k, v]) => EF_ELO[f].some(p => k.startsWith(p)) && (Array.isArray(v) ? v.length : String(v).trim())).length;
 function efFontos(){
     const a = efA(), s = new Set();
@@ -19037,7 +19037,7 @@ function efFontos(){
 function efRajz(gorget){
     const ov = document.querySelector('.ef'); if(!ov) return;
     const r = registry[efI], fontos = efFontos(), j = EF_FEJ.findIndex(x => x[0] === efFej);
-    ov.querySelector('.ef-nav').innerHTML = `<div class="ef-borito"><img src="${EF_K}borito.jpg" alt=""><div><b>Pénzügyi elemzés</b><span>${esc(r.name || '')}</span></div><img class="ef-borito-logo" src="${EF_K}ovb.png" alt="OVB"></div>`
+    ov.querySelector('.ef-nav').innerHTML = `<div class="ef-borito"><img src="${EF_K}borito.jpg" alt=""><div><b>Pénzügyi elemzés</b><span>${esc(r.name || '')}</span></div></div>`
         + EF_FEJ.map(([k, n], i) => { const db = efKitoltott(k);
         return `<button type="button" class="${k === efFej ? 'on' : ''}" data-effej="${k}"><i>${i + 1}</i><span>${n}${fontos.has(k) ? ' <b title="A választott célok miatt fontos">★</b>' : ''}</span>${db ? `<em>${db}</em>` : ''}</button>`; }).join('');
     ov.querySelector('.ef-tart').innerHTML = `<div class="ef-lap">${efLap(efFej)}</div>`;
