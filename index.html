@@ -1365,6 +1365,12 @@
         .pzi-hal { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.2); overflow:hidden; } .pzi-hal i { display:block; height:100%; background:#fff; }
         .pzi-jegyzet { position:absolute; right:16px; bottom:68px; width:min(420px, calc(100% - 32px)); background:rgba(15,23,42,.88); color:#fff; border-radius:14px; padding:14px 16px; font-size:15px; line-height:1.45; cursor:default; white-space:pre-wrap; }
         .pzi-jegyzet b { display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin-bottom:6px; }
+        .idd-ujk { margin-left:auto; }
+        .idd-q-gombok { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .idd-szerk { border:1px solid var(--border); background:#fff; border-radius:8px; padding:6px 11px; font:inherit; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; }
+        .idd-szerk.piros { color:#dc2626; } .idd-szerk:hover { border-color:var(--blue); color:var(--blue); } .idd-szerk.piros:hover { border-color:#dc2626; color:#dc2626; }
+        .idd-saj-c { font-style:normal; font-size:10.5px; font-weight:800; color:#7c3aed; background:#f1ebff; border-radius:999px; padding:1px 7px; margin-left:4px; vertical-align:1px; }
+        .idd-q.sajat { border-left:3px solid #7c3aed; }
         .sb-fej { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 14px; }
         .sb-fej h2 { margin:0; font-size:24px; color:var(--navy); } .sb-fej p { margin:2px 0 0; font-size:13px; color:var(--muted); }
         .sb-ful { display:inline-flex; gap:3px; padding:3px; background:var(--card); border:1px solid var(--border); border-radius:12px; }
@@ -11258,11 +11264,43 @@ function iddJelol(s, q){
     return esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length));
 }
 const iddIllik = (x, q) => x.some(s => iddNorm(s).includes(q));
+// Saját kérdések (privat/{uid}_idd → sajat: { vizsgaId: [[kérdés, válasz…], …] }) és saját
+// témakörök (temak: [{ id, n }]). Az importált kérdések mögé fűzzük őket, így a tanulás,
+// a gyakorlás, a keresés és a „megy már” jelölés ugyanúgy működik rájuk.
+const iddSaj = () => (PRV.idd && PRV.idd.sajat) || {};
+function iddOsszes(){
+    const saj = iddSaj(), alap = window.SF_IDD || [];
+    const temak = ((PRV.idd && PRV.idd.temak) || []).map(t => ({ id: t.id, n: t.n, t: ['Saját'], c: '#7c3aed', q: [], sajatTema: 1 }));
+    return [...alap, ...temak].map(v => { const l = saj[v.id] || []; return l.length ? { ...v, q: [...v.q, ...l], sajatDb: l.length } : v; });
+}
+function iddKerdesModal(vid, idx){
+    const l = iddSaj()[vid] || [], x = idx != null ? l[idx] : null;
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal sb-modal"><div class="modal-head">${x ? 'Saját kérdés szerkesztése' : 'Új kérdés'}</div>
+        <div class="modal-body">
+            <label class="sb-mezo"><span>Kérdés</span><textarea class="sb-in" data-f="k" rows="3" maxlength="1500">${esc(x ? x[0] : '')}</textarea></label>
+            <label class="sb-mezo"><span>Válasz</span><textarea class="sb-in" data-f="v" rows="6" maxlength="4000">${esc(x ? x.slice(1).join('\n') : '')}</textarea></label>
+            <p class="sb-tipp">Ha a válasz több pontból áll, írd őket külön sorba – a tanulásnál felsorolásként jelennek meg.</p>
+            <div class="sb-hiba" data-hiba></div></div>
+        <div class="modal-foot"><button type="button" class="btn" data-x>Mégse</button><button type="button" class="btn primary" data-ok>Mentés</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('[data-f="k"]').focus();
+    ov.addEventListener('click', e => {
+        if(e.target === ov || e.target.closest('[data-x]')) return ov.remove();
+        if(!e.target.closest('[data-ok]')) return;
+        const k = ov.querySelector('[data-f="k"]').value.trim();
+        const v = ov.querySelector('[data-f="v"]').value.split('\n').map(z => z.trim()).filter(Boolean);
+        if(!k || !v.length){ ov.querySelector('[data-hiba]').textContent = 'A kérdés és a válasz is kell.'; return; }
+        const saj = PRV.idd.sajat = PRV.idd.sajat || {}, lista = saj[vid] = saj[vid] || [];
+        if(x) lista[idx] = [k, ...v]; else lista.push([k, ...v]);
+        prvMent('idd'); iddGy = null; ov.remove(); renderIdd();
+    });
+}
 const IDD_KERESO_IKON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 function iddListaHtml(adat){
     const ossz = adat.reduce((a, v) => a + v.q.length, 0), tud = adat.reduce((a, v) => a + iddTudSzam(v), 0);
     const chip = (k, n) => `<button type="button" class="sb-chip ${iddSzuro === k ? 'on' : ''}" data-iddszuro="${esc(k)}">${esc(n)}</button>`;
-    const szurt = adat.filter(v => iddSzuro === 'mind' || v.t.includes(iddSzuro) || (iddSzuro === 'Egyéb' && !v.t.length));
+    const szurt = adat.filter(v => iddSzuro === 'mind' || v.t.includes(iddSzuro) || (iddSzuro === 'Egyéb' && !v.t.length) || (iddSzuro === 'Saját' && v.sajatDb));
     let tartalom;
     const q = iddNorm(iddKeres.trim());
     if(q.length >= 2){
@@ -11276,11 +11314,12 @@ function iddListaHtml(adat){
     } else {
         tartalom = `<div class="idd-racs">${szurt.map(v => `<button type="button" class="card idd-k" style="${iddSzin(v)}" data-iddnyit="${esc(v.id)}">
             ${iddBorito(v, 'idd-bor')}<div class="idd-k-test"><b>${esc(v.n)}</b>${iddCimkeHtml(v.t)}
-            <span class="sb-tipp" style="margin:0">${v.q.length} kérdés</span>${iddHalad(v)}</div></button>`).join('')}</div>`;
+            <span class="sb-tipp" style="margin:0">${v.q.length} kérdés${v.sajatDb ? ` · ebből ${v.sajatDb} saját` : ''}</span>${iddHalad(v)}</div></button>`).join('')}</div>`;
     }
-    return `<div class="sb-fej"><div><h2>IDD vizsgák</h2><p>Vizsgakérdések és válaszok · ${adat.length} témakör · ${ossz} kérdés · ${tud} már megy</p></div></div>
+    return `<div class="sb-fej"><div><h2>IDD vizsgák</h2><p>Vizsgakérdések és válaszok · ${adat.length} témakör · ${ossz} kérdés · ${tud} már megy</p></div>
+            <button type="button" class="btn" data-iddujtema title="Saját témakör a saját kérdéseidnek">+ Saját témakör</button></div>
         <div class="idd-szur"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-iddkeres placeholder="Keresés az összes kérdésben és válaszban…" value="${esc(iddKeres)}" autocomplete="off"></label>
-        <div class="sb-chipek">${chip('mind', 'Mind')}${IDD_CIMKEK.map(c => chip(c, c)).join('')}${chip('Egyéb', 'Egyéb')}</div></div>${tartalom}`;
+        <div class="sb-chipek">${chip('mind', 'Mind')}${IDD_CIMKEK.map(c => chip(c, c)).join('')}${chip('Egyéb', 'Egyéb')}${adat.some(v => v.sajatTema || v.sajatDb) ? chip('Saját', 'Saját') : ''}</div></div>${tartalom}`;
 }
 function iddUjPakli(v){
     const t = iddTudLista(v.id);
@@ -11288,11 +11327,12 @@ function iddUjPakli(v){
     for(let i = idx.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
     iddGy = { id: v.id, pakli: idx, poz: 0, mutat: false, jo: 0 };
 }
-function iddKerdesHtml(q, i, t, kq){
-    const k = iddKulcs(q), on = !!t[k];
-    return `<details class="card idd-q ${on ? 'tud' : ''}" ${kq ? 'open' : ''}><summary><span class="sz">${i + 1}.</span><span class="k">${iddJelol(q[0], kq)}</span></summary>
+function iddKerdesHtml(q, i, t, kq, si){
+    const k = iddKulcs(q), on = !!t[k], saj = si != null && si >= 0;
+    return `<details class="card idd-q ${on ? 'tud' : ''}${saj ? ' sajat' : ''}" ${kq ? 'open' : ''}><summary><span class="sz">${i + 1}.</span><span class="k">${iddJelol(q[0], kq)}${saj ? ' <em class="idd-saj-c">saját</em>' : ''}</span></summary>
         <div class="idd-v"><ul>${q.slice(1).map(a => `<li>${iddJelol(a, kq)}</li>`).join('')}</ul>
-        <button type="button" class="idd-tud ${on ? 'on' : ''}" data-iddtud="${k}">${on ? '✓ Megy' : 'Megy már?'}</button></div></details>`;
+        <div class="idd-q-gombok"><button type="button" class="idd-tud ${on ? 'on' : ''}" data-iddtud="${k}">${on ? '✓ Megy' : 'Megy már?'}</button>
+        ${saj ? `<button type="button" class="idd-szerk" data-iddszerk="${si}">Szerkesztés</button><button type="button" class="idd-szerk piros" data-iddtorol="${si}">Törlés</button>` : ''}</div></div></details>`;
 }
 function iddReszletHtml(v){
     const t = iddTudLista(v.id);
@@ -11300,7 +11340,10 @@ function iddReszletHtml(v){
         <div class="idd-reszlet-fej">${iddCimkeHtml(v.t)}</div>
         <div class="idd-eszk"><label class="idd-kereso">${IDD_KERESO_IKON}<input type="search" class="sb-in" data-iddbelso placeholder="Keresés ebben a témakörben…" value="${esc(iddBelso)}" autocomplete="off"></label>
         <div class="sb-seg" role="tablist"><button type="button" class="${iddMod === 'lista' ? 'on' : ''}" data-iddmod="lista">Tanulás</button><button type="button" class="${iddMod === 'gyak' ? 'on' : ''}" data-iddmod="gyak">Gyakorlás</button></div>
-        <label class="sb-kapcs"><input type="checkbox" data-iddcsaknem ${iddCsakNem ? 'checked' : ''}> Csak ami még nem megy</label>${iddHalad(v)}</div>`;
+        <label class="sb-kapcs"><input type="checkbox" data-iddcsaknem ${iddCsakNem ? 'checked' : ''}> Csak ami még nem megy</label>${iddHalad(v)}
+        <button type="button" class="btn primary idd-ujk" data-iddujk>+ Új kérdés</button></div>`;
+    const sajKezd = v.q.length - (v.sajatDb || 0), si = i => i >= sajKezd ? i - sajKezd : null;
+    if(!v.q.length) return fej + `<div class="card idd-ures">Ebben a témakörben még nincs kérdés. Az <b>+ Új kérdés</b> gombbal vehetsz fel egyet.${v.sajatTema ? ' <button type="button" class="idd-szerk piros" data-iddtematorol>Témakör törlése</button>' : ''}</div>`;
     const kq = iddNorm(iddBelso.trim());
     if(iddMod === 'gyak' && kq.length < 2){
         if(!iddGy || iddGy.id !== v.id) iddUjPakli(v);
@@ -11319,16 +11362,16 @@ function iddReszletHtml(v){
     }
     // Kereséskor a találatok válasza rögtön nyitva van.
     const sorok = v.q.map((q, i) => [q, i]).filter(([q]) => kq.length >= 2 ? iddIllik(q, kq) : (!iddCsakNem || !t[iddKulcs(q)]));
-    if(kq.length >= 2) return fej + (sorok.length ? `<p class="sb-tipp" style="margin:0 2px 10px">${sorok.length} találat</p><div class="idd-lista">${sorok.map(([q, i]) => iddKerdesHtml(q, i, t, kq)).join('')}</div>`
+    if(kq.length >= 2) return fej + (sorok.length ? `<p class="sb-tipp" style="margin:0 2px 10px">${sorok.length} találat</p><div class="idd-lista">${sorok.map(([q, i]) => iddKerdesHtml(q, i, t, kq, si(i))).join('')}</div>`
         : '<div class="card idd-ures">Nincs találat ebben a témakörben.</div>');
-    return fej + (sorok.length ? `<div class="idd-lista">${sorok.map(([q, i]) => iddKerdesHtml(q, i, t, '')).join('')}</div>`
+    return fej + (sorok.length ? `<div class="idd-lista">${sorok.map(([q, i]) => iddKerdesHtml(q, i, t, '', si(i))).join('')}</div>`
         : '<div class="card idd-ures">Minden kérdés megy ebből a témakörből.</div>');
 }
 async function renderIdd(){
     const host = document.getElementById('iddBody'); if(!host) return;
     if(!window.SF_IDD || !PRV.idd) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
     let adat;
-    try { [adat] = await Promise.all([iddAdatBetolt(), prvBetolt('idd')]); }
+    try { await Promise.all([iddAdatBetolt(), prvBetolt('idd')]); adat = iddOsszes(); }
     catch(e){ host.innerHTML = '<div class="card pv-ures">Nem sikerült betölteni a vizsgakérdéseket. Ellenőrizd a netkapcsolatot, és nyisd meg újra.</div>'; return; }
     if(!prvLap('idd')) return;
     if(!PRV.idd.tud || typeof PRV.idd.tud !== 'object') PRV.idd.tud = {};
@@ -11363,14 +11406,27 @@ document.addEventListener('click', e => {
     const td = e.target.closest('[data-iddtud]');
     if(td && iddNyit){ const on = !td.classList.contains('on'); iddTudAllit(iddNyit, td.dataset.iddtud, on);
         td.classList.toggle('on', on); td.textContent = on ? '✓ Megy' : 'Megy már?'; td.closest('.idd-q').classList.toggle('tud', on);
-        const v = (window.SF_IDD || []).find(x => x.id === iddNyit), h = document.querySelector('#page-idd .idd-eszk .idd-hal');
+        const v = iddOsszes().find(x => x.id === iddNyit), h = document.querySelector('#page-idd .idd-eszk .idd-hal');
         if(v && h) h.outerHTML = iddHalad(v); return; }
+    if(e.target.closest('[data-iddujk]') && iddNyit){ iddKerdesModal(iddNyit, null); return; }
+    const isz = e.target.closest('[data-iddszerk]'); if(isz && iddNyit){ e.preventDefault(); iddKerdesModal(iddNyit, +isz.dataset.iddszerk); return; }
+    const ito = e.target.closest('[data-iddtorol]');
+    if(ito && iddNyit){ e.preventDefault(); const l = iddSaj()[iddNyit] || [], x = l[+ito.dataset.iddtorol];
+        if(x && confirm('Törlöd ezt a saját kérdést?\n\n' + x[0])){ l.splice(+ito.dataset.iddtorol, 1); prvMent('idd'); iddGy = null; renderIdd(); } return; }
+    if(e.target.closest('[data-iddujtema]')){
+        const n = (prompt('A saját témakör neve:') || '').trim(); if(!n) return;
+        const id = 'saj-' + Date.now().toString(36);
+        (PRV.idd.temak = PRV.idd.temak || []).push({ id, n }); prvMent('idd');
+        iddNyit = id; iddGy = null; iddBelso = ''; iddMod = 'lista'; renderIdd(); scrollTo(0, 0); return; }
+    if(e.target.closest('[data-iddtematorol]') && iddNyit){
+        if(!confirm('Törlöd ezt az üres témakört?')) return;
+        PRV.idd.temak = (PRV.idd.temak || []).filter(t => t.id !== iddNyit); prvMent('idd'); iddNyit = null; renderIdd(); return; }
     if(e.target.closest('[data-iddmutat]')){ iddGyLep('mutat'); return; }
     const gy = e.target.closest('[data-iddgy]'); if(gy){ iddGyLep(gy.dataset.iddgy); return; }
     if(e.target.closest('[data-iddujra]')){ iddGy = null; renderIdd(); return; }
 });
 function iddGyLep(mit){
-    const g = iddGy, v = g && (window.SF_IDD || []).find(x => x.id === g.id); if(!v || g.poz >= g.pakli.length) return;
+    const g = iddGy, v = g && iddOsszes().find(x => x.id === g.id); if(!v || g.poz >= g.pakli.length) return;
     if(mit === 'mutat'){ g.mutat = true; renderIdd(); return; }
     if(!g.mutat) return;
     const k = iddKulcs(v.q[g.pakli[g.poz]]);
