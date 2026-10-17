@@ -1379,6 +1379,16 @@
         .ef-pir2-vetit .ef-pir2 { width:min(1000px, 100%); } .ef-pir2.nagy .ef-pir2-b { min-height:96px; cursor:default; } .ef-pir2.nagy .ef-pir2-b b { font-size:17px; }
         .ef-pir2.nagy .ef-pir2-b:hover { transform:none; filter:none; }
         @media (max-width:900px){ .ef-pir2-szint { position:static; transform:none; display:block; text-align:center; margin-bottom:3px; } .ef-pir2-sor { width:100% !important; } .ef-pir2-sor:first-child .ef-pir2-blokkok { clip-path:none; } .ef-pir2-sor:first-child .ef-pir2-b { min-height:74px; padding-top:10px; border-radius:8px; } }
+        /* teljes elemzőfüzet: részletes kérdések, új oldalak */
+        .ef-bov { margin:16px 0 10px; border:1.5px solid #cfe9f3; border-radius:12px; background:#f6fbfe; }
+        .ef-bov > summary { cursor:pointer; list-style:none; display:flex; align-items:center; gap:10px; padding:11px 14px; font-weight:800; color:#0b3a6e; font-size:13.5px; }
+        .ef-bov > summary::-webkit-details-marker { display:none; }
+        .ef-bov > summary em { font-style:normal; font-weight:600; font-size:12px; color:#5b6b80; }
+        .ef-bov-b { padding:4px 14px 12px; }
+        .ef-alkalom { border-top:4px solid #0b3a6e; padding-top:10px; margin:16px 0 6px; } .ef-alkalom:nth-of-type(even) { border-top-color:#29b8db; } .ef-alkalom > b { display:block; margin-bottom:8px; color:#0b3a6e; }
+        .ef-idoracs td, .ef-idoracs th { text-align:center; } .ef-idoracs td:first-child { text-align:left; } .ef-idoracs .ef-van { margin:0; }
+        .ef-kiemelt-c { color:#0b3a6e !important; font-size:20px !important; line-height:1.3; margin:26px 0 12px !important; }
+        .ef-vall-kapcs { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:12px 0 4px; }
         /* ===== PREZENTÁCIÓK ===== */
         .pzi-cim { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:18px 2px 10px; }
         .pzi-ures { color:var(--muted); font-size:13px; margin:0 2px; }
@@ -18945,7 +18955,8 @@ const EF_FEJ = [
     ['torodik', 'Törődik pénzügyeivel?', ['kezdes', 'celok']], ['kapcs', 'Banki, biztosítói kapcsolatok', ['kapcs']],
     ['otthon', 'Saját otthon', ['otthon']], ['gyerek', 'Gyermekeink jövője', ['gyerek']], ['nyugdij', 'Gondtalan nyugdíjas évek', ['nyugdij']],
     ['felelos', 'Felelősségteljes élet', ['felelos']], ['vagyon', 'Vagyonfelépítés, befektetés', ['vagyon']], ['koltseg', 'Költségvetés', ['koltseg']],
-    ['piramis', 'Vagyoni piramis', ['piramis']], ['lepesek', 'Következő lépések · Ajánlás', ['lepesek', 'ajanlas']], ['szemelyes', 'Személyes adatok', ['szemelyes']], ['jegyzet', 'Feljegyzések', ['jegyzet']]
+    ['piramis', 'Vagyoni piramis', ['piramis']], ['lepesek', 'Következő lépések', ['lepesek']], ['karrier', 'Álmai munkája · Ajánlás', ['ajanlas']],
+    ['szemelyes', 'Személyes adatok', ['szemelyes']], ['vallalkozo', 'Vállalkozói elemzés', ['vallalkozo']], ['szerviz', 'Szervizszolgáltatás', ['szerviz']], ['jegyzet', 'Feljegyzések', ['jegyzet']]
 ];
 const efLap = id => (EF_FEJ.find(x => x[0] === id) || EF_FEJ[0])[2].map(efFejHtml).join('');
 const EF_KIADASOK = ['Lakbér / lakáshitel', 'Rezsi költség (víz, áram, fűtés stb.)', 'Telefon / mobiltelefon / TV / internet', 'Berendezés / felújítás / egyéb költségek',
@@ -18985,7 +18996,7 @@ function efSzamol(){
     const a = efA();
     const bev = p => ['netto', 'egyeb', 'csaladi'].reduce((s, k) => s + efSzam(a[`kv.${p}.${k}`]), 0);
     const bevO = bev('u') + bev('p'), kiad = efOsszeg(EF_KIADASOK.map((_, i) => `kv.k${i}`));
-    const ki = { 'bev.u': bev('u'), 'bev.p': bev('p'), 'bev': bevO, 'kiad': kiad, 'szabad': bevO - kiad };
+    const ki = { 'bev.u': bev('u'), 'bev.p': bev('p'), 'bev': bevO, 'kiad': kiad, 'kiad10': kiad * 1.1, 'szabad': bevO - kiad };
     document.querySelectorAll('.ef [data-efcalc]').forEach(el => { const v = ki[el.dataset.efcalc]; el.textContent = v ? efFt(v) + ' Ft' : '–'; el.classList.toggle('neg', v < 0); });
     // nyugdíj: a kívánt havi kiegészítés tőkeigénye
     const hav = efSzam(a['ny.kivant']), evek = a['ny.nem'] === 'Nő' ? 18 : 14;
@@ -18996,11 +19007,11 @@ function efSzamol(){
 // A témakörök alulról (védelem) felfelé (vagyonépítés). Az állapot a „Banki, biztosítói kapcsolatok”
 // oldalból jön (van szerződés → máshol, „Nálam” → nálam, semmi → hiányzik), kattintással felülbírálható.
 const EF_PIR = [
-    ['Védelem', [['elet', 'Kockázati élet', ['kb.elet']], ['baleset', 'Baleset, egészség', ['kb.baleset']], ['lakasb', 'Lakás, ingóság', ['kb.lakas']], ['auto', 'KGFB / Casco', ['kb.kgfb']]]],
+    ['Védelem', [['elet', 'Kockázati élet', ['kb.elet']], ['baleset', 'Baleset, egészség', ['kb.baleset', 'mt.egeszsegp']], ['lakasb', 'Lakás, ingóság', ['kb.lakas', 'kb.ingosag', 'kb.tarsashaz']], ['auto', 'KGFB / Casco', ['kb.kgfb', 'kb.casco']], ['jogved', 'Jogvédelem, felelősség', ['kb.jogvedelem']]]],
     ['Tartalék', [['tartalek', 'Biztonsági tartalék (3–6 havi kiadás)', []]]],
     ['Célok', [['otthon', 'Saját otthon', ['mt.lakast']], ['gyerek', 'Gyermekek jövője', []]]],
-    ['Öngondoskodás', [['nyugdij', 'Nyugdíj', ['mt.nyugdij']], ['megtak', 'Rendszeres megtakarítás', ['mt.elet', 'mt.ul']]]],
-    ['Vagyonépítés', [['befektetes', 'Befektetés', ['bf.betet']]]]
+    ['Öngondoskodás', [['nyugdij', 'Nyugdíj', ['mt.nyugdij', 'mt.onkentes', 'mt.nyesz']], ['megtak', 'Rendszeres megtakarítás', ['mt.elet', 'mt.ul']]]],
+    ['Vagyonépítés', [['befektetes', 'Befektetés', ['bf.betet', 'bf.tbsz', 'bf.ertekpapir']]]]
 ];
 const EF_PIR_ALL = { nalam: ['Nálam', 'Velem kötött szerződés'], mashol: ['Máshol', 'Van szerződése, de nem nálam – átnézhető'], hianyzik: ['Hiányzik', 'Itt tudok segíteni'], nem: ['Nem releváns', 'Nem érinti'] };
 const EF_PIR_CEL = { vedelem: 'elet', egeszseg: 'baleset', vagyonved: 'lakasb', lakas: 'otthon', gyerek: 'gyerek', nyugdij: 'nyugdij', ado: 'nyugdij', kiadas: 'megtak', toke: 'befektetes' };
@@ -19034,6 +19045,36 @@ function efPiramisMutat(){
     v.addEventListener('click', e => { if(e.target.closest('[data-x]')) ki(); });
     if(v.requestFullscreen) v.requestFullscreen().catch(() => {});
 }
+// „+ Részletes kérdések” – a teljes (nem rövidített) elemzőfüzet kérdései fejezetenként lenyitva.
+// Nyitva marad, ha van benne kitöltött mező, vagy ha kinyitottad.
+const efBovNyit = new Set();
+function efBov(id, html){
+    const a = efA(), kulcsok = [...html.matchAll(/data-ef(?:j|van)?="([^"]+)"/g)].map(m => m[1]);
+    const db = [...new Set(kulcsok)].filter(k => { const v = a[k]; return Array.isArray(v) ? v.length : String(v ?? '').trim(); }).length;
+    return `<details class="ef-bov" data-efbov="${id}"${db || efBovNyit.has(id) ? ' open' : ''}><summary><span>+ Részletes kérdések</span><em>${db ? db + ' kitöltve' : 'a teljes elemzőfüzetből'}</em></summary><div class="ef-bov-b">${html}</div></details>`;
+}
+const efInSor = (k, cim, o = {}) => `<div class="ef-insor">${efInp(k, cim, o)}</div>`;
+// Gyermekek jövője: a kiadások görbéje a beírt mérföldkövekkel (év múlva, összeg).
+const EF_GY_MK = [['jogsi', 'Jogosítvány / autó'], ['tanul', 'Tanulmányok'], ['eletkezdet', 'Életkezdet'], ['eskuvo', 'Esküvő'], ['lakas', 'Saját lakás']];
+function efGyerekAbra(a){
+    const X = e => 50 + Math.min(25, Math.max(0, e)) / 25 * 560;
+    const pont = EF_GY_MK.map(([k, n], i) => ({ n, ev: efSzam(a[`gy.mk.${k}.ev`]), ft: efSzam(a[`gy.mk.${k}.ft`]), i })).filter(p => p.ev || p.ft);
+    const ossz = pont.reduce((s, p) => s + p.ft, 0);
+    const gorbe = Array.from({ length: 26 }, (_, e) => `${X(e)},${(208 - Math.pow(e / 25, 2.2) * 170).toFixed(1)}`).join(' ');
+    return `<svg viewBox="0 0 640 260" class="ef-nyabra-svg" role="img" aria-label="A gyermekekkel kapcsolatos kiadások">
+        <path d="M50 226V16" stroke="#111" stroke-width="2"/><path d="M44 24l6-12 6 12z" fill="#111"/><path d="M50 226H620" stroke="#111" stroke-width="2"/><path d="M612 220l12 6-12 6z" fill="#111"/>
+        <text x="58" y="20" font-size="11" fill="#555">Kiadások</text><text x="618" y="214" text-anchor="end" font-size="11" fill="#555">Évek múlva</text>
+        ${[0, 5, 10, 15, 20, 25].map(e => `<text x="${X(e)}" y="244" text-anchor="middle" font-size="12" fill="#333">${e}</text>`).join('')}
+        <polyline points="${gorbe}" fill="none" stroke="#0b3a6e" stroke-width="3"/>
+        ${pont.filter(p => p.ev).map(p => { const x = X(p.ev), y = 208 - Math.pow(Math.min(25, p.ev) / 25, 2.2) * 170;
+            return `<circle cx="${x}" cy="${y}" r="6" fill="#e6007e"/><text x="${x}" y="${y - (p.i % 2 ? 26 : 12)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b3a6e">${esc(p.n)}${p.ft ? ' · ' + esc(efFt(p.ft)) + ' Ft' : ''}</text>`; }).join('')}
+        <rect x="330" y="196" width="270" height="24" fill="#29b8db"/><text x="465" y="212" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">${ossz ? 'Összesen: ' + efFt(ossz) + ' Ft' : 'Jellemzően 6 000 000 – 15 000 000 Ft'}</text>
+    </svg>`;
+}
+// A vállalkozói elemzés csak vállalkozónál (vagy kézzel bekapcsolva) jelenik meg.
+const efVallalkozo = () => { const a = efA(); return a['vl.be'] === '1' || /vállalkoz/i.test(String(a['sz.u.jogviszony'] || '')); };
+const efLapok = () => EF_FEJ.filter(x => x[0] !== 'vallalkozo' || efVallalkozo());
+const EF_NAPOK = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'], EF_SAVOK = ['8:00–12:00', '12:00–16:00', '16:00–20:00'];
 // ---- fejezetek ----
 function efFejHtml(f){
     const a = efA();
@@ -19046,7 +19087,11 @@ function efFejHtml(f){
         <div class="ef-racs3 ef-fejadat">${efInp('ugyfel', 'Ügyfél')}${efInp('ajanlo', 'Ajánló')}${efInp('tanacsado', 'Tanácsadó')}</div>
         ${efInp('tajekoztatas', 'Kitől kapott pénzügyi tájékoztatást az utóbbi időszakban?', { sor: 2, szeles: 1 })}
         <div class="ef-mezo"><span>Ön honnan tájékozódik a pénzügyeit illetően?</span>${efJel('honnan', ['Internet', 'Könyvelő', 'Bank / biztosító', 'Család / ismerősök', 'Televízió', 'Személyes utánajárás'])}</div>
-        <div class="ef-racs2">${efIN('voltelemzes', 'Került-e sor személyes pénzügyi elemzésre?')}${efInp('voltceg', 'Cég neve')}</div>`;
+        <div class="ef-racs2">${efIN('voltelemzes', 'Került-e sor személyes pénzügyi elemzésre?')}${efInp('voltceg', 'Cég neve')}</div>
+        ${efBov('kezdes', `${efIdezet('Jobb a pénzről egy órát beszélgetni, mint egy hónapot dolgozni érte.', 'André Kostolany alapján')}
+            ${efInp('tf.legutobbi', 'Legutóbbi tájékozódásakor milyen témákról volt szó? Mivel kapcsolatban volt szüksége pénzügyi információra?', { sor: 3, szeles: 1 })}
+            <div class="ef-mezo"><span>Ki végezte a személyes pénzügyi elemzést?</span>${efJel('tf.elemzes', ['Bank által', 'Biztosító által', 'Közvetítő által', 'Nem volt részem személyes pénzügyi elemzésben'])}</div>
+            <div class="ef-racs3">${efInp('tf.bank_ceg', 'Bank neve')}${efInp('tf.bizt_ceg', 'Biztosító neve')}${efInp('tf.kozv_ceg', 'Közvetítő neve')}</div>`)}`;
     if(f === 'celok') return `<span class="ef-kot-jel">A bekeretezett mezők kitöltése kötelező!</span>
         <h4 class="ef-cel-cim">Kérjük, az alábbi célok és vágyak közül a három legfontosabbat állítsa sorrendbe!</h4>
         <p class="ef-tipp"><b>3</b> – nagyon fontos · <b>2</b> – fontos · <b>1</b> – kevésbé fontos · <b>0</b> – nem érint. A kiválasztott célokhoz tartozó fejezetek kitöltése kötelező – a bal oldali listában ★ jelzi őket.</p>
@@ -19057,7 +19102,7 @@ function efFejHtml(f){
             <div class="ef-racs2">${efInp('cel.havi_tol', 'Céljai elérése érdekében havonta mennyit kész öngondoskodásra költeni? – tól', { szam: 1, me: 'Ft' })}${efInp('cel.havi_ig', '– ig', { szam: 1, me: 'Ft' })}</div>
             ${efInp('cel.mikortol', 'Mikortól szeretne elkezdeni felkészülni céljainak elérésére?')}`, 'Kötelező mezők')}`;
     if(f === 'kapcs') return `<h2 class="ef-h">Jelenlegi banki, biztosítói kapcsolatok?</h2>
-        <p class="ef-tipp">Pipáld ki, ami van, és töltsd ki a sorát.</p>
+        <p class="ef-tipp">Pipáld ki, ami van, és töltsd ki a sorát. Ha egy szerződést meg szeretne szüntetni, jelezze a megjegyzésben.</p>
         <h4>Kockázati biztosítások</h4>${efTabla('kb', [['elet', 'Kockázati életbiztosítás'], ['baleset', 'Baleset- és egészségbiztosítás'], ['kgfb', 'KGFB / Casco'], ['lakas', 'Lakás / ingóság biztosítás']],
             [['szerzodo', 'Szerződő'], ['tarsasag', 'Társaság'], ['dij', 'Díj / gyak.'], ['evf', 'Évforduló'], ['info', 'Egyéb információ'], ['megj', 'Megjegyzés / kivel kötötte, miért?']])}
         <h4>Megtakarítás</h4>${efTabla('mt', [['elet', 'Életbiztosítás'], ['ul', 'UL biztosítás'], ['lakast', 'Lakástakarékpénztár'], ['nyugdij', 'ÖNYP / NYESZ / EP / nyugdíjbiztosítás']],
@@ -19067,20 +19112,63 @@ function efFejHtml(f){
         <h4>Folyószámlák</h4>${efTabla('fsz', [['fsz', 'Folyószámla']],
             [['tulaj', 'Számlatulajdonos'], ['tarsasag', 'Társaság'], ['dij', 'Számlavezetési díj / hó'], ['info', 'Egyéb információ (csomag, kamat)'], ['megj', 'Megjegyzés']])}
         <h4>Hitel, lízing</h4>${efTabla('hit', [['h1', '1. hitel'], ['h2', '2. hitel'], ['h3', '3. hitel']],
-            [['szerzodo', 'Szerződő'], ['tartozas', 'Aktuális tartozás'], ['osszeg', 'Összeg'], ['torl', 'Havi törlesztő'], ['kezdet', 'Kezdet'], ['lejarat', 'Lejárat'], ['kamat', 'Kamat'], ['megj', 'Megjegyzés']])}`;
+            [['szerzodo', 'Szerződő'], ['tartozas', 'Aktuális tartozás'], ['osszeg', 'Összeg'], ['torl', 'Havi törlesztő'], ['kezdet', 'Kezdet'], ['lejarat', 'Lejárat'], ['kamat', 'Kamat'], ['megj', 'Megjegyzés']])}
+        ${efInp('kp.elegedettseg', 'Melyik programjával elégedett, elégedetlen vagy semleges (+, −, 0)? Mi tetszik a leginkább és mi a legkevésbé?', { sor: 2, szeles: 1 })}
+        ${efIN('kp.felulvizsgal', 'Szeretné-e, hogy szakértőink felülvizsgálják fenti programjait?')}
+        ${efBov('kapcs', `<p class="ef-tipp">A teljes füzet további szerződéstípusai.</p>
+            <h4>További kockázati biztosítások</h4>${efTabla('kb', [['casco', 'Casco (külön)'], ['jogvedelem', 'Jogvédelem, felelősség'], ['tarsashaz', 'Társasház biztosítás'], ['ingosag', 'Ingóság biztosítás']],
+                [['szerzodo', 'Szerződő'], ['tarsasag', 'Társaság'], ['dij', 'Havidíj'], ['evf', 'Évforduló'], ['info', 'Egyéb információ (önrész, bizt. összeg)'], ['megj', 'Megjegyzés']])}
+            <h4>További megtakarítások</h4>${efTabla('mt', [['onkentes', 'Önkéntes nyugdíjpénztár'], ['nyesz', 'Nyugdíj-előtakarékossági számla'], ['egeszsegp', 'Egészségpénztár']],
+                [['szerzodo', 'Szerződő'], ['tarsasag', 'Társaság'], ['dij', 'Havidíj'], ['kezdet', 'Kezdet'], ['lejarat', 'Lejárat'], ['cel', 'Célja'], ['megj', 'Megjegyzés']])}
+            <h4>További befektetések</h4>${efTabla('bf', [['tbsz', 'Tartós befektetési számla'], ['ertekpapir', 'Értékpapírszámla, részvény, kötvény, befektetési alap']],
+                [['szerzodo', 'Szerződő'], ['tarsasag', 'Társaság'], ['osszeg', 'Összeg'], ['idotav', 'Időtáv'], ['cel', 'Célja'], ['megj', 'Megjegyzés']])}
+            <h4>További folyószámlák és hitelek</h4>${efTabla('fsz', [['fsz2', 'Folyószámla 2.'], ['fsz3', 'Folyószámla 3.']],
+                [['tulaj', 'Számlatulajdonos'], ['tarsasag', 'Társaság'], ['dij', 'Számlavezetési díj / hó'], ['info', 'Egyéb információ'], ['megj', 'Megjegyzés']])}
+            ${efTabla('hit', [['h4', '4. hitel / személyi kölcsön']],
+                [['szerzodo', 'Szerződő'], ['tartozas', 'Aktuális tartozás'], ['osszeg', 'Összeg'], ['torl', 'Havi törlesztő'], ['kezdet', 'Kezdet'], ['lejarat', 'Lejárat'], ['kamat', 'Kamat'], ['megj', 'Megjegyzés']])}`)}`;
     if(f === 'otthon') return `<h2 class="ef-h">Saját otthon</h2>
         <div class="ef-racs2"><div class="ef-mezo"><span>Jelenlegi lakáshelyzete</span>${efJel('ot.helyzet', ['Albérlet', 'Szülőknél', 'Saját ingatlan – tehermentes', 'Saját ingatlan – terhelt'], { egy: 1 })}${efInp('ot.helyzet_megj', '', { ph: 'részletek' })}</div>
         ${efInp('ot.alom', 'Álmai otthona', { sor: 3 })}</div>
         ${efKot(`<div class="ef-mezo"><span>Milyen ingatlannal kapcsolatos tervei vannak?</span>${efJel('ot.tervek', ['Ingatlan vásárlás', 'Építkezés', 'Hitelkiváltás', 'Végtörlesztés', 'Hitelfelvétel'])}</div>
             <div class="ef-racs2">${efInp('ot.mikorra', 'Mikorra tervezi?')}${efInp('ot.bank', 'Bank')}${efInp('ot.oner', 'Önerő nagysága', { szam: 1, me: 'eFt' })}${efInp('ot.hitelosszeg', 'Tervezett hitelösszeg', { szam: 1, me: 'eFt' })}
             ${efInp('ot.szukseges', 'Szükséges összeg nagysága', { szam: 1, me: 'eFt' })}${efInp('ot.torleszto', 'Tervezett törlesztőrészlet', { szam: 1, me: 'Ft/hó' })}${efInp('ot.hitel', 'Ebből hitel', { szam: 1, me: 'eFt' })}${efInp('ot.futamido', 'Tervezett futamidő', { me: 'év' })}</div>
-            <div class="ef-racs2">${efIN('ot.csok', 'Számít CSOK-ra / egyéb állami támogatásra?')}${efIN('ot.munkaltatoi', 'Munkáltatói lakástámogatás?')}</div>`)}`;
+            <div class="ef-racs2">${efIN('ot.csok', 'Számít CSOK-ra / egyéb állami támogatásra?')}${efIN('ot.munkaltatoi', 'Munkáltatói lakástámogatás?')}</div>`)}
+        ${efBov('otthon', `<div class="ef-racs3">${efInp('ot.alberlet_dij', 'Albérlet díja', { szam: 1, me: 'eFt/hó' })}${efInp('ot.szulo_dij', 'Hozzájárulás a szülőknél', { szam: 1, me: 'eFt/hó' })}${efIN('ot.csaladi', 'Családi támogatásra számít?')}</div>
+            <h4>Meglévő hitel</h4>
+            <div class="ef-racs2">${efInp('ot.f_bank', 'Bank / devizanem')}${efInp('ot.f_osszeg', 'Felvett hitelösszeg', { szam: 1, me: 'eFt' })}${efInp('ot.f_tartozas', 'Aktuális tartozás', { szam: 1, me: 'eFt' })}${efInp('ot.f_torl', 'Törlesztő részlet', { szam: 1, me: 'Ft/hó' })}
+            ${efIN('ot.f_pontos', 'Pontosan fizeti?')}${efInp('ot.f_csuszas', 'Ha nem, csúszás', { szam: 1, me: 'nap' })}${efIN('ot.f_segitseg', 'Igénybe vett segítséget?')}${efInp('ot.f_kitol', 'Kitől?')}</div>
+            <div class="ef-mezo"><span>Kombinált?</span>${efJel('ot.f_kombi', ['Nem', 'LTP-vel', 'Életbiztosítással'], { egy: 1 })}</div>
+            <div class="ef-racs2"><div><h4>Hitelt felvevő adatai</h4>${efIN('ot.h_khr', 'KHR listán szerepel?')}${efIN('ot.h_nav', 'NAV tartozás?')}${efInp('ot.h_netto', 'Nettó jövedelem', { szam: 1, me: 'eFt/hó' })}</div>
+                <div><h4>Partner adatai</h4>${efIN('ot.p_khr', 'KHR listán szerepel?')}${efIN('ot.p_nav', 'NAV tartozás?')}${efInp('ot.p_netto', 'Nettó jövedelem', { szam: 1, me: 'eFt/hó' })}</div></div>
+            <h4>Ingatlan adatai hitelfelvételhez, kiváltáshoz</h4>
+            ${efInp('ot.i_hely', 'Elhelyezkedés')}
+            <div class="ef-mezo"><span>Jellemzők</span>${efJel('ot.i_jelleg', ['Új', 'Használt', 'Tégla', 'Vályog', 'Panel', 'Lakás', 'Családi ház', 'Telek'])}</div>
+            <div class="ef-racs3">${efInp('ot.i_telek', 'Telek', { szam: 1, me: 'nm' })}${efInp('ot.i_alap', 'Alapterület', { szam: 1, me: 'nm' })}${efInp('ot.i_ertek', 'Forgalmi érték', { szam: 1, me: 'mFt' })}</div>
+            <div class="ef-racs3">${efIN('ot.pot', 'Pót ingatlanfedezet bevonható?')}${efInp('ot.pot_ertek', 'Forgalmi érték', { szam: 1, me: 'mFt' })}${efIN('ot.pot_teher', 'Tehermentes?')}</div>
+            ${efInp('ot.pot_tulaj', 'Tulajdonos(ok)')}
+            <h4>Összegzés</h4>
+            <div class="ef-racs2">${efInp('ot.o_hitel', 'Mekkora hitelre lesz szüksége?', { szam: 1, me: 'mFt' })}${efInp('ot.o_torl', 'Mennyit tud a törlesztőre szánni?', { szam: 1, me: 'eFt/hó' })}
+            ${efInp('ot.o_elotak', 'Mennyit tud előtakarékosságra szánni?', { szam: 1, me: 'eFt/hó' })}${efInp('ot.o_tav', 'Milyen távra szeretné felvenni a hitelt?', { szam: 1, me: 'év' })}
+            ${efInp('ot.o_alberlet', 'Hasonló szintű albérlet díja?', { szam: 1, me: 'eFt/hó' })}${efInp('ot.o_jegyzet', 'Feljegyzések')}</div>
+            <div class="ef-mezo"><span>Milyen elvárásai vannak a fenti programmal szemben?</span>${efJel('ot.elvaras', ['Előtörlesztési lehetőség', 'Kiszámítható törlesztő részlet', 'Egyéb'])}</div>
+            ${efIN('ot.elne', 'Ha létezne az Ön elvárásainak megfelelő lehetőség, élne vele?')}`)}`;
     if(f === 'gyerek') return `<h2 class="ef-h">Gyermekeink jövője</h2>
         <div class="ef-racs4">${[1, 2, 3, 4].map(n => `<div>${efInp(`gy.${n}.nev`, `${n}. gyermek neve`)}${efInp(`gy.${n}.szul`, 'Születési idő', { tip: 'date' })}</div>`).join('')}</div>
         ${efIN('gy.tervez', 'Gyermekvállalást tervez-e a következő három évben?')}
         <div class="ef-mezo"><span>Ön elsődlegesen mely célokban szeretné gyermekeit aktívan támogatni?</span>${efJel('gy.celok', ['Továbbtanulás', 'Saját lakás', 'Esküvő', 'Életkezdés támogatása', 'Autó, jogosítvány', 'Egyéb'])}</div>
         ${efKot(`<div class="ef-racs2">${efInp('gy.ev', 'Hány év áll rendelkezésre összegyűjteni a szükséges összeget?', { szam: 1, me: 'év' })}${efInp('gy.havi', 'Mekkora összeget szán rá havonta?', { szam: 1, me: 'Ft/hó' })}
-            ${efInp('gy.kiegeszit', 'Ki/kik tudják a gyermekeinek megtakarítását kiegészíteni?')}${efInp('gy.mikortol', 'Mikortól?')}</div>`)}`;
+            ${efInp('gy.kiegeszit', 'Ki/kik tudják a gyermekeinek megtakarítását kiegészíteni?')}${efInp('gy.mikortol', 'Mikortól?')}</div>`)}
+        ${efBov('gyerek', `${efInp('gy.kihivas', 'Amikor Ön elhagyta a szülői házat, mi jelentette a legnagyobb anyagi kihívást?', { szeles: 1 })}
+            <div class="ef-mezo"><span>Hogyan tudta megoldani?</span>${efJel('gy.megoldas', ['Szülői segítség', 'Lemondtam róla', 'Hitel', 'Későbbre halasztottam', 'Fizetésből félretettem', 'Egyéb'])}</div>
+            <h4>Hány év múlva jelentkeznek ezek a kiadások, és mekkora összeggel?</h4>
+            <div class="ef-nyabra" data-efgyabra>${efGyerekAbra(a)}</div>
+            <table class="ef-tabla kicsi"><thead><tr><th>Kiadás</th><th>Hány év múlva?</th><th>Összeg (Ft)</th></tr></thead><tbody>
+            ${EF_GY_MK.map(([k, n]) => `<tr><td>${n}</td><td><span class="ef-in-k"><input class="ef-in szam" data-ef="gy.mk.${k}.ev" value="${esc(a[`gy.mk.${k}.ev`] || '')}" inputmode="decimal"><em>év</em></span></td><td><input class="ef-in szam" data-ef="gy.mk.${k}.ft" value="${esc(a[`gy.mk.${k}.ft`] || '')}" inputmode="decimal"></td></tr>`).join('')}</tbody></table>
+            <div class="ef-mezo"><span>Ki tudná Önt mindebben támogatni?</span>${efJel('gy.tamogato', ['Nagyszülők', 'Keresztszülők'])}</div>
+            <div class="ef-racs2">${efInp('gy.potlek', 'Mekkora a családi pótlék mértéke?', { szam: 1, me: 'eFt/hó' })}${efInp('gy.adokedv', 'Mekkora a családi adókedvezmény mértéke?', { szam: 1, me: 'eFt/hó' })}</div>
+            ${efIN('gy.folytat', 'Szeretné-e, hogy gyermeke munkába állása után saját öngondoskodási programként folytassa az Ön által indított megtakarítást?')}
+            <div class="ef-mezo"><span>Milyen elvárásai vannak a gyermek(ei)nek szánt megtakarítással szemben?</span>${efJel('gy.elvaras', ['Megtakarítás biztonsága', 'Rugalmasabb futamidő', 'Eseti befizetési lehetőség', 'Szabadon felhasználható', 'Szüneteltetési lehetőség', 'Biztosítási védelem', 'Kamatadó és SZJA mentesség', 'Egyéb'])}</div>
+            ${efIN('gy.elne', 'Ha létezne az Ön elvárásainak megfelelő lehetőség, élne vele?')}`)}`;
     if(f === 'nyugdij') return `${efSav('Gondtalan<br>nyugdíjas<br>évek', 'nyugdij')}
         <div class="ef-racs2">${efInp('ny.kor', 'Tudja-e, hány éves korában mehet nyugdíjba?', { szam: 1, me: 'év' })}${efInp('ny.celok', 'Milyen célokat szeretne megvalósítani nyugdíjas évei alatt?')}</div>
         <div class="ef-racs2">${efInp('ny.szazalek', 'Jelenlegi nettó jövedelme hány százalékára lenne szüksége nyugdíjas éveiben?', { szam: 1, me: '%' })}
@@ -19098,9 +19186,23 @@ function efFejHtml(f){
                 `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><span class="ef-in-k"><input class="ef-in szam" data-ef="ny.${p}.${k}" value="${esc(a[`ny.${p}.${k}`] || '')}" inputmode="decimal"><em>${me}</em></span></td>`).join('')}</tr>`).join('')}
             </tbody></table>`)}
         ${efInp('ny.mikortol', 'Mikortól áll rendelkezésére ez az összeg?')}
+        ${efBov('nyugdij', `${efIN('ny.mnyp', 'Tagja maradt-e a magánnyugdíjpénztárnak?')}
+            <table class="ef-tabla kicsi"><thead><tr><th></th><th>Ügyfél</th><th>Partner</th></tr></thead><tbody>
+            ${[['kieg', 'Ön szerint mekkora havi nyugdíjkiegészítésre lesz szüksége?', 'eFt'], ['evek', 'Várhatóan nyugdíjban töltött évek száma?', 'év'], ['kezd', 'Mikortól tudja a megtakarítást elkezdeni?', '-tól']].map(([k, n, me]) =>
+                `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><span class="ef-in-k"><input class="ef-in" data-ef="ny.${p}.${k}" value="${esc(a[`ny.${p}.${k}`] || '')}"><em>${me}</em></span></td>`).join('')}</tr>`).join('')}</tbody></table>
+            <h4>Adatok egyénre szabott nyugdíjszámításhoz</h4>
+            <div class="ef-racs2">${efInp('ny.brutto', 'Bruttó jövedelem (éves)', { szam: 1, me: 'mFt' })}${efInp('ny.eltartott', '18 év alatti eltartottak száma / összes eltartott', { me: 'fő' })}${efInp('ny.szulev', 'Születési év', { szam: 1 })}${efInp('ny.miota', 'Mióta dolgozik?')}</div>
+            <div class="ef-mezo"><span>Milyen elvárásai vannak egy nyugdíjmegtakarítási programmal szemben?</span>${efJel('ny.elvaras', ['Örökölhető', 'Rugalmasabb futamidő', 'Eseti befizetési lehetőség', 'Megtakarítás biztonsága', 'Szüneteltetési lehetőség', 'Államtól független', 'Kamatadó és SZJA mentesség', 'Egyéb'])}</div>
+            ${efIN('ny.elne', 'Ha létezne az Ön elvárásainak megfelelő lehetőség, élne vele?')}`)}
         ${efIdezet('Nem az számít, honnan indulsz, hanem az, hogy milyen döntéseket hozol arról, hogy hová akarsz végül eljutni.', 'Anthony Robbins')}`;
     if(f === 'felelos') return `<h2 class="ef-h">Felelősségteljes élet</h2>
-        ${efInp('fe.sajat', 'Gondoskodott-e már a saját védelméről?', { szeles: 1 })}${efInp('fe.csalad', 'Gondoskodott-e már családja védelméről?', { szeles: 1 })}${efInp('fe.osszeg', 'Mekkora összeget szán ilyen jellegű védelemre?', { szam: 1, me: 'Ft/hó' })}`;
+        <div class="ef-racs2">${efInp('fe.sajat', 'Gondoskodott-e már a saját védelméről?')}${efInp('fe.csalad', 'Gondoskodott-e már családja védelméről?')}</div>
+        ${efInp('fe.ismeros', 'Történt-e ismeretségi körében komolyabb baleset, betegség? Ha igen, milyen jellegű?', { szeles: 1 })}
+        <div class="ef-mezo"><span>Mi okozná a legnagyobb problémát, ha Önnel hasonló történne?</span>${efJel('fe.problema', ['Többletköltségek (hálapénz)', 'Kieső jövedelem (táppénz)', 'Ellátás színvonala (várólista)', 'Egyéb'])}</div>
+        <div class="ef-mezo"><span>Hol érheti baleset Önt leginkább?</span>${efJel('fe.hol', ['Munkahely', 'Közlekedés', 'Sport', 'Háztartási munka', 'Egyéb'])}</div>
+        <div class="ef-racs2">${efInp('fe.csaladszukseg', 'Mekkora összegre lenne szüksége családjának egy komolyabb baleset, betegség esetén?', { szam: 1, me: 'Ft' })}${efIN('fe.dohanyzik', 'Dohányzik?')}</div>
+        <div class="ef-mezo"><span>Mely esetekre kíván leginkább felkészülni?</span>${efJel('fe.esetek', ['Baleset', 'Betegség', 'Kórházi tartózkodás', 'Közlekedési baleset', 'Műtét', 'Rokkantság', 'Gyógyulási támogatás', 'Kritikus betegségek', 'Égési sérülés', 'Csonttörés', 'Egyéb'])}</div>
+        <div class="ef-racs2">${efInp('fe.osszeg', 'Mekkora összeget szán ilyen jellegű védelemre?', { szam: 1, me: 'Ft/hó' })}${efInp('fe.mikortol', 'Mikortól tudja baleset esetére bebiztosítani magát?')}</div>`;
     if(f === 'vagyon') return `<h2 class="ef-h">Vagyonfelépítés, befektetés</h2>
         ${efKot(`<div class="ef-mezo"><span>Ön milyen jellegű befektetésben vagy megtakarításban gondolkodik?</span>${efJel('va.jelleg', ['Egyösszegű befektetés', 'Rendszeres megtakarítás', 'A kettő együtt'], { egy: 1 })}</div>
             ${efInp('va.elegedett', 'Jelenlegi befektetésében / megtakarításában mi az, amivel elégedett, és mi az, amivel esetleg nem?', { sor: 2, szeles: 1 })}
@@ -19118,43 +19220,88 @@ function efFejHtml(f){
         ${[['netto', 'Nettó jövedelem'], ['egyeb', 'Egyéb jövedelem (lakáskiadás, másodállás)'], ['csaladi', 'Családi pótlék']].map(([k, n]) =>
             `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><input class="ef-in szam" data-ef="kv.${p}.${k}" value="${esc(a[`kv.${p}.${k}`] || '')}" inputmode="decimal"></td>`).join('')}</tr>`).join('')}
         <tr class="ossz"><td>Összesen</td><td data-efcalc="bev.u"></td><td data-efcalc="bev.p"></td></tr></tbody></table>
-        <table class="ef-tabla kicsi"><thead><tr><th>Kiadások</th><th>Összeg (Ft, havi bontásban)</th></tr></thead><tbody>
-        ${EF_KIADASOK.map((n, i) => `<tr><td>${n}</td><td><input class="ef-in szam" data-ef="kv.k${i}" value="${esc(a['kv.k' + i] || '')}" inputmode="decimal"></td></tr>`).join('')}
-        <tr class="ossz"><td>Havi összköltség</td><td data-efcalc="kiad"></td></tr></tbody></table>
+        <table class="ef-tabla kicsi ef-kiadas"><thead><tr><th>Kiadások</th><th>Összeg (Ft, havi bontásban)</th><th>Tud-e / kíván-e spórolni rajta?</th></tr></thead><tbody>
+        ${EF_KIADASOK.map((n, i) => `<tr><td>${n}</td><td><input class="ef-in szam" data-ef="kv.k${i}" value="${esc(a['kv.k' + i] || '')}" inputmode="decimal"></td><td><input class="ef-in" data-ef="kv.s${i}" value="${esc(a['kv.s' + i] || '')}"></td></tr>`).join('')}
+        <tr class="ossz"><td>Havi összköltség</td><td data-efcalc="kiad"></td><td></td></tr></tbody></table>
         <div class="ef-mezo"><span>Hitelek részletei (aktuális egyenleg, futamidő kezdete, vége, típusa, havi törlesztő)</span>${efInp('kv.hitelek', '', { sor: 2 })}</div>
+        ${efBov('koltseg', `<div class="ef-racs2">${efInp('kv.eves', 'Évente felmerülő kiadások (nyaralás, iskolakezdés stb.)', { szam: 1, me: 'eFt/hó' })}
+            <div class="ef-mezo"><span>Havi kiadások 10%-kal növelve</span><b class="ef-calc" data-efcalc="kiad10"></b></div></div>
+            <div class="ef-racs3">${efIN('kv.elolepes', 'Számít-e előléptetésre, fizetésemelésre?')}${efIN('kv.masodallas', 'Szeretne-e másodállást, új munkahelyet?')}${efIN('kv.tartalek', 'Rendelkezik-e biztonsági tartalékkal?')}</div>`)}
         ${efKot(`<div class="ef-merleg"><div><span>Összes bevétel</span><b data-efcalc="bev"></b></div><i>−</i><div><span>Összes kiadás</span><b data-efcalc="kiad"></b></div><i>=</i>
             <div class="kiem"><span>Szabad jövedelem</span><b data-efcalc="szabad"></b></div>${efIN('kv.realis', 'Reális?')}</div>
             <p class="ef-tipp" style="margin:6px 0 0">Kiértékeléskor a jelenleg rendelkezésre álló szabad jövedelem az irányadó.</p>`)}`;
     if(f === 'lepesek') return `${efSav('Melyek a<br>következő<br>lépések?', 'lepesek')}
         <h4>Mely célokat szeretnénk elérni közösen?</h4>
         <div class="ef-lepes"><b>1. lépés</b><span>Meglévő programjainak felülvizsgálata</span></div>
-        ${[2, 3].map(n => `<div class="ef-racs3">${efInp(`lp.${n}.cel`, `${n}. lépés`)}${efInp(`lp.${n}.osszeg`, 'Összeg', { szam: 1, me: 'Ft' })}${efInp(`lp.${n}.mikor`, 'Mikortól')}</div>`).join('')}
-        ${efInp('lp.resztvevo', 'Ki vesz részt majd a tanácsadáson, hogy döntését elősegítse?', { szeles: 1 })}
-        <div class="ef-mezo"><span>Helyszín</span>${efJel('lp.helyszin', ['Önnél', 'OVB iroda', 'Egyéb'], { egy: 1 })}</div>
-        ${efInp('lp.idopont', 'Mely időpontok alkalmasak az Ön számára?', { szeles: 1 })}${efInp('lp.elvaras', 'Milyen elvárásai vannak a következő megbeszéléssel kapcsolatban?', { szeles: 1 })}
+        ${[2, 3, 4, 5].map(n => `<div class="ef-racs3">${efInp(`lp.${n}.cel`, `${n}. lépés`)}${efInp(`lp.${n}.osszeg`, 'Összeg', { szam: 1, me: 'Ft' })}${efInp(`lp.${n}.mikor`, 'Mikortól')}</div>`).join('')}
+        ${efInp('lp.fontos', 'Van-e valami fontos, amiről most nem esett szó? Van-e olyan piaci szereplő vagy pénzügyi terület, amellyel kevésbé pozitív tapasztalatai vannak?', { sor: 2, szeles: 1 })}
+        <h3 class="ef-kiemelt-c">Az elemzést követően olyan tájékoztatást tudunk nyújtani, amely lehetővé teszi az Ön számára a legmegfelelőbb termék vagy szolgáltatás kiválasztását.</h3>
+        <h4>Mely időpontok alkalmasak az Ön számára?</h4>
+        <div class="ef-tabla-k"><table class="ef-tabla ef-idoracs"><thead><tr><th></th>${EF_NAPOK.map(n => `<th>${n}</th>`).join('')}</tr></thead><tbody>
+        ${EF_SAVOK.map((s, si) => `<tr><td>${s}</td>${EF_NAPOK.map((_, ni) => { const k = `lp.ido.${ni}.${si}`;
+            return `<td><button type="button" class="ef-van${a[k] ? ' on' : ''}" data-efvan="${k}">${a[k] ? '✓' : ''}</button></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
+        <div class="ef-mezo"><span>Helyszín</span>${efJel('lp.helyszin', ['OVB iroda', 'Önnél', 'Egyéb'], { egy: 1 })}</div>
+        ${efInp('lp.nemer', 'Van esetleg olyan időszak, amikor egyáltalán nem ér rá (például külföldön tartózkodik)?', { szeles: 1 })}
+        <div class="ef-racs2"><div class="ef-mezo"><span>Ki vesz részt majd a tanácsadáson, hogy döntését elősegítse?</span>${efJel('lp.ki', ['Egyedül', 'Más is jelen lesz'], { egy: 1 })}</div>${efInp('lp.resztvevo', 'Aki(k) jelen lesz(nek)')}</div>
+        ${efInp('lp.elvaras', 'Milyen elvárásai vannak a következő megbeszéléssel kapcsolatban?', { szeles: 1 })}
         ${efInp('lp.nemmukodne', 'Van olyan pénzpiaci szereplő, akivel nem működne együtt?', { szeles: 1 })}`;
-    if(f === 'ajanlas') return `<h2 class="ef-h ef-h2">Karrier / tanácsadó ajánlás</h2>
-        <p class="ef-tipp">Társaságunk új tanácsadókat keres. Kit ajánlana, aki szívesen megismerné cégünket egy kötetlen beszélgetés alkalmával?</p>
-        <div class="ef-racs2">${[1, 2].map(n => `<div class="ef-szemely"><b>${n}. személy</b>
-            ${efInp(`aj.${n}.nev`, 'Név')}${efInp(`aj.${n}.kor`, 'Életkor', { szam: 1, me: 'év' })}${efInp(`aj.${n}.tel`, 'Telefonszám')}${efInp(`aj.${n}.telepules`, 'Település')}
-            ${efInp(`aj.${n}.miert`, 'Miért gondolt rá?')}${efInp(`aj.${n}.lakas`, 'Lakáshelyzet / családi állapot')}${efInp(`aj.${n}.fogl`, 'Foglalkozás / honnan ismeri?')}${efInp(`aj.${n}.gyerek`, 'Gyerekek száma / életkora')}${efInp(`aj.${n}.megj`, 'Megjegyzés')}
-            ${a[`aj.${n}.felveve`] ? '<span class="ef-felveve">✓ Felvéve a 2 órás füzetbe</span>' : `<button type="button" class="btn" data-efajfel="${n}">+ Felvétel a 2 órás füzetbe</button>`}</div>`).join('')}</div>`;
+    if(f === 'ajanlas'){ const szemely = n => `<div class="ef-szemely"><b>${n}. személy</b>
+            ${efInp(`aj.${n}.nev`, 'Vezeték- és keresztnév')}${efInp(`aj.${n}.fogl`, 'Foglalkozás / honnan ismeri?')}${efInp(`aj.${n}.kor`, 'Életkor', { szam: 1, me: 'év' })}${efInp(`aj.${n}.telepules`, 'Lakhely')}
+            ${efInp(`aj.${n}.tel`, 'Telefon')}${efInp(`aj.${n}.elerheto`, 'Elérhetőség (mikor?)')}${efInp(`aj.${n}.miert`, 'Miért gondolt rá?')}${efInp(`aj.${n}.megj`, 'Megjegyzés')}
+            ${a[`aj.${n}.felveve`] ? '<span class="ef-felveve">✓ Felvéve a 2 órás füzetbe</span>' : `<button type="button" class="btn" data-efajfel="${n}">+ Felvétel a 2 órás füzetbe</button>`}</div>`;
+        return `<h2 class="ef-h">Milyennek képzeli álmai munkáját?</h2>
+        <div class="ef-mezo"><span>Az Ön számára mely szempontok a legfontosabbak egy munkahely megválasztásakor?</span>${efJel('am.szempont', ['Szakmai kihívások', 'Karrier lehetőség', 'Személyiségfejlődés', 'Stabil munkahely', 'Rugalmas időbeosztás', 'Segíteni másoknak', 'Korrekt fizetés', 'Jó munkahelyi légkör', 'Egyéb'])}</div>
+        <div class="ef-racs2">${efInp('am.orszag', 'Ön szerint Magyarországon 10-ből hányan elégedettek a munkahelyükkel?', { szam: 1, me: '/ 10' })}${efInp('am.ismeros', 'Ismeretségi körében 10-ből hányan elégedettek a munkahelyükkel?', { szam: 1, me: '/ 10' })}</div>
+        <div class="ef-mezo"><span>Ön szerint miért nem váltanak?</span>${efJel('am.miert', ['Nem tudnak más lehetőségről', 'Félnek a váltástól', 'Végzettségük miatt', 'Relatív elégedettség', 'Megszokás', 'Egyéb'])}</div>
+        <h2 class="ef-h ef-h2">Karrier / tanácsadó ajánlás</h2>
+        <p class="ef-tipp">Társaságunk a minőségi, professzionális pénzügyi tanácsadás iránt egyre növekvő piaci igény miatt új tanácsadókat keres. Kit ajánlana, aki szívesen megismerné cégünket egy kötetlen beszélgetés alkalmával?</p>
+        <div class="ef-racs2">${[1, 2].map(szemely).join('')}</div>
+        ${efBov('ajanlas', `<div class="ef-racs2">${[3, 4, 5, 6].map(szemely).join('')}</div>`)}
+        <p class="ef-tipp">Az ajánló igazolja, hogy az általa ajánlott személyeket a kapcsolatfelvétel előtt tájékoztatja – ezt és az aláírást a papíros füzeten rögzítsd.</p>`; }
+    if(f === 'vallalkozo') return `<h2 class="ef-h">Vállalkozói elemzés</h2>
+        <div class="ef-racs2">${efInp('vl.alapitas', 'Mikor alapították a céget?')}${efInp('vl.tevekenyseg', 'Cég fő tevékenysége')}</div>
+        <div class="ef-mezo"><span>Milyen formában működik?</span>${efJel('vl.forma', ['EV', 'Bt.', 'Kft.', 'Kkt.', 'Rt.'], { egy: 1 })}</div>
+        <div class="ef-racs2">${efInp('vl.hanyad', 'Tulajdonos – tulajdoni hányad', { me: '%' })}<div class="ef-mezo"><span>Szerepe a társaságban</span>${efJel('vl.szerep', ['Egyedüli ügyvezető / cégvezető', 'Együttes ügyvezető / cégvezető'], { egy: 1 })}</div></div>
+        <div class="ef-racs2">${efInp('vl.arbev_elozo', 'Éves árbevétel – előző év', { szam: 1, me: 'eFt' })}${efInp('vl.arbev_targy', 'Éves árbevétel – tárgyév', { szam: 1, me: 'eFt' })}</div>
+        <div class="ef-racs3">${efIN('vl.juttatas', 'Létezik-e béren kívüli juttatási rendszer?')}${efInp('vl.keret', 'Ha igen, mekkora a keretösszeg?', { szam: 1, me: 'eFt' })}${efInp('vl.elemek', 'Milyen elemeket tartalmaz?')}</div>
+        <h4>Alkalmazottak</h4>
+        <table class="ef-tabla kicsi"><thead><tr><th></th><th>Létszám (fő)</th><th>Havi átlagfizetés (eFt)</th></tr></thead><tbody>
+        ${[['vezeto', 'Vezető beosztású'], ['irodai', 'Irodai dolgozó'], ['fizikai', 'Fizikai dolgozó'], ['kiemelt', 'Kiemelt dolgozó']].map(([k, n]) => `<tr><td>${n}</td><td><input class="ef-in szam" data-ef="vl.al.${k}.fo" value="${esc(a[`vl.al.${k}.fo`] || '')}"></td><td><input class="ef-in szam" data-ef="vl.al.${k}.fiz" value="${esc(a[`vl.al.${k}.fiz`] || '')}"></td></tr>`).join('')}</tbody></table>
+        <h4>Céges folyószámlák</h4>${efTabla('vl.fsz', [['f1', 'Folyószámla 1'], ['f2', 'Folyószámla 2']], [['tarsasag', 'Társaság'], ['miert', 'Miért választotta?'], ['hitelkeret', 'Hitelkeret'], ['elegedett', 'Elégedett?'], ['valtana', 'Váltana?'], ['dij', 'Havi díj'], ['tarolt', 'Tárolt összeg (átlag)'], ['megj', 'Megjegyzés']])}
+        <h4>Céges biztosítások</h4>${efTabla('vl.bizt', [['telephely', 'Telephelybiztosítás'], ['felelosseg', 'Felelősségbiztosítás'], ['kgfb', 'KGFB'], ['casco', 'Casco'], ['csoportos', 'Csoportos balesetbiztosítás'], ['kockazati', 'Kockázati életbiztosítás']],
+            [['tarsasag', 'Társaság'], ['osszeg', 'Biztosítási összeg'], ['dij', 'Havidíj'], ['evf', 'Évforduló'], ['modulok', 'Modulok / létszám / járművek'], ['megj', 'Megjegyzés']])}
+        <h4>Hitel, lízing, hitelkeret</h4>${efTabla('vl.hit', [['h1', '1.'], ['h2', '2.'], ['h3', '3.']], [['tarsasag', 'Társaság'], ['osszeg', 'Hitelösszeg'], ['torl', 'Havi törlesztő'], ['kezdet', 'Kezdet'], ['lejarat', 'Lejárat'], ['tartozas', 'Akt. tartozás'], ['megj', 'Megjegyzés']])}
+        <div class="ef-racs2"><div><h4>Milyen vagyontárgyai vannak a vállalkozásnak?</h4>${[1, 2, 3].map(n => `<div class="ef-racs2">${efInp(`vl.v${n}.tipus`, 'Típus')}${efInp(`vl.v${n}.ertek`, 'Érték')}</div>`).join('')}</div>
+            <div><h4>Milyen beruházásokat terveznek?</h4>${efInp('vl.beruhazas', '', { sor: 2 })}${efInp('vl.beruhazas_mikor', 'Mikor?')}${efIN('vl.beruhazas_hitel', 'Szükséges hitel?')}</div></div>
+        <h4>Ki hozza meg a pénzügyi döntéseket a társaságnál?</h4>
+        <div class="ef-racs3">${efInp('vl.dontes_nev', 'Név')}${efInp('vl.dontes_beosztas', 'Beosztás')}${efInp('vl.dontes_tel', 'Telefonszám')}</div>`;
     if(f === 'szemelyes') return `<h2 class="ef-h">Személyes adatok</h2>
         <p class="ef-tipp">Az Ön által megadott adatokat kiértékeljük az Ön igényeinek és szükségleteinek meghatározása érdekében. Az adatokat bizalmasan kezeljük.</p>
         <table class="ef-tabla kicsi"><thead><tr><th></th><th>Ügyfél</th><th>Házastárs / partner</th></tr></thead><tbody>
-        ${[['nev', 'Név'], ['telepules', 'Irányítószám / település'], ['utca', 'Utca / házszám'], ['szul', 'Születési hely, idő'], ['adoszam', 'Adószám'], ['fogl', 'Foglalkozás'], ['jogviszony', 'Alkalmazott / vállalkozó'],
+        ${[['nev', 'Név'], ['telepules', 'Irányítószám / település'], ['utca', 'Utca / házszám'], ['szul', 'Születési hely, idő'], ['adoszam', 'Adóazonosító jel'], ['fogl', 'Foglalkozás'], ['jogviszony', 'Alkalmazott / vállalkozó'],
            ['allampolg', 'Állampolgárság'], ['csaladi', 'Családi állapot'], ['mobil', 'Mobiltelefon'], ['tel', 'Telefon (privát)'], ['email', 'E-mail cím']].map(([k, n]) =>
-            `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><input class="ef-in" data-ef="sz.${p}.${k}" value="${esc(a[`sz.${p}.${k}`] || '')}"></td>`).join('')}</tr>`).join('')}
-        </tbody></table>
+            `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><input class="ef-in" data-ef="sz.${p}.${k}" value="${esc(a[`sz.${p}.${k}`] || '')}"${k === 'jogviszony' ? ' list="efJogviszony"' : ''}></td>`).join('')}</tr>`).join('')}
+        </tbody></table><datalist id="efJogviszony"><option value="Alkalmazott"><option value="Vállalkozó"></datalist>
+        <div class="ef-vall-kapcs"><button type="button" class="ef-chip${a['vl.be'] === '1' ? ' on' : ''}" data-efvan="vl.be">${a['vl.be'] === '1' ? '✓ ' : ''}Vállalkozói elemzés</button>
+            <span class="ef-tipp" style="margin:0">Ha az ügyfél vállalkozó (a „Vállalkozó” jogviszonynál magától is), megjelenik a „Vállalkozói elemzés” oldal.</span></div>
         <h4>Az elemzést készítette</h4>
         <div class="ef-racs3">${efInp('sz.tanacsado', 'Tanácsadó neve')}${efInp('sz.mt', 'MT-szám')}${efInp('sz.felugyeleti', 'Felügyeleti nyilvántartási szám')}${efInp('sz.datum', 'Dátum', { tip: 'date' })}</div>
         <p class="ef-tipp">A nyilatkozatot és az aláírásokat a papíros füzeten vagy az OVB rendszerében rögzítsd.</p>`;
+    if(f === 'szerviz'){ const alk = n => `<div class="ef-alkalom"><b>${n}. alkalom</b>
+            <div class="ef-racs3">${efInp(`sv.${n}.datum`, 'Dátum', { tip: 'date' })}${efIN(`sv.${n}.szemelyes`, 'Személyes találkozó volt?')}${efInp(`sv.${n}.tema`, 'Témakör')}</div>
+            <div class="ef-racs2">${efInp(`sv.${n}.eredmeny`, 'Eredménye')}${efInp(`sv.${n}.megj`, 'Megjegyzés')}${efInp(`sv.${n}.ugyfelaj`, 'Ügyfélajánlás', { szam: 1, me: 'fő' })}${efInp(`sv.${n}.tanacsadoaj`, 'Tanácsadóajánlás', { szam: 1, me: 'fő' })}
+            ${efInp(`sv.${n}.kov`, 'Következő szervizidőpont', { tip: 'date' })}${efInp(`sv.${n}.kovtema`, 'Következő témakör')}</div></div>`;
+        return `<h2 class="ef-h">Szervizszolgáltatás</h2>
+        <div class="ef-racs2">${efInp('sv.elso', 'Első igényfelmérés időpontja', { tip: 'date' })}${efInp('sv.tanacsado', 'Tanácsadó neve')}</div>
+        ${[1, 2, 3].map(alk).join('')}
+        ${efBov('szerviz', [4, 5, 6].map(alk).join(''))}
+        ${efInp('sv.jegyzet', 'Feljegyzések (változott-e: családi állapot, gyermekek száma, lakáshelyzet, munkahely stb.?)', { sor: 4, szeles: 1 })}`; }
     return `${efSav('Feljegyzések', 'jegyzet')}${efInp('jegyzet', '', { sor: 16, szeles: 1 })}
         ${efIdezet('Nem az számít, honnan indulsz, hanem az, hogy milyen döntéseket hozol arról, hogy hová akarsz végül eljutni.', 'Anthony Robbins')}`;
 }
 // Mennyi van kitöltve egy fejezetben (a kulcs eleje alapján).
-const EF_ELO = { torodik: ['ugyfel', 'ajanlo', 'tanacsado', 'tajekoztatas', 'honnan', 'volt', 'cel.'], kapcs: ['kb.', 'mt.', 'bf.', 'fsz.', 'hit.'], otthon: ['ot.'], gyerek: ['gy.'],
-    nyugdij: ['ny.'], felelos: ['fe.'], vagyon: ['va.'], koltseg: ['kv.'], piramis: ['pir.'], lepesek: ['lp.', 'aj.'], szemelyes: ['sz.'], jegyzet: ['jegyzet'] };
+const EF_ELO = { torodik: ['ugyfel', 'ajanlo', 'tanacsado', 'tajekoztatas', 'honnan', 'volt', 'cel.', 'tf.'], kapcs: ['kb.', 'mt.', 'bf.', 'fsz.', 'hit.', 'kp.'], otthon: ['ot.'], gyerek: ['gy.'],
+    nyugdij: ['ny.'], felelos: ['fe.'], vagyon: ['va.'], koltseg: ['kv.'], piramis: ['pir.'], lepesek: ['lp.'], karrier: ['aj.', 'am.'], szemelyes: ['sz.'], vallalkozo: ['vl.'], szerviz: ['sv.'], jegyzet: ['jegyzet'] };
 const efKitoltott = f => Object.entries(efA()).filter(([k, v]) => EF_ELO[f].some(p => k.startsWith(p)) && (Array.isArray(v) ? v.length : String(v).trim())).length;
 function efFontos(){
     const a = efA(), s = new Set();
@@ -19163,15 +19310,17 @@ function efFontos(){
 }
 function efRajz(gorget){
     const ov = document.querySelector('.ef'); if(!ov) return;
-    const r = registry[efI], fontos = efFontos(), j = EF_FEJ.findIndex(x => x[0] === efFej);
+    const r = registry[efI], fontos = efFontos(), lapok = efLapok();
+    if(!lapok.some(x => x[0] === efFej)) efFej = lapok[0][0];
+    const j = lapok.findIndex(x => x[0] === efFej);
     ov.querySelector('.ef-nav').innerHTML = `<div class="ef-borito"><img src="${EF_K}borito.jpg" alt=""><div><b>Pénzügyi elemzés</b><span>${esc(r.name || '')}</span></div></div>`
-        + EF_FEJ.map(([k, n], i) => { const db = efKitoltott(k), kesz = (r.elemzofuzet.keszLapok || []).includes(k);
+        + lapok.map(([k, n], i) => { const db = efKitoltott(k), kesz = (r.elemzofuzet.keszLapok || []).includes(k);
         return `<button type="button" class="${k === efFej ? 'on' : ''}${kesz ? ' kesz' : ''}" data-effej="${k}"><i>${kesz ? '✓' : i + 1}</i><span>${n}${fontos.has(k) ? ' <b title="A választott célok miatt fontos">★</b>' : ''}</span>${db ? `<em>${db}</em>` : ''}</button>`; }).join('');
     ov.querySelector('.ef-tart').innerHTML = `<div class="ef-lap">${efLap(efFej)}</div>`;
     ov.querySelector('[data-efelo]').disabled = j <= 0;
     const lk = (r.elemzofuzet.keszLapok || []).includes(efFej), lg = ov.querySelector('[data-eflapkesz]');
     lg.classList.toggle('on', lk); lg.textContent = lk ? '✓ Témakör kész' : 'Témakör kész?';
-    ov.querySelector('[data-efkov]').textContent = j >= EF_FEJ.length - 1 ? (r.elemzofuzet.kesz ? '✓ Kész' : 'Elemzés kész ✓') : 'Következő →';
+    ov.querySelector('[data-efkov]').textContent = j >= lapok.length - 1 ? (r.elemzofuzet.kesz ? '✓ Kész' : 'Elemzés kész ✓') : 'Következő →';
     ov.querySelector('.ef-fej-nev').textContent = r.name || 'Névtelen ügyfél';
     efSzamol();
     if(gorget) ov.querySelector('.ef-tart').scrollTop = 0;
@@ -19232,7 +19381,7 @@ function efAjanlottFelvesz(n){
 // Nyomtatható összesítő: csak a kitöltött mezők, fejezetenként.
 function efNyomtat(){
     const r = registry[efI], a = efA();
-    const blokk = EF_FEJ.map(([f, n]) => {
+    const blokk = efLapok().map(([f, n]) => {
         const tmp = document.createElement('div'); tmp.innerHTML = efLap(f);
         const sorok = [];
         tmp.querySelectorAll('[data-ef]').forEach(el => { const v = (a[el.dataset.ef] || '').toString().trim(); if(!v) return;
@@ -19257,6 +19406,7 @@ function efNyomtat(){
 document.addEventListener('input', e => {
     const t = e.target; if(efI == null || !t.closest || !t.closest('.ef') || !t.dataset.ef) return;
     efA()[t.dataset.ef] = t.value; efMent(); efSzamol();
+    if(/^gy\.mk\./.test(t.dataset.ef)){ const gy = document.querySelector('.ef [data-efgyabra]'); if(gy) gy.innerHTML = efGyerekAbra(efA()); }
     if(/^(kv\.u\.netto|ny\.)/.test(t.dataset.ef)){ const ab = document.querySelector('.ef [data-efnyabra]'); if(ab) ab.innerHTML = efNyugdijAbra(efA()); }
     const nb = document.querySelector(`.ef-nav [data-effej="${efFej}"]`); if(nb){ const db = efKitoltott(efFej); let em = nb.querySelector('em'); if(db){ if(!em){ em = document.createElement('em'); nb.appendChild(em); } em.textContent = db; } else if(em) em.remove(); }
 });
@@ -19271,13 +19421,13 @@ document.addEventListener('click', e => {
     const fj = e.target.closest('[data-effej]'); if(fj){ efFej = fj.dataset.effej; efRajz(true); return; }
     if(e.target.closest('[data-efbezar]')){ efBezar(); return; }
     if(e.target.closest('[data-efnyomtat]')){ efNyomtat(); return; }
-    if(e.target.closest('[data-efelo]')){ const j = EF_FEJ.findIndex(x => x[0] === efFej); if(j > 0){ efFej = EF_FEJ[j - 1][0]; efRajz(true); } return; }
+    if(e.target.closest('[data-efelo]')){ const L = efLapok(), j = L.findIndex(x => x[0] === efFej); if(j > 0){ efFej = L[j - 1][0]; efRajz(true); } return; }
     const lapJel = (k, on) => { const r = registry[efI], l = r.elemzofuzet.keszLapok = r.elemzofuzet.keszLapok || [];
         if(on && !l.includes(k)) l.push(k); if(!on) r.elemzofuzet.keszLapok = l.filter(x => x !== k); };
     if(e.target.closest('[data-eflapkesz]')){ lapJel(efFej, !(registry[efI].elemzofuzet.keszLapok || []).includes(efFej)); efMent(); efRajz(false); return; }
-    if(e.target.closest('[data-efkov]')){ const j = EF_FEJ.findIndex(x => x[0] === efFej);
+    if(e.target.closest('[data-efkov]')){ const L = efLapok(), j = L.findIndex(x => x[0] === efFej);
         if(efKitoltott(efFej)) lapJel(efFej, true);   // továbblépéskor a kitöltött témakör kipipálódik
-        if(j < EF_FEJ.length - 1){ efFej = EF_FEJ[j + 1][0]; efRajz(true); return; }
+        if(j < L.length - 1){ efFej = L[j + 1][0]; efRajz(true); return; }
         // az utolsó fejezeten: az elemzés kész → az EL lépés is pipát kap
         const r = registry[efI]; r.elemzofuzet.kesz = new Date().toISOString(); r.elemzes = true; efBezar(); return; }
     const jb = e.target.closest('[data-efj]');
@@ -19301,6 +19451,7 @@ document.addEventListener('click', e => {
     if(e.target.closest('[data-efpirmutat]')){ efPiramisMutat(); return; }
     const af = e.target.closest('[data-efajfel]'); if(af){ efAjanlottFelvesz(af.dataset.efajfel); return; }
 });
+document.addEventListener('toggle', e => { const d = e.target; if(d.matches && d.matches('.ef [data-efbov]')){ if(d.open) efBovNyit.add(d.dataset.efbov); else efBovNyit.delete(d.dataset.efbov); } }, true);
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && efI != null && !document.querySelector('.modal-overlay')) efBezar(); });
 // Kinyitott kártya: bal oldalt állandó összefoglaló, jobb oldalt füles adatlap.
 function regCardDetailHtml(i){
