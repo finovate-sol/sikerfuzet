@@ -1268,6 +1268,17 @@
         .pzi-t-szam { align-items:center; text-align:center; } .pzi-szam { font-size:170px; font-weight:800; line-height:1; color:var(--akc); margin-bottom:30px; letter-spacing:-.02em; }
         .pzi-t-idezet { align-items:center; text-align:center; }
         .pzi-szam.hosszu { font-size:110px; }
+        .pzi-tema-fekete { background:#000; color:#fff; --akc:#fff; }
+        .pzi-t-kep { padding:0; align-items:center; justify-content:center; background:#000; position:relative; }
+        .pzi-kep { width:1280px; height:720px; object-fit:contain; display:block; }
+        .pzi-kep-cim { position:absolute; left:40px; bottom:30px; font-size:28px; background:rgba(0,0,0,.6); padding:8px 16px; border-radius:10px; }
+        .pzi-kep-hiany { color:#94a3b8; font-size:36px; }
+        .pzi-drop { border:2px dashed #c7d2e0; border-radius:14px; padding:14px 16px; font-size:13px; color:var(--muted); text-align:center; margin:4px 0 6px; transition:.15s; }
+        .pzi-drop.on { border-color:var(--blue); background:#eef4ff; color:var(--blue); }
+        .pzi-sz-fg label.btn { cursor:pointer; display:inline-flex; align-items:center; }
+        .pzi-sz-urlap .pzi-sz-kepinfo ~ .sb-mezo { grid-column:1 / -1; }
+        .pzi-sz-kepinfo { grid-column:1 / -1; margin:0 0 6px; font-size:12.5px; color:var(--muted); }
+        .pzi-fel-all { margin:0 0 10px; font-size:13.5px; } .pzi-fel-hal { display:block; height:6px; border-radius:3px; background:#e5e9f0; overflow:hidden; } .pzi-fel-hal i { display:block; height:100%; width:0; background:var(--blue); transition:width .2s; }
         .pzi-elo, .pzi-sz-mini, .pzi-sz-nagy { box-shadow:inset 0 0 0 1px rgba(15,23,42,.1); }
         .pzi-elo-bel { z-index:0; } .pzi-tema-vilagos.pzi-elo, .pzi-tema-vilagos.pzi-sz-mini, .pzi-tema-vilagos.pzi-sz-nagy { outline:1px solid #e2e8f0; outline-offset:-1px; }
         .pzi-dia blockquote { font-size:60px; line-height:1.2; font-weight:700; margin:0 0 34px; max-width:1000px; }
@@ -10607,7 +10618,96 @@ window.sfShowSablonok = function(){ renderSablonok(); };
 // Dia-típusok: cim (cím + alcím), lista (cím + pontok, opcionális kép), lepesek
 // (cím + egymás utáni lépések), szam (nagy szám/szöveg + magyarázat), idezet.
 const PZI_TIPUSOK = [['cim', 'Címdia'], ['lista', 'Felsorolás'], ['lepesek', 'Lépések'], ['szam', 'Kiemelt szám'], ['idezet', 'Idézet / üzenet']];
-const PZI_TEMAK = [['kek', 'Sötétkék'], ['vilagos', 'Világos'], ['sotet', 'Éjfekete'], ['zold', 'Smaragd']];
+const PZI_TEMAK = [['kek', 'Sötétkék'], ['vilagos', 'Világos'], ['sotet', 'Éjfekete'], ['zold', 'Smaragd'], ['fekete', 'Fekete (feltöltött diákhoz)']];
+// Feltöltött (PDF / kép) diák: oldalanként egy JPEG a Firestore-ban, ugyanott, ahol a
+// jegyzetek képei vannak (note_images, a gazdájáé) – a prezentáció csak az azonosítót tárolja.
+const pziKepCache = new Map();
+async function pziKepUrl(id){
+    if(!id) return '';
+    if(pziKepCache.has(id)) return pziKepCache.get(id);
+    let u = '';
+    try { const d = window.sfNlKep ? await window.sfNlKep.get(id) : null; if(d && d.data) u = `data:${d.mime || 'image/jpeg'};base64,${d.data}`; } catch(e){}
+    if(u) pziKepCache.set(id, u);
+    return u;
+}
+function pziKepekBetolt(root){
+    (root || document).querySelectorAll('img[data-pzikep]:not([src])').forEach(async el => {
+        const u = await pziKepUrl(el.dataset.pzikep);
+        if(u) el.src = u; else el.replaceWith(Object.assign(document.createElement('div'), { className: 'pzi-kep-hiany', textContent: 'A dia képe nem tölthető be' }));
+    });
+}
+// A már nem használt képek törlése (egy képre több prezentáció is hivatkozhat a másolatok miatt).
+function pziKepTakarit(ids, d){
+    const hasznalt = new Set(d.lista.flatMap(p => p.diak.map(x => x.kepId)).filter(Boolean));
+    ids.filter(id => id && !hasznalt.has(id)).forEach(id => { pziKepCache.delete(id); if(window.sfNlKep) window.sfNlKep.del(id); });
+}
+async function pziMentKep(c, nev){
+    let q = .82, url;
+    for(;;){
+        url = c.toDataURL('image/jpeg', q);
+        if(url.length < 900000) break;
+        if(q > .5){ q -= .12; continue; }
+        const k = document.createElement('canvas'); k.width = Math.round(c.width * .75); k.height = Math.round(c.height * .75);
+        k.getContext('2d').drawImage(c, 0, 0, k.width, k.height); c = k; q = .75;
+    }
+    const id = await window.sfNlKep.add({ mime: 'image/jpeg', data: url.split(',')[1], nev });
+    if(!id) throw new Error('A kép mentése nem sikerült.');
+    pziKepCache.set(id, url);
+    return { t: 'kep', kepId: id, c: '', s: '', j: '' };
+}
+async function pziFeltolt(files){
+    files = [...(files || [])]; if(!files.length) return;
+    if(files.some(f => /\.(pptx?|key|odp)$/i.test(f.name))){
+        alert('A PowerPoint / Keynote fájlt előbb mentsd el PDF-ként, és azt töltsd fel:\n\n• PowerPoint: Fájl → Mentés másként → PDF\n• Keynote: Fájl → Exportálás → PDF\n• Google Diák: Fájl → Letöltés → PDF-dokumentum');
+        return;
+    }
+    const pdf = files.find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    const kepek = files.filter(f => /^image\//.test(f.type)).sort((a, b) => a.name.localeCompare(b.name, 'hu', { numeric: true }));
+    if(!pdf && !kepek.length){ alert('PDF-et vagy képeket (JPG, PNG) tölthetsz fel.'); return; }
+    if(!window.sfNlKep){ alert('A feltöltéshez be kell jelentkezni.'); return; }
+    const nev = (pdf ? pdf.name : kepek[0].name).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Feltöltött prezentáció';
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal sb-modal"><div class="modal-head">Feltöltés: ${esc(nev)}</div><div class="modal-body"><p class="pzi-fel-all">Előkészítés…</p><i class="pzi-fel-hal"><i></i></i></div></div>`;
+    document.body.appendChild(ov);
+    const all = (t, x) => { ov.querySelector('.pzi-fel-all').textContent = t; ov.querySelector('.pzi-fel-hal i').style.width = (x * 100) + '%'; };
+    const diak = [];
+    try {
+        if(pdf){
+            const pdfjs = await regPdfJs();
+            const doc = await pdfjs.getDocument({ data: new Uint8Array(await pdf.arrayBuffer()) }).promise;
+            const n = Math.min(doc.numPages, 80);
+            for(let i = 1; i <= n; i++){
+                all(`${i}. / ${n} oldal feldolgozása…`, (i - 1) / n);
+                const page = await doc.getPage(i);
+                const v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 1600 / Math.max(v0.width, v0.height * 16 / 9) });
+                const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+                const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+                await page.render({ canvasContext: ctx, viewport: vp }).promise;
+                diak.push(await pziMentKep(c, `${nev} – ${i}. dia`));
+            }
+        } else {
+            for(let i = 0; i < kepek.length; i++){
+                all(`${i + 1}. / ${kepek.length} kép feldolgozása…`, i / kepek.length);
+                const url = URL.createObjectURL(kepek[i]);
+                const img = await new Promise((ok, hiba) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => hiba(new Error('Nem olvasható kép: ' + kepek[i].name)); im.src = url; });
+                const sk = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight * 16 / 9));
+                const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sk); c.height = Math.round(img.naturalHeight * sk);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+                diak.push(await pziMentKep(c, `${nev} – ${i + 1}. dia`));
+            }
+        }
+    } catch(e){
+        ov.remove();
+        if(diak.length) pziKepTakarit(diak.map(x => x.kepId), await pziAdat());
+        alert('A feltöltés nem sikerült: ' + (e && e.message || e));
+        return;
+    }
+    ov.remove();
+    const d = await pziAdat();
+    const p = { id: pziId(), n: nev, tema: 'fekete', feltoltott: 1, diak };
+    d.lista.unshift(p); prvMent('prezik');
+    pziSzerk = null; renderPrezik();
+}
 const PZI_SABLONOK = [
     { id: 'tpl-elemzes', sablon: 1, n: 'Pénzügyi elemzés – ügyféltalálkozó', tema: 'kek', diak: [
         { t: 'cim', c: 'Pénzügyi helyzetelemzés', s: '{ügyfél neve} részére · {dátum}', j: 'Köszönd meg az időt, mondd el, meddig tart a beszélgetés (kb. 60 perc).' },
@@ -10662,6 +10762,7 @@ function pziDiaHtml(x, kit){
     if(x.t === 'cim') bel = `<h1>${c}</h1>${sorok.length ? `<p>${sorok.map(esc).join('<br>')}</p>` : ''}`;
     else if(x.t === 'lepesek') bel = `<h2>${c}</h2><ol class="pzi-lep">${sorok.map((s, i) => `<li><b>${i + 1}</b><span>${esc(s)}</span></li>`).join('')}</ol>`;
     else if(x.t === 'szam') bel = `<div class="pzi-szam${k(x.c).length > 9 ? ' hosszu' : ''}">${c}</div>${sorok.length ? `<p>${sorok.map(esc).join('<br>')}</p>` : ''}`;
+    else if(x.t === 'kep') bel = `<img class="pzi-kep" data-pzikep="${esc(x.kepId || '')}"${pziKepCache.has(x.kepId) ? ` src="${pziKepCache.get(x.kepId)}"` : ''} alt="">${x.c ? `<div class="pzi-kep-cim">${c}</div>` : ''}`;
     else if(x.t === 'idezet') bel = `<blockquote>${c}</blockquote>${sorok.length ? `<p>${sorok.map(esc).join('<br>')}</p>` : ''}`;
     else bel = `<div class="pzi-lista-k${x.kep ? ' kepes' : ''}"><div><h2>${c}</h2><ul>${sorok.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>${x.kep ? `<img src="${esc(x.kep)}" alt="" loading="lazy">` : ''}</div>`;
     return `<div class="pzi-dia pzi-t-${esc(x.t || 'lista')}">${bel}</div>`;
@@ -10671,7 +10772,7 @@ function pziKartya(p){
     const elso = p.diak[0] || { t: 'cim', c: p.n };
     return `<div class="pzi-kartya">
         <button type="button" class="pzi-elo pzi-tema-${esc(p.tema || 'kek')}" data-pziindit="${esc(p.id)}" title="Vetítés indítása"><div class="pzi-elo-bel">${pziDiaHtml(elso)}</div><span class="pzi-play">▶</span></button>
-        <div class="pzi-k-info"><b>${esc(p.n || 'Névtelen prezentáció')}</b><em>${p.diak.length} dia${p.sablon ? ' · sablon' : ''}</em></div>
+        <div class="pzi-k-info"><b>${esc(p.n || 'Névtelen prezentáció')}</b><em>${p.diak.length} dia${p.sablon ? ' · sablon' : p.feltoltott ? ' · feltöltött' : ''}</em></div>
         <div class="pzi-k-gombok">
             <button type="button" class="btn primary" data-pziindit="${esc(p.id)}">▶ Indítás</button>
             ${p.sablon ? '' : `<button type="button" class="btn" data-pziszerk="${esc(p.id)}">Szerkesztés</button>`}
@@ -10684,15 +10785,17 @@ async function renderPrezik(){
     if(!host.firstChild) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
     const d = await pziAdat();
     if(!prvLap('prezik')) return;
-    if(pziSzerk){ host.innerHTML = pziSzerkHtml(); pziSkala(); return; }
+    if(pziSzerk){ host.innerHTML = pziSzerkHtml(); pziSkala(); pziKepekBetolt(host); return; }
     host.innerHTML = `<div class="sb-fej"><div><h2>Prezentációk</h2><p>Indítsd el egy kattintással teljes képernyőn – ügyféltalálkozón, bemutatón, csapatmegbeszélésen.</p></div>
-            <button type="button" class="btn primary" data-pziuj>+ Új prezentáció</button></div>
+            <span class="pzi-sz-fg"><label class="btn" title="PDF vagy képek (a PowerPointot előbb mentsd PDF-ként)">⤒ Feltöltés<input type="file" accept="application/pdf,.pdf,image/*,.pptx,.ppt,.key" multiple hidden data-pzifajl></label>
+            <button type="button" class="btn primary" data-pziuj>+ Új prezentáció</button></span></div>
+        <div class="pzi-drop" data-pzidrop>Húzd ide a meglévő prezentációdat (PDF vagy képek) – vagy használd a <b>Feltöltés</b> gombot. PowerPointból: <i>Fájl → Mentés másként → PDF</i>.</div>
         <div class="pzi-cim">Saját prezentációim</div>
         ${d.lista.length ? `<div class="pzi-racs">${d.lista.map(pziKartya).join('')}</div>`
             : '<p class="pzi-ures">Még nincs saját prezentációd. Kezdj egy üreset az <b>+ Új prezentáció</b> gombbal, vagy szabj testre egy sablont lent.</p>'}
         <div class="pzi-cim">Sablonok</div>
         <div class="pzi-racs">${PZI_SABLONOK.map(pziKartya).join('')}</div>`;
-    pziSkala();
+    pziSkala(); pziKepekBetolt(host);
 }
 // A kis előnézetek 1280×720-as diát kicsinyítenek a dobozuk szélességére.
 function pziSkala(){ document.querySelectorAll('#page-prezik .pzi-elo-bel').forEach(b => { const w = b.parentElement.clientWidth; if(w) b.style.setProperty('--sk', w / 1280); }); }
@@ -10715,12 +10818,14 @@ function pziSzerkHtml(){
             </div>
             <div class="pzi-sz-jobb">
                 <div class="pzi-sz-nagy pzi-tema-${esc(p.tema)}" data-pzinagy><div class="pzi-elo-bel">${pziDiaHtml(x)}</div></div>
-                <div class="card pzi-sz-urlap">
+                <div class="card pzi-sz-urlap">${x.t === 'kep' ? `
+                    <p class="pzi-sz-kepinfo">Feltöltött dia – a tartalma kép, itt csak az előadói jegyzet írható hozzá.</p>
+                    <label class="sb-mezo"><span>Előadói jegyzet (csak te látod vetítés közben)</span><textarea class="sb-in" data-pzid="j" rows="3" maxlength="1000">${esc(x.j || '')}</textarea></label>` : `
                     <label class="sb-mezo"><span>Dia típusa</span><select class="sb-in" data-pzid="t">${PZI_TIPUSOK.map(([k, n]) => `<option value="${k}"${x.t === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
                     <label class="sb-mezo"><span>${x.t === 'szam' ? 'Kiemelt szám / szöveg' : x.t === 'idezet' ? 'Idézet / üzenet' : 'Cím'}</span><input class="sb-in" data-pzid="c" value="${esc(x.c || '')}" maxlength="160"></label>
                     <label class="sb-mezo"><span>${sz}</span><textarea class="sb-in" data-pzid="s" rows="5" maxlength="2000">${esc(x.s || '')}</textarea></label>
                     ${x.t === 'lista' ? `<label class="sb-mezo"><span>Kép (webcím, nem kötelező)</span><input class="sb-in" data-pzid="kep" value="${esc(x.kep || '')}" placeholder="https://…" maxlength="500"></label>` : ''}
-                    <label class="sb-mezo"><span>Előadói jegyzet (csak te látod vetítés közben)</span><textarea class="sb-in" data-pzid="j" rows="2" maxlength="1000">${esc(x.j || '')}</textarea></label>
+                    <label class="sb-mezo"><span>Előadói jegyzet (csak te látod vetítés közben)</span><textarea class="sb-in" data-pzid="j" rows="2" maxlength="1000">${esc(x.j || '')}</textarea></label>`}
                 </div>
             </div>
         </div>`;
@@ -10755,7 +10860,8 @@ document.addEventListener('click', async e => {
         d.lista.push(uj); prvMent('prezik'); pziSzerk = uj; pziDia = 0; renderPrezik(); return; }
     const tr = e.target.closest('[data-pzitorol]');
     if(tr){ const p = of(tr.dataset.pzitorol); if(!p || p.sablon || !confirm(`Törlöd a(z) „${p.n}” prezentációt?`)) return;
-        d.lista = d.lista.filter(z => z !== p); PRV.prezik.lista = d.lista; prvMent('prezik'); renderPrezik(); return; }
+        d.lista = d.lista.filter(z => z !== p); PRV.prezik.lista = d.lista; prvMent('prezik');
+        pziKepTakarit(p.diak.map(x => x.kepId), d); renderPrezik(); return; }
     if(!pziSzerk) return;
     if(e.target.closest('[data-pzikesz]')){ prvMent('prezik'); pziSzerk = null; renderPrezik(); return; }
     const di = e.target.closest('[data-pzidia]');
@@ -10765,12 +10871,17 @@ document.addEventListener('click', async e => {
         const i = +(gomb.dataset.pzifel ?? gomb.dataset.pzile ?? gomb.dataset.pzidel);
         if(gomb.dataset.pzifel != null && i > 0){ [l[i - 1], l[i]] = [l[i], l[i - 1]]; pziDia = i - 1; }
         else if(gomb.dataset.pzile != null && i < l.length - 1){ [l[i + 1], l[i]] = [l[i], l[i + 1]]; pziDia = i + 1; }
-        else if(gomb.dataset.pzidel != null && l.length > 1){ l.splice(i, 1); pziDia = Math.min(pziDia, l.length - 1); }
+        else if(gomb.dataset.pzidel != null && l.length > 1){ const [ki] = l.splice(i, 1); pziDia = Math.min(pziDia, l.length - 1); if(ki && ki.kepId) pziKepTakarit([ki.kepId], d); }
         pziMent(); renderPrezik(); return;
     }
     if(di){ pziDia = +di.dataset.pzidia; renderPrezik(); return; }
     if(e.target.closest('[data-pziujdia]')){ l.splice(pziDia + 1, 0, { t: 'lista', c: 'Új dia', s: 'Első pont\nMásodik pont', j: '' }); pziDia++; pziMent(); renderPrezik(); return; }
 });
+document.addEventListener('change', e => { if(e.target.matches && e.target.matches('#page-prezik [data-pzifajl]')){ pziFeltolt(e.target.files); e.target.value = ''; } });
+document.addEventListener('dragover', e => { const z = e.target.closest && e.target.closest('#page-prezik'); if(!z) return; e.preventDefault(); const dz = z.querySelector('[data-pzidrop]'); if(dz) dz.classList.add('on'); });
+document.addEventListener('dragleave', e => { if(e.target.matches && e.target.matches('[data-pzidrop]')) e.target.classList.remove('on'); });
+document.addEventListener('drop', e => { const z = e.target.closest && e.target.closest('#page-prezik'); if(!z) return; e.preventDefault();
+    const dz = z.querySelector('[data-pzidrop]'); if(dz) dz.classList.remove('on'); pziFeltolt(e.dataTransfer && e.dataTransfer.files); });
 window.sfShowPrezik = function(){ pziSzerk = null; renderPrezik(); };
 // ---- vetítés ----
 function pziInditas(p){
@@ -10802,7 +10913,7 @@ function pziVetit(p, kit){
                 <i class="pzi-hal"><i style="width:${(i + 1) / p.diak.length * 100}%"></i></i>
                 <button type="button" data-v="jegyzet" class="${jegyzet ? 'on' : ''}" title="Előadói jegyzet (J)">Jegyzet</button>
                 <button type="button" data-v="teljes" title="Teljes képernyő (F)">⛶</button><button type="button" data-v="ki" title="Kilépés (Esc)">✕</button></div>`;
-        meretez();
+        meretez(); pziKepekBetolt(v);
     };
     // A dia 1280×720-as vásznon készül, és az ablakhoz méreteződik – így minden kijelzőn ugyanúgy néz ki.
     const meretez = () => { const c = v.querySelector('.pzi-vaszon'); if(!c) return;
@@ -10831,6 +10942,7 @@ function pziVetit(p, kit){
     v.addEventListener('touchend', e => { if(tx == null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; if(Math.abs(dx) > 50){ e.preventDefault(); lep(dx < 0 ? 1 : -1); } });
     addEventListener('keydown', bill); addEventListener('resize', meretez);
     document.addEventListener('fullscreenchange', meretez);
+    p.diak.forEach(x => { if(x.t === 'kep') pziKepUrl(x.kepId); });   // előtöltés, hogy a lapozás ne akadjon
     rajz(); v.focus();
     if(v.requestFullscreen && innerWidth > 760) v.requestFullscreen().catch(() => {});
 }
