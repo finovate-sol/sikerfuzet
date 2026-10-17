@@ -258,6 +258,34 @@
         body.sf-privat .nav [data-navcsop="elet"], body.sf-privat .nav [data-navcs="elet"] { order:20; }
         body.sf-privat .nav-grp { color:#a993d1; } body.sf-privat .nav-grp::after { background:rgba(228,219,245,.12); }
         .nav-grp[hidden] { display:none; }
+        /* Összecsukható menücsoportok: a csoportcím maga is egy menüsor (ikon, darabszám,
+           nyíl); a csukott csoport oldalai rejtve. Összecsukott oldalsávban minden látszik. */
+        .nav-grp.ng { cursor:pointer; user-select:none; padding:10px 16px; margin-top:2px; gap:12px; border-radius:8px;
+                      font-size:inherit; font-weight:500; color:#cdd8ea; text-transform:none; letter-spacing:0; transition:background .15s, color .15s; }
+        .nav-grp.ng::after { display:none; }
+        .nav-grp.ng:hover { background:rgba(255,255,255,.06); color:#fff; }
+        .nav-grp.ng > svg.ng-ik { width:18px; height:18px; flex-shrink:0; opacity:.9; }
+        .nav-grp.ng .ng-n { margin-left:auto; font-size:11px; font-weight:700; color:#7f93b5; }
+        .nav-grp.ng .ng-ch { width:14px; height:14px; flex-shrink:0; color:#7f93b5; transition:transform .18s; }
+        .nav-grp.ng.nyit .ng-ch { transform:rotate(90deg); }
+        .nav-grp.ng.nyit { color:#fff; }
+        .nav-grp.ng.van-akt:not(.nyit) { color:#fff; background:rgba(255,255,255,.08); }
+        .nav-grp.ng .ng-pont { width:7px; height:7px; border-radius:50%; background:var(--red); flex-shrink:0; display:none; }
+        .nav-grp.ng.van-jel:not(.nyit) .ng-pont { display:inline-block; }
+        .nav a.ng-al { margin-left:25px; padding:8px 12px; position:relative; font-size:13.5px; }
+        .nav a.ng-al::after { content:""; position:absolute; left:-9px; top:-1px; bottom:-1px; width:1.5px; background:rgba(255,255,255,.13); }
+        .nav a.ng-zart { display:none; }
+        body.sf-privat .nav-grp.ng { color:#e4dbf5; } body.sf-privat .nav-grp.ng .ng-n, body.sf-privat .nav-grp.ng .ng-ch { color:#a993d1; }
+        body.sf-privat .nav-grp.ng.nyit { color:#fff; }
+        body.sf-privat .nav a.ng-al::after { background:rgba(228,219,245,.16); }
+        @media (min-width:1001px){
+            .sidebar.collapsed .nav a.ng-zart { display:flex; }
+            .sidebar.collapsed .nav a.ng-al { margin-left:0; padding:11px 0; }
+            .sidebar.collapsed .nav a.ng-al::after { display:none; }
+            .sidebar.collapsed .nav-grp.ng { pointer-events:none; padding:10px 10px; background:none; }
+            .sidebar.collapsed .nav-grp.ng > * { display:none !important; }
+            .sidebar.collapsed .nav-grp.ng::after { display:block; }
+        }
 .jg-cel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:4px; background:#f0f3f7; border-radius:11px; }
         .jg-cel button { font:inherit; font-size:12px; font-weight:700; border:0; border-radius:8px; padding:9px 10px; background:transparent; color:var(--muted); cursor:pointer; }
         .jg-cel button.on { background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(15,47,95,.15); }
@@ -9403,6 +9431,74 @@ if(store.load('sf_side_collapsed', false)){
     // másik oldalra lépve vagy széles képernyőn ne maradjon nyitva
     document.addEventListener('click', e => { if(e.target.closest('.nav a[data-page]')) zar(); });
     window.addEventListener('resize', () => { if(innerWidth > 1000) zar(); });
+})();
+
+// ===== ÖSSZECSUKHATÓ MENÜCSOPORTOK =====
+// A csoportcímre kattintva nyílik/csukódik; alapból csak az aktív oldal csoportja
+// van nyitva. A nyitott csoportokat megjegyezzük (sf_navnyit). A Jegyzetek az OVB
+// részben az Eszközökhöz, privátban a Gondolatokhoz tartozik.
+(function(){
+    const nav = document.querySelector('.sidebar .nav:not(.sidebar-extlinks)'); if(!nav) return;
+    const IK = {
+        terv:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+        ugyf:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+        csap:'<path d="M3 20h18"/><rect x="5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="7" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="13" rx="1"/>',
+        eszk:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+        vez:'<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
+        fejl:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+        test:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
+        gond:'<path d="M2 5.5C4.5 4 8 4 12 6c4-2 7.5-2 10-.5V19c-2.5-1.5-6-1.5-10 .5-4-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/>',
+        elet:'<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16 14.5c3 0 6 1.5 6 5"/>'
+    };
+    const CH = '<svg class="ng-ch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
+    const grps = [...nav.querySelectorAll('.nav-grp[data-navcsop]')];
+    grps.forEach(g => {
+        const k = g.dataset.navcsop, cim = g.textContent.trim();
+        g.classList.add('ng'); g.setAttribute('role', 'button'); g.tabIndex = 0;
+        g.innerHTML = `<svg class="ng-ik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IK[k] || ''}</svg><span class="nav-label">${cim}</span><i class="ng-pont"></i><span class="ng-n"></span>${CH}`;
+    });
+    let nyit = store.load('sf_navnyit', null);
+    const csopOf = a => a.dataset.navcs || (a.dataset.page === 'jegyzetek' ? (document.body.classList.contains('sf-privat') ? 'gond' : 'eszk') : '');
+    let fut = false;
+    const frissit = () => {
+        fut = false;
+        const links = [...nav.querySelectorAll('a[data-page]')];
+        const akt = links.find(a => a.classList.contains('active'));
+        const aktCs = akt ? csopOf(akt) : '';
+        if(!nyit){ nyit = {}; if(aktCs) nyit[aktCs] = true; store.save('sf_navnyit', nyit); }
+        grps.forEach(g => {
+            const k = g.dataset.navcsop;
+            const tagok = links.filter(a => csopOf(a) === k);
+            const priv = document.body.classList.contains('sf-privat');
+            const lathato = tagok.filter(a => !a.hidden && a.dataset.ter !== (priv ? 'ovb' : 'priv'));
+            const ny = !!nyit[k];
+            tagok.forEach(a => { a.classList.add('ng-al'); a.classList.toggle('ng-zart', !ny); });
+            g.classList.toggle('nyit', ny);
+            g.classList.toggle('van-akt', tagok.includes(akt));
+            g.classList.toggle('van-jel', tagok.some(a => a.querySelector('.nav-badge:not([hidden])')));
+            const n = g.querySelector('.ng-n'), db = String(lathato.length || '');
+            if(n && n.textContent !== db) n.textContent = db;
+            if(g.getAttribute('aria-expanded') !== String(ny)) g.setAttribute('aria-expanded', String(ny));
+        });
+        // A Jegyzetek csak az aktuális rész csoportjába tartozik.
+        links.forEach(a => { if(!csopOf(a)) a.classList.remove('ng-al', 'ng-zart'); });
+    };
+    const kesobb = () => { if(!fut){ fut = true; requestAnimationFrame(frissit); } };
+    const valt = g => {
+        const k = g.dataset.navcsop; nyit = nyit || {};
+        nyit[k] = !nyit[k]; store.save('sf_navnyit', nyit); frissit();
+    };
+    nav.addEventListener('click', e => { const g = e.target.closest('.nav-grp.ng'); if(g) valt(g); });
+    nav.addEventListener('keydown', e => { const g = e.target.closest('.nav-grp.ng'); if(g && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); valt(g); } });
+    // Ha egy csukott csoport oldalára jutunk (pl. másik oldalról ugrással), kinyitjuk.
+    let elozoAkt = null;
+    new MutationObserver(() => {
+        const akt = nav.querySelector('a[data-page].active');
+        if(akt && akt !== elozoAkt){ elozoAkt = akt; const k = csopOf(akt); if(k && nyit && !nyit[k]){ nyit[k] = true; store.save('sf_navnyit', nyit); } }
+        kesobb();
+    }).observe(nav, { subtree:true, attributes:true, attributeFilter:['class','hidden'], childList:true });
+    new MutationObserver(kesobb).observe(document.body, { attributes:true, attributeFilter:['class'] });
+    frissit();
 })();
 
 // ===== INITIAL RENDER =====
