@@ -19419,7 +19419,7 @@ const EF_FEJ = [
     ['otthon', 'Saját otthon', ['otthon']], ['gyerek', 'Gyermekeink jövője', ['gyerek']], ['nyugdij', 'Gondtalan nyugdíjas évek', ['nyugdij']],
     ['felelos', 'Felelősségteljes élet', ['felelos']], ['vagyon', 'Vagyonfelépítés, befektetés', ['vagyon']], ['koltseg', 'Költségvetés', ['koltseg']],
     ['piramis', 'Vagyoni piramis', ['piramis']], ['lepesek', 'Következő lépések', ['lepesek']], ['osszegzes', 'Összefoglaló az ügyfélnek', ['osszegzes']], ['karrier', 'Álmai munkája · Ajánlás', ['ajanlas']],
-    ['szemelyes', 'Személyes adatok', ['szemelyes']], ['vallalkozo', 'Vállalkozói elemzés', ['vallalkozo']], ['szerviz', 'Szervizszolgáltatás', ['szerviz']], ['jegyzet', 'Feljegyzések', ['jegyzet']]
+    ['szemelyes', 'Személyes adatok', ['szemelyes']], ['vallalkozo', 'Vállalkozói elemzés', ['vallalkozo']]
 ];
 const efLap = id => (EF_FEJ.find(x => x[0] === id) || EF_FEJ[0])[2].map(efFejHtml).join('');
 const EF_KIADASOK = ['Lakbér / lakáshitel', 'Rezsi költség (víz, áram, fűtés stb.)', 'Telefon / mobiltelefon / TV / internet', 'Berendezés / felújítás / egyéb költségek',
@@ -19737,7 +19737,7 @@ function efFejHtml(f){
     if(f === 'lepesek') return `${efSav('Melyek a<br>következő<br>lépések?', 'lepesek')}
         <h4>Mely célokat szeretnénk elérni közösen?</h4>
         <div class="ef-lepes"><b>1. lépés</b><span>Meglévő programjainak felülvizsgálata</span></div>
-        ${[2, 3, 4, 5].map(n => `<div class="ef-racs3">${efInp(`lp.${n}.cel`, `${n}. lépés`)}${efInp(`lp.${n}.osszeg`, 'Összeg', { szam: 1, me: 'Ft' })}${efInp(`lp.${n}.mikor`, 'Mikortól')}</div>`).join('')}
+        ${[2, 3].map(n => `<div class="ef-racs3">${efInp(`lp.${n}.cel`, `${n}. lépés`)}${efInp(`lp.${n}.osszeg`, 'Összeg', { szam: 1, me: 'Ft' })}${efInp(`lp.${n}.mikor`, 'Mikortól')}</div>`).join('')}
         ${efInp('lp.fontos', 'Van-e valami fontos, amiről most nem esett szó? Van-e olyan piaci szereplő vagy pénzügyi terület, amellyel kevésbé pozitív tapasztalatai vannak?', { sor: 2, szeles: 1 })}
         <h3 class="ef-kiemelt-c">Az elemzést követően olyan tájékoztatást tudunk nyújtani, amely lehetővé teszi az Ön számára a legmegfelelőbb termék vagy szolgáltatás kiválasztását.</h3>
         <h4>Mely időpontok alkalmasak az Ön számára?</h4>
@@ -19765,7 +19765,7 @@ function efFejHtml(f){
     if(f === 'osszegzes'){
         const r = registry[efI], celok = EF_CELOK.map(([k, n], j) => ({ n, p: efSzam(a['cel.' + k]), j })).filter(c => c.p > 0).sort((x, y) => y.p - x.p).slice(0, 3);
         const ido = []; EF_SAVOK.forEach((sv, si) => EF_NAPOK.forEach((nap, ni) => { if(a[`lp.ido.${ni}.${si}`]) ido.push(`${nap} ${sv}`); }));
-        const lepesek = [['Meglévő programjainak felülvizsgálata', '', ''], ...[2, 3, 4, 5].map(n => [a[`lp.${n}.cel`], a[`lp.${n}.osszeg`], a[`lp.${n}.mikor`]])].filter(l => (l[0] || '').trim());
+        const lepesek = [['Meglévő programjainak felülvizsgálata', '', ''], ...[2, 3].map(n => [a[`lp.${n}.cel`], a[`lp.${n}.osszeg`], a[`lp.${n}.mikor`]])].filter(l => (l[0] || '').trim());
         const nym = efNyMondat(a), celossz = a['ny.u.celosszeg'];
         return `<div class="ef-ossz">
         <div class="ef-ossz-fej"><div><h2 class="ef-h" style="margin:0 0 4px !important">Pénzügyi elemzés – összefoglaló</h2><span>${esc(r.name || '')} · ${new Date().toLocaleDateString('hu-HU')}</span></div>
@@ -19804,10 +19804,7 @@ function efFejHtml(f){
             `<tr><td>${n}</td>${['u', 'p'].map(p => `<td><input class="ef-in" data-ef="sz.${p}.${k}" value="${esc(a[`sz.${p}.${k}`] || '')}"${k === 'jogviszony' ? ' list="efJogviszony"' : ''}></td>`).join('')}</tr>`).join('')}
         </tbody></table><datalist id="efJogviszony"><option value="Alkalmazott"><option value="Vállalkozó"></datalist>
         <div class="ef-vall-kapcs"><button type="button" class="ef-chip${a['vl.be'] === '1' ? ' on' : ''}" data-efvan="vl.be">${a['vl.be'] === '1' ? '✓ ' : ''}Vállalkozói elemzés</button>
-            <span class="ef-tipp" style="margin:0">Ha az ügyfél vállalkozó (a „Vállalkozó” jogviszonynál magától is), megjelenik a „Vállalkozói elemzés” oldal.</span></div>
-        <h4>Az elemzést készítette</h4>
-        <div class="ef-racs3">${efInp('sz.tanacsado', 'Tanácsadó neve')}${efInp('sz.mt', 'MT-szám')}${efInp('sz.felugyeleti', 'Felügyeleti nyilvántartási szám')}${efInp('sz.datum', 'Dátum', { tip: 'date' })}</div>
-        <p class="ef-tipp">A nyilatkozatot és az aláírásokat a papíros füzeten vagy az OVB rendszerében rögzítsd.</p>`;
+            <span class="ef-tipp" style="margin:0">Ha az ügyfél vállalkozó (a „Vállalkozó” jogviszonynál magától is), megjelenik a „Vállalkozói elemzés” oldal.</span></div>`;
     if(f === 'szerviz'){ const alk = n => `<div class="ef-alkalom"><b>${n}. alkalom</b>
             <div class="ef-racs3">${efInp(`sv.${n}.datum`, 'Dátum', { tip: 'date' })}${efIN(`sv.${n}.szemelyes`, 'Személyes találkozó volt?')}${efInp(`sv.${n}.tema`, 'Témakör')}</div>
             <div class="ef-racs2">${efInp(`sv.${n}.eredmeny`, 'Eredménye')}${efInp(`sv.${n}.megj`, 'Megjegyzés')}${efInp(`sv.${n}.ugyfelaj`, 'Ügyfélajánlás', { szam: 1, me: 'fő' })}${efInp(`sv.${n}.tanacsadoaj`, 'Tanácsadóajánlás', { szam: 1, me: 'fő' })}
