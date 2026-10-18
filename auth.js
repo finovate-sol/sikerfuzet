@@ -531,6 +531,34 @@ export async function deleteAkcio(id){
     await deleteDoc(doc(db, "pg_akcio", id));
 }
 
+// BEDOLGOZÁS – bedolgozas/{mtUid}: egy új munkatárs bedolgozása (Starter PG →
+// PG 1–4 → Lezárás): az aktuális lépés, a kipipált napirendi pontok, az
+// alkalmak dátuma, a kiadott házi feladatok (pg_akcio id-k) és a jegyzetek.
+// A vezető-lánc és az admin írja, a munkatárs csak olvassa (firestore.rules).
+// A program sablonja a config/bedolgozas dokumentum (csak az admin írja).
+export async function getBedolgozas(mtUid){
+    if(!isConfigured || !db || !mtUid) return null;
+    const s = await getDoc(doc(db, "bedolgozas", mtUid));
+    return s.exists() ? { id: s.id, ...s.data() } : null;
+}
+export async function saveBedolgozas(mtUid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "bedolgozas", mtUid), data);
+}
+export async function deleteBedolgozas(mtUid){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await deleteDoc(doc(db, "bedolgozas", mtUid));
+}
+export async function getBedSablon(){
+    if(!isConfigured || !db) return null;
+    const s = await getDoc(doc(db, "config", "bedolgozas"));
+    return s.exists() ? s.data() : null;
+}
+export async function saveBedSablon(data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "config", "bedolgozas"), data);
+}
+
 // Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
 // frissíti minden belépéskor. Az Admin "Csapat szerepkörök" fülének ez a
 // forrása (valódi, bejelentkezett fiókok, névvel).

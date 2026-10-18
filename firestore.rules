@@ -246,6 +246,14 @@ service cloud.firestore {
       allow delete: if isUser() && (givenBy() || isAdmin());
     }
 
+    // Bedolgozás: az új munkatárs útja (Starter PG → PG 1–4). A vezető-lánc és az
+    // admin vezeti; a munkatárs látja, hol tart, de nem írhatja át.
+    // A doc-id a munkatárs uid-ja, így a szabály a path-ból dönt (get is megy).
+    match /bedolgozas/{mtUid} {
+      allow read:  if canAccess(mtUid);
+      allow write: if isUser() && (isAdmin() || isManagerOf(mtUid));
+    }
+
     // ========================================================================
     //  JEGYZETEK
     // ========================================================================
