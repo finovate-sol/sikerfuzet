@@ -13021,7 +13021,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         ikon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/>',
         import: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
     };
-    // [cím, pontok, hol látszik ('ovb' = csak a Sikerfüzetben, 'priv' = csak a SZEM-ben, üres = mindkettőben), csak adminnak]
+    // [cím, pontok, melyik részhez tartozik ('ovb' / 'priv' / üres = közös), csak adminnak]
     const BL_SZEK = [
         ['Közös', [['megj', 'Megjelenés', '#6366f1'], ['ikonok', 'App-ikonok', '#a855f7'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
         ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
@@ -13070,8 +13070,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     window.sfShowBeallitasok = function(){
         const host = document.getElementById('beallBody'); if(!host) return;
         const ab = document.getElementById('adminBody'); if(ab){ ab.hidden = true; ab.innerHTML = ''; }
-        const adm = window.sfVanAdmin(), priv = document.body.classList.contains('sf-privat');
-        const csop = BL_SZEK.filter(c => (!c[2] || c[2] === (priv ? 'priv' : 'ovb')) && (!c[3] || adm)), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        const adm = window.sfVanAdmin();
+        // mindkét rész beállításai látszanak, bármelyik részből nyitod (a Sikerfüzet-pontok csak adminnak)
+        const csop = BL_SZEK.filter(c => !c[3] || adm), mind = csop.flatMap(c => c[1].map(x => x[0]));
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
         const ik = (k, c) => `<i style="background:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${BL_IK[k] || ''}</svg></i>`;
@@ -13079,7 +13080,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             return `<button type="button" data-blszek="${k}" class="${akt === k ? 'on' : ''}">${ik(k, c)}<span>${esc(n)}</span>${j ? `<small>${j}</small>` : ''}<em>›</em></button>`; }).join('')}</div>`).join('');
         const cim = akt ? (csop.flatMap(c => c[1]).find(x => x[0] === akt) || [])[1] : '';
         host.innerHTML = `<div class="bl${akt ? ' reszlet' : ''}" data-mob="${mob}">
-            <div class="bl-fej">${mob && akt ? '<button type="button" class="bl-vissza" data-blvissza aria-label="Vissza">‹</button>' : ''}<h2>${mob && akt ? esc(cim) : 'Beállítások'}</h2>${mob && akt ? '' : `<span class="bl-resz">${priv ? 'SZEM' : 'Sikerfüzet'}</span>`}</div>
+            <div class="bl-fej">${mob && akt ? '<button type="button" class="bl-vissza" data-blvissza aria-label="Vissza">‹</button>' : ''}<h2>${mob && akt ? esc(cim) : 'Beállítások'}</h2></div>
             <nav class="bl-nav card">${nav}</nav>
             <div class="bl-pan">${akt && !mob ? `<h3 class="bl-pan-cim">${esc(cim)}</h3>` : ''}<div id="blPanTest"></div></div></div>`;
         if(akt) blPanel(akt, document.getElementById('blPanTest'));
