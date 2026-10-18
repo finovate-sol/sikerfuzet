@@ -8642,6 +8642,10 @@
         }
         .zb-admin { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid #eef0f3; margin-top:6px; }
         .zb-admin span { font-size:13px; color:#6b7280; } .zb-admin b { display:block; font-size:14px; color:#111827; }
+
+        .pv-modal.zb-szeles { max-width:min(1100px, 96vw); width:min(1100px, 96vw); }
+        @media (min-width:900px){ .pv-modal.zb-szeles .zb-temak { grid-template-columns:repeat(9,minmax(0,1fr)); } }
+        .zb-admin-hely { margin-top:4px; } .zb-admin-hely .adm-hero { display:none; }
     </style>
 </head>
 <body>
@@ -10476,8 +10480,9 @@ renderMoney(); renderCareer(); renderInfo();
         const vanBio = await bioVan();
         const x = Object.assign({ perc: 1, kilep: true }, cfg || {});
         const m = document.createElement('div'); m.className = 'modal-overlay';
-        const r = (uzi) => {
-            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
+        const r = uzi => { rBel(uzi); window.sfAdminBeagyaz(m.querySelector('.zb-admin-hely')); };
+        const rBel = (uzi) => {
+            m.innerHTML = `<div class="modal pv-modal${window.sfVanAdmin() ? ' zb-szeles' : ''}"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
                 <div class="modal-body">
                     <h4 class="zb-cim">Téma – SZEM</h4>
                     <div class="zb-temak">${Object.entries(window.SF_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbtema="${k}" class="${window.sfTema && window.sfTema() === k ? 'on' : ''}" aria-pressed="${window.sfTema && window.sfTema() === k}">
@@ -10485,6 +10490,7 @@ renderMoney(); renderCareer(); renderInfo();
                     <h4 class="zb-cim">Téma – Sikerfüzet</h4>
                     <div class="zb-temak ovb">${Object.entries(window.SF_OVB_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbovb="${k}" class="${window.sfOvbTema && window.sfOvbTema() === k ? 'on' : ''}" aria-pressed="${window.sfOvbTema && window.sfOvbTema() === k}">
                         <i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>
+                    ${window.sfVanAdmin() ? '<h4 class="zb-cim">Admin</h4><div class="zb-admin-hely"></div>' : ''}
                     <h4 class="zb-cim">Tranzakciók ikonjai</h4>
                     <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
                         <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
@@ -10502,7 +10508,6 @@ renderMoney(); renderCareer(); renderInfo();
                         <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
                     <div class="zb-sor"><span class="t"><b>Zárolás az OVB részre váltáskor</b><span>Visszaváltáskor újra fel kell oldani</span></span>
                         <input type="checkbox" data-zbkilep${x.kilep !== false ? ' checked' : ''} aria-label="Zárolás az OVB részre váltáskor"></div>
-                    ${!document.getElementById('adminInfoBtn')?.hidden ? '<div class="zb-admin"><span><b>Admin felület</b>Felhasználók, jogosultságok, beállítások</span><button type="button" class="btn" data-admin-nyit>Megnyitás</button></div>' : ''}
                     <p class="zb-uzi" role="status">${esc(uzi || '')}</p>
                 </div>
                 <div class="modal-foot">${be() ? '<button class="btn" data-zbmost>Zárolás most</button>' : ''}<button class="pv-ment" data-zbx>Kész</button></div></div>`;
@@ -10514,8 +10519,7 @@ renderMoney(); renderCareer(); renderInfo();
             if(e.target.matches('[data-zbkilep]')){ x.kilep = e.target.checked; if(be()) ment(); }
         });
         m.addEventListener('click', async e => {
-            if(e.target === m || e.target.closest('[data-zbx]')){ m.remove(); return; }
-            if(e.target.closest('[data-admin-nyit]')){ m.remove(); document.getElementById('adminInfoBtn')?.click(); return; }
+            if(e.target === m || e.target.closest('[data-zbx]')){ window.sfAdminVissza(); m.remove(); return; }
             const tm = e.target.closest('[data-zbtema]');
             if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('SZEM téma: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
             const to = e.target.closest('[data-zbovb]');
@@ -12644,10 +12648,13 @@ window.sfApplyPageAccess = function(map){
 // A lila az alap. A többi téma nem kézzel átírt CSS: az app összes stílusszabályából
 // futás közben készül egy „átszínezett” másolat, ami csak privát módban (body.sf-privat)
 // érvényes. Így minden oldal és minden jövőbeli elem is egyszerre vált.
-window.SF_TEMAK = { lila:['Lila','#7c3aed','#e4dcfb'], ejszaka:['Éjszaka','#34d399','#0b1020'], zsalya:['Zsálya','#4f7a63','#f5f2ea'], ocean:['Óceán','#2563eb','#e8f1ff'], naplemente:['Naplemente','#ea580c','#fde6d8'] };
+// Egy közös paletta: mindkét rész (Sikerfüzet és SZEM) bármelyik színt választhatja.
+window.SF_TEMA_LISTA = { kek:['Kék','#1f5fd0','#e8eef8'], lila:['Lila','#7c3aed','#e4dcfb'], ocean:['Óceán','#0891b2','#e3f4f8'], smaragd:['Smaragd','#0f8a6a','#e6f3ed'], zsalya:['Zsálya','#4f7a63','#f5f2ea'],
+    bordo:['Bordó','#9f1239','#f6eef0'], naplemente:['Naplemente','#ea580c','#fde6d8'], grafit:['Grafit','#334155','#eceef1'], ejszaka:['Éjszaka','#60a5fa','#0d1424'] };
+window.SF_TEMAK = window.SF_TEMA_LISTA;
 // A Sikerfüzet (OVB) rész témái – ugyanaz a motor, csak a body:not(.sf-privat) alatt érvényes.
 // Az ügyfélnek szóló felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az eredeti OVB-színekben maradnak.
-window.SF_OVB_TEMAK = { kek:['Kék','#1f5fd0','#f0f3f7'], ejszaka:['Éjszaka','#60a5fa','#0d1424'], smaragd:['Smaragd','#0f8a6a','#eef5f1'], bordo:['Bordó','#9f1239','#f6f0f1'], grafit:['Grafit','#334155','#f1f2f4'] };
+window.SF_OVB_TEMAK = window.SF_TEMA_LISTA;
 window.sfOvbTema = () => { try { const t = JSON.parse(localStorage.getItem('sf_ovb_tema') || '"kek"'); return window.SF_OVB_TEMAK[t] ? t : 'kek'; } catch(e){ return 'kek'; } };
 window.sfOvbTemaTeteje = () => (window.SF_OVB_TEMAK[window.sfOvbTema()] || window.SF_OVB_TEMAK.kek)[2];
 window.sfTema = () => { try { const t = JSON.parse(localStorage.getItem('sf_szem_tema') || '"lila"'); return window.SF_TEMAK[t] ? t : 'lila'; } catch(e){ return 'lila'; } };
@@ -12674,8 +12681,12 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             if(!tx && l > .93 && s2 < .12){ h = 42; s2 = .7; l = Math.max(l, .985); }
             return [h, s2, l]; },
         ocean(h, s2, l, tx){
-            if(s2 > .18 && h >= 245 && h <= 345) h = 218;
+            if(s2 > .18 && h >= 245 && h <= 345) h = 192;
             return [h, s2, l]; },
+        kek(h, s2, l){ if(s2 > .15 && lila(h)) h = 220; return [h, s2, l]; },
+        smaragd(h, s2, l){ if(s2 > .15 && lila(h)) h = 163; return [h, s2, l]; },
+        bordo(h, s2, l){ if(s2 > .15 && lila(h)){ h = 345; s2 = s2 * .85; } return [h, s2, l]; },
+        grafit(h, s2, l){ if(s2 > .12 && lila(h)){ s2 = s2 * .12; if(l > .3 && l < .7) l = l * .72; } return [h, s2, l]; },
         naplemente(h, s2, l, tx){
             if(s2 > .15 && lila(h)) h = 18;
             if(!tx && l > .93 && s2 < .15){ h = 28; s2 = .75; l = Math.max(l, .982); }
@@ -12690,6 +12701,10 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             else if(l < .32 && s2 > .15){ h = 222; s2 = .42; }
             return [h, s2, l]; },
         smaragd(h, s2, l){ if(kek(h, s2)) h = 163; else if(s2 > .05 && h >= 195 && h <= 245 && l > .9) h = 150; return [h, s2, l]; },
+        lila(h, s2, l){ if(kek(h, s2)) h = 263; else if(s2 > .05 && h >= 195 && h <= 245 && l > .9) h = 262; return [h, s2, l]; },
+        ocean(h, s2, l){ if(kek(h, s2)) h = 192; else if(s2 > .05 && h >= 195 && h <= 245 && l > .9) h = 192; return [h, s2, l]; },
+        zsalya(h, s2, l){ if(kek(h, s2)){ h = 148; s2 = s2 * .45; } else if(h >= 195 && h <= 245 && l > .9){ h = 42; s2 = .45; l = Math.max(l, .965); } return [h, s2, l]; },
+        naplemente(h, s2, l){ if(kek(h, s2)) h = 18; else if(h >= 195 && h <= 245 && l > .9){ h = 28; s2 = .7; l = Math.max(l, .975); } return [h, s2, l]; },
         bordo(h, s2, l){ if(kek(h, s2)){ h = 345; s2 = Math.min(s2, .78); } else if(s2 > .05 && h >= 195 && h <= 245 && l > .9){ h = 350; s2 = s2 * .6; } return [h, s2, l]; },
         grafit(h, s2, l){ if(kek(h, s2)){ s2 = s2 * .14; if(s2 > .04 && l > .3 && l < .7) l = l * .72; } else if(h >= 195 && h <= 245 && l > .9) s2 = s2 * .3; return [h, s2, l]; },
     };
@@ -12775,19 +12790,30 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c)); }
     };
     // közös témaválasztó: mindkét rész színvilága egy helyen (az épp aktív rész van felül)
+    // Az admin felület a Beállítások ablakba ágyazva (külön oldal és átnavigálás nélkül)
+    window.sfVanAdmin = () => { const a = document.getElementById('adminInfoBtn'); return !!a && !a.hidden; };
+    let admBody = null;
+    window.sfAdminBeagyaz = hely => {
+        if(!hely) return; admBody = document.getElementById('adminBody') || admBody; if(!admBody) return;
+        hely.appendChild(admBody);
+        // az ablak a következő képkockára kerül a lapra – utána töltjük be (a kód id alapján keresi a helyét)
+        requestAnimationFrame(() => { if(admBody.isConnected && !admBody.innerHTML.trim() && typeof window.sfShowAdmin === 'function') window.sfShowAdmin(); });
+    };
+    window.sfAdminVissza = () => { const w = document.querySelector('#page-admin .page-wrap'); if(admBody && w && admBody.parentNode !== w) w.appendChild(admBody); };
     window.sfTemaModal = function(){
         const m = document.createElement('div'); m.className = 'modal-overlay';
         const sor = (cim, lista, akt, attr, ovb) => `<h4 class="zb-cim">${cim}</h4><div class="zb-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
             `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
         const rajz = () => { const priv = document.body.classList.contains('sf-privat');
             const o = sor('Téma – Sikerfüzet', window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true), sz = sor('Téma – SZEM (privát)', window.SF_TEMAK, window.sfTema(), 'data-tmszem', false);
-            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-tmx aria-label="Bezárás">&times;</button></div>
-                <div class="modal-body">${priv ? sz + o : o + sz}<p class="pv-megj zb-bev">A két rész színvilága külön állítható. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p>${!document.getElementById('adminInfoBtn')?.hidden ? '<div class="zb-admin"><span><b>Admin felület</b>Felhasználók, jogosultságok, beállítások</span><button type="button" class="btn" data-admin-nyit>Megnyitás</button></div>' : ''}</div>
-                <div class="modal-foot"><button class="pv-ment" data-tmx>Kész</button></div></div>`; };
+            const adm = window.sfVanAdmin();
+            m.innerHTML = `<div class="modal pv-modal${adm ? ' zb-szeles' : ''}"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-tmx aria-label="Bezárás">&times;</button></div>
+                <div class="modal-body">${priv ? sz + o : o + sz}<p class="pv-megj zb-bev">A két rész színvilága külön állítható. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p>${adm ? '<h4 class="zb-cim">Admin</h4><div class="zb-admin-hely"></div>' : ''}</div>
+                <div class="modal-foot"><button class="pv-ment" data-tmx>Kész</button></div></div>`;
+            window.sfAdminBeagyaz(m.querySelector('.zb-admin-hely')); };
         rajz(); document.body.appendChild(m);
         m.addEventListener('click', e => {
-            if(e.target === m || e.target.closest('[data-tmx]')){ m.remove(); return; }
-            if(e.target.closest('[data-admin-nyit]')){ m.remove(); document.getElementById('adminInfoBtn')?.click(); return; }
+            if(e.target === m || e.target.closest('[data-tmx]')){ window.sfAdminVissza(); m.remove(); return; }
             const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); rajz(); return; }
             const sz = e.target.closest('[data-tmszem]'); if(sz){ window.sfTemaBeallit(sz.dataset.tmszem); rajz(); }
         });
