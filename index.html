@@ -8646,6 +8646,16 @@
         .pv-modal.zb-szeles { max-width:min(1100px, 96vw); width:min(1100px, 96vw); }
         @media (min-width:900px){ .pv-modal.zb-szeles .zb-temak { grid-template-columns:repeat(9,minmax(0,1fr)); } }
         .zb-admin-hely { margin-top:4px; } .zb-admin-hely .adm-hero { display:none; }
+
+        /* Beállítások oldal */
+        #beallBody .adm-hero h2 { margin:0; }
+        .bl-k { padding:18px 22px; margin-bottom:14px; }
+        .bl-k h3 { margin:6px 0 10px; font-size:15px; color:var(--navy); }
+        .bl-k .bl-temak { grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); max-width:980px; }
+        .bl-megj { margin:4px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5; }
+        .bl-sor { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+        .bl-adm-cim { margin:26px 0 12px; font-size:20px; color:var(--navy); }
+        #adminBody .adm-hero { display:none; }
     </style>
 </head>
 <body>
@@ -9469,7 +9479,7 @@
 
         <!-- ADMIN -->
         <div id="page-admin" class="page" hidden>
-          <div class="page-wrap"><div id="adminBody"></div></div>
+          <div class="page-wrap"><div id="beallBody"></div><div id="adminBody"></div></div>
         </div>
 
         <!-- HAMAROSAN -->
@@ -10280,7 +10290,7 @@ renderMoney(); renderCareer(); renderInfo();
         if(p === 'konyvek' && typeof window.sfShowKonyvek === 'function') window.sfShowKonyvek();
         if(p === 'enaplo' && typeof window.sfShowNaplo === 'function') window.sfShowNaplo();
         if(p === 'feladatok' && typeof window.sfShowFeladatok === 'function') window.sfShowFeladatok();
-        if(p === 'admin' && typeof window.sfShowAdmin === 'function') window.sfShowAdmin();
+        if(p === 'admin' && typeof window.sfShowBeallitasok === 'function') window.sfShowBeallitasok();
         const mbt = document.getElementById('mbTitle');
         if(mbt) mbt.textContent = ((a.querySelector('.nav-label') || a).textContent || '').trim() || 'Sikerfüzet';   // a számláló-jelvény nélkül
     }));
@@ -10480,17 +10490,9 @@ renderMoney(); renderCareer(); renderInfo();
         const vanBio = await bioVan();
         const x = Object.assign({ perc: 1, kilep: true }, cfg || {});
         const m = document.createElement('div'); m.className = 'modal-overlay';
-        const r = uzi => { rBel(uzi); window.sfAdminBeagyaz(m.querySelector('.zb-admin-hely')); };
-        const rBel = (uzi) => {
-            m.innerHTML = `<div class="modal pv-modal${window.sfVanAdmin() ? ' zb-szeles' : ''}"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
+        const r = (uzi) => {
+            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Privát beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
                 <div class="modal-body">
-                    <h4 class="zb-cim">Téma – SZEM</h4>
-                    <div class="zb-temak">${Object.entries(window.SF_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbtema="${k}" class="${window.sfTema && window.sfTema() === k ? 'on' : ''}" aria-pressed="${window.sfTema && window.sfTema() === k}">
-                        <i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>
-                    <h4 class="zb-cim">Téma – Sikerfüzet</h4>
-                    <div class="zb-temak ovb">${Object.entries(window.SF_OVB_TEMAK || {}).map(([k, [n, a, h]]) => `<button type="button" data-zbovb="${k}" class="${window.sfOvbTema && window.sfOvbTema() === k ? 'on' : ''}" aria-pressed="${window.sfOvbTema && window.sfOvbTema() === k}">
-                        <i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>
-                    ${window.sfVanAdmin() ? '<h4 class="zb-cim">Admin</h4><div class="zb-admin-hely"></div>' : ''}
                     <h4 class="zb-cim">Tranzakciók ikonjai</h4>
                     <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
                         <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
@@ -10519,7 +10521,7 @@ renderMoney(); renderCareer(); renderInfo();
             if(e.target.matches('[data-zbkilep]')){ x.kilep = e.target.checked; if(be()) ment(); }
         });
         m.addEventListener('click', async e => {
-            if(e.target === m || e.target.closest('[data-zbx]')){ window.sfAdminVissza(); m.remove(); return; }
+            if(e.target === m || e.target.closest('[data-zbx]')){ m.remove(); return; }
             const tm = e.target.closest('[data-zbtema]');
             if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('SZEM téma: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
             const to = e.target.closest('[data-zbovb]');
@@ -10546,7 +10548,9 @@ renderMoney(); renderCareer(); renderInfo();
         });
     }
     // OVB részben az általános beállítások (téma), privátban a SZEM beállításai (téma, ikonok, zár)
-    if(zbtn) zbtn.addEventListener('click', () => { if(document.body.classList.contains('sf-privat')) beallit(); else window.sfTemaModal(); });
+    // a fogaskerék a Beállítások oldalt nyitja (témák, privát beállítások, admin); a SZEM-beállítások ablaka onnan nyílik
+    window.sfSzemBeallit = beallit;
+    if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(pg && !pg.hidden) return; document.getElementById('adminInfoBtn')?.click(); });
     window.sfZarBeallit = beallit;
     gomb(); frissit();
     // Indításkor (privát állásban) rögtön kérjük az arcot / ujjat – ahol a böngésző gesztus nélkül nem engedi, ott a gomb marad.
@@ -12790,34 +12794,29 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c)); }
     };
     // közös témaválasztó: mindkét rész színvilága egy helyen (az épp aktív rész van felül)
-    // Az admin felület a Beállítások ablakba ágyazva (külön oldal és átnavigálás nélkül)
+    // ===== BEÁLLÍTÁSOK OLDAL: témák (mindkét rész), privát beállítások, adminnak az admin felület =====
     window.sfVanAdmin = () => { const a = document.getElementById('adminInfoBtn'); return !!a && !a.hidden; };
-    let admBody = null;
-    window.sfAdminBeagyaz = hely => {
-        if(!hely) return; admBody = document.getElementById('adminBody') || admBody; if(!admBody) return;
-        hely.appendChild(admBody);
-        // az ablak a következő képkockára kerül a lapra – utána töltjük be (a kód id alapján keresi a helyét)
-        requestAnimationFrame(() => { if(admBody.isConnected && !admBody.innerHTML.trim() && typeof window.sfShowAdmin === 'function') window.sfShowAdmin(); });
-    };
-    window.sfAdminVissza = () => { const w = document.querySelector('#page-admin .page-wrap'); if(admBody && w && admBody.parentNode !== w) w.appendChild(admBody); };
-    window.sfTemaModal = function(){
-        const m = document.createElement('div'); m.className = 'modal-overlay';
-        const sor = (cim, lista, akt, attr, ovb) => `<h4 class="zb-cim">${cim}</h4><div class="zb-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
+    window.sfShowBeallitasok = function(){
+        const host = document.getElementById('beallBody'); if(!host) return;
+        const sor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
             `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
-        const rajz = () => { const priv = document.body.classList.contains('sf-privat');
-            const o = sor('Téma – Sikerfüzet', window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true), sz = sor('Téma – SZEM (privát)', window.SF_TEMAK, window.sfTema(), 'data-tmszem', false);
-            const adm = window.sfVanAdmin();
-            m.innerHTML = `<div class="modal pv-modal${adm ? ' zb-szeles' : ''}"><div class="modal-head"><h3>Beállítások</h3><button class="modal-x" data-tmx aria-label="Bezárás">&times;</button></div>
-                <div class="modal-body">${priv ? sz + o : o + sz}<p class="pv-megj zb-bev">A két rész színvilága külön állítható. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p>${adm ? '<h4 class="zb-cim">Admin</h4><div class="zb-admin-hely"></div>' : ''}</div>
-                <div class="modal-foot"><button class="pv-ment" data-tmx>Kész</button></div></div>`;
-            window.sfAdminBeagyaz(m.querySelector('.zb-admin-hely')); };
-        rajz(); document.body.appendChild(m);
-        m.addEventListener('click', e => {
-            if(e.target === m || e.target.closest('[data-tmx]')){ window.sfAdminVissza(); m.remove(); return; }
-            const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); rajz(); return; }
-            const sz = e.target.closest('[data-tmszem]'); if(sz){ window.sfTemaBeallit(sz.dataset.tmszem); rajz(); }
-        });
+        const adm = window.sfVanAdmin();
+        host.innerHTML = `<div class="adm-hero"><h2>Beállítások</h2><p>Megjelenés${adm ? ', felhasználók, jogosultságok' : ''} és a privát rész beállításai.</p></div>
+            <section class="card bl-k"><h3>Téma – Sikerfüzet</h3>${sor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}
+                <h3>Téma – SZEM (privát)</h3>${sor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
+                <p class="bl-megj">A két rész színvilága külön állítható. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>
+            <section class="card bl-k bl-sor"><div><h3>Privát rész</h3><p class="bl-megj">Tranzakciók ikonjai, a SZEM app-ikonja és a privát zár (arc / ujjlenyomat, PIN).</p></div>
+                <button type="button" class="btn" data-blszem>Megnyitás</button></section>
+            ${adm ? '<h2 class="bl-adm-cim">Admin</h2>' : ''}`;
+        const ab = document.getElementById('adminBody');
+        if(ab){ ab.hidden = !adm; if(adm && typeof window.sfShowAdmin === 'function') window.sfShowAdmin(); }
     };
+    document.addEventListener('click', e => {
+        if(!e.target.closest || !e.target.closest('#beallBody')) return;
+        const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); window.sfShowBeallitasok(); return; }
+        const sz = e.target.closest('[data-tmszem]'); if(sz){ window.sfTemaBeallit(sz.dataset.tmszem); window.sfShowBeallitasok(); return; }
+        if(e.target.closest('[data-blszem]') && window.sfSzemBeallit) window.sfSzemBeallit();
+    });
 
     window.sfTemaBeallit = function(t){
         try { localStorage.setItem('sf_szem_tema', JSON.stringify(t)); } catch(e){}
