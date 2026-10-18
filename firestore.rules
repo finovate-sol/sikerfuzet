@@ -253,6 +253,11 @@ service cloud.firestore {
       allow read:  if canAccess(mtUid);
       allow write: if isUser() && (isAdmin() || isManagerOf(mtUid));
     }
+    // A bedolgozás vezetői jegyzetei: a munkatárs maga NEM látja (isManagerOf saját
+    // magára hamis), csak a vezető-lánc és az admin.
+    match /bedolgozas_v/{mtUid} {
+      allow read, write: if isUser() && (isAdmin() || isManagerOf(mtUid));
+    }
 
     // ========================================================================
     //  JEGYZETEK

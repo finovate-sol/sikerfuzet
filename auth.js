@@ -549,6 +549,17 @@ export async function deleteBedolgozas(mtUid){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await deleteDoc(doc(db, "bedolgozas", mtUid));
 }
+// A vezetői jegyzetek külön: bedolgozas_v/{mtUid} – a vezető-lánc és az admin
+// éri el, maga a munkatárs NEM (mint a PG-jegyzetet).
+export async function getBedVezetoi(mtUid){
+    if(!isConfigured || !db || !mtUid) return null;
+    const s = await getDoc(doc(db, "bedolgozas_v", mtUid));
+    return s.exists() ? s.data() : null;
+}
+export async function saveBedVezetoi(mtUid, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "bedolgozas_v", mtUid), data);
+}
 export async function getBedSablon(){
     if(!isConfigured || !db) return null;
     const s = await getDoc(doc(db, "config", "bedolgozas"));

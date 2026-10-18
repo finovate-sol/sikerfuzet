@@ -2529,6 +2529,9 @@
         .bed-kesz { background:#e8f7ee; color:#15803d; font-weight:700; font-size:13px; padding:10px 14px; border-radius:10px; margin:0 0 14px; }
         .bed-also { display:flex; justify-content:flex-end; margin-top:14px; }
         .bed-hazi-add { display:flex; gap:7px; margin-top:10px; flex-wrap:wrap; }
+        .mn-bed { display:flex; align-items:center; gap:8px; margin:0 0 6px; } .mn-bed b { font-size:13px; } .mn-bed small { margin-left:auto; font-size:11px; color:var(--muted); }
+        .mn-bed-h { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:4px 0; } .mn-bed-h i { width:16px; height:16px; border-radius:5px; border:1.5px solid var(--border); font-style:normal; font-size:11px; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; }
+        .mn-bed-h.kesz { color:var(--muted); text-decoration:line-through; } .mn-bed-h.kesz i { background:var(--green); border-color:var(--green); }
         .bed-link { border:0; background:none; padding:0; font:inherit; font-size:12px; font-weight:700; color:var(--blue); cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
         .bed-tabla-k + .ctrl-megj { margin-top:10px; }
         .bed-sab-m { max-width:720px; max-height:calc(100dvh - 40px); display:flex; flex-direction:column; } .bed-sab-m .modal-body { overflow-y:auto; min-height:0; }
@@ -12336,12 +12339,12 @@ function ttTabla(l, cs){
             <td class="tt-ossz ${k ? 'kesz' : ''}">${Math.round(a * 100)}%${k ? ' ✓' : ''}</td></tr>`; }).join('')}</tbody></table></div>`;
 }
 let ttFo = store.load('sf_tt_fo', 'tudas');   // 'tudas' | 'control' | 'bed' | 'elemzes'
-const ttFoValto = () => `<div class="tt-fo" role="tablist"><button type="button" role="tab" data-ttfo="tudas" class="${ttFo === 'tudas' ? 'on' : ''}" aria-selected="${ttFo === 'tudas'}">Tudásbázis</button><button type="button" role="tab" data-ttfo="control" class="${ttFo === 'control' ? 'on' : ''}" aria-selected="${ttFo === 'control'}">Control</button><button type="button" role="tab" data-ttfo="bed" class="${ttFo === 'bed' ? 'on' : ''}" aria-selected="${ttFo === 'bed'}">Bedolgozás</button><button type="button" role="tab" data-ttfo="elemzes" class="${ttFo === 'elemzes' ? 'on' : ''}" aria-selected="${ttFo === 'elemzes'}">Elemzések</button></div>`;
+const ttFoValto = () => `<div class="tt-fo" role="tablist"><button type="button" role="tab" data-ttfo="tudas" class="${ttFo === 'tudas' ? 'on' : ''}" aria-selected="${ttFo === 'tudas'}">Tudásbázis</button><button type="button" role="tab" data-ttfo="control" class="${ttFo === 'control' ? 'on' : ''}" aria-selected="${ttFo === 'control'}">Control</button><button type="button" role="tab" data-ttfo="bed" class="${ttFo === 'bed' ? 'on' : ''}" aria-selected="${ttFo === 'bed'}">Bedolgozás / PG</button><button type="button" role="tab" data-ttfo="elemzes" class="${ttFo === 'elemzes' ? 'on' : ''}" aria-selected="${ttFo === 'elemzes'}">Elemzések</button></div>`;
 async function renderTudastar(){
     const host = document.getElementById('tudastarBody'); if(!host) return;
     if(ttFo === 'control') return renderControl(host);
     if(ttFo === 'bed'){
-        const fej = ttFoValto() + '<div class="tt-fej"><div><h2>Bedolgozás</h2><p>Az új munkatársak útja: Starter PG → PG 1–4 → Lezárás – ki hol tart, és kinél nyitott a házi feladat</p></div></div>';
+        const fej = ttFoValto() + '<div class="tt-fej"><div><h2>Bedolgozás / PG</h2><p>Az új munkatársak útja: Starter PG → PG 1–4 → Lezárás – ki hol tart, és kinél nyitott a házi feladat</p></div></div>';
         if(typeof window.sfBedAttekintes !== 'function'){ host.innerHTML = fej + '<div class="card tt-ures">Betöltés…</div>'; return; }
         return window.sfBedAttekintes(host, fej);
     }
@@ -28359,6 +28362,7 @@ function maiHetiCel(){
     const hw = currentHaviWeek(), h = loadHavi(hw.monthDate), w = (h.weeks || [])[hw.weekIdx] || {};
     return HAVI_METRICS.map((n, i) => ({ n, cel: haviNum((w.cel || [])[i]), van: haviNum((w.van || [])[i]) })).filter(x => x.cel > 0);
 }
+let maiBed = '';   // a bedolgozás kártyája (csak új munkatársnak, amíg tart)
 function renderMaiNap(){
     const host = document.getElementById('maiNap'); if(!host) return;
     const ma = new Date(), ido = d => d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
@@ -28384,6 +28388,7 @@ function renderMaiNap(){
         : cel.map(x => { const p = Math.min(100, Math.round(x.van / x.cel * 100)); return `<div class="mn-c"><span>${esc(x.n)}</span><i><s style="width:${p}%;background:${p >= 100 ? '#16a34a' : `hsl(${Math.round(p * 1.2)},70%,48%)`}"></s></i><b>${x.van}/${x.cel}</b></div>`; }).join('')
             + '<button type="button" class="mn-tobb" data-mnlap="havi">Havi terv ›</button>';
     host.innerHTML = fej + `<div class="mn-racs">
+        ${maiBed ? `<div class="mn-blokk"><h4>Bedolgozásom</h4>${maiBed}</div>` : ''}
         <div class="mn-blokk"><h4>Mai időpontok</h4>${esem}</div>
         <div class="mn-blokk"><h4>Feladatok <small>mára és lejárt</small></h4>${fel}</div>
         <div class="mn-blokk"><h4>Hívandók <small>Telefonra vár · rating szerint</small></h4>${hivHtml}</div>
@@ -28400,12 +28405,15 @@ async function maiFrissit(){
     // a naptár-kapcsolat a bejelentkezés után pár másodperccel áll fel – addig újrapróbáljuk
     if(e === null && (maiFrissit.proba = (maiFrissit.proba || 0) + 1) < 5) setTimeout(maiFrissit, 6000);
     if(window.sfFeladatEsedekes) maiFel = f;
+    if(window.sfBedSajatKartya) maiBed = await window.sfBedSajatKartya().catch(() => '');
+    if(t !== maiFut) return;
     renderMaiNap();
 }
 window.sfMaiFrissit = maiFrissit;
 document.addEventListener('click', e => {
     const h = e.target.closest('#maiNap'); if(!h) return;
     if(e.target.closest('[data-mnfrissit]')){ maiFrissit(); return; }
+    if(e.target.closest('[data-mnbed]')){ if(window.sfBedMutat) window.sfBedMutat(); return; }
     const f = e.target.closest('[data-mnfel]'); if(f){ if(window.sfFeladatNyit) window.sfFeladatNyit(f.dataset.mnfel); return; }
     const u = e.target.closest('[data-mnugyf]'); if(u){ regSorNyit(+u.dataset.mnugyf); return; }
     const l = e.target.closest('[data-mnlap]'); if(l) prvMenj(l.dataset.mnlap);
@@ -28419,7 +28427,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=83";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=84";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -32287,7 +32295,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <div class="pg-hero-txt"><h2>PG Modul</h2><p>A <b>Személyes PG</b> a vezetővel, a <b>Csendes PG</b> önmagaddal – a kimenetük ugyanoda fut be: az <b>akciótervekbe</b>.</p></div>
             <a class="link" href="https://tasks.google.com" target="_blank" rel="noopener">Google Tasks ↗</a>
         </div>
-        <div class="pg-tabs">${tab('szemelyes','Személyes PG')}${tab('bed','Bedolgozás')}${tab('csendes','Csendes PG')}${tab('akcio', `Akciótervek${openCount?` <span class="pg-badge">${openCount}</span>`:''}`)}</div>
+        <div class="pg-tabs">${tab('szemelyes','Személyes PG')}${tab('bed','Bedolgozás / PG')}${tab('csendes','Csendes PG')}${tab('akcio', `Akciótervek${openCount?` <span class="pg-badge">${openCount}</span>`:''}`)}</div>
         <div id="pgMount"><div class="card pg-loading">Betöltés…</div></div>`;
     }
 
@@ -33967,8 +33975,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // prezentáció, házi feladat. A házi a munkatárs akciótervébe kerül (pg_akcio),
     // és a vezető csak akkor lép tovább, ha a lépés házija kész – ezt ő bírálhatja felül.
     // Adat: bedolgozas/{mtUid} = { mtUid, mtName, leaderUid, leaderName, start, lepes ('kesz' a végén),
-    //   pipa:{pontId:nap}, datum:{lepesId:nap}, hazi:{lepesId:[{id,t,a:akcioId}]}, jegyzet:{lepesId:szöveg},
-    //   lezarva:{lepesId:nap}, created, updated }. Sablon: config/bedolgozas (csak az admin szerkeszti).
+    //   pipa:{pontId:nap}, datum:{lepesId:nap}, hazi:{lepesId:[{id,t,a:akcioId}]}, lezarva:{lepesId:nap}, created, updated }.
+    // A vezetői jegyzet külön: bedolgozas_v/{mtUid} = { jegyzet:{lepesId:szöveg} } – a munkatárs nem látja.
+    // A munkatárs csak a lényeget látja (hol tart, következő alkalom, házi) – a napirend a vezetőé.
+    // Sablon: config/bedolgozas (csak az admin szerkeszti).
     const BED_ALAP_SZOVEG = [
         ['starter', 'Starter PG', 0, `Starter beszélgetés
 Start App ellenőrzése
@@ -34025,13 +34035,21 @@ Vállalkozás nyitásának átbeszélése`, '']
         ({ id, n, nap, pontok: bedSorokParse(pont, null, id, true), hazi: bedSorokParse(hazi, null, id + '-h', false) })) });
     const bedSorokSzoveg = l => l.map(p => [p.t, ...(p.al || []).map(a => '- ' + a.t)].join('\n')).join('\n');
 
-    let bedSablon = null, bedDocs = {}, bedSajat = null, bedOpen = null, bedNezett = null;
+    let bedSablon = null, bedDocs = {}, bedVez = {}, bedSajat = null, bedOpen = null, bedNezett = null;
     async function bedLoad(){
         try { bedSablon = await getBedSablon(); } catch(e){ bedSablon = null; }
         if(!bedSablon || !Array.isArray(bedSablon.lepesek) || !bedSablon.lepesek.length) bedSablon = bedAlapSablon();
         const emps = pgEmployees();
         const l = await Promise.all(emps.map(e => getBedolgozas(e.uid).catch(() => null)));
         bedDocs = {}; emps.forEach((e, i) => { if(l[i]) bedDocs[e.uid] = l[i]; });
+        const v = await Promise.all(emps.map(e => bedDocs[e.uid] ? getBedVezetoi(e.uid).catch(() => null) : null));
+        bedVez = {}; emps.forEach((e, i) => { if(bedDocs[e.uid]) bedVez[e.uid] = Object.assign({ jegyzet: {} }, v[i] || {}); });
+        // az első változatban a jegyzet a munkatárs által is olvasható dokumentumban volt – átköltöztetjük
+        for(const uid of Object.keys(bedDocs)){
+            const d = bedDocs[uid]; if(!d.jegyzet || !Object.keys(d.jegyzet).length) continue;
+            bedVez[uid].jegyzet = Object.assign({}, d.jegyzet, bedVez[uid].jegyzet);
+            try { await saveBedVezetoi(uid, bedVez[uid]); delete d.jegyzet; await bedMent(d); } catch(e){ console.warn('A bedolgozás jegyzetének átköltöztetése nem sikerült:', e); }
+        }
         try { bedSajat = await getBedolgozas(pgOwnUid()); } catch(e){ bedSajat = null; }
     }
     const bedLepesek = () => bedSablon.lepesek;
@@ -34093,7 +34111,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <button class="btn primary" id="bedUjBtn" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Bedolgozás indítása</button>
             </div>` : emps.length ? '' : `<div class="pg-empty">Nincs hozzád rendelt munkatárs. Az Admin → Hozzáférés fülön állítható be, ki tartozik hozzád.</div>`;
         return `${sajat}<section class="card pg-card">
-            <div class="card-head"><h2><span class="icon">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}</span>Bedolgozás</h2>
+            <div class="card-head"><h2><span class="icon">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}</span>Bedolgozás / PG</h2>
                 ${window.sfIsAdmin ? '<button class="bed-link" id="bedSablonBtn" type="button">Program szerkesztése</button>' : `<span class="pg-count">${aktiv.length} folyamatban</span>`}</div>
             <div class="card-body"><p class="pg-note-txt" style="margin:0 0 12px">Starter PG → PG 1 → PG 2 → PG 3 → PG 4 → Lezárás, 1:1-ben. A következő lépésre akkor lépj, ha az előző házi feladata kész.</p>
                 ${ujSor}${aktiv.length ? aktiv.map(sor).join('') : (emps.length ? '<div class="pg-empty">Még nincs folyamatban bedolgozás.</div>' : '')}</div>
@@ -34135,34 +34153,48 @@ Vállalkozás nyitásának átbeszélése`, '']
                     <div>
                         <h4 class="bed-h">Prezentáció</h4><div class="bed-prezi">${l.prezi ? escM(l.prezi) : 'Az alkalom prezentációja később kerül ide.'}</div>
                         <h4 class="bed-h">Házi feladat</h4>${bedHaziHtml(d, l, true)}
-                        <h4 class="bed-h">Jegyzet <small>a munkatárs is látja</small></h4>
-                        <textarea class="pg-ta" rows="3" data-bedjegyz="${escM(l.id)}" placeholder="Mit beszéltetek meg, mire figyeljen…">${escM((d.jegyzet || {})[l.id] || '')}</textarea>
+                        <h4 class="bed-h">Jegyzet <small>csak a vezetők látják</small></h4>
+                        <textarea class="pg-ta" rows="3" data-bedjegyz="${escM(l.id)}" placeholder="Mit beszéltetek meg, mire figyelj a következő alkalommal…">${escM(((bedVez[uid] || {}).jegyzet || {})[l.id] || '')}</textarea>
                     </div>
                 </div>
                 ${tovabb}
                 <div class="bed-also"><button type="button" class="pg-del-rec" id="bedTorol">Bedolgozás törlése</button></div>
             </div></section>`;
     }
-    // A munkatárs saját nézete: hol tart, mi a következő alkalom, mi a házija.
+    // A munkatárs saját nézete: csak a lényeg – hol tart, mikor a következő alkalom, mi a házija.
+    function bedSajatTorzs(d){
+        const L = bedLepesek(), ai = bedIdx(d), l = L[Math.min(ai, L.length - 1)];
+        if(d.lepes === 'kesz') return '<div class="bed-kesz">✓ A bedolgozásod lezárult – gratulálunk! Innentől Fix PG.</div>';
+        return `<div class="bed-fej"><h3>Most: ${escM(l.n)}</h3><span class="pg-chip">${escM(pgDateLabel(bedDatum(d, l)))}</span></div>
+            <h4 class="bed-h">Házi feladat <small>ha kész, pipáld ki az Akciótervek között</small></h4>${bedHaziHtml(d, l, false)}`;
+    }
     function bedSajatHtml(){
-        const d = bedSajat, L = bedLepesek(), ai = bedIdx(d), kesz = d.lepes === 'kesz', l = L[Math.min(ai, L.length - 1)];
+        const d = bedSajat;
         return `<section class="card pg-card bed-r">
             <div class="card-head"><h2><span class="icon">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}</span>Bedolgozásom</h2><span class="pg-count">Vezető: ${escM(d.leaderName || '')}</span></div>
-            <div class="card-body">${bedLepcso(d, false)}
-                ${kesz ? '<div class="bed-kesz">✓ A bedolgozásod lezárult – gratulálunk! Innentől Fix PG.</div>' : `
-                <div class="bed-fej"><h3>Most: ${escM(l.n)}</h3><span class="pg-chip">${escM(pgDateLabel(bedDatum(d, l)))}</span></div>
-                <div class="bed-racs"><div><h4 class="bed-h">Amit átveszünk</h4>${bedPontokHtml(d, l, false)}</div>
-                    <div><h4 class="bed-h">Házi feladat <small>ha kész, pipáld ki az Akciótervek között</small></h4>${bedHaziHtml(d, l, false)}
-                    ${(d.jegyzet || {})[l.id] ? `<h4 class="bed-h">A vezetőd jegyzete</h4><p class="pg-prev-txt">${escM(d.jegyzet[l.id])}</p>` : ''}</div></div>`}
-            </div></section>`;
+            <div class="card-body">${bedLepcso(d, false)}${bedSajatTorzs(d)}</div></section>`;
     }
+    // A Mai nap panel kártyája (csak amíg tart a bedolgozás).
+    window.sfBedSajatKartya = async function(){
+        if(!isConfigured) return '';
+        try { if(!bedSablon) bedSablon = (await getBedSablon().catch(() => null)) || null; } catch(e){}
+        if(!bedSablon || !Array.isArray(bedSablon.lepesek) || !bedSablon.lepesek.length) bedSablon = bedAlapSablon();
+        try { bedSajat = await getBedolgozas(pgOwnUid()); } catch(e){ bedSajat = null; }
+        if(!bedSajat || bedSajat.lepes === 'kesz') return '';
+        try { pgAkciok = (await getAkciok(pgOwnUid())) || pgAkciok; } catch(e){}
+        const L = bedLepesek(), ai = bedIdx(bedSajat), l = L[Math.min(ai, L.length - 1)], h = bedHazik(bedSajat, l).filter(x => x.a);
+        return `<div class="mn-bed">${bedMini(bedSajat)}<b>${escM(l.n)}</b><small>${escM(pgDateLabel(bedDatum(bedSajat, l)))}</small></div>
+            ${h.length ? h.map(x => `<div class="mn-bed-h${x.done ? ' kesz' : ''}"><i>${x.done ? '✓' : ''}</i>${escM(x.t)}</div>`).join('') : '<p class="mn-u">Ehhez a lépéshez most nincs házi feladat.</p>'}
+            <button type="button" class="mn-tobb" data-mnbed>Bedolgozásom ›</button>`;
+    };
+    window.sfBedMutat = () => { pgTab = 'bed'; bedOpen = null; const a = document.querySelector('.nav a[data-page="pg"]'); if(a){ if(a.classList.contains('active')) renderPG(); else a.click(); } };
     async function bedInditas(){
         const sel = document.getElementById('bedUjMt'), nap = document.getElementById('bedUjNap'); if(!sel) return;
         const uid = sel.value, L = bedLepesek(), most = new Date().toISOString();
         const d = { mtUid: uid, mtName: pgEmpName(uid), leaderUid: pgOwnUid(), leaderName: pgOwnName(), start: (nap && nap.value) || pgToday(),
-                    lepes: L[0].id, pipa: {}, datum: {}, hazi: {}, jegyzet: {}, lezarva: {}, created: most, updated: most };
+                    lepes: L[0].id, pipa: {}, datum: {}, hazi: {}, lezarva: {}, created: most, updated: most };
         if(!(await bedMent(d))) return;
-        bedDocs[uid] = d; bedOpen = uid; bedNezett = null; renderPG();
+        bedDocs[uid] = d; bedVez[uid] = { jegyzet: {} }; bedOpen = uid; bedNezett = null; renderPG();
     }
     async function bedHaziKiad(d, l, h){
         const kov = bedLepesek()[bedLepesek().indexOf(l) + 1];
@@ -34207,8 +34239,10 @@ Vállalkozás nyitásának átbeszélése`, '']
         on('[data-bedpipa]', 'change', async e => { const id = e.target.dataset.bedpipa; d.pipa = d.pipa || {};
             if(e.target.checked) d.pipa[id] = pgToday(); else delete d.pipa[id]; await bedMent(d); renderPG(); });
         on('[data-beddat]', 'change', async e => { d.datum = d.datum || {}; d.datum[e.target.dataset.beddat] = e.target.value; await bedMent(d); renderPG(); });
-        on('[data-bedjegyz]', 'change', async e => { d.jegyzet = d.jegyzet || {}; const v = e.target.value.trim();
-            if(v) d.jegyzet[e.target.dataset.bedjegyz] = v; else delete d.jegyzet[e.target.dataset.bedjegyz]; await bedMent(d); });
+        on('[data-bedjegyz]', 'change', async e => { const vz = bedVez[d.mtUid] = bedVez[d.mtUid] || { jegyzet: {} }; vz.jegyzet = vz.jegyzet || {};
+            const v = e.target.value.trim(), k = e.target.dataset.bedjegyz;
+            if(v) vz.jegyzet[k] = v; else delete vz.jegyzet[k];
+            try { await saveBedVezetoi(d.mtUid, vz); } catch(err){ alert('A jegyzet nem menthető: ' + (err.message || err)); } });
         on('[data-bedki]', 'click', e => { const h = (l().hazi || []).find(x => x.id === e.currentTarget.dataset.bedki); if(h){ e.currentTarget.disabled = true; bedHaziKiad(d, l(), h); } });
         const haziUj = () => { const i = document.getElementById('bedHaziUj'), t = i && i.value.trim(); if(t) bedHaziKiad(d, l(), { id: bedUjId(), t }); };
         on('#bedHaziUjBtn', 'click', haziUj);
@@ -34233,7 +34267,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         try { if(!pgAkciok.length) pgAkciok = (await getAkciok(pgOwnUid())) || []; } catch(e){}
         if(!host.isConnected) return;
         const L = bedLepesek(), emps = pgEmployees().filter(e => bedDocs[e.uid]);
-        if(!emps.length){ host.innerHTML = fej + `<div class="card tt-ures">Nincs folyamatban bedolgozás. A PG Modul → Bedolgozás fülön indíthatsz egyet.</div>`; return; }
+        if(!emps.length){ host.innerHTML = fej + `<div class="card tt-ures">Nincs folyamatban bedolgozás. A PG Modul → Bedolgozás / PG fülön indíthatsz egyet.</div>`; return; }
         host.innerHTML = fej + `<div class="card bed-tabla-k"><table class="bed-tabla"><thead><tr><th>Munkatárs</th><th>Vezető</th>${L.map(l => `<th>${escM(l.n)}</th>`).join('')}<th>Házi</th><th></th></tr></thead><tbody>
             ${emps.map(e => { const d = bedDocs[e.uid], ai = bedIdx(d), ny = L[ai] ? bedHaziNyitott(d, L[ai]) : 0;
                 return `<tr data-bedcontrol="${escM(e.uid)}"><th>${escM(d.mtName || e.name || e.email)}</th><td>${escM(d.leaderName || '')}</td>
