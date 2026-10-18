@@ -12982,6 +12982,28 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     window.addEventListener('resize', () => { if(window.innerWidth > 1000) setOpen(false); });
 })();
 
+// ===== Beragadt görgetés-zár elleni védelem =====
+// A teljes képernyős nézetek (elemzőfüzet, ajánláskérő, prezentáció) és a mobil menü
+// lezárják az oldal görgetését. Ha valamelyik úgy tűnik el, hogy a zár rajta marad,
+// telefonon egyik oldal sem görgethető – ezért a zárat mindig a ténylegesen nyitott
+// elemekhez igazítjuk (elem eltűnésekor, lapváltáskor és az appba visszatérve).
+(function(){
+    const igazit = () => {
+        const b = document.body; if(!b) return;
+        const ef = !!document.querySelector('body > .ef, body > .ak');
+        if(b.classList.contains('ef-nyitva') !== ef) b.classList.toggle('ef-nyitva', ef);
+        const pz = !!document.querySelector('body > .pzi-vetito');
+        if(b.classList.contains('pzi-vetit') !== pz) b.classList.toggle('pzi-vetit', pz);
+        const sb = document.getElementById('sidebar');
+        if(b.style.overflow === 'hidden' && !(sb && sb.classList.contains('open'))) b.style.overflow = '';
+        if(b.classList.contains('sf-mob-oldal') && !document.querySelector('#page-home:not([hidden])')) b.classList.remove('sf-mob-oldal');
+    };
+    new MutationObserver(igazit).observe(document.body, { childList: true });
+    document.addEventListener('click', e => { if(e.target.closest('.nav a[data-page]')) setTimeout(igazit, 0); });
+    document.addEventListener('visibilitychange', () => { if(!document.hidden) igazit(); });
+    window.sfGorgetesIgazit = igazit;
+})();
+
 // ===== BAL OLDALI MENÜ ÖSSZECSUKÁSA (csak ikonok) =====
 (function(){
     const sb = document.getElementById('sidebar');
