@@ -2131,6 +2131,7 @@
         .oi-nev { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:var(--text); }
         .oi-nev i { width:22px; height:22px; flex:none; display:flex; } .oi-nev svg { width:22px; height:22px; }
         .oi-nev > span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+        .oi-tart { font-size:11.5px; font-weight:500; line-height:1.35; color:var(--muted); }
         .oi-szab-g { border:0; background:none; padding:0; font:inherit; font-size:11.5px; font-weight:600; color:var(--muted); cursor:pointer; }
         .oi-szab-g:hover, .oi-szab-g.on { color:var(--blue); }
         .oi-szab-l { grid-column:1 / -1; margin:0 0 4px 32px; padding:8px 12px 8px 30px; background:var(--bg, #f8fafc); border-radius:10px; font-size:13px; }
@@ -8618,6 +8619,8 @@
         .szb-ik { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
         .szb-cs { display:flex; align-items:center; gap:8px; margin:14px 4px 6px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#4b5563; }
         .szb-cs span { font-size:12px; font-weight:700; color:#9ca3af; letter-spacing:0; }
+        .szb-cs-t { margin:-4px 4px 6px 27px; font-size:11.5px; color:#9ca3af; line-height:1.35; }
+        .szb-ert-lista button { flex-wrap:wrap; } .szb-ert-lista small { flex-basis:100%; padding-left:23px; font-size:11px; color:#9ca3af; line-height:1.3; }
         .szb-old { position:sticky; top:12px; padding:16px; border-radius:22px; }
         .szb-ert h3 { margin:0; font-size:15px; font-weight:800; color:#111827; }
         .szb-ert-al { margin:2px 0 6px; font-size:12px; color:#6b7280; }
@@ -10618,6 +10621,16 @@ const OI_TER = [
     ['cel',      'Életigény / céljaim',    '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', '#3b82f6'],
     ['hobbi',    'Önmegvalósítás / hobbi', '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>', '#eab308'],
 ];
+// Mit foglal magában egy terület – a régi kilenc területből átemelve (*), kiegészítve. Mindenhol a terület neve alatt látszik.
+const OI_TART = {
+    egeszseg: ['Egészség és energiaszint*', 'Sport és fizikai állapot*', 'Étkezés és regeneráció*', 'Mentális állapot*'],
+    penz: ['Pénzügyi rendezettség*', 'Megtakarítás és befektetés', 'Kiadások és tartalék'],
+    kapcs: ['Párkapcsolat és család*', 'Kapcsolatok és környezet*', 'Barátok'],
+    munka: ['Vezetői teljesítmény*', 'Ügyfelek és csapat', 'Szakmai fejlődés'],
+    cel: ['Hosszú távú célok', 'Életszínvonal, életigény', 'Tervek és álmok'],
+    hobbi: ['Öröm és életminőség*', 'Hobbi és kikapcsolódás', 'Önfejlesztés'],
+};
+const oiTart = ik => (OI_TART[ik] || []).map(x => x.replace('*', '')).join(' · ');
 // A régi, kilenc területes felmérések átszámítása: a csoport átlaga, az indoklások összefűzve.
 const OI_REGI = { egeszseg: ['eg', 'sport', 'etk', 'ment'], penz: ['penz'], kapcs: ['csal', 'kapcs'], munka: ['vez'], hobbi: ['orom'] };
 const oiRegiE = x => ['eg', 'sport', 'etk', 'ment', 'csal', 'vez', 'orom'].some(k => (x.p || {})[k] != null || (x.i || {})[k]);
@@ -10942,7 +10955,7 @@ function oiKerekHtml(a){
     const szb = PRV.szabalyok, szabok = k => szb ? szb.lista.filter(x => (szb.temak.find(t => t.id === x.t) || {}).ik === k) : [];
     const sorok = OI_TER.map(([k, nev, ik, c]) => { const n = p[k] || 0, sl = szabok(k), ny = oiSzabNyit === k && sl.length;
         return `<div class="oi-sor">
-            <span class="oi-nev"><i style="color:${c}">${oiIk(SZB_IK[k] || ik)}</i><span>${esc(nev)}${sl.length ? `<button type="button" class="oi-szab-g${ny ? ' on' : ''}" data-oiszab="${k}" aria-expanded="${!!ny}">${sl.length} szabály ${ny ? '▴' : '▾'}</button>` : ''}</span></span>
+            <span class="oi-nev"><i style="color:${c}">${oiIk(SZB_IK[k] || ik)}</i><span>${esc(nev)}<small class="oi-tart">${esc(oiTart(k))}</small>${sl.length ? `<button type="button" class="oi-szab-g${ny ? ' on' : ''}" data-oiszab="${k}" aria-expanded="${!!ny}">${sl.length} szabály ${ny ? '▴' : '▾'}</button>` : ''}</span></span>
             <span class="oi-pont${n ? '' : ' ures'}" style="${n ? `--pb:${oiSzin(n)};--pf:${oiSzov(n)}` : ''}">${n || '–'}${delta(k)}</span>
             <span class="oi-sav" role="radiogroup" aria-label="${esc(nev)} – pontszám">${Array.from({ length: 10 }, (_, i) => i + 1).map(v =>
                 `<button type="button" role="radio" aria-checked="${v === n}" aria-label="${v}" data-oipont="${k}|${v}" class="${v <= n ? 'on' : ''}"${v <= n ? ` style="--s:${oiSzin(n)}"` : ''}></button>`).join('')}</span>
@@ -27945,7 +27958,7 @@ function szErtPanel(d){
         <p class="szb-ert-al">${ut ? `Legutóbbi felmérés: ${esc(oiDatum(ut.d))}${at != null && ae != null ? ` · előtte ${ae.toFixed(1)} → most ${at.toFixed(1)}` : ''}` : 'Hol tartasz a hat területen? Pontozd az életkeréken.'}</p>
         ${szKerek(d)}
         <div class="szb-ert-lista">${szKerekTemak(d).map(t => { const v = ut && (ut.p || {})[t.ik];
-            return `<button type="button" data-sztema="${esc(t.id)}" class="${szTema === t.id ? 'on' : ''}">${szIkon(t)}<span>${esc(t.n)}</span>${v > 0 ? `<b>${v}</b>` : ''}</button>`; }).join('')}</div>
+            return `<button type="button" data-sztema="${esc(t.id)}" class="${szTema === t.id ? 'on' : ''}">${szIkon(t)}<span>${esc(t.n)}</span>${v > 0 ? `<b>${v}</b>` : ''}<small>${esc(oiTart(t.ik))}</small></button>`; }).join('')}</div>
         <button type="button" class="pv-kapsz szb-ert-g" data-szkerekny>${ut ? 'Életkerék megnyitása' : 'Életkerék kitöltése'}</button></div>`;
 }
 async function renderSzabalyok(){
@@ -27972,7 +27985,7 @@ async function renderSzabalyok(){
                     ${alk.length ? `<ul>${alk.slice().reverse().map(a => `<li><time>${esc(new Date(a.d).toLocaleDateString('hu-HU'))}</time>${esc(a.m)}</li>`).join('')}</ul>` : '<p class="sz-ures">Még nem jegyeztél fel döntést ehhez a ponthoz.</p>'}
                     <form class="sz-alk-be" data-szalk="${esc(x.id)}"><input type="text" placeholder="Milyen döntésnél segített? Mi lett belőle?" maxlength="400" aria-label="Új bejegyzés"><button type="submit" class="pv-kapsz">Feljegyzem</button></form></div>
                 <div class="sz-gombok"><button type="button" class="pv-link" data-szszerk="${esc(x.id)}">Szerkesztés</button></div></div>` : ''}</div>`; };
-    const chip = (id, n, c, t) => `<button type="button" class="${szTema === id ? 'on' : ''}" data-sztema="${esc(id)}">${t ? szIkon(t) : ''}${esc(n)}${c ? ` <span>${c}</span>` : ''}</button>`;
+    const chip = (id, n, c, t) => `<button type="button" class="${szTema === id ? 'on' : ''}" data-sztema="${esc(id)}"${t && oiTart(t.ik) ? ` title="${esc(oiTart(t.ik))}"` : ''}>${t ? szIkon(t) : ''}${esc(n)}${c ? ` <span>${c}</span>` : ''}</button>`;
     const ujTema = szTema !== 'mind' ? szTema : (d.temak[0] || {}).id;
     host.innerHTML = `<div class="szb">
         <div class="szb-fo">
@@ -27980,15 +27993,15 @@ async function renderSzabalyok(){
                 <div class="szb-fej-g"><button type="button" class="szb-g szb-ert-mob" data-szkerekny>${szKerek(d, 22)}<span>Életkerék</span></button>
                 <button type="button" class="szb-g fo" data-szujnyit aria-expanded="${szUjNyit}">＋ Új</button></div></div>
             ${szUjNyit ? `<form class="szb-uj" data-szuj><input type="text" data-szujc placeholder="Új szabály – pl. „Ügyfélnek sosem ígérek olyat, amit nem tudok betartani.”" maxlength="300" aria-label="Új szabály">
-                <select data-szujt aria-label="Terület">${d.temak.map(t => `<option value="${esc(t.id)}"${t.id === ujTema ? ' selected' : ''}>${esc(t.n)}</option>`).join('')}</select>
+                <select data-szujt aria-label="Terület">${d.temak.map(t => `<option title="${esc(oiTart(t.ik))}" value="${esc(t.id)}"${t.id === ujTema ? ' selected' : ''}>${esc(t.n)}</option>`).join('')}</select>
                 <button type="submit" class="pv-kapsz">Hozzáadás</button></form>` : ''}
             <div class="szb-ker"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>
                 <input type="search" data-szker value="${esc(szKer)}" placeholder="Nehéz döntés? Írd be, miről szól…" aria-label="Keresés a szabályokban" autocomplete="off">
                 ${szKer ? `<span class="sz-ker-db">${latszik.length} találat</span>` : ''}</div>
             <div class="szb-chipek">${chip('mind', 'Mind', d.lista.length)}${d.temak.map(t => chip(t.id, t.n, db(t.id), t)).join('')}<button type="button" class="szb-tema-uj" data-sztemakez title="Területek kezelése">＋</button></div>
-            ${csop.length ? csop.map(g => `<h4 class="szb-cs">${szIkon(g.t)}${esc(g.t.n)}<span>${g.l.length}</span></h4><section class="card sz-lista">${g.l.map(pont).join('')}</section>`).join('')
+            ${csop.length ? csop.map(g => `<h4 class="szb-cs">${szIkon(g.t)}${esc(g.t.n)}<span>${g.l.length}</span></h4>${oiTart(g.t.ik) ? `<p class="szb-cs-t">${esc(oiTart(g.t.ik))}</p>` : ''}<section class="card sz-lista">${g.l.map(pont).join('')}</section>`).join('')
                 : d.lista.length ? '<div class="card pv-ures">Nincs a keresésnek megfelelő pont. Próbáld más szóval – vagy ha új tanulság, vedd fel szabályként.</div>'
-                : szTema !== 'mind' ? `<div class="card pv-ures">Ezen a területen még nincs szabály. <button type="button" class="pv-link" data-szujnyit>Írd le az elsőt</button></div>`
+                : szTema !== 'mind' ? `<div class="card pv-ures">${oiTart((d.temak.find(t => t.id === szTema) || {}).ik) ? `<small style="display:block;margin-bottom:6px">Ide tartozik: ${esc(oiTart(d.temak.find(t => t.id === szTema).ik))}</small>` : ''}Ezen a területen még nincs szabály. <button type="button" class="pv-link" data-szujnyit>Írd le az elsőt</button></div>`
                 : `<section class="card pv-kartya pv-ures-k"><h4 class="pv-cim">Írd le a standardjaidat</h4><p>A hat területen – egészség, pénzügyek, kapcsolatok, munka, életigény, önmegvalósítás – mit vársz el magadtól? Egy pont = egy rövid, egyértelmű szabály, alatta a „miért”. Nehéz döntésnél keresd meg a vonatkozó pontot, időnként pedig értékeld ki, mennyire tartod magad hozzájuk.</p>
                     <p><button type="button" class="pv-link" data-szpeldak>Kezdésnek mutass néhány példát</button></p></section>`}
         </div>
