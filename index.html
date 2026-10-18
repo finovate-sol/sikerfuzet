@@ -1044,6 +1044,9 @@
         .adm-role-pages-lbl { font-size:9.5px; font-weight:800; color:var(--muted);
                               text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
         .adm-page-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        .adm-page-csop { display:grid; grid-template-columns:78px minmax(0,1fr); gap:8px; align-items:start; margin:0 0 6px; }
+        .adm-page-csop > span { font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); padding-top:6px; }
+        @media (max-width:600px){ .adm-page-csop { grid-template-columns:1fr; gap:4px; } .adm-page-csop > span { padding-top:0; } }
         .adm-page-chip { border:1px solid var(--border); background:#fff; border-radius:999px;
                          padding:5px 11px; font-size:11px; font-weight:600; font-family:inherit;
                          color:#94a3b8; cursor:pointer; text-decoration:line-through; }
@@ -12812,6 +12815,17 @@ const SF_PAGES = [
     ['ugyfelek','10 perces füzet'], ['ketoras','2 órás füzet'], ['pg','Bedolgozás / PG'], ['sablonok','Sablonok'], ['prezik','Prezentációk'], ['idd','IDD vizsgák'], ['gst','GST vizsga'], ['tudastar','Tudásbázis és Control'],
     ['csapatterv','Csapatterv'], ['struktura','Struktúra'], ['onismeret','Önismeret'], ['penzugyek','Pénzügyek'], ['celok','Célok'], ['edzes','Edzések'],
 ];
+// A hozzáférés-beállítás oldallistája MINDIG a menüből épül (Sikerfüzet, SZEM, közös), így egy új
+// menüpont sem maradhat ki belőle. Az SF_PAGES csak tartalék, ha a menü még nem áll.
+window.sfLapLista = function(){
+    const l = [], volt = new Set();
+    document.querySelectorAll('.nav a[data-page][data-ter]').forEach(a => {
+        const k = a.dataset.page; if(k === 'home' || k === 'admin' || volt.has(k)) return; volt.add(k);
+        const n = (a.querySelector('.nav-label') || a).textContent.trim() || a.title || k;
+        l.push([k, n, a.dataset.ter === 'priv' ? 'priv' : a.dataset.ter === 'ovb' ? 'ovb' : 'mind']);
+    });
+    return l.length ? l : SF_PAGES.map(([k, n]) => [k, n, 'ovb']);
+};
 window.sfBlockedPages = new Set();
 window.sfPageAccessMap = null;
 window.sfApplyPageAccess = function(map){
@@ -37590,9 +37604,12 @@ Vállalkozás nyitásának átbeszélése`, '']
             const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid)
                 .map(e2 => `<option value="${e2.uid}"${e2.uid===mgrUid?' selected':''}>${escM(e2.name||e2.email)}</option>`).join('');
             const blocked = new Set(pageAccess[emp.uid] || []);
-            const pageChips = SF_PAGES.map(([key,label]) =>
+            const chip = ([key,label]) =>
                 `<button type="button" class="adm-page-chip${blocked.has(key)?'':' on'}" data-pguid="${emp.uid}" data-pgkey="${key}"
-                    title="${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`).join('');
+                    title="${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`;
+            const lapok = window.sfLapLista();
+            const pageChips = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','SZEM']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
+                return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('');
             return `<div class="adm-role-row" data-uid="${emp.uid}">
                 <div class="adm-role-name">
                     <div>${escM(emp.name||'(névtelen)')}</div>
@@ -37604,7 +37621,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 </select>
                 <div class="adm-role-pages">
                     <div class="adm-role-pages-lbl">Látható oldalak</div>
-                    <div class="adm-page-chips">${pageChips}</div>
+                    ${pageChips}
                 </div>
             </div>`;
         }).join('');
