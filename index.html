@@ -2130,6 +2130,13 @@
         .oi-fejsor span:nth-child(3) { font-weight:600; color:var(--muted); }
         .oi-nev { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:var(--text); }
         .oi-nev i { width:22px; height:22px; flex:none; display:flex; } .oi-nev svg { width:22px; height:22px; }
+        .oi-nev > span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+        .oi-szab-g { border:0; background:none; padding:0; font:inherit; font-size:11.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+        .oi-szab-g:hover, .oi-szab-g.on { color:var(--blue); }
+        .oi-szab-l { grid-column:1 / -1; margin:0 0 4px 32px; padding:8px 12px 8px 30px; background:var(--bg, #f8fafc); border-radius:10px; font-size:13px; }
+        .oi-szab-l li { padding:2px 0; } .oi-szab-l button { border:0; background:none; padding:0; font:inherit; color:var(--text); text-align:left; cursor:pointer; }
+        .oi-szab-l button:hover { color:var(--blue); text-decoration:underline; }
+        .oi-megj { margin:0 0 8px; padding:0 4px; font-size:13px; font-style:italic; color:var(--muted); }
         .oi-pont { height:34px; border-radius:9px; background:var(--pb, var(--bg)); color:var(--pf, var(--muted)); display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:800; }
         .oi-pont .oi-d { color:inherit; opacity:.85; }
         .oi-sav { display:grid; grid-template-columns:repeat(10, 1fr); gap:4px; }
@@ -2144,6 +2151,7 @@
             .oi-sor { grid-template-columns:1fr 64px; gap:8px 10px; padding:12px 14px; }
             .oi-fejsor { display:none; }
             .oi-sor .oi-sav, .oi-sor .oi-ind { grid-column:1 / -1; }
+            .oi-szab-l { margin-left:0; }
             .oi-sav button { height:26px; }
             .oi-kpi { grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; } .oi-kpi .card { padding:10px; } .oi-kpi b { font-size:20px; }
             .oi-fej h2 { font-size:24px; }
@@ -8626,18 +8634,6 @@
         .szb-ert-lista button:hover, .szb-ert-lista button.on { background:#f3f4f6; }
         .szb-ert-lista button span { flex:1; } .szb-ert-lista b { font-size:13px; color:#be185d; }
         .szb-ert-g { width:100%; height:40px; }
-        .szb-ert-tort { margin-top:10px; font-size:12.5px; } .szb-ert-tort summary { cursor:pointer; color:#6b7280; font-weight:600; }
-        .szb-ert-tort div { display:flex; gap:10px; align-items:baseline; padding:6px 2px; border-bottom:1px solid #f1f2f4; }
-        .szb-ert-tort time { color:#9ca3af; min-width:84px; } .szb-ert-tort b { color:#be185d; } .szb-ert-tort span { color:#4b5563; }
-        .szb-ert-m, .szb-ert-mob-m { max-width:600px; max-height:calc(100dvh - 40px); display:flex; flex-direction:column; }
-        .szb-ert-m .modal-body, .szb-ert-mob-m .modal-body { overflow-y:auto; min-height:0; }
-        .szb-ert-sor { padding:10px 0; border-bottom:1px solid #f1f2f4; }
-        .szb-ert-n { display:flex; align-items:center; gap:8px; } .szb-ert-n b { font-size:14px; color:#111827; } .szb-ert-n small { margin-left:auto; font-size:12px; color:#9ca3af; }
-        .szb-ert-sor details { margin:4px 0 0 23px; font-size:12.5px; color:#6b7280; } .szb-ert-sor summary { cursor:pointer; }
-        .szb-ert-sor ul { margin:4px 0 0; padding-left:16px; }
-        .szb-skala { display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:4px; margin-top:8px; }
-        .szb-skala button { height:34px; border:1.5px solid #e5e7eb; border-radius:9px; background:#fff; font:inherit; font-size:13px; font-weight:600; color:#4b5563; cursor:pointer; padding:0; }
-        .szb-skala button.on { background:#e11d74; border-color:#e11d74; color:#fff; }
         @media (max-width:900px){
             .szb { grid-template-columns:minmax(0,1fr); }
             .szb-fej { flex-wrap:wrap; }
@@ -10613,17 +10609,26 @@ renderMoney(); renderCareer(); renderInfo();
 // A Szem (privát) része: a privat/{uid}_onismeret dokumentumban, csak a gazdája látja.
 // A régi onismeret/{uid} dokumentumot (amit a felettes és az admin is olvashatott) első
 // betöltéskor átmásoljuk ide, és sikeres mentés után töröljük.
+// A hat terület ugyanaz, mint a Szabályaimban (OVB „Standards”): egy kerék, mellette a terület szabályai.
 const OI_TER = [
-    ['eg',    'Egészség és energiaszint',  '<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>', '#ef4444'],
-    ['sport', 'Sport és fizikai állapot',  '<circle cx="14.5" cy="4.5" r="1.8"/><path d="M7 21l3.5-6 3 2.5V21M6.5 11.5l3-3.5h4l2 3.5 3 1M9.5 8l-1.5 4.5"/>', '#f97316'],
-    ['etk',   'Étkezés és regeneráció',    '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 0-3 2-3 5.5S15 13 17 13v8"/>', '#eab308'],
-    ['csal',  'Párkapcsolat és család',    '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5M14.5 15.6c.8-.4 1.7-.6 2.5-.6 2.5 0 4 1.8 4 4.5"/>', '#22c55e'],
-    ['kapcs', 'Kapcsolatok és környezet',  '<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15zM5 19l7-7"/>', '#16a34a'],
-    ['ment',  'Mentális állapot',          '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3 3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z"/>', '#3b82f6'],
-    ['penz',  'Pénzügyi rendezettség',     '<path d="M5 20v-6M10 20V10M15 20V6M20 20V3"/>', '#7c3aed'],
-    ['vez',   'Vezetői teljesítmény',      '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>', '#f97316'],
-    ['orom',  'Öröm és életminőség',       '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>', '#eab308'],
+    ['egeszseg', 'Egészségem',             '<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>', '#ef4444'],
+    ['penz',     'Pénzügyeim',             '<path d="M5 20v-6M10 20V10M15 20V6M20 20V3"/>', '#7c3aed'],
+    ['kapcs',    'Kapcsolataim',           '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5M14.5 15.6c.8-.4 1.7-.6 2.5-.6 2.5 0 4 1.8 4 4.5"/>', '#22c55e'],
+    ['munka',    'Munkám / karrierem',     '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>', '#f97316'],
+    ['cel',      'Életigény / céljaim',    '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', '#3b82f6'],
+    ['hobbi',    'Önmegvalósítás / hobbi', '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>', '#eab308'],
 ];
+// A régi, kilenc területes felmérések átszámítása: a csoport átlaga, az indoklások összefűzve.
+const OI_REGI = { egeszseg: ['eg', 'sport', 'etk', 'ment'], penz: ['penz'], kapcs: ['csal', 'kapcs'], munka: ['vez'], hobbi: ['orom'] };
+const oiRegiE = x => ['eg', 'sport', 'etk', 'ment', 'csal', 'vez', 'orom'].some(k => (x.p || {})[k] != null || (x.i || {})[k]);
+function oiAtszamol(x){
+    const p = x.p || {}, i = x.i || {}, np = {}, ni = {};
+    Object.entries(OI_REGI).forEach(([k, regi]) => {
+        const v = regi.map(r => p[r]).filter(n => n > 0); if(v.length) np[k] = Math.round(v.reduce((s2, n) => s2 + n, 0) / v.length);
+        const t = regi.map(r => i[r]).filter(Boolean); if(t.length) ni[k] = t.join(' · ');
+    });
+    x.p = np; x.i = ni;
+}
 // 1 (fejlesztendő, piros) → 5 (közepes, sárga) → 10 (erős, zöld)
 const OI_SZIN = ['#e5484d', '#ee5d43', '#f26b4f', '#f59e0b', '#f5b83d', '#f6c544', '#86d36b', '#4cc35f', '#22a855', '#15803d'];
 const oiSzin = n => OI_SZIN[Math.min(10, Math.max(1, n)) - 1];
@@ -10856,8 +10861,30 @@ async function oiBetolt(){
     if(!Array.isArray(a.hawk)) a.hawk = [];
     oiAdat = a;
     if(!a.kerek.length && !a.hawk.length && !prvNemFriss('onismeret')) await oiAtkoltoztet(uid, a);
+    if(PRV.onismeret !== a || prvNemFriss('onismeret')) return oiAdat;
+    let valt = false;
+    if(a.kerek.some(oiRegiE)){
+        if(!a.kerek9) a.kerek9 = JSON.parse(JSON.stringify(a.kerek));   // biztonsági másolat a régi felosztásról
+        a.kerek.filter(oiRegiE).forEach(oiAtszamol); valt = true;
+    }
+    // a Szabályaim korábbi kiértékelései (0–10) beolvadnak a kerékbe – azonos napon a meglévő pont az erősebb
+    const sz = await szAdat();
+    if(sz.ert.length && !sz.ertAt && !prvNemFriss('szabalyok')){
+        sz.ert.forEach(e => {
+            const dt = new Date(e.d), nap = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            let x = a.kerek.find(y => y.d === nap); if(!x) a.kerek.push(x = { id: oiId(), d: nap, p: {}, i: {} });
+            x.p = x.p || {};
+            sz.temak.forEach(t => { const v = e.p[t.id]; if(v != null && OI_TER.some(o => o[0] === t.ik) && !(x.p[t.ik] > 0)) x.p[t.ik] = Math.max(1, v); });
+            if(e.m && !x.m) x.m = e.m;
+        });
+        sz.ertAt = 1; prvMent('szabalyok'); valt = true;
+    }
+    if(valt) oiMent();
     return oiAdat;
 }
+// a legutóbbi életkerék-felmérés (a Szabályaim oldalsávja is ezt mutatja)
+const oiUtolso = (a, n = 1) => { const l = ((a || {}).kerek || []).slice().sort((x, y) => x.d.localeCompare(y.d)); return l[l.length - n] || null; };
+let oiSzabNyit = '';
 let oiAtkNezve = '';   // ebben a munkamenetben már megnéztük a régi helyet
 async function oiAtkoltoztet(uid, a){
     if(!uid || typeof window.sfGetOnismeret !== 'function' || typeof window.sfSavePrivat !== 'function') return;
@@ -10883,6 +10910,7 @@ async function renderOnismeret(){
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Az Önismeret privát – ránézés módban nem látszik.</div>`; return; }
     if(!host.innerHTML) host.innerHTML = '<section class="card"><div class="card-body" style="color:var(--muted);">Betöltés…</div></section>';
     const a = await oiBetolt();
+    await szAdat();   // a terület szabályai a kerék mellett
     if(!prvLap('onismeret')) return;
     const fulek = `<div class="oi-fulek" role="tablist">${[['kerek', 'Vezetői életkerék'], ['hawk', 'Hawkins-skála'], ['vall', 'Havi vállalás']].map(([k, n]) =>
         `<button type="button" role="tab" data-oitab="${k}" class="${oiTab === k ? 'on' : ''}" aria-selected="${oiTab === k}">${n}</button>`).join('')}</div>`;
@@ -10901,7 +10929,7 @@ function oiKerekHtml(a){
     const jel = `<div class="card oi-jel"><div class="oi-jel-csik"></div><div class="oi-jel-sz">${Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
         <div class="oi-jel-sz oi-jel-cim"><span>Fejlesztendő</span><span>Közepes</span><span>Erős</span></div></div>`;
     if(!l.length) return `<div class="oi-fej"><div><h2>Vezetői életkerék</h2><p>Hőtérkép – a jelenlegi állapotod (1–10)</p></div>${jel}</div>
-        <section class="card oi-intro"><div class="card-body"><p>Pontozd <b>1–10</b> között, hol tartasz most a kilenc életterületen, és írd mellé röviden, <b>mi indokolja</b>.
+        <section class="card oi-intro"><div class="card-body"><p>Pontozd <b>1–10</b> között, hol tartasz most a hat életterületen, és írd mellé röviden, <b>mi indokolja</b>. Minden terület mellett ott vannak a Szabályaim pontjai – ahhoz mérd magad.
             Negyedévente érdemes újra kitölteni – így látod, merre mozdultál, és hová érdemes a következő időszakban figyelmet tenni.</p>
             <button type="button" class="btn primary" data-oiuj style="background:var(--blue);color:#fff;border-color:var(--blue);">Kitöltöm most</button></div></section>`;
     const sel = l.find(x => x.id === oiKerekSel) || l[l.length - 1], idx = l.indexOf(sel), elozo = idx > 0 ? l[idx - 1] : null;
@@ -10911,19 +10939,21 @@ function oiKerekHtml(a){
     const rend = kit.slice().sort((x, y) => p[y[0]] - p[x[0]]);
     const szam = v => String(Math.round(v * 10) / 10).replace('.', ',');
     const delta = (k) => { if(!elozo || !(p[k] > 0) || !((elozo.p || {})[k] > 0)) return ''; const d = p[k] - elozo.p[k]; return d ? `<em class="oi-d ${d > 0 ? 'fel' : 'le'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''; };
-    const sorok = OI_TER.map(([k, nev, ik, c]) => { const n = p[k] || 0;
+    const szb = PRV.szabalyok, szabok = k => szb ? szb.lista.filter(x => (szb.temak.find(t => t.id === x.t) || {}).ik === k) : [];
+    const sorok = OI_TER.map(([k, nev, ik, c]) => { const n = p[k] || 0, sl = szabok(k), ny = oiSzabNyit === k && sl.length;
         return `<div class="oi-sor">
-            <span class="oi-nev"><i style="color:${c}">${oiIk(ik)}</i>${esc(nev)}</span>
+            <span class="oi-nev"><i style="color:${c}">${oiIk(SZB_IK[k] || ik)}</i><span>${esc(nev)}${sl.length ? `<button type="button" class="oi-szab-g${ny ? ' on' : ''}" data-oiszab="${k}" aria-expanded="${!!ny}">${sl.length} szabály ${ny ? '▴' : '▾'}</button>` : ''}</span></span>
             <span class="oi-pont${n ? '' : ' ures'}" style="${n ? `--pb:${oiSzin(n)};--pf:${oiSzov(n)}` : ''}">${n || '–'}${delta(k)}</span>
             <span class="oi-sav" role="radiogroup" aria-label="${esc(nev)} – pontszám">${Array.from({ length: 10 }, (_, i) => i + 1).map(v =>
                 `<button type="button" role="radio" aria-checked="${v === n}" aria-label="${v}" data-oipont="${k}|${v}" class="${v <= n ? 'on' : ''}"${v <= n ? ` style="--s:${oiSzin(n)}"` : ''}></button>`).join('')}</span>
             <span class="oi-ind"><textarea data-oiind="${k}" rows="1" maxlength="400" placeholder="Mi indokolja?">${esc(ind[k] || '')}</textarea></span>
+            ${ny ? `<ol class="oi-szab-l">${sl.map(x => `<li><button type="button" data-oiszabny="${esc(x.id)}">${x.p ? '★ ' : ''}${esc(x.c)}</button></li>`).join('')}</ol>` : ''}
         </div>`; }).join('');
     return `<div class="oi-fej"><div><h2>Vezetői életkerék</h2><p>Hőtérkép – ${esc(oiDatum(sel.d))} állapot (1–10)</p></div>${jel}</div>
         <div class="oi-felm">${l.slice(-8).map(x => `<button type="button" data-oisel="${x.id}" class="${x === sel ? 'on' : ''}">${esc(oiDatum(x.d))}</button>`).join('')}
             <button type="button" class="oi-uj" data-oiuj>+ Új felmérés</button></div>
         <div class="oi-kpi">
-            <div class="card"><span>Átlag</span><b>${kit.length ? szam(atl) : '–'}<small> / 10</small></b>${elozo && atlE && kit.length ? (Math.abs(atl - atlE) < .05 ? '<em>ugyanannyi, mint az előző</em>' : `<em class="oi-d ${atl - atlE > 0 ? 'fel' : 'le'}">${atl - atlE > 0 ? '▲' : '▼'} ${szam(Math.abs(atl - atlE))} az előzőhöz</em>`) : `<em>${kit.length}/9 terület kitöltve</em>`}</div>
+            <div class="card"><span>Átlag</span><b>${kit.length ? szam(atl) : '–'}<small> / 10</small></b>${elozo && atlE && kit.length ? (Math.abs(atl - atlE) < .05 ? '<em>ugyanannyi, mint az előző</em>' : `<em class="oi-d ${atl - atlE > 0 ? 'fel' : 'le'}">${atl - atlE > 0 ? '▲' : '▼'} ${szam(Math.abs(atl - atlE))} az előzőhöz</em>`) : `<em>${kit.length}/${OI_TER.length} terület kitöltve</em>`}</div>
             <div class="card"><span>Legerősebb</span><b class="kis">${rend.length ? esc(rend[0][1]) : '–'}</b>${rend.length ? `<em>${p[rend[0][0]]} pont</em>` : ''}</div>
             <div class="card"><span>Fejlesztendő</span><b class="kis">${rend.length > 1 ? esc(rend[rend.length - 1][1]) : '–'}</b>${rend.length > 1 ? `<em>${p[rend[rend.length - 1][0]]} pont</em>` : ''}</div>
         </div>
@@ -10931,6 +10961,7 @@ function oiKerekHtml(a){
             <div class="oi-sor oi-fejsor"><span>Életterület</span><span>Pontszám (1–10)</span><span>Koppints a sávra a pontozáshoz</span><span>Mi indokolja?</span></div>
             ${sorok}
         </section>
+        ${sel.m ? `<p class="oi-megj">„${esc(sel.m)}”</p>` : ''}
         <div class="oi-labl"><span>${elozo ? `Az ▲/▼ az előző (${esc(oiDatum(elozo.d))}) felméréshez képest.` : 'Negyedévente tölts ki egy újat – a kettőt itt össze is veti.'}</span>
             <button type="button" class="link" data-oitorol="${sel.id}">Felmérés törlése</button></div>`;
 }
@@ -11009,6 +11040,8 @@ document.addEventListener('click', e => {
         oiAdat.kerek.push(uj); oiKerekSel = uj.id; oiMent(); renderOnismeret(); return;
     }
     const sl = e.target.closest('[data-oisel]'); if(sl){ oiKerekSel = sl.dataset.oisel; renderOnismeret(); return; }
+    const sg = e.target.closest('[data-oiszab]'); if(sg){ oiSzabNyit = oiSzabNyit === sg.dataset.oiszab ? '' : sg.dataset.oiszab; renderOnismeret(); return; }
+    const sn = e.target.closest('[data-oiszabny]'); if(sn){ window.sfSzabalyNyit(sn.dataset.oiszabny); return; }
     const tr = e.target.closest('[data-oitorol]');
     if(tr){ const x = oiAdat.kerek.find(y => y.id === tr.dataset.oitorol); if(!x || !confirm(`Törlöd a ${oiDatum(x.d)} felmérést?`)) return;
         oiAdat.kerek = oiAdat.kerek.filter(y => y !== x); oiKerekSel = null; oiMent(); renderOnismeret(); return; }
@@ -27833,8 +27866,9 @@ document.addEventListener('keydown', e => {
 
 // ===== SZABÁLYAIM (privát): „Standards – legyenek tiszta és egyértelmű elvárásaink saját magunkkal szemben” =====
 // A hat terület (OVB-standard) alatt pontokba szedett szabályok; nehéz döntésnél a keresővel előkeresem a pontot,
-// alatta naplózom, mikor alkalmaztam. Időnként KIÉRTÉKELÉS: területenként 0–10, mennyire tartottam magam hozzájuk.
-// Adat: PRV.szabalyok = { temak: [{ id, n, ik }], lista: [{ id, t, c, m, p, d, alk: [{ d, m }] }], ert: [{ d, p: { temaId: 0–10 }, m }], std: 1 }
+// alatta naplózom, mikor alkalmaztam. A pontozás az Önismeret Vezetői életkerekén van (ugyanez a hat terület) –
+// itt az oldalsáv csak a legutóbbi felmérést mutatja. A régi `ert` kiértékeléseket az oiBetolt egyszer átemeli (ertAt).
+// Adat: PRV.szabalyok = { temak: [{ id, n, ik }], lista: [{ id, t, c, m, p, d, alk: [{ d, m }] }], ert: [{ d, p: { temaId: 0–10 }, m }], ertAt: 1, std: 1 }
 let szKer = '', szTema = 'mind', szNyitott = null, szUjNyit = false, szKerNyit = false;
 const SZB_IK = {
     egeszseg: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
@@ -27886,9 +27920,11 @@ function szKiemel(szoveg, q){
     for(let k = 0; k < nyers.length; k++){ if(jel[k] && !be){ ki += '<mark>'; be = true; } if(!jel[k] && be){ ki += '</mark>'; be = false; } ki += esc(nyers[k]); }
     return ki + (be ? '</mark>' : '');
 }
-// a kiértékelő kerék (a dia mintájára): a cikkek a területek, a kitöltöttség az utolsó pontszám
+// a kerék (a dia mintájára): a cikkek a hat terület, a kitöltöttség a legutóbbi életkerék-pontszám
+const szKerekTemak = d => d.temak.filter(t => OI_TER.some(o => o[0] === t.ik));
 function szKerek(d, meret){
-    const temak = d.temak.slice(0, 8), n = temak.length || 1, utolso = d.ert[d.ert.length - 1], R = 100, r = 52, c = 120;
+    const temak = szKerekTemak(d), n = temak.length || 1, ut = oiUtolso(PRV.onismeret), R = 100, r = 52, c = 120;
+    const utolso = ut && { p: Object.fromEntries(temak.filter(t => ut.p && ut.p[t.ik] > 0).map(t => [t.id, ut.p[t.ik]])) };
     const pont = (a, rr) => [c + rr * Math.sin(a), c - rr * Math.cos(a)];
     const cikk = (i, rr) => { const a0 = i / n * 2 * Math.PI + .02, a1 = (i + 1) / n * 2 * Math.PI - .02, nagy = a1 - a0 > Math.PI ? 1 : 0;
         const [x0, y0] = pont(a0, rr), [x1, y1] = pont(a1, rr), [x2, y2] = pont(a1, r), [x3, y3] = pont(a0, r);
@@ -27902,21 +27938,21 @@ function szKerek(d, meret){
         <text class="kozep" x="120" y="${atlag != null ? 118 : 126}">${atlag != null ? atlag.toFixed(1) : '↗'}</text>${atlag != null ? '<text class="kozep-al" x="120" y="138">átlag</text>' : ''}</svg>`;
 }
 function szErtPanel(d){
-    const utolso = d.ert[d.ert.length - 1], elozo = d.ert[d.ert.length - 2];
-    const atl = e => e ? Object.values(e.p).reduce((a, x) => a + x, 0) / Math.max(1, Object.values(e.p).length) : null;
-    return `<div class="szb-ert"><h3>Kiértékelés</h3>
-        <p class="szb-ert-al">${utolso ? `Utoljára: ${esc(new Date(utolso.d).toLocaleDateString('hu-HU'))}${elozo ? ` · előtte ${atl(elozo).toFixed(1)} → most ${atl(utolso).toFixed(1)}` : ''}` : 'Mennyire tartod magad a saját standardjaidhoz?'}</p>
+    const o = PRV.onismeret, ut = oiUtolso(o), elozo = oiUtolso(o, 2);
+    const atl = e => { const v = OI_TER.map(t => (e.p || {})[t[0]]).filter(x => x > 0); return v.length ? v.reduce((s2, x) => s2 + x, 0) / v.length : null; };
+    const at = ut && atl(ut), ae = elozo && atl(elozo);
+    return `<div class="szb-ert"><h3>Életkerék</h3>
+        <p class="szb-ert-al">${ut ? `Legutóbbi felmérés: ${esc(oiDatum(ut.d))}${at != null && ae != null ? ` · előtte ${ae.toFixed(1)} → most ${at.toFixed(1)}` : ''}` : 'Hol tartasz a hat területen? Pontozd az életkeréken.'}</p>
         ${szKerek(d)}
-        <div class="szb-ert-lista">${d.temak.slice(0, 8).map(t => { const v = utolso && utolso.p[t.id];
-            return `<button type="button" data-sztema="${esc(t.id)}" class="${szTema === t.id ? 'on' : ''}">${szIkon(t)}<span>${esc(t.n)}</span>${v != null ? `<b>${v}</b>` : ''}</button>`; }).join('')}</div>
-        <button type="button" class="pv-kapsz szb-ert-g" data-szertuj>Új kiértékelés</button>
-        ${d.ert.length ? `<details class="szb-ert-tort"><summary>Korábbi kiértékelések (${d.ert.length})</summary>${d.ert.slice().reverse().map(e => `<div><time>${esc(new Date(e.d).toLocaleDateString('hu-HU'))}</time><b>${atl(e).toFixed(1)}</b>${e.m ? `<span>${esc(e.m)}</span>` : ''}</div>`).join('')}</details>` : ''}</div>`;
+        <div class="szb-ert-lista">${szKerekTemak(d).map(t => { const v = ut && (ut.p || {})[t.ik];
+            return `<button type="button" data-sztema="${esc(t.id)}" class="${szTema === t.id ? 'on' : ''}">${szIkon(t)}<span>${esc(t.n)}</span>${v > 0 ? `<b>${v}</b>` : ''}</button>`; }).join('')}</div>
+        <button type="button" class="pv-kapsz szb-ert-g" data-szkerekny>${ut ? 'Életkerék megnyitása' : 'Életkerék kitöltése'}</button></div>`;
 }
 async function renderSzabalyok(){
     const host = document.getElementById('szabBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = '<div class="card pv-ures">A szabályaid privátak – ránézés módban nem látszanak.</div>'; return; }
     if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
-    const d = await szAdat(); if(!prvLap('szabalyok')) return;
+    const d = await szAdat(); await oiBetolt(); if(!prvLap('szabalyok')) return;
     if(szTema !== 'mind' && !d.temak.some(t => t.id === szTema)) szTema = 'mind';
     const q = nlNorm(szKer), szavak = q.split(' ').filter(Boolean);
     const egyezik = x => !szavak.length || szavak.every(w => nlNorm([x.c, x.m, szTemaNev(d, x.t), ...(x.alk || []).map(a => a.m)].join(' ')).includes(w));
@@ -27941,7 +27977,7 @@ async function renderSzabalyok(){
     host.innerHTML = `<div class="szb">
         <div class="szb-fo">
             <div class="szb-fej"><div><h2>Szabályaim</h2><span>${d.lista.length} pont · tiszta és egyértelmű elvárások önmagammal szemben</span></div>
-                <div class="szb-fej-g"><button type="button" class="szb-g szb-ert-mob" data-szertmob>${szKerek(d, 22)}<span>Kiértékelés</span></button>
+                <div class="szb-fej-g"><button type="button" class="szb-g szb-ert-mob" data-szkerekny>${szKerek(d, 22)}<span>Életkerék</span></button>
                 <button type="button" class="szb-g fo" data-szujnyit aria-expanded="${szUjNyit}">＋ Új</button></div></div>
             ${szUjNyit ? `<form class="szb-uj" data-szuj><input type="text" data-szujc placeholder="Új szabály – pl. „Ügyfélnek sosem ígérek olyat, amit nem tudok betartani.”" maxlength="300" aria-label="Új szabály">
                 <select data-szujt aria-label="Terület">${d.temak.map(t => `<option value="${esc(t.id)}"${t.id === ujTema ? ' selected' : ''}>${esc(t.n)}</option>`).join('')}</select>
@@ -27957,42 +27993,6 @@ async function renderSzabalyok(){
                     <p><button type="button" class="pv-link" data-szpeldak>Kezdésnek mutass néhány példát</button></p></section>`}
         </div>
         <aside class="szb-old card">${szErtPanel(d)}</aside></div>`;
-}
-// kiértékelés: területenként 0–10, a terület szabályai emlékeztetőnek
-function szErtModal(){
-    const d = PRV.szabalyok; if(!d) return;
-    const elozo = d.ert[d.ert.length - 1], p = {};
-    const ov = document.createElement('div'); ov.className = 'modal-overlay';
-    ov.innerHTML = `<div class="modal pv-modal szb-ert-m"><div class="modal-head"><h3>Kiértékelés</h3><button class="modal-x" data-szx aria-label="Bezárás">&times;</button></div>
-        <div class="modal-body"><p class="pv-megj" style="margin:0 0 12px">Mennyire tartottad magad a saját standardjaidhoz az elmúlt időszakban? 0 = egyáltalán nem, 10 = teljesen.</p>
-        ${d.temak.map(t => { const sz = d.lista.filter(x => x.t === t.id);
-            return `<div class="szb-ert-sor"><div class="szb-ert-n">${szIkon(t)}<b>${esc(t.n)}</b>${elozo && elozo.p[t.id] != null ? `<small>előző: ${elozo.p[t.id]}</small>` : ''}</div>
-                ${sz.length ? `<details><summary>${sz.length} szabály</summary><ul>${sz.map(x => `<li>${esc(x.c)}</li>`).join('')}</ul></details>` : ''}
-                <div class="szb-skala">${Array.from({ length: 11 }, (_, n) => `<button type="button" data-szp="${esc(t.id)}" data-v="${n}">${n}</button>`).join('')}</div></div>`; }).join('')}
-        <label class="pv-mezo" style="margin-top:12px"><span>Megjegyzés <i>mi ment jól, min dolgozom a következő időszakban?</i></span><textarea data-szertm rows="3" maxlength="1500"></textarea></label></div>
-        <div class="modal-foot"><button class="btn" data-szx>Mégse</button><button class="pv-ment" data-szertment>Mentés</button></div></div>`;
-    document.body.appendChild(ov);
-    ov.addEventListener('click', e => {
-        if(e.target === ov || e.target.closest('[data-szx]')) return ov.remove();
-        const b = e.target.closest('[data-szp]');
-        if(b){ p[b.dataset.szp] = +b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); return; }
-        if(e.target.closest('[data-szertment]')){
-            if(!Object.keys(p).length){ alert('Legalább egy területet értékelj.'); return; }
-            const m = ov.querySelector('[data-szertm]').value.trim();
-            d.ert.push(Object.assign({ d: new Date().toISOString(), p }, m ? { m } : {})); prvMent('szabalyok'); ov.remove(); renderSzabalyok();
-        }
-    });
-}
-function szErtMobil(){   // telefonon a kerék és az előzmények ablakban
-    const d = PRV.szabalyok; if(!d) return;
-    const ov = document.createElement('div'); ov.className = 'modal-overlay';
-    ov.innerHTML = `<div class="modal pv-modal szb-ert-mob-m"><div class="modal-head"><h3>Kiértékelés</h3><button class="modal-x" data-szx aria-label="Bezárás">&times;</button></div><div class="modal-body">${szErtPanel(d)}</div></div>`;
-    document.body.appendChild(ov);
-    ov.addEventListener('click', e => {
-        if(e.target === ov || e.target.closest('[data-szx]')) return ov.remove();
-        if(e.target.closest('[data-szertuj]')){ ov.remove(); szErtModal(); return; }
-        const t = e.target.closest('[data-sztema], [data-szkerek]'); if(t){ szTema = t.dataset.sztema || t.dataset.szkerek; ov.remove(); renderSzabalyok(); }
-    });
 }
 function szSzerk(id){
     const d = PRV.szabalyok, x = d && d.lista.find(y => y.id === id); if(!x) return;
@@ -28074,8 +28074,7 @@ document.addEventListener('click', e => {
     const sz = e.target.closest('[data-szszerk]'); if(sz){ szSzerk(sz.dataset.szszerk); return; }
     if(e.target.closest('[data-szujnyit]')){ szUjNyit = !szUjNyit || !!e.target.closest('.pv-ures'); renderSzabalyok().then(() => document.querySelector('[data-szujc]')?.focus()); return; }
     if(e.target.closest('[data-sztemakez]')){ szTemaKezelo(); return; }
-    if(e.target.closest('[data-szertuj]')){ szErtModal(); return; }
-    if(e.target.closest('[data-szertmob]')){ szErtMobil(); return; }
+    if(e.target.closest('[data-szkerekny]')){ oiTab = 'kerek'; oiKerekSel = null; store.save('sf_oi_tab', oiTab); prvMenj('onismeret'); return; }
     if(e.target.closest('[data-szpeldak]')){
         const d = PRV.szabalyok; if(!d) return;
         SZB_PELDAK.forEach(([ik, c, m]) => { const t = d.temak.find(x => x.ik === ik) || d.temak[0]; if(!t) return;
