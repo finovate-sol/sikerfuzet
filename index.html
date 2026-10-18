@@ -279,7 +279,17 @@
         body.sf-privat .nav-grp.ng { color:#e4dbf5; } body.sf-privat .nav-grp.ng .ng-n, body.sf-privat .nav-grp.ng .ng-ch { color:#a993d1; }
         body.sf-privat .nav-grp.ng.nyit { color:#fff; }
         body.sf-privat .nav a.ng-al::after { background:rgba(228,219,245,.16); }
+        /* lapos menü: kis szürke csoportcímek, minden pont látszik, szorosabb sorok */
+        .nav.lapos { gap:1px; }
+        .nav.lapos a { padding:8px 14px; }
+        .nav.lapos .nav-grp.ng { cursor:default; pointer-events:none; padding:14px 14px 4px; margin-top:0; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#7f93b5; background:none; }
+        .nav.lapos .nav-grp.ng > :not(.nav-label) { display:none !important; }
+        .nav.lapos a.ng-al { margin-left:0; padding:7px 14px; font-size:12px; }
+        .nav.lapos a.ng-al::after { display:none; }
+        body.sf-privat .nav.lapos .nav-grp.ng { color:#a993d1; }
         @media (min-width:1001px){
+            .sidebar.collapsed .nav.lapos .nav-grp.ng { padding:8px 10px; font-size:0; }
+            .sidebar.collapsed .nav.lapos .nav-grp.ng::after { display:block; }
             .sidebar.collapsed .nav a.ng-zart { display:flex; }
             .sidebar.collapsed .nav a.ng-al { margin-left:0; padding:11px 0; }
             .sidebar.collapsed .nav a.ng-al::after { display:none; }
@@ -10160,6 +10170,9 @@ if(store.load('sf_side_collapsed', false)){
     });
     let nyit = store.load('sf_navnyit', null);
     const csopOf = a => a.dataset.navcs || (a.dataset.page === 'jegyzetek' ? (document.body.classList.contains('sf-privat') ? 'gond' : 'eszk') : '');
+    // Lapos menü: minden pont mindig látszik, a csoportnév csak kis felirat (nincs lenyitás).
+    const LAPOS = true;
+    if(LAPOS){ nav.classList.add('lapos'); grps.forEach(g => { g.removeAttribute('role'); g.removeAttribute('tabindex'); }); }
     let fut = false;
     const frissit = () => {
         fut = false;
@@ -10172,7 +10185,7 @@ if(store.load('sf_side_collapsed', false)){
             const tagok = links.filter(a => csopOf(a) === k);
             const priv = document.body.classList.contains('sf-privat');
             const lathato = tagok.filter(a => !a.hidden && a.dataset.ter !== (priv ? 'ovb' : 'priv'));
-            const ny = !!nyit[k];
+            const ny = LAPOS || !!nyit[k];
             tagok.forEach(a => { a.classList.add('ng-al'); a.classList.toggle('ng-zart', !ny); });
             g.classList.toggle('nyit', ny);
             g.classList.toggle('van-akt', tagok.includes(akt));
@@ -10189,8 +10202,8 @@ if(store.load('sf_side_collapsed', false)){
         const k = g.dataset.navcsop; nyit = nyit || {};
         nyit[k] = !nyit[k]; store.save('sf_navnyit', nyit); frissit();
     };
-    nav.addEventListener('click', e => { const g = e.target.closest('.nav-grp.ng'); if(g) valt(g); });
-    nav.addEventListener('keydown', e => { const g = e.target.closest('.nav-grp.ng'); if(g && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); valt(g); } });
+    nav.addEventListener('click', e => { const g = e.target.closest('.nav-grp.ng'); if(g && !LAPOS) valt(g); });
+    nav.addEventListener('keydown', e => { const g = e.target.closest('.nav-grp.ng'); if(g && !LAPOS && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); valt(g); } });
     // Ha egy csukott csoport oldalára jutunk (pl. másik oldalról ugrással), kinyitjuk.
     let elozoAkt = null;
     new MutationObserver(() => {
