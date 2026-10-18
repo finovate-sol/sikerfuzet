@@ -751,8 +751,94 @@ function loadGis() {
     });
     return gisReady;
 }
-export function hasAutoConnect() { return !!googleClientId; }
+export function hasAutoConnect() { return !!googleClientId || !!functions; }
+
+// --- TARTÓS kapcsolat a szerveren át (functions/index.js: gcalCsatol, gcalToken) ---
+// Egyszer kell összekötni (kód → a szerver refresh tokenre cseréli és eltárolja),
+// utána minden betöltéskor ablak nélkül jön a friss access token – telefonon is.
+// Amíg a függvények nincsenek kitelepítve, a régi (felugró ablakos) út marad.
+const GCAL_SCOPE_KULCS = "sf_gcal_scope";
+let srvNincs = false;   // a függvények nincsenek kitelepítve (ebben a munkamenetben)
+let srvUres = false;    // a szerveren nincs tárolt kapcsolat ehhez a fiókhoz
+let srvFut = null;
+const nincsKitelepitve = e => e && (e.code === "functions/not-found" || (e.code === "functions/internal" && /^internal$/i.test(e.message || "")));
+async function gcalHiv(nev, adat) { return (await httpsCallable(functions, nev, { timeout: 30000 })(adat || {})).data; }
+function scopeMent(sc) {
+    if (!sc) return;
+    try {
+        localStorage.setItem(GCAL_SCOPE_KULCS, sc);
+        if (sc.includes(CALLIST_SCOPE)) localStorage.setItem("sf_gcal_lista", "1");
+    } catch (e) {}
+}
+const vanScope = sc => { try { return (localStorage.getItem(GCAL_SCOPE_KULCS) || "").includes(sc); } catch (e) { return false; } };
+export async function serverCalendarToken() {
+    if (!isConfigured || !functions || srvNincs || srvUres) return null;
+    if (srvFut) return srvFut;
+    srvFut = (async () => {
+        try {
+            const r = await gcalHiv("gcalToken");
+            if (r && r.access_token) { tokMent(r.access_token, r.expires_in); scopeMent(r.scope); return r.access_token; }
+            if (r && r.nincs) srvUres = true;
+            return null;
+        } catch (e) {
+            if (nincsKitelepitve(e)) srvNincs = true;
+            console.warn("A naptár-token lekérése a szerverről nem sikerült:", e);
+            return null;
+        } finally { setTimeout(() => { srvFut = null; }, 0); }
+    })();
+    return srvFut;
+}
+// Egyszeri összekötés: a Google Identity Services kódot ad (felugró ablak –
+// gombnyomásra hívjuk), a szerver ebből tartós kapcsolatot csinál. Egyben kéri a
+// naptár, a Google Tasks és a naptárlista jogát, hogy később ne kelljen újra.
+// null: a szerveres út nem elérhető (a hívó a régi módszerre vált).
+async function kodosOsszekotes() {
+    if (!googleClientId || !functions || srvNincs) return null;
+    await loadGis();
+    const user = auth && auth.currentUser;
+    const code = await new Promise((resolve, reject) => {
+        const client = window.google.accounts.oauth2.initCodeClient({
+            client_id: googleClientId,
+            scope: [CALENDAR_SCOPE, TASKS_SCOPE, CALLIST_SCOPE].join(" "),
+            ux_mode: "popup",
+            include_granted_scopes: true,
+            login_hint: (user && user.email) || "",
+            callback: r => r && r.code ? resolve(r.code) : reject(new Error((r && (r.error_description || r.error)) || "Az összekötés megszakadt.")),
+            error_callback: e => reject(new Error(e && e.type === "popup_closed" ? "Az összekötő ablakot bezártad." : ((e && (e.message || e.type)) || "Az összekötés megszakadt.")))
+        });
+        client.requestCode();
+    });
+    try {
+        const r = await gcalHiv("gcalCsatol", { code });
+        srvUres = false;
+        tokMent(r.access_token, r.expires_in); scopeMent(r.scope);
+        return r.access_token;
+    } catch (e) {
+        if (nincsKitelepitve(e)) { srvNincs = true; return null; }
+        if (/tartós hozzáférést/.test(e.message || ""))
+            throw new Error(e.message + " Ha újra előjön: a Google-fiókodban (myaccount.google.com → Biztonság → Harmadik féltől származó alkalmazások) vedd el a Sikerfüzet hozzáférését, és kösd össze újra.");
+        throw e;
+    }
+}
+// Leválasztás: a szerveren (és a Google-nél) is visszavonja a tartós kapcsolatot.
+export async function disconnectCalendar() {
+    if (isConfigured && functions && !srvNincs) await gcalHiv("gcalLevalaszt");
+    srvUres = true; tokTorol();
+    try { localStorage.removeItem(GCAL_SCOPE_KULCS); localStorage.removeItem("sf_gcal_lista"); } catch (e) {}
+}
+// Admin: a hozzáférés elvételekor a munkatárs tárolt naptár-kapcsolata is törlődik.
+export async function gcalTorolEmail(email) {
+    if (!isConfigured || !functions || srvNincs) return;
+    try { await gcalHiv("gcalTorolEmail", { email }); }
+    catch (e) { if (nincsKitelepitve(e)) srvNincs = true; else console.warn("A naptár-kapcsolat törlése nem sikerült:", e); }
+}
+// A GIS-t előre betöltjük, hogy az összekötő gombnál a felugró ablak még a kattintáshoz tartozzon.
+if (googleClientId && typeof window !== "undefined") setTimeout(() => { loadGis().catch(() => {}); }, 1500);
+
 export async function silentCalendarToken() {
+    const srv = await serverCalendarToken();
+    if (srv) return srv;
+    if (functions && !srvNincs) return null;   // a szerveres út él, csak még nincs összekötve
     if (!googleClientId) return null;
     try { await loadGis(); } catch (e) { return null; }
     const user = auth && auth.currentUser;
@@ -783,6 +869,8 @@ export async function silentCalendarToken() {
 // --- Naptár újra-összekötése (friss access token kérése popup-pal) ---
 export async function reconnectCalendar() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    const srv = await serverCalendarToken(); if (srv) return srv;
+    const kod = await kodosOsszekotes(); if (kod) return kod;
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
     if (hasCalListGrant()) provider.addScope(CALLIST_SCOPE);
@@ -799,6 +887,8 @@ export async function reconnectCalendar() {
 // engedélyezve. A visszakapott token a naptárra ÉS a Tasks-ra is érvényes.
 export async function connectTasks() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    if (vanScope(TASKS_SCOPE)) { const srv = await serverCalendarToken(); if (srv) return srv; }
+    const kod = await kodosOsszekotes(); if (kod) return kod;
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
     provider.addScope(TASKS_SCOPE);
@@ -813,6 +903,8 @@ export async function connectTasks() {
 // --- Naptárlista jog kérése (az összes Google-naptár megjelenítéséhez) ---
 export async function connectCalendarList() {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    if (vanScope(CALLIST_SCOPE)) { const srv = await serverCalendarToken(); if (srv) return srv; }
+    const kod = await kodosOsszekotes(); if (kod) return kod;
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);
     provider.addScope(CALLIST_SCOPE);

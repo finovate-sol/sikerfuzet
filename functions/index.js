@@ -352,3 +352,113 @@ exports.linkInfo = onCall(LINK_OPTS, async req => {
         return { url: url.href };
     } finally { clearTimeout(ido); }
 });
+
+// ============================================================================
+//  GOOGLE NAPTÁR – TARTÓS KAPCSOLAT (refresh token a szerveren)
+//
+//  Miért kell szerver? A Google a naptárhoz csak ~1 óráig érvényes access
+//  tokent ad a böngészőnek, újat pedig csak felugró ablakkal – amit a böngésző
+//  kattintás nélkül letilt. Ezért minden megnyitáskor gombot kellett nyomni.
+//  Így: egyszer összekötöd (kódot kapunk, a Client Secret-tel tartós refresh
+//  tokenre cseréljük), és utána a böngésző mindig innen kér friss access tokent.
+//
+//    gcalCsatol    – a kódot tokenre cseréli, a refresh tokent eltárolja
+//    gcalToken     – friss access token a SAJÁT tárolt refresh tokenből
+//    gcalLevalaszt – visszavonja a Google-nél, és törli
+//    gcalTorolEmail – (admin) a hozzáférés elvételekor törli a munkatárs tokenjét
+//
+//  Mindenki CSAK a saját tokenjét kapja (a bejelentkezett fiók uid-ja alapján).
+//  Más munkatárs naptárát továbbra is a saját tokeneddel, a Google-megosztás
+//  alapján látod – a szerver soha nem ad ki más tokenjét.
+//  Tárolás: gcal_token/{uid} – a firestore.rules a böngészőnek tiltja.
+//
+//  TELEPÍTÉS (egyszer):
+//    firebase functions:secrets:set GOOGLE_CLIENT_SECRET   (a webes OAuth-kliens titka)
+//    firebase deploy --only functions,firestore:rules
+//  Az OAuth beleegyezési képernyő legyen „In production” állapotban – „Testing”
+//  módban a Google 7 nap után érvényteleníti a refresh tokent.
+// ============================================================================
+// A Client ID nem titok – ugyanaz, mint a firebase-config.js googleClientId-ja.
+const GOOGLE_CLIENT_ID = '494203637099-ubemgvvoh7u30kjna03kqgc2p8tdibmv.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = defineSecret('GOOGLE_CLIENT_SECRET');
+const GCAL_OPTS = { region: 'europe-west1', secrets: [GOOGLE_CLIENT_SECRET], maxInstances: 5, timeoutSeconds: 30 };
+const GCAL_ADMIN = 'szecsimark@gmail.com';   // ugyanaz, mint a firestore.rules isAdmin()-ja
+
+async function googleToken(body){
+    let res;
+    try {
+        res = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: String(GOOGLE_CLIENT_SECRET.value() || '').trim(), ...body }).toString(),
+        });
+    } catch(e){ throw new HttpsError('unavailable', 'A Google most nem érhető el – próbáld újra később.'); }
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+        console.error('Google token-csere elutasítva', res.status, body.grant_type, data.error || '', data.error_description || '');
+        if(data.error === 'invalid_client' || data.error === 'unauthorized_client')
+            throw new HttpsError('failed-precondition', 'A Google szerint a Client Secret hibás. Állítsd be újra (firebase functions:secrets:set GOOGLE_CLIENT_SECRET), majd telepítsd ki újra a függvényeket.');
+        if(data.error === 'invalid_grant') { const e = new HttpsError('failed-precondition', 'A naptár-hozzáférés lejárt vagy visszavonták – kösd össze újra.'); e.lejart = true; throw e; }
+        throw new HttpsError('unavailable', `A Google hibát jelzett (${res.status}).`);
+    }
+    return data;
+}
+async function gcalVisszavon(ref){
+    const snap = await ref.get();
+    if(!snap.exists) return false;
+    try { await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(snap.data().refresh_token), { method: 'POST' }); }
+    catch(e){ /* ha nem sikerül, a token nálunk akkor is törlődik */ }
+    await ref.delete();
+    return true;
+}
+
+exports.gcalCsatol = onCall(GCAL_OPTS, async req => {
+    const uid = await engedelyezett(req);
+    const code = String((req.data && req.data.code) || '');
+    if(!code || code.length > 512) throw new HttpsError('invalid-argument', 'Hibás Google-kód.');
+    // A Google Identity Services felugró ablakos kódjánál a redirect_uri „postmessage”.
+    const t = await googleToken({ code, grant_type: 'authorization_code', redirect_uri: 'postmessage' });
+    const ref = db.doc(`gcal_token/${uid}`);
+    const regi = await ref.get();
+    const refresh = t.refresh_token || (regi.exists ? regi.data().refresh_token : '');
+    if(!refresh) throw new HttpsError('failed-precondition', 'A Google nem adott tartós hozzáférést – próbáld újra az összekötést.');
+    await ref.set({ refresh_token: refresh, scope: t.scope || '', email: String(req.auth.token.email || '').toLowerCase(),
+                    frissitve: FieldValue.serverTimestamp() });
+    return { access_token: t.access_token, expires_in: t.expires_in || 3600, scope: t.scope || '' };
+});
+
+exports.gcalToken = onCall(GCAL_OPTS, async req => {
+    let uid;
+    try { uid = await engedelyezett(req); }
+    catch(e){
+        // Akitől elvették a hozzáférést, annak a tárolt tokenjét is töröljük.
+        if(req.auth && e.code === 'permission-denied') await gcalVisszavon(db.doc(`gcal_token/${req.auth.uid}`)).catch(() => {});
+        throw e;
+    }
+    const ref = db.doc(`gcal_token/${uid}`);
+    const snap = await ref.get();
+    if(!snap.exists) return { nincs: true };
+    try {
+        const t = await googleToken({ grant_type: 'refresh_token', refresh_token: snap.data().refresh_token });
+        if(t.scope && t.scope !== snap.data().scope) await ref.set({ scope: t.scope }, { merge: true });
+        return { access_token: t.access_token, expires_in: t.expires_in || 3600, scope: t.scope || snap.data().scope || '' };
+    } catch(e){
+        if(e.lejart){ await ref.delete(); return { nincs: true }; }   // visszavonták: újra össze kell kötni
+        throw e;
+    }
+});
+
+exports.gcalLevalaszt = onCall(GCAL_OPTS, async req => {
+    const uid = await engedelyezett(req);
+    await gcalVisszavon(db.doc(`gcal_token/${uid}`));
+    return { ok: true };
+});
+
+exports.gcalTorolEmail = onCall(GCAL_OPTS, async req => {
+    if(!req.auth || String(req.auth.token.email || '').toLowerCase() !== GCAL_ADMIN) throw new HttpsError('permission-denied', 'Csak az admin teheti.');
+    const email = String((req.data && req.data.email) || '').toLowerCase().trim();
+    if(!email) throw new HttpsError('invalid-argument', 'Hiányzó email.');
+    const q = await db.collection('gcal_token').where('email', '==', email).get();
+    for(const d of q.docs) await gcalVisszavon(d.ref);
+    return { torolve: q.size };
+});

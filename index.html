@@ -28379,7 +28379,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=81";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=82";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -31436,7 +31436,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         overlay.className = "modal-overlay";
         overlay.innerHTML = `<div class="modal cal-ly-modal"><div class="modal-head">Naptárak</div>
             <div class="modal-body" id="calLyBody"><div class="cal-ly-ures">Betöltés…</div></div>
-            <div class="modal-foot"><button class="btn primary" data-lyok>Kész</button></div></div>`;
+            <div class="modal-foot"><button class="btn" data-lyle style="margin-right:auto">Google Naptár leválasztása</button><button class="btn primary" data-lyok>Kész</button></div></div>`;
         document.body.appendChild(overlay);
         let valtozott = false;
         const bezar = () => { overlay.remove(); if (valtozott) initCalendar(); };
@@ -31467,6 +31467,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         };
         overlay.addEventListener("click", async e => {
             if (e.target === overlay || e.target.closest("[data-lyok]")) return bezar();
+            if (e.target.closest("[data-lyle]")){
+                if (!confirm("Leválasztod a Google Naptárat? A tárolt kapcsolat a szerverről és a Google-fiókodból is törlődik; újra a „Naptár összekötése” gombbal kötheted össze.")) return;
+                try { await disconnectCalendar(); } catch(err){ alert("A leválasztás nem sikerült: " + (err.message || err)); return; }
+                silentState = false; calLista = null; overlay.remove(); initCalendar(); return;
+            }
             if (e.target.closest("[data-lyeng]")){
                 try {
                     const tok = await connectCalendarList();
@@ -36967,7 +36972,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             list.innerHTML = users.length ? users.map(u=>`<div class="adm-user-row"><span class="adm-user-email">${escM(u)}</span><button class="adm-user-del" data-email="${escM(u)}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('') : `<div style="color:var(--muted);font-size:12px;padding:8px 0;">Nincs felvett felhasználó.</div>`;
             list.querySelectorAll('[data-email]').forEach(b=>b.addEventListener('click', async()=>{
                 if(!confirm('Eltávolítod: '+b.dataset.email+'?')) return;
-                try { await removeAllowedUser(b.dataset.email); await reload(); } catch(e){ alert('Hiba: '+(e.message||e)); }
+                try { await removeAllowedUser(b.dataset.email); gcalTorolEmail(b.dataset.email); await reload(); } catch(e){ alert('Hiba: '+(e.message||e)); }
             }));
         };
         await reload();
