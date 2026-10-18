@@ -8779,6 +8779,15 @@
         .zb-beagy .zb-cim:first-child { margin-top:0; }
         .zb-beagy .zb-pin { flex-wrap:wrap; } .zb-beagy .zb-pin input { flex:1 1 110px; width:0; } .zb-beagy .zb-sor { min-width:0; }
         .bed-sab-lab { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; } .bed-sab-uzi { font-size:12.5px; font-weight:700; color:var(--green); }
+        .bl-resz { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--card); border:1px solid var(--border); border-radius:999px; padding:4px 10px; }
+        /* Gépen teljes képernyő: a menü és a beállítás külön-külön, magán belül görög */
+        @media (min-width:761px){
+            #page-admin .page-wrap { height:100vh; height:100dvh; box-sizing:border-box; display:flex; flex-direction:column; padding-bottom:16px; }
+            #beallBody { flex:1 1 auto; min-height:0; }
+            .bl { height:100%; max-width:none; grid-template-rows:auto minmax(0,1fr); }
+            .bl-nav { position:static; align-self:stretch; overflow-y:auto; overscroll-behavior:contain; }
+            .bl-pan { align-self:stretch; overflow-y:auto; overscroll-behavior:contain; padding:0 6px 20px 2px; }
+        }
         @media (max-width:760px){
             .bl { grid-template-columns:minmax(0,1fr); gap:12px; }
             .bl.reszlet .bl-nav { display:none; }
@@ -10618,7 +10627,7 @@ renderMoney(); renderCareer(); renderInfo();
         const x = Object.assign({ perc: 1, kilep: true }, cfg || {});
         const m = document.createElement('div'); m.className = host ? 'zb-beagy' : 'modal-overlay';
         const r = (uzi) => {
-            const ikonResz = `<h4 class="zb-cim">App-ikon</h4>
+            const ikonResz = `${host ? '' : '<h4 class="zb-cim">App-ikon</h4>'}
                     <div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
                     <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>`;
             const zarResz = `<h4 class="zb-cim">Privát zár</h4>
@@ -13001,7 +13010,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         megj: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
         kapcs: '<path d="M8 7h11l-3-3M16 17H5l3 3"/>',
         zar: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-        szemikon: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3"/>',
+        ikonok: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3"/>',
         logok: '<circle cx="12" cy="12" r="9"/><path d="M9 9h4.5a2 2 0 0 1 0 4H9V8v8"/>',
         fh: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.3-4-4.8"/>',
         bed: '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
@@ -13012,11 +13021,12 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         ikon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/>',
         import: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
     };
+    // [cím, pontok, hol látszik ('ovb' = csak a Sikerfüzetben, 'priv' = csak a SZEM-ben, üres = mindkettőben), csak adminnak]
     const BL_SZEK = [
-        ['Saját', [['megj', 'Megjelenés', '#6366f1'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
-        ['Privát rész (SZEM)', [['zar', 'Zár és biztonság', '#7c3aed'], ['szemikon', 'SZEM app-ikon', '#a855f7'], ['logok', 'Tranzakció-logók', '#10b981']]],
-        ['Csapat · admin', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'], ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b']], 1],
-        ['Alkalmazás · admin', [['naptar', 'Naptár', '#0f2a52'], ['ikon', 'Sikerfüzet ikon', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 1]
+        ['Közös', [['megj', 'Megjelenés', '#6366f1'], ['ikonok', 'App-ikonok', '#a855f7'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
+        ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
+            ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1],
+        ['SZEM', [['zar', 'Zár és biztonság', '#7c3aed'], ['logok', 'Tranzakció-logók', '#10b981']], 'priv']
     ];
     let blSzek = null;
     const blMobil = () => window.matchMedia('(max-width:760px)').matches;
@@ -13041,9 +13051,14 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                     ${van ? '<button type="button" class="btn" data-blnle>Leválasztás</button>' : '<button type="button" class="btn primary" data-blnko>Összekötés</button>'}</div>
                 <p class="zb-uzi" role="status"></p></section>
                 <section class="card bl-k"><h3>Strava</h3><p class="bl-megj">Az edzésekhez – a SZEM részben, az <b>Edzések</b> oldalon köthető össze és választható le.</p></section>`;
-        } else if(k === 'zar' || k === 'szemikon'){
+        } else if(k === 'ikonok'){
+            const adm = window.sfVanAdmin();
+            host.innerHTML = `<section class="card bl-k"><h3>SZEM</h3><p class="bl-megj">A privát rész ikonja – a saját eszközeiden.</p><div class="bl-beagy"></div></section>${adm ? '<div class="bl-sfikon"></div>' : ''}`;
+            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'ikon');
+            if(adm && typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio('ikon', host.querySelector('.bl-sfikon'));
+        } else if(k === 'zar'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"></div></section>';
-            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), k === 'zar' ? 'zar' : 'ikon');
+            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'zar');
         } else if(k === 'logok'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"><p class="bl-megj">Betöltés…</p></div></section>';
             if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
@@ -13055,8 +13070,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     window.sfShowBeallitasok = function(){
         const host = document.getElementById('beallBody'); if(!host) return;
         const ab = document.getElementById('adminBody'); if(ab){ ab.hidden = true; ab.innerHTML = ''; }
-        const adm = window.sfVanAdmin();
-        const csop = BL_SZEK.filter(c => !c[2] || adm), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        const adm = window.sfVanAdmin(), priv = document.body.classList.contains('sf-privat');
+        const csop = BL_SZEK.filter(c => (!c[2] || c[2] === (priv ? 'priv' : 'ovb')) && (!c[3] || adm)), mind = csop.flatMap(c => c[1].map(x => x[0]));
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
         const ik = (k, c) => `<i style="background:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${BL_IK[k] || ''}</svg></i>`;
@@ -13064,7 +13079,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             return `<button type="button" data-blszek="${k}" class="${akt === k ? 'on' : ''}">${ik(k, c)}<span>${esc(n)}</span>${j ? `<small>${j}</small>` : ''}<em>›</em></button>`; }).join('')}</div>`).join('');
         const cim = akt ? (csop.flatMap(c => c[1]).find(x => x[0] === akt) || [])[1] : '';
         host.innerHTML = `<div class="bl${akt ? ' reszlet' : ''}" data-mob="${mob}">
-            <div class="bl-fej">${mob && akt ? '<button type="button" class="bl-vissza" data-blvissza aria-label="Vissza">‹</button>' : ''}<h2>${mob && akt ? esc(cim) : 'Beállítások'}</h2></div>
+            <div class="bl-fej">${mob && akt ? '<button type="button" class="bl-vissza" data-blvissza aria-label="Vissza">‹</button>' : ''}<h2>${mob && akt ? esc(cim) : 'Beállítások'}</h2>${mob && akt ? '' : `<span class="bl-resz">${priv ? 'SZEM' : 'Sikerfüzet'}</span>`}</div>
             <nav class="bl-nav card">${nav}</nav>
             <div class="bl-pan">${akt && !mob ? `<h3 class="bl-pan-cim">${esc(cim)}</h3>` : ''}<div id="blPanTest"></div></div></div>`;
         if(akt) blPanel(akt, document.getElementById('blPanTest'));
