@@ -8755,8 +8755,44 @@
         .bl-k .bl-temak { grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); max-width:980px; }
         .bl-megj { margin:4px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5; }
         .bl-sor { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-        .bl-adm-cim { margin:26px 0 12px; font-size:20px; color:var(--navy); }
-        #adminBody .adm-hero { display:none; }
+        .bl-k h3:first-child { margin-top:0; }
+        .bl-k .bl-megj + .bl-temak { margin-top:12px; }
+        .bl { display:grid; grid-template-columns:240px minmax(0,1fr); gap:18px; align-items:start; max-width:1180px; }
+        .bl-fej { grid-column:1 / -1; display:flex; align-items:center; gap:10px; }
+        .bl-fej h2 { margin:0; font-size:26px; font-weight:800; color:var(--navy); letter-spacing:-.01em; }
+        .bl-vissza { border:0; background:none; font-size:30px; line-height:1; color:var(--blue); padding:0 6px 4px 0; cursor:pointer; }
+        .bl-nav { position:sticky; top:16px; padding:8px; margin:0; }
+        .bl-nav h5 { margin:12px 10px 4px; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+        .bl-nav h5:first-child { margin-top:4px; }
+        .bl-lst button { display:flex; align-items:center; gap:10px; width:100%; border:0; background:none; font:inherit; font-size:13.5px; color:var(--text); padding:7px 10px; border-radius:10px; text-align:left; cursor:pointer; }
+        .bl-lst button:hover { background:#f4f6fa; }
+        .bl-lst button.on { background:var(--blue-light); color:var(--navy); font-weight:700; }
+        .bl-lst button i { width:26px; height:26px; border-radius:8px; display:grid; place-items:center; color:#fff; flex-shrink:0; }
+        .bl-lst button i svg { width:15px; height:15px; }
+        .bl-lst button span { flex:1; min-width:0; }
+        .bl-lst button small { font-size:11px; font-weight:700; color:var(--muted); white-space:nowrap; }
+        .bl-lst button em { display:none; font-style:normal; color:#94a3b8; font-size:18px; }
+        .bl-pan { min-width:0; }
+        .bl-pan-cim { margin:4px 0 12px; font-size:18px; color:var(--navy); }
+        .bl-pan .card { margin-bottom:14px; }
+        .bl-pan .adm-hero { display:none; }
+        .zb-beagy .zb-cim:first-child { margin-top:0; }
+        .zb-beagy .zb-pin { flex-wrap:wrap; } .zb-beagy .zb-pin input { flex:1 1 110px; width:0; } .zb-beagy .zb-sor { min-width:0; }
+        .bed-sab-lab { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; } .bed-sab-uzi { font-size:12.5px; font-weight:700; color:var(--green); }
+        @media (max-width:760px){
+            .bl { grid-template-columns:minmax(0,1fr); gap:12px; }
+            .bl.reszlet .bl-nav { display:none; }
+            .bl:not(.reszlet) .bl-pan { display:none; }
+            .bl-nav { position:static; padding:0; background:none; box-shadow:none; border:0; }
+            .bl-nav h5 { margin:16px 6px 6px; }
+            .bl-lst { background:var(--card); border-radius:14px; overflow:hidden; }
+            .bl-lst button { border-radius:0; padding:12px 14px; font-size:15px; border-top:1px solid var(--border); }
+            .bl-lst button:first-child { border-top:0; }
+            .bl-lst button.on { background:none; font-weight:400; color:var(--text); }
+            .bl-lst button i { width:30px; height:30px; border-radius:9px; }
+            .bl-lst button em { display:block; }
+            .bl-k { padding:16px; }
+        }
     </style>
 </head>
 <body>
@@ -10576,20 +10612,16 @@ renderMoney(); renderCareer(); renderInfo();
     // ---- beállítás ----
     const zbtn = document.getElementById('sfZarBtn');
     function gomb(){ if(zbtn){ zbtn.classList.toggle('on', be()); zbtn.title = 'Beállítások · privát zár: ' + (be() ? 'be' : 'ki'); } }
-    async function beallit(){
+    // host + resz: a Beállítások oldalba ágyazva, ablak nélkül – resz: 'ikon' (SZEM app-ikon) vagy 'zar' (privát zár).
+    async function beallit(host, resz){
         const vanBio = await bioVan();
         const x = Object.assign({ perc: 1, kilep: true }, cfg || {});
-        const m = document.createElement('div'); m.className = 'modal-overlay';
+        const m = document.createElement('div'); m.className = host ? 'zb-beagy' : 'modal-overlay';
         const r = (uzi) => {
-            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Privát beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
-                <div class="modal-body">
-                    <h4 class="zb-cim">Tranzakciók ikonjai</h4>
-                    <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
-                        <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
-                    <h4 class="zb-cim">App-ikon</h4>
+            const ikonResz = `<h4 class="zb-cim">App-ikon</h4>
                     <div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
-                    <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
-                    <h4 class="zb-cim">Privát zár</h4>
+                    <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>`;
+            const zarResz = `<h4 class="zb-cim">Privát zár</h4>
                     <p class="pv-megj zb-bev">A privát rész (Ma, napló, pénzügyek, szokások…) csak feloldás után látszik ezen az eszközön.</p>
                     <div class="zb-sor"><span class="t"><b>Arc / ujjlenyomat</b><span>${vanBio ? (x.bio ? 'Bekapcsolva ezen az eszközön' : 'Face ID, Touch ID, ujjlenyomat vagy a telefon kódja') : 'Ez az eszköz vagy böngésző nem támogatja'}</span></span>
                         ${vanBio ? `<button type="button" class="${x.bio ? 'btn' : 'pv-kapsz'}" data-zbbio>${x.bio ? 'Kikapcsolás' : 'Bekapcsolás'}</button>` : ''}</div>
@@ -10599,19 +10631,29 @@ renderMoney(); renderCareer(); renderInfo();
                     <div class="zb-sor"><span class="t"><b>Zárolás háttérben</b><span>Ha az app ennyi ideig nincs előtérben</span></span>
                         <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
                     <div class="zb-sor"><span class="t"><b>Zárolás az OVB részre váltáskor</b><span>Visszaváltáskor újra fel kell oldani</span></span>
-                        <input type="checkbox" data-zbkilep${x.kilep !== false ? ' checked' : ''} aria-label="Zárolás az OVB részre váltáskor"></div>
-                    <p class="zb-uzi" role="status">${esc(uzi || '')}</p>
+                        <input type="checkbox" data-zbkilep${x.kilep !== false ? ' checked' : ''} aria-label="Zárolás az OVB részre váltáskor"></div>`;
+            const uziHtml = `<p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
+            if(host){
+                m.innerHTML = (resz === 'ikon' ? ikonResz : zarResz + (be() ? '<div class="zb-sor"><span class="t"><b>Zárolás most</b><span>A privát rész azonnal lezárul</span></span><button type="button" class="btn" data-zbmost>Zárolás</button></div>' : '')) + uziHtml;
+                return;
+            }
+            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Privát beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
+                <div class="modal-body">
+                    <h4 class="zb-cim">Tranzakciók ikonjai</h4>
+                    <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
+                        <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
+                    ${ikonResz}${zarResz}${uziHtml}
                 </div>
                 <div class="modal-foot">${be() ? '<button class="btn" data-zbmost>Zárolás most</button>' : ''}<button class="pv-ment" data-zbx>Kész</button></div></div>`;
         };
         const ment = () => { cfg = { ...(cfg || {}), perc: x.perc, kilep: x.kilep, ...(x.bio ? { bio: x.bio } : {}), ...(x.pin ? { pin: x.pin } : {}) }; if(!x.bio) delete cfg.bio; if(!x.pin) delete cfg.pin; mentes(); zarva = false; };
-        r(); document.body.appendChild(m);
+        r(); if(host){ host.innerHTML = ''; host.appendChild(m); } else document.body.appendChild(m);
         m.addEventListener('change', e => {
             if(e.target.matches('[data-zbperc]')){ x.perc = +e.target.value; if(be()) ment(); }
             if(e.target.matches('[data-zbkilep]')){ x.kilep = e.target.checked; if(be()) ment(); }
         });
         m.addEventListener('click', async e => {
-            if(e.target === m || e.target.closest('[data-zbx]')){ m.remove(); return; }
+            if(!host && (e.target === m || e.target.closest('[data-zbx]'))){ m.remove(); return; }
             const tm = e.target.closest('[data-zbtema]');
             if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('SZEM téma: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
             const to = e.target.closest('[data-zbovb]');
@@ -10634,13 +10676,13 @@ renderMoney(); renderCareer(); renderInfo();
                 const so = b64(crypto.getRandomValues(new Uint8Array(16)));
                 x.pin = { s: so, h: await pinLenyomat(p1, so) }; ment(); r('A PIN-kód elmentve.'); return;
             }
-            if(e.target.closest('[data-zbmost]')){ m.remove(); window.sfZarol(); }
+            if(e.target.closest('[data-zbmost]')){ if(!host) m.remove(); window.sfZarol(); }
         });
     }
     // OVB részben az általános beállítások (téma), privátban a SZEM beállításai (téma, ikonok, zár)
     // a fogaskerék a Beállítások oldalt nyitja (témák, privát beállítások, admin); a SZEM-beállítások ablaka onnan nyílik
     window.sfSzemBeallit = beallit;
-    if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(pg && !pg.hidden) return; document.getElementById('adminInfoBtn')?.click(); });
+    if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(window.sfBeallNyit) window.sfBeallNyit(document.body.classList.contains('sf-privat') ? 'zar' : null); if(pg && !pg.hidden){ window.sfShowBeallitasok && window.sfShowBeallitasok(); return; } document.getElementById('adminInfoBtn')?.click(); });
     window.sfZarBeallit = beallit;
     gomb(); frissit();
     // Indításkor (privát állásban) rögtön kérjük az arcot / ujjat – ahol a böngésző gesztus nélkül nem engedi, ott a gomb marad.
@@ -12953,27 +12995,94 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     // közös témaválasztó: mindkét rész színvilága egy helyen (az épp aktív rész van felül)
     // ===== BEÁLLÍTÁSOK OLDAL: témák (mindkét rész), privát beállítások, adminnak az admin felület =====
     window.sfVanAdmin = () => { const a = document.getElementById('adminInfoBtn'); return !!a && !a.hidden; };
+    // Egy oldal: bal oldalt a témakörök, jobb oldalt a kiválasztott beállítás – felugró ablak nélkül.
+    // Telefonon lista; egy pontra koppintva nyílik a beállítás, felül „‹” vissza.
+    const BL_IK = {
+        megj: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
+        kapcs: '<path d="M8 7h11l-3-3M16 17H5l3 3"/>',
+        zar: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+        szemikon: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3"/>',
+        logok: '<circle cx="12" cy="12" r="9"/><path d="M9 9h4.5a2 2 0 0 1 0 4H9V8v8"/>',
+        fh: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.3-4-4.8"/>',
+        bed: '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+        rang: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+        info: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+        fontos: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+        naptar: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 13h3M8 17h6"/>',
+        ikon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/>',
+        import: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
+    };
+    const BL_SZEK = [
+        ['Saját', [['megj', 'Megjelenés', '#6366f1'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
+        ['Privát rész (SZEM)', [['zar', 'Zár és biztonság', '#7c3aed'], ['szemikon', 'SZEM app-ikon', '#a855f7'], ['logok', 'Tranzakció-logók', '#10b981']]],
+        ['Csapat · admin', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'], ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b']], 1],
+        ['Alkalmazás · admin', [['naptar', 'Naptár', '#0f2a52'], ['ikon', 'Sikerfüzet ikon', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 1]
+    ];
+    let blSzek = null;
+    const blMobil = () => window.matchMedia('(max-width:760px)').matches;
+    window.sfVanAdmin = () => { const a = document.getElementById('adminInfoBtn'); return !!a && !a.hidden; };
+    window.sfBeallNyit = k => { blSzek = k || null; };
+    const blTemaSor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
+        `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
+    const blJel = k => {
+        if(k === 'megj') return esc(((window.SF_OVB_TEMAK || {})[window.sfOvbTema()] || [''])[0] + ' · ' + ((window.SF_TEMAK || {})[window.sfTema()] || [''])[0]);
+        if(k === 'kapcs') return window.sfNaptarKapcs && window.sfNaptarKapcs.van() ? 'Naptár ✓' : '';
+        return '';
+    };
+    async function blPanel(k, host){
+        if(k === 'megj'){
+            host.innerHTML = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>
+                <section class="card bl-k"><h3>Téma – SZEM (privát)</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
+                <p class="bl-megj" style="margin:12px 0 0">Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>`;
+        } else if(k === 'kapcs'){
+            const nk = window.sfNaptarKapcs, van = nk && nk.van();
+            host.innerHTML = `<section class="card bl-k"><h3>Google Naptár és Feladatok</h3><p class="bl-megj">A naptár, a Google Tasks és a naptárlista egy összekötéssel. Egyszer kell összekötni – utána minden eszközön magától csatlakozik.</p>
+                <div class="zb-sor"><span class="t"><b>${van ? 'Összekötve' : 'Nincs összekötve'}</b><span>${van ? 'A naptár és a feladatok elérhetők.' : 'Kösd össze, hogy a naptár és a feladatok megjelenjenek.'}</span></span>
+                    ${van ? '<button type="button" class="btn" data-blnle>Leválasztás</button>' : '<button type="button" class="btn primary" data-blnko>Összekötés</button>'}</div>
+                <p class="zb-uzi" role="status"></p></section>
+                <section class="card bl-k"><h3>Strava</h3><p class="bl-megj">Az edzésekhez – a SZEM részben, az <b>Edzések</b> oldalon köthető össze és választható le.</p></section>`;
+        } else if(k === 'zar' || k === 'szemikon'){
+            host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"></div></section>';
+            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), k === 'zar' ? 'zar' : 'ikon');
+        } else if(k === 'logok'){
+            host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"><p class="bl-megj">Betöltés…</p></div></section>';
+            if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
+        } else {
+            host.innerHTML = '<div class="card bl-k"><p class="bl-megj">Betöltés…</p></div>';
+            if(typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio(k, host);
+        }
+    }
     window.sfShowBeallitasok = function(){
         const host = document.getElementById('beallBody'); if(!host) return;
-        const sor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
-            `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
+        const ab = document.getElementById('adminBody'); if(ab){ ab.hidden = true; ab.innerHTML = ''; }
         const adm = window.sfVanAdmin();
-        host.innerHTML = `<div class="adm-hero"><h2>Beállítások</h2><p>Megjelenés${adm ? ', felhasználók, jogosultságok' : ''} és a privát rész beállításai.</p></div>
-            <section class="card bl-k"><h3>Téma – Sikerfüzet</h3>${sor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}
-                <h3>Téma – SZEM (privát)</h3>${sor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
-                <p class="bl-megj">A két rész színvilága külön állítható. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>
-            <section class="card bl-k bl-sor"><div><h3>Privát rész</h3><p class="bl-megj">Tranzakciók ikonjai, a SZEM app-ikonja és a privát zár (arc / ujjlenyomat, PIN).</p></div>
-                <button type="button" class="btn" data-blszem>Megnyitás</button></section>
-            ${adm ? '<h2 class="bl-adm-cim">Admin</h2>' : ''}`;
-        const ab = document.getElementById('adminBody');
-        if(ab){ ab.hidden = !adm; if(adm && typeof window.sfShowAdmin === 'function') window.sfShowAdmin(); }
+        const csop = BL_SZEK.filter(c => !c[2] || adm), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        if(blSzek && !mind.includes(blSzek)) blSzek = null;
+        const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
+        const ik = (k, c) => `<i style="background:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${BL_IK[k] || ''}</svg></i>`;
+        const nav = csop.map(([cim, l]) => `<h5>${esc(cim)}</h5><div class="bl-lst">${l.map(([k, n, c]) => { const j = blJel(k);
+            return `<button type="button" data-blszek="${k}" class="${akt === k ? 'on' : ''}">${ik(k, c)}<span>${esc(n)}</span>${j ? `<small>${j}</small>` : ''}<em>›</em></button>`; }).join('')}</div>`).join('');
+        const cim = akt ? (csop.flatMap(c => c[1]).find(x => x[0] === akt) || [])[1] : '';
+        host.innerHTML = `<div class="bl${akt ? ' reszlet' : ''}" data-mob="${mob}">
+            <div class="bl-fej">${mob && akt ? '<button type="button" class="bl-vissza" data-blvissza aria-label="Vissza">‹</button>' : ''}<h2>${mob && akt ? esc(cim) : 'Beállítások'}</h2></div>
+            <nav class="bl-nav card">${nav}</nav>
+            <div class="bl-pan">${akt && !mob ? `<h3 class="bl-pan-cim">${esc(cim)}</h3>` : ''}<div id="blPanTest"></div></div></div>`;
+        if(akt) blPanel(akt, document.getElementById('blPanTest'));
     };
-    document.addEventListener('click', e => {
+    document.addEventListener('click', async e => {
         if(!e.target.closest || !e.target.closest('#beallBody')) return;
+        const sz = e.target.closest('[data-blszek]'); if(sz){ blSzek = sz.dataset.blszek; window.sfShowBeallitasok(); window.scrollTo(0, 0); return; }
+        if(e.target.closest('[data-blvissza]')){ blSzek = null; window.sfShowBeallitasok(); return; }
         const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); window.sfShowBeallitasok(); return; }
-        const sz = e.target.closest('[data-tmszem]'); if(sz){ window.sfTemaBeallit(sz.dataset.tmszem); window.sfShowBeallitasok(); return; }
-        if(e.target.closest('[data-blszem]') && window.sfSzemBeallit) window.sfSzemBeallit();
+        const t = e.target.closest('[data-tmszem]'); if(t){ window.sfTemaBeallit(t.dataset.tmszem); window.sfShowBeallitasok(); return; }
+        const uzi = m => { const u = document.querySelector('#beallBody .zb-uzi'); if(u) u.textContent = m; };
+        if(e.target.closest('[data-blnko]')){ try { await window.sfNaptarKapcs.osszekot(); window.sfShowBeallitasok(); } catch(err){ uzi('Az összekötés nem sikerült: ' + (err.message || err)); } return; }
+        if(e.target.closest('[data-blnle]')){
+            if(!confirm('Leválasztod a Google Naptárat? A tárolt kapcsolat a szerverről és a Google-fiókodból is törlődik; újra az Összekötés gombbal kötheted össze.')) return;
+            try { await window.sfNaptarKapcs.levalaszt(); window.sfShowBeallitasok(); } catch(err){ uzi('A leválasztás nem sikerült: ' + (err.message || err)); }
+        }
     });
+    window.addEventListener('resize', () => { const pg = document.getElementById('page-admin'); if(pg && !pg.hidden && document.querySelector('#beallBody .bl')){ const m = blMobil(), most = document.querySelector('#beallBody .bl').dataset.mob; if(String(m) !== most) window.sfShowBeallitasok(); } });
 
     window.sfTemaBeallit = function(t){
         try { localStorage.setItem('sf_szem_tema', JSON.stringify(t)); } catch(e){}
@@ -14360,12 +14469,11 @@ async function pzIkonGyujt(){
     return [...m.values()];
 }
 const pzVanLogo = n => { const x = pzSzolgOf(n); return !!((x && pzSzolgKep(x)) || pzSzolgSajatKep(n) || pzSzolgAutoWeb(n)); };
-async function pzIkonModal(){
+// host megadásával ablak nélkül, a Beállítások oldalba ágyazva jelenik meg.
+async function pzIkonModal(host){
     const ov = document.createElement('div');
-    ov.className = 'modal-overlay';
-    ov.innerHTML = `<div class="modal pz-modal" style="max-width:680px;">
-        <div class="modal-head"><h3>Tranzakciók ikonjai</h3><button class="modal-x" data-pzx>&times;</button></div>
-        <div class="modal-body">
+    ov.className = host ? 'pz-ik-beagy' : 'modal-overlay';
+    const torzs = `
             <h4 class="pz-ik-cim">Saját szabályok</h4>
             <p class="pz-sec-note" style="margin:0 0 8px;">Egyszerre minden tételre: ha a név tartalmazza a szöveget (pl. <b>M12</b>), az összes ilyen tétel ezt a logót kapja. Adj meg weboldalt (pl. <b>otpbank.hu</b>) vagy tölts fel képet.</p>
             <div class="pz-szl-lista pz-iksz-lista" id="pzIkSz"></div>
@@ -14373,9 +14481,15 @@ async function pzIkonModal(){
             <h4 class="pz-ik-cim">Szolgáltatók az elmúlt 6 hónapban</h4>
             <p class="pz-sec-note" style="margin:0 0 10px;">Egyenként, szolgáltatónként. Ahol nincs még logó, koppints a felkínált ikonok egyikére – onnantól minden ilyen tételnél az látszik. A <b>Kép</b> gombbal sajátot tölthetsz fel, vagy írd be a weboldalukat.</p>
             <div class="pz-ik-fej" id="pzIkFej">Tételek betöltése…</div>
-            <div class="pz-szl-lista pz-ik-lista" id="pzIkLista"></div></div>
-        <div class="modal-foot"><button class="btn primary" data-pzx style="background:var(--blue);color:#fff;border-color:var(--blue);">Kész</button></div></div>`;
-    document.body.appendChild(ov);
+            <div class="pz-szl-lista pz-ik-lista" id="pzIkLista"></div>`;
+    if(host){ ov.innerHTML = torzs; host.innerHTML = ''; host.appendChild(ov); }
+    else {
+        ov.innerHTML = `<div class="modal pz-modal" style="max-width:680px;">
+            <div class="modal-head"><h3>Tranzakciók ikonjai</h3><button class="modal-x" data-pzx>&times;</button></div>
+            <div class="modal-body">${torzs}</div>
+            <div class="modal-foot"><button class="btn primary" data-pzx style="background:var(--blue);color:#fff;border-color:var(--blue);">Kész</button></div></div>`;
+        document.body.appendChild(ov);
+    }
     let l = [], mind = true; const nyit = new Set();
     const szRajz = () => {
         const sz = pzTorzsGet().ikonSzab;
@@ -14405,7 +14519,7 @@ async function pzIkonModal(){
     const kesz = () => { pzSzolgWebCache.clear(); nyit.clear(); pzSaveTorzs(); rajz(); };
     const szOf = el => pzTorzsGet().ikonSzab.find(r => r.id === el.closest('[data-ikszid]').dataset.ikszid);
     ov.addEventListener('click', async e => {
-        if(e.target === ov || e.target.closest('[data-pzx]')){ ov.remove(); const pg = document.getElementById('page-penzugyek'); if(typeof pzFrissit === 'function' && pg && !pg.hidden) pzFrissit(); return; }
+        if(!host && (e.target === ov || e.target.closest('[data-pzx]'))){ ov.remove(); const pg = document.getElementById('page-penzugyek'); if(typeof pzFrissit === 'function' && pg && !pg.hidden) pzFrissit(); return; }
         if(e.target.closest('[data-ikszuj]')){ pzTorzsGet().ikonSzab.push({ id: 'ik' + Date.now().toString(36), q: '' }); szRajz();
             const i = ov.querySelectorAll('[data-ikszq]'); if(i.length) i[i.length - 1].focus(); return; }
         if(e.target.closest('[data-ikszx]')){ const r = szOf(e.target), sz = pzTorzsGet().ikonSzab; if(r){ sz.splice(sz.indexOf(r), 1); kesz(); } return; }
@@ -31521,6 +31635,12 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         btn.querySelector(".cal-layers-n").textContent = n ? "+" + n : "";
         if (!btn.dataset.wired){ btn.dataset.wired = "1"; btn.addEventListener("click", openCalLayers); }
     }
+    // A Beállítások → Kapcsolatok innen kérdezi a Google Naptár állapotát, és innen köt össze / választ le.
+    window.sfNaptarKapcs = {
+        van: () => !!getCalendarToken(),
+        osszekot: async () => { const t = await reconnectCalendar(); silentState = null; if(t) initCalendar(); return !!t; },
+        levalaszt: async () => { await disconnectCalendar(); silentState = false; calLista = null; initCalendar(); }
+    };
     async function openCalLayers(){
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
@@ -34248,25 +34368,31 @@ Vállalkozás nyitásának átbeszélése`, '']
         d.hazi = d.hazi || {}; (d.hazi[l.id] = d.hazi[l.id] || []).push({ id: h.id, t: h.t, a: a.id });
         await bedMent(d); renderPG();
     }
-    function bedSablonModal(){
-        const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    // host megadásával a Beállítások oldalba ágyazva, ablak nélkül.
+    function bedSablonModal(host){
+        const ov = document.createElement('div'); ov.className = host ? 'bed-sab-beagy' : 'modal-overlay';
         const L = bedLepesek();
-        ov.innerHTML = `<div class="modal bed-sab-m"><div class="modal-head"><h3>Bedolgozási program</h3><button class="modal-x" data-bsx aria-label="Bezárás">&times;</button></div>
-            <div class="modal-body"><p class="pg-note-txt" style="margin:0 0 10px">Soronként egy napirendi pont; a „- ” kezdetű sor alpont. A „nap” a Starter PG-től számított javasolt nap. A házi feladatok soronként.</p>
+        const torzs = `<p class="pg-note-txt" style="margin:0 0 10px">Soronként egy napirendi pont; a „- ” kezdetű sor alpont. A „nap” a Starter PG-től számított javasolt nap. A házi feladatok soronként.</p>
             ${L.map((l, i) => `<fieldset class="bed-sab" data-bsi="${i}"><legend><input class="pg-inp" data-bsn value="${escM(l.n)}" maxlength="40"> <label>nap <input class="pg-inp" type="number" min="0" max="120" data-bsnap value="${+l.nap || 0}" style="width:70px"></label></legend>
                 <label class="bed-cimke">Napirend<textarea class="pg-ta" rows="${Math.min(12, bedPontIdk(l).length + 1)}" data-bsp>${escM(bedSorokSzoveg(l.pontok || []))}</textarea></label>
-                <label class="bed-cimke">Házi feladat<textarea class="pg-ta" rows="2" data-bsh>${escM(bedSorokSzoveg(l.hazi || []))}</textarea></label></fieldset>`).join('')}</div>
-            <div class="modal-foot"><button class="btn" data-bsalap style="margin-right:auto">Alapértelmezett visszaállítása</button><button class="btn" data-bsx>Mégse</button><button class="btn primary" data-bsment>Mentés</button></div></div>`;
-        document.body.appendChild(ov);
+                <label class="bed-cimke">Házi feladat<textarea class="pg-ta" rows="2" data-bsh>${escM(bedSorokSzoveg(l.hazi || []))}</textarea></label></fieldset>`).join('')}`;
+        const gombok = `<button class="btn" data-bsalap style="margin-right:auto">Alapértelmezett visszaállítása</button>${host ? '' : '<button class="btn" data-bsx>Mégse</button>'}<button class="btn primary" data-bsment>Mentés</button>`;
+        if(host){ ov.innerHTML = torzs + `<div class="bed-sab-lab">${gombok}<span class="bed-sab-uzi" role="status"></span></div>`; host.innerHTML = ''; host.appendChild(ov); }
+        else {
+            ov.innerHTML = `<div class="modal bed-sab-m"><div class="modal-head"><h3>Bedolgozási program</h3><button class="modal-x" data-bsx aria-label="Bezárás">&times;</button></div>
+                <div class="modal-body">${torzs}</div><div class="modal-foot">${gombok}</div></div>`;
+            document.body.appendChild(ov);
+        }
+        const kesz = () => { if(host){ const u = ov.querySelector('.bed-sab-uzi'); if(u) u.textContent = '✓ Elmentve'; } else { ov.remove(); renderPG(); } };
         ov.addEventListener('click', async e => {
-            if(e.target === ov || e.target.closest('[data-bsx]')) return ov.remove();
+            if(!host && (e.target === ov || e.target.closest('[data-bsx]'))) return ov.remove();
             if(e.target.closest('[data-bsalap]')){ if(!confirm('Visszaállítod az alapértelmezett programot? A saját módosításaid elvesznek.')) return;
-                try { await saveBedSablon(bedAlapSablon()); bedSablon = bedAlapSablon(); ov.remove(); renderPG(); } catch(err){ alert('Nem sikerült menteni: ' + (err.message || err)); } return; }
+                try { await saveBedSablon(bedAlapSablon()); bedSablon = bedAlapSablon(); if(host) bedSablonModal(host); else kesz(); } catch(err){ alert('Nem sikerült menteni: ' + (err.message || err)); } return; }
             if(!e.target.closest('[data-bsment]')) return;
             const uj = { lepesek: L.map((l, i) => { const f = ov.querySelector(`[data-bsi="${i}"]`);
                 return { ...l, n: f.querySelector('[data-bsn]').value.trim() || l.n, nap: Math.max(0, +f.querySelector('[data-bsnap]').value || 0),
                          pontok: bedSorokParse(f.querySelector('[data-bsp]').value, l.pontok || [], l.id, true), hazi: bedSorokParse(f.querySelector('[data-bsh]').value, l.hazi || [], l.id + '-h', false) }; }) };
-            try { await saveBedSablon(uj); bedSablon = uj; ov.remove(); renderPG(); } catch(err){ alert('Nem sikerült menteni: ' + (err.message || err)); }
+            try { await saveBedSablon(uj); bedSablon = uj; kesz(); } catch(err){ alert('Nem sikerült menteni: ' + (err.message || err)); }
         });
     }
     function wireBed(m){
@@ -34274,7 +34400,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         on('[data-bedopen]', 'click', e => { bedOpen = e.currentTarget.dataset.bedopen; bedNezett = null; renderPG(); window.scrollTo(0, 0); });
         on('#bedVissza', 'click', () => { bedOpen = null; renderPG(); });
         on('#bedUjBtn', 'click', bedInditas);
-        on('#bedSablonBtn', 'click', bedSablonModal);
+        on('#bedSablonBtn', 'click', () => { if(window.sfBeallNyit) window.sfBeallNyit('bed'); document.getElementById('adminInfoBtn')?.click(); });
         const d = bedOpen && bedDocs[bedOpen]; if(!d) return;
         const L = bedLepesek(), l = () => L.find(x => x.id === bedNezett) || L[Math.min(bedIdx(d), L.length - 1)];
         on('[data-bedlep]', 'click', e => { bedNezett = e.currentTarget.dataset.bedlep; renderPG(); });
@@ -36832,6 +36958,23 @@ Vállalkozás nyitásának átbeszélése`, '']
         await renderAdmPanel(admCurTab);
     };
 
+    // A Beállítások oldal admin-szekciói (és a bedolgozási program) – ablak nélkül, a megadott helyre.
+    window.sfAdmSzekcio = async function(k, host){
+        const ket = () => { host.innerHTML = '<div></div><div></div>'; return [host.children[0], host.children[1]]; };
+        const biztos = async (f, el) => { try { await f(el); } catch(e){ console.warn('Beállítás betöltése sikertelen:', e); el.innerHTML = '<div class="card"><div class="card-body" style="color:var(--red)">Nem sikerült betölteni: ' + escM(e.message || String(e)) + '</div></div>'; } };
+        if(k === 'fh'){ const [a, b] = ket(); await biztos(renderAdmUsers, a); await biztos(renderAdmRoles, b); }
+        else if(k === 'rang') renderAdmRanks(host);
+        else if(k === 'info'){ const [a, b] = ket(); await biztos(renderAdmDates, a); await biztos(renderAdmSeminar, b); }
+        else if(k === 'fontos') renderAdmInfos(host);
+        else if(k === 'naptar') renderAdmCalendar(host);
+        else if(k === 'ikon') renderAdmIcon(host);
+        else if(k === 'import') renderAdmImport(host);
+        else if(k === 'bed'){
+            if(!bedSablon){ try { bedSablon = await getBedSablon(); } catch(e){} }
+            if(!bedSablon || !Array.isArray(bedSablon.lepesek) || !bedSablon.lepesek.length) bedSablon = bedAlapSablon();
+            bedSablonModal(host);
+        }
+    };
     async function renderAdmPanel(tab){
         const cont = document.getElementById("admPanels"); if(!cont) return;
         if(tab===0) await renderAdmUsers(cont);
