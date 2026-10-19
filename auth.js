@@ -577,8 +577,17 @@ export async function getEmployees(){
     if(!isConfigured || !db) return [];
     try {
         const snap = await getDocs(collection(db, "employees"));
-        return snap.docs.map(d => Object.assign({ uid: d.id }, d.data()));
+        // A Google-ből jövő nevet (name) minden belépés felülírja; az admin által
+        // beállított név (nevKezi – pl. becenév vagy javított név) ezért külön mezőben
+        // van, és ha van, az app mindenhol azt használja.
+        return snap.docs.map(d => { const x = Object.assign({ uid: d.id }, d.data());
+            if(x.nevKezi){ x.googleName = x.name || ""; x.name = x.nevKezi; } return x; });
     } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
+}
+// Admin: a munkatárs megjelenített neve (üres = vissza a Google-névre).
+export async function saveEmployeeName(uid, nev){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "employees", uid), { nevKezi: String(nev || "").trim() }, { merge: true });
 }
 
 let app, auth, db, storage, functions;

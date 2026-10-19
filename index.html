@@ -3206,6 +3206,11 @@
         .adm-role-row:last-child { border-bottom:none; }
         @media (max-width:640px){ .adm-role-head { display:none; } .adm-role-row { grid-template-columns:1fr; gap:6px; padding:14px 0; } }
         .adm-role-name div:first-child { font-size:13px; font-weight:600; color:var(--text); }
+        .adm-nev { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .adm-nev-g { border:0; background:none; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 4px; border-radius:6px; opacity:.6; }
+        .adm-nev-g:hover { opacity:1; color:var(--blue); background:var(--blue-light); }
+        .adm-nev-in { flex:1 1 160px; min-width:0; height:32px; border:1px solid var(--blue); border-radius:8px; padding:0 10px; font:inherit; font-size:13px; }
+        .adm-nev .btn { height:32px; padding:0 12px; font-size:12px; }
         .adm-role-email { font-size:11px; color:var(--muted); }
         .adm-role-sel { padding:7px 9px; border:1px solid var(--border); border-radius:8px; font-size:12px; font-family:inherit; color:var(--text); background:var(--card); }
         /* Meghívott, de még be nem lépett munkatárs – halványabb sor, mert a
@@ -28625,7 +28630,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=84";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=85";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -37639,8 +37644,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                 return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('');
             return `<div class="adm-role-row" data-uid="${emp.uid}">
                 <div class="adm-role-name">
-                    <div>${escM(emp.name||'(névtelen)')}</div>
-                    <div class="adm-role-email">${escM(emp.email)}</div>
+                    <div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
+                    <div class="adm-role-email">${escM(emp.email)}${emp.googleName ? ` · Google-név: ${escM(emp.googleName)}` : ''}</div>
                 </div>
                 <select class="adm-role-sel" data-af="manager">
                     <option value="">— nincs felettese —</option>
@@ -37667,6 +37672,24 @@ Vállalkozás nyitásának átbeszélése`, '']
             <div class="adm-role-head"><span>Név</span><span>Felettese</span></div>
             <div class="adm-role-list">${allRowsHtml}</div>
         </div></div>`;
+        // Név szerkesztése: a Google néha rosszul hozza át, vagy becenevet használtok.
+        cont.querySelectorAll('[data-nevszerk]').forEach(b => b.addEventListener('click', () => {
+            const rowEl = b.closest('.adm-role-row'), uid = rowEl.dataset.uid, emp = employees.find(x => x.uid === uid); if(!emp) return;
+            const box = b.closest('.adm-nev');
+            box.innerHTML = `<input class="adm-nev-in" value="${escM(emp.name||'')}" maxlength="60" aria-label="Megjelenített név"><button type="button" class="btn primary adm-nev-ok">Mentés</button><button type="button" class="btn adm-nev-x">Mégse</button>`;
+            const inp = box.querySelector('input'); inp.focus(); inp.select();
+            const ment = async () => {
+                const v = inp.value.trim(), uj = v && v !== (emp.googleName || '') ? v : '';
+                try { await saveEmployeeName(uid, uj); }
+                catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); return; }
+                const l = window.sfEmployeesList || [], e2 = l.find(x => x.uid === uid);
+                if(e2){ if(uj){ e2.googleName = e2.googleName || emp.googleName || emp.name; e2.name = uj; } else if(e2.googleName){ e2.name = e2.googleName; delete e2.googleName; } }
+                renderAdmRoles(cont);
+            };
+            box.querySelector('.adm-nev-ok').addEventListener('click', ment);
+            box.querySelector('.adm-nev-x').addEventListener('click', () => renderAdmRoles(cont));
+            inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); ment(); } if(e.key === 'Escape') renderAdmRoles(cont); });
+        }));
         cont.querySelectorAll('.adm-role-row').forEach(rowEl=>{
             const sel = rowEl.querySelector('[data-af="manager"]');
             if (!sel) return;   // meghívott, de még be nem lépett munkatárs sora
