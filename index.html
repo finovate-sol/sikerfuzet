@@ -949,6 +949,17 @@
         /* Tömör kártyasor – a 10 perces és a 2 órás füzet listája ugyanolyan
            magas, hogy hosszú névsort is át lehessen látni. */
         #regRows .rc-body, #ketorasList .rc-body { gap:6px; }
+        /* Címkék (kampány) */
+        .reg-tagek { display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
+        .reg-tag { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:700; line-height:1; padding:3px 7px; border-radius:999px; color:var(--tc); background:color-mix(in srgb, var(--tc) 12%, #fff); white-space:nowrap; }
+        .reg-tag button { border:0; background:none; color:inherit; font:inherit; font-size:13px; line-height:1; padding:0 0 0 2px; cursor:pointer; opacity:.7; }
+        .reg-tag button:hover { opacity:1; }
+        .rd-tagek { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+        .rd-tagek-c { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-right:2px; }
+        .rd-tagek .reg-tag { font-size:12px; padding:5px 9px; }
+        .rd-tag-in { flex:1 1 140px; min-width:120px; max-width:260px; height:30px; border:1px dashed var(--border); border-radius:999px; padding:0 12px; font:inherit; font-size:12.5px; background:transparent; }
+        .rd-tag-in:focus { outline:none; border-style:solid; border-color:var(--blue); }
+        .fbtn .fdb { opacity:.55; font-weight:600; }
         /* Közös minimum-sormagasság: a 10 perces sorban két szöveges sor van
            (név + Kezelő/Tanácsadó), a 2 órásban rövidebb az alsor – enélkül
            pár pixellel eltérne a két lista. */
@@ -19030,6 +19041,7 @@ const REG_FIELDS = [
     {key:'portal', label:'Portálon fent', type:'bool'},
     {key:'tanacsadas', label:'Tanácsadás', type:'bool'},
     {key:'ajanlasok', label:'Adott ajánlás', type:'text'},
+    {key:'tags', label:'Címke', type:'tag'},
 ];
 const REG_STATUS = [
     ['Folyamatban', ['Új','Telefonra Vár','Elemzés','Tanácsadás','Szerviz']],
@@ -19167,6 +19179,8 @@ function renderRegFilters(){
         return `<button class="fbtn${regFilterIdx(k,'true')>=0?' on':''}" data-fq="${k}:true">${esc(fld?fld.label:k)}</button>`;
     }).join('');
     const archTotal = registry.filter(r => !r.mt && regIsArchived(r.status)).length;
+    const cimkek = regCimkek(false);
+    const tagChips = cimkek.map(([t, db]) => `<button class="fbtn${regFilterIdx('tags',t)>=0?' on':''}" data-fq="tags:${esc(t)}">#${esc(t)} <span class="fdb">${db}</span></button>`).join('');
     const textFields = REG_FIELDS.filter(f => f.type === 'text');
     if(!textFields.some(f => f.key === regLive.field)) regLive.field = textFields[0].key;
     const textOpts = textFields
@@ -19174,6 +19188,7 @@ function renderRegFilters(){
     // Két sor: fent a státuszok, alatta egymás mellett a jelölők, a mezőszűrő és az archivált-kapcsoló.
     bar.innerHTML = `
         <div class="reg-fsec"><span class="lbl">Státusz</span><div class="chips">${statusChips}</div></div>
+        ${tagChips ? `<div class="reg-fsep"></div><div class="reg-fsec"><span class="lbl">Címke</span><div class="chips">${tagChips}</div></div>` : ''}
         <div class="reg-fsep"></div>
         <div class="reg-fsor2">
             <div class="reg-fsec"><span class="lbl">Jelölő</span><div class="chips">${flagChips}</div></div>
@@ -19214,6 +19229,43 @@ function renderRegFilters(){
 // Azonos mezőre tett feltételek VAGY kapcsolatban állnak (pl. két státusz),
 // a különböző mezők ÉS kapcsolatban – így a "Telefonra vár VAGY Elemzés"
 // is kilistázható, miközben a TP-szűrő továbbra is szűkít.
+// ===== CÍMKÉK (pl. kampány) =====
+// r.tags: rövid címkék (pl. „Nyár 2026”, „Facebook-kampány”). Az adatlapon adható hozzá / vehető le,
+// a listában a név alatt látszik, a Szűrők panelen címkére lehet szűrni, és a keresés is megtalálja.
+const REG_TAG_SZINEK = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#ca8a04', '#4f46e5'];
+function regTagSzin(t){ let h = 0; for(const c of String(t).toLowerCase()) h = (h * 31 + c.charCodeAt(0)) >>> 0; return REG_TAG_SZINEK[h % REG_TAG_SZINEK.length]; }
+// a használt címkék [címke, db] párokban, gyakoriság szerint (mt: a 2 órás füzet is)
+function regCimkek(mt){
+    const m = new Map();
+    registry.forEach(r => { if(!!r.mt !== !!mt && mt !== null) return; (r.tags || []).forEach(t => { const k = t.toLowerCase(), x = m.get(k); if(x) x[1]++; else m.set(k, [t, 1]); }); });
+    return [...m.values()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'hu'));
+}
+function regTagSzerkHtml(r, i){
+    const t = r.tags || [], javas = regCimkek(null).map(x => x[0]).filter(x => !t.some(y => y.toLowerCase() === x.toLowerCase()));
+    return `<div class="rd-tagek" data-tagdoboz="${i}"><span class="rd-tagek-c">Címkék</span>
+        ${t.map(x => `<span class="reg-tag" style="--tc:${regTagSzin(x)}">#${esc(x)}<button type="button" data-tagdel="${i}" data-tag="${esc(x)}" aria-label="Címke törlése">×</button></span>`).join('')}
+        <input type="text" class="rd-tag-in" data-tagin="${i}" list="regTagLista${i}" placeholder="${t.length ? '+ címke' : '+ címke, pl. kampány neve'}" maxlength="40" autocomplete="off">
+        <datalist id="regTagLista${i}">${javas.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>`;
+}
+function regTagMent(i, fn){
+    const r = registry[i]; if(!r) return;
+    r.tags = fn((r.tags || []).slice()); if(!r.tags.length) delete r.tags;
+    store.save('sf_registry', registry); persistReg(i);
+    document.querySelectorAll(`[data-tagdoboz="${i}"]`).forEach(d => { d.outerHTML = regTagSzerkHtml(r, i); });
+    const f = document.querySelector(`[data-tagin="${i}"]`); if(f) f.focus();
+    if(typeof renderRegFilters === 'function') renderRegFilters();
+}
+function regTagHozzaad(inp){
+    const i = +inp.dataset.tagin, v = inp.value.replace(/^#/, '').replace(/\s+/g, ' ').trim().slice(0, 40); if(!v) return;
+    inp.value = '';   // különben a mező cseréjekor (blur) a change esemény még egyszer felvenné
+    const meglevo = regCimkek(null).map(x => x[0]).find(x => x.toLowerCase() === v.toLowerCase()) || v;   // azonos írásmód
+    regTagMent(i, l => l.some(x => x.toLowerCase() === meglevo.toLowerCase()) ? l : l.concat([meglevo]));
+}
+document.addEventListener('keydown', e => { const inp = e.target.closest && e.target.closest('[data-tagin]'); if(!inp) return;
+    if(e.key === 'Enter' || e.key === ','){ e.preventDefault(); regTagHozzaad(inp); } });
+document.addEventListener('change', e => { const inp = e.target.closest && e.target.closest('[data-tagin]'); if(inp && inp.value.trim()) regTagHozzaad(inp); });
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-tagdel]'); if(!b) return;
+    e.stopPropagation(); const t = b.dataset.tag; regTagMent(+b.dataset.tagdel, l => l.filter(x => x !== t)); });
 function rowMatchesFilters(r){
     const byField = new Map();
     regActiveFilters().forEach(f => { if(!byField.has(f.field)) byField.set(f.field, []); byField.get(f.field).push(f); });
@@ -19222,6 +19274,7 @@ function rowMatchesFilters(r){
         const ok = list.some(f => {
             if(fld.type === 'bool') return (!!r[field]) === (f.value === true || f.value === 'true');
             if(fld.type === 'status') return (r.status||'') === f.value;
+            if(fld.type === 'tag') return (r.tags||[]).some(t => t.toLowerCase() === String(f.value||'').toLowerCase());
             return String(r[field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
         });
         if(!ok) return false;
@@ -19515,7 +19568,7 @@ function rdAdatokFields(r, i){
             + options.map(o=>`<option value="${esc(o)}"${val===o?' selected':''}>${esc(o)}</option>`).join('');
         return `<div class="rd-field"><label>${label}</label><select data-d="${key}">${opts}</select></div>`;
     };
-    return `<div class="rd-terv${r.tervHo ? ' van' : ''}">
+    return `${regTagSzerkHtml(r, i)}<div class="rd-terv${r.tervHo ? ' van' : ''}">
             <span class="rd-terv-ik">${RD_TARGET_IC}</span>
             <label><b>Tervezett hónap és egység</b><span>${r.tervHo ? 'Ebben a hónapban, ennyi egységgel számol a Csapatterv' : 'Állítsd be, hogy a Csapattervben megjelenjen'}</span></label>
             <select data-ri="${i}" data-rf="tervHo" aria-label="Tervezett hónap">${regTervHoOpts(r.tervHo)}</select>
@@ -19576,7 +19629,7 @@ function regArchivedVisible(){
 let regRend = store.load('sf_regrend', '');   // '' = legújabb elöl, 'rating' = legkönnyebb találkozó elöl
 function regMatched(){
     const q=(regSearch||'').trim().toLowerCase();
-    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
+    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName,(r.tags||[]).join(' ')].some(v=>String(v||'').toLowerCase().includes(q));
     const showArch = regArchivedVisible();
     const out = registry.map((r,i)=>({r,i})).filter(({r})=> !r.mt && (showArch || !regIsArchived(r.status)) && textMatch(r) && rowMatchesFilters(r));
     // A frissen felvitt emberek elöl, létrehozás szerint csökkenő sorrendben.
@@ -19599,7 +19652,7 @@ function regMatched(){
 function regArchivedHidden(){
     if(regArchivedVisible()) return 0;
     const q=(regSearch||'').trim().toLowerCase();
-    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName].some(v=>String(v||'').toLowerCase().includes(q));
+    const textMatch = r => !q || [r.name,r.munkatars,r.ajanlo,r.phone,r.lakhely,r.status,r.ownerName,(r.tags||[]).join(' ')].some(v=>String(v||'').toLowerCase().includes(q));
     return registry.filter(r => !r.mt && regIsArchived(r.status) && textMatch(r) && rowMatchesFilters(r)).length;
 }
 // ===== CSOPORTOSÍTÁS A LISTA NÉZETEKBEN =====
@@ -19715,6 +19768,7 @@ function renderRegTable(matched){
                 <div class="reg-person-meta">
                     <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
                     ${r.tervHo ? `<div class="reg-terv-sor">${regTervBadge(r)}</div>` : ''}
+                    ${(r.tags||[]).length ? `<div class="reg-tagek">${r.tags.map(t => `<span class="reg-tag" style="--tc:${regTagSzin(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
                 </div>
             </div>
             <div class="rc-mezo"><small>Ajánló</small><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="—"${lk}></div>
