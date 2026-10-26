@@ -4425,7 +4425,8 @@
         .fx.fx-fix .fx-kozep { display:flex; flex-direction:column; min-height:0; }
         .fx.fx-fix .fx-lista { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 2px 96px; margin:0 -2px; }
         .fx.fx-fix .fx-reszl-ures { align-self:start; }
-        html:has(#page-feladatok:not([hidden]) .fx-fix), body:has(#page-feladatok:not([hidden]) .fx-fix) { overflow:hidden; }
+        /* a lapzárat JS kapcsolja (html.sf-fx-zar): a :has() alapú zár iPhone-on lapváltás után bent ragadt, és egyik oldal sem görgett */
+        html.sf-fx-zar, html.sf-fx-zar body { overflow:hidden; }
         .fx-fej { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
         .fx-fej h1 { margin:0; font-size:26px; color:var(--navy); line-height:1.15; }
         .fx-fej small { font-size:13px; color:var(--muted); } .fx-fej small b { color:var(--red); }
@@ -34804,8 +34805,13 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     function fxMeret(){
         const pg = document.getElementById('page-feladatok'), fx = pg && pg.querySelector('.fx'); if(!fx || pg.hidden) return;
         const top = fx.getBoundingClientRect().top + window.scrollY;
-        fx.style.height = Math.max(320, window.innerHeight - top - 10) + 'px'; fx.classList.add('fx-fix');
+        fx.style.height = Math.max(320, window.innerHeight - top - 10) + 'px'; fx.classList.add('fx-fix'); fxZar();
     }
+    // a lap görgetés-zára csak addig él, amíg a Feladatok látszik
+    function fxZar(){ const pg = document.getElementById('page-feladatok');
+        const kell = !!(pg && !pg.hidden && pg.querySelector('.fx-fix'));
+        if(document.documentElement.classList.contains('sf-fx-zar') !== kell) document.documentElement.classList.toggle('sf-fx-zar', kell); }
+    (() => { const pg = document.getElementById('page-feladatok'); if(pg) new MutationObserver(fxZar).observe(pg, { attributes: true, attributeFilter: ['hidden'] }); })();
     window.addEventListener('resize', () => fxMeret());
     function renderFeladatok(){
         const body = document.getElementById("feladatokBody"); if(!body) return;
