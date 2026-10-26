@@ -30547,12 +30547,19 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return (card && card.closest(".col-main")) ? card.getBoundingClientRect().height + 22 : 0;
     }
 
+    // a naptár alja ne lógjon a mobil alsó sáv (tabbár) alá: annyi hely kell alul, amennyit a sáv takar
+    function calAlsoHely(content){
+        const pad = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
+        const sav = document.getElementById("szAlso");
+        if (!sav || getComputedStyle(sav).display === "none" || sav.classList.contains("bill")) return pad;
+        return Math.max(pad, window.innerHeight - sav.getBoundingClientRect().top + 10);
+    }
     function computeRow(grid){
         const wk = grid.querySelector(".wk-grid");
         const top = wk ? wk.getBoundingClientRect().top
                        : grid.getBoundingClientRect().top + 88;
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
+        const padB = calAlsoHely(content);
         const avail = Math.max(280, window.innerHeight - top - planCardHeight() - padB);
         return Math.max(22, avail / (VIEW_END_H - VIEW_START_H));
     }
@@ -30582,7 +30589,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         calMertRejtve = !wk.offsetParent;
         calMertTop = Math.round(wk.getBoundingClientRect().top + window.scrollY);
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
+        const padB = calAlsoHely(content);
         const ideal = (VIEW_END_H - VIEW_START_H) * ROW;
         const fits = window.innerHeight - wk.getBoundingClientRect().top - padB;
         // Csak zsugorítunk: az "ideal" fölé sosem megyünk (görgetett oldalnál a
@@ -31781,7 +31788,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const g = document.querySelector("#calGrid .mn-grid");
         if (!g || !g.offsetParent) return;
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
+        const padB = calAlsoHely(content);
         const sorok = g.children.length || 6;
         const avail = window.innerHeight - g.getBoundingClientRect().top - planCardHeight() - padB;
         const kitolt = avail / sorok >= 96;
