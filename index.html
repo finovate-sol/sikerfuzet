@@ -3437,11 +3437,23 @@
         /* Hónap nézet */
         .mn-head { display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--border); }
         .mn-head div { text-align:center; font-size:11px; font-weight:600; color:var(--muted); padding:8px 0; }
-        .mn-grid { display:grid; grid-template-columns:repeat(7,1fr); }
-        .mn-cell { min-height:96px; border-right:1px solid #f0f2f6; border-bottom:1px solid #f0f2f6; padding:5px 6px; overflow:hidden; }
-        .mn-cell .mn-date { font-size:11px; font-weight:700; color:var(--text); margin-bottom:4px; }
-        .mn-cell.other .mn-date { color:#c2cbd8; }
-        .mn-cell.today .mn-date { background:var(--blue); color:#fff; width:22px; height:22px; line-height:22px; border-radius:50%; text-align:center; }
+        .mn-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+        .mn-het { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); min-height:96px; overflow:hidden; }
+        .mn-cell { border-right:1px solid #f0f2f6; border-bottom:1px solid #f0f2f6; }
+        .mn-cell.other { background:#fafbfc; }
+        .mn-date { font-size:11px; font-weight:700; color:var(--text); margin:5px 6px 4px; position:relative; justify-self:start; }
+        .mn-date.other { color:#c2cbd8; }
+        .mn-date.today { background:var(--blue); color:#fff; width:22px; height:22px; line-height:22px; border-radius:50%; text-align:center; }
+        .mn-nap { min-width:0; min-height:0; overflow:hidden; padding:1px 6px 0; position:relative; }
+        .mn-sav { position:relative; margin:0 6px 2px; align-self:stretch; display:flex !important; align-items:center; }
+        .mn-sav.be { margin-left:0; border-top-left-radius:0; border-bottom-left-radius:0; }
+        .mn-sav.ki { margin-right:0; border-top-right-radius:0; border-bottom-right-radius:0; }
+        .mn-sav b { font-weight:700; margin-right:3px; }
+        .mev.mn-idos, .mn-nap .mev-task { display:flex; align-items:center; gap:5px; background:none; color:var(--text); padding:2px 2px 2px 0; margin-bottom:1px; }
+        .mev.mn-idos::before { content:""; flex:none; width:3px; align-self:stretch; border-radius:2px; background:var(--cs); }
+        .mh-cim { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .mh-ido { flex:none; color:var(--muted); font-weight:500; font-variant-numeric:tabular-nums; }
+        .mev.mn-idos:hover, .mn-nap .mev-task:hover { background:#f2f4f7; }
         .mev { display:block; font-size:9px; padding:2px 5px; border-radius:5px; margin-bottom:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; }
         .mn-more { display:block; font-size:9px; color:var(--muted); font-weight:600; }
         /* Napló (agenda) nézet */
@@ -3674,7 +3686,7 @@
         .cal-apple .wk-travel { background:repeating-linear-gradient(135deg, #f1f1f3 0 4px, #fff 4px 8px); border:1px dashed #dcdce0; border-left:1px dashed #dcdce0;
             border-radius:5px; color:var(--ap-mu); font-weight:500; font-size:10px; }
         .cal-apple .mev { font-size:10.5px; border-radius:4px; }
-        .cal-apple .mn-cell.today .mn-date { background:var(--ap-piros); }
+        .cal-apple .mn-date.today { background:var(--ap-piros); }
         .drop-indicator { position:absolute; background:rgba(31,95,208,.16); border:1.5px dashed var(--blue); border-radius:6px; pointer-events:none; z-index:5; font-size:9px; color:var(--blue); font-weight:700; padding:2px 5px; box-sizing:border-box; }
         .plan-edit { display:flex; align-items:center; justify-content:center; gap:5px; }
         .plan-edit input { width:46px; padding:5px 4px; border:1px solid var(--border); border-radius:6px; text-align:center; font-size:14px; font-family:inherit; font-weight:800; color:var(--navy); outline:none; }
@@ -30773,56 +30785,92 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     };
 
     // ===== HÓNAP nézet =====
+    // Mint a macOS Naptárban: az egész napos és a többnapos események egy
+    // összefüggő sávként nyúlnak át a napokon (a hét tetején, sávokba rendezve),
+    // alattuk napról napra az időpontos események: színes csík, cím, jobbra az idő.
     function renderMonth(grid, now, events, tasks){
         const anchorMonth = viewAnchor.getMonth();
         const first = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
         const gridStart = startOfWeek(first);
+        const napIdx = d => Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate())) / 86400000);
         const byDay = {};
-        const dayKey = d => d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
+        const savok = [[], [], [], [], [], []];   // hetenként: { ev, s, e, be, ki }
         events.forEach(ev => {
-            const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
-            // a többnapos esemény minden érintett napon megjelenik (a folytatás nap elejére sorolva)
-            evNapok(ev).forEach((nap, ni) => {
-                const key = dayKey(nap);
-                (byDay[key] = byDay[key] || []).push({ ev, ds: ni ? nap : ds, folyt: ni > 0 });
-            });
+            const napok = evNapok(ev);
+            if (!ev.start.dateTime || napok.length > 1){
+                const idx = napok.map(napIdx);
+                for (let w = 0; w < 6; w++){
+                    const bent = idx.filter(i => i >= w*7 && i < w*7 + 7);
+                    if (!bent.length) continue;
+                    const s0 = Math.min(...bent), e0 = Math.max(...bent);
+                    savok[w].push({ ev, s: s0 - w*7, e: e0 - w*7, be: idx[0] < s0, ki: idx[idx.length-1] > e0 });
+                }
+                return;
+            }
+            const i = napIdx(napok[0]);
+            if (i >= 0 && i < 42) (byDay[i] = byDay[i] || []).push({ ev, ds: new Date(ev.start.dateTime) });
         });
         (tasks || []).forEach(t => {
             const due = taskDue(t); if(!due) return;
             const ds = due.timed ? due.d : new Date(due.ymd + "T00:00:00");
-            const key = dayKey(new Date(due.ymd + "T00:00:00"));
-            (byDay[key] = byDay[key] || []).push({ task: t, ds });
+            const i = napIdx(new Date(due.ymd + "T00:00:00"));
+            if (i >= 0 && i < 42) (byDay[i] = byDay[i] || []).push({ task: t, ds });
         });
-        let cellsHtml = "";
-        for (let i=0;i<42;i++){
-            const d = addDays(gridStart, i);
-            const key = d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
-            const list = (byDay[key] || []).sort((a,b)=>a.ds-b.ds);
-            // Ha a keresésből kiemelendő esemény ezen a napon van, kerüljön az
-            // első 3 közé – különben a "+N további" mögé rejtve sosem látszana.
-            if (pendingHighlightId){
-                const hi = list.findIndex(x => x.ev.id === pendingHighlightId);
-                if (hi > 0) list.unshift(list.splice(hi, 1)[0]);
+        const szinek = hex => calStyle === "apple" ? { bg: appleBg(hex), tx: appleTx(hex), cs: appleHex(hex) }
+                                                    : { bg: hex, tx: contrastTextColor(hex), cs: hex };
+        const ido = d => d.getHours() + ":" + pad2(d.getMinutes());
+        let hetekHtml = "";
+        for (let w = 0; w < 6; w++){
+            // sávok elrendezése: korábban kezdődő, majd hosszabb elöl; mindegyik az első szabad sorba
+            const sav = savok[w].sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s));
+            const sorok = [];
+            sav.forEach(x => {
+                let l = sorok.findIndex(v => v.every(y => y.e < x.s || y.s > x.e));
+                if (l < 0){ l = sorok.length; sorok.push([]); }
+                sorok[l].push(x); x.l = l;
+            });
+            const L = sorok.length;
+            let h = "";
+            for (let c = 0; c < 7; c++){
+                const d = addDays(gridStart, w*7 + c);
+                const other = d.getMonth() !== anchorMonth ? " other" : "";
+                const today = sameDay(d, now) ? " today" : "";
+                h += `<div class="mn-cell${other}${today}" style="grid-column:${c+1};grid-row:1/-1"></div>`
+                   + `<div class="mn-date${other}${today}" style="grid-column:${c+1};grid-row:1">${d.getDate()}</div>`;
             }
-            const other = d.getMonth() !== anchorMonth ? " other" : "";
-            const today = sameDay(d, now) ? " today" : "";
-            let evs = list.map(({ev,task,ds,folyt}) => {
-                if (task){
-                    const due = taskDue(task), tm = taskTimeLabel(due);
-                    return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
-                        + `<span class="wk-task-dot${taskIsDone(task) ? " done" : ""}" style="--c:#64748b"></span>`
-                        + (tm ? `<b>${tm}</b> ` : "") + escM(task.title || "(névtelen feladat)") + `</span>`;
-                }
+            sav.forEach(({ ev, s: c0, e: c1, be, ki, l }) => {
                 const { clean, status } = parseValidation(ev.summary);
-                const hex = eventColorHex(ev, clean);
-                const t = folyt ? "↳ " : ev.start.dateTime ? pad2(ds.getHours())+":"+pad2(ds.getMinutes())+" " : "";
+                const sz = szinek(eventColorHex(ev, clean));
                 const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
-                return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="${calStyle === "apple" ? `background:${appleBg(hex)};color:${appleTx(hex)}` : `background:${hex};color:${contrastTextColor(hex)}`};">${t}${escM(statusTitle(clean, status))}</span>`;
-            }).join("");
-            if (list.length) evs += `<span class="mn-more" hidden></span>`;
-            cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
+                const t = ev.start.dateTime && !be ? `<b>${ido(new Date(ev.start.dateTime))}</b> ` : "";
+                h += `<span class="mev mn-sav${be ? " be" : ""}${ki ? " ki" : ""}${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="grid-column:${c0+1}/${c1+2};grid-row:${l+2};background:${sz.bg};color:${sz.tx}">${t}${escM(statusTitle(clean, status))}</span>`;
+            });
+            for (let c = 0; c < 7; c++){
+                const list = (byDay[w*7 + c] || []).sort((a, b) => a.ds - b.ds);
+                // Ha a keresésből kiemelendő esemény ezen a napon van, kerüljön előre –
+                // különben a "+N további" mögé rejtve sosem látszana.
+                if (pendingHighlightId){
+                    const hi = list.findIndex(x => x.ev && x.ev.id === pendingHighlightId);
+                    if (hi > 0) list.unshift(list.splice(hi, 1)[0]);
+                }
+                let evs = list.map(({ ev, task, ds }) => {
+                    if (task){
+                        const due = taskDue(task), tm = taskTimeLabel(due);
+                        return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
+                            + `<span class="wk-task-dot${taskIsDone(task) ? " done" : ""}" style="--c:#64748b"></span>`
+                            + `<span class="mh-cim">${escM(task.title || "(névtelen feladat)")}</span>` + (tm ? `<span class="mh-ido">${tm}</span>` : "") + `</span>`;
+                    }
+                    const { clean, status } = parseValidation(ev.summary);
+                    const sz = szinek(eventColorHex(ev, clean));
+                    const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
+                    return `<span class="mev mn-idos${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="--cs:${sz.cs}"><span class="mh-cim">${escM(statusTitle(clean, status))}</span><span class="mh-ido">${ido(ds)}</span></span>`;
+                }).join("");
+                if (list.length) evs += `<span class="mn-more" hidden></span>`;
+                h += `<div class="mn-nap" style="grid-column:${c+1};grid-row:${L+2}">${evs}</div>`;
+            }
+            hetekHtml += `<div class="mn-het" style="grid-template-rows:auto${L ? ` repeat(${L}, var(--mn-sav, 19px))` : ""} minmax(0,1fr)">${h}</div>`;
         }
-        grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${cellsHtml}</div>`;
+        grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${hetekHtml}</div>`;
         fitMonth();
         const hiEl = grid.querySelector(".mev.cal-highlight");
         if (hiEl){
@@ -30839,23 +30887,23 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (!g || !g.offsetParent) return;
         const content = document.querySelector(".content");
         const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
-        const sorok = Math.ceil(g.children.length / 7) || 6;
+        const sorok = g.children.length || 6;
         const avail = window.innerHeight - g.getBoundingClientRect().top - planCardHeight() - padB;
         const kitolt = avail / sorok >= 96;
         g.style.gridTemplateRows = kitolt ? `repeat(${sorok}, ${Math.floor(avail / sorok)}px)` : "";
-        g.querySelectorAll(".mn-cell").forEach(c => {
+        g.querySelectorAll(".mn-nap").forEach(c => {
             const evs = [...c.querySelectorAll(".mev")], more = c.querySelector(".mn-more");
             if (!more) return;
             evs.forEach(e => { e.hidden = false; });
             more.hidden = true;
             let lat = evs.length;
-            const allit = () => { more.hidden = lat >= evs.length; more.textContent = `+${evs.length - lat} további`; };
             if (!kitolt){
                 lat = Math.min(3, evs.length);
                 evs.slice(lat).forEach(e => { e.hidden = true; });
-                allit(); return;
+                if (lat < evs.length){ more.hidden = false; more.textContent = `+${evs.length - lat} további`; }
+                return;
             }
-            const alja = c.getBoundingClientRect().bottom - 4;
+            const alja = c.closest(".mn-het").getBoundingClientRect().bottom - 3;
             if (!evs.length || evs[evs.length - 1].getBoundingClientRect().bottom <= alja) return;
             // A "+N további" sornak is helyet kell hagyni: addig rejtünk, amíg az is befér.
             do { evs[--lat].hidden = true; more.hidden = false; more.textContent = `+${evs.length - lat} további`; }
