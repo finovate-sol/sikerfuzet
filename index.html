@@ -588,7 +588,10 @@
             /* lebegő, de mindig a helyén lévő sáv: 4 saját hely + Én, felirattal */
             body.sf-privat .szm-also { display:flex; position:fixed; z-index:45; left:12px; right:12px; bottom:calc(12px + var(--sf-alul)); height:62px; padding:5px;
                 border-radius:24px; background:rgba(255,255,255,.88); border:1px solid rgba(213,220,230,.9); box-shadow:0 12px 28px rgba(60,30,120,.18);
-                -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); gap:2px; box-sizing:border-box; }
+                -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); gap:2px; box-sizing:border-box;
+                /* saját rajzolási réteg: iOS-en az elmosott hátterű fix elem különben görgetés közben a tartalommal megy */
+                -webkit-transform:translate3d(0,0,0); transform:translate3d(0,0,0); will-change:transform; -webkit-backface-visibility:hidden; }
+            body.sf-privat .szm-also.bill { visibility:hidden; }
             .szm-t { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:0; border-radius:19px; background:none;
                 font-family:inherit; font-size:10.5px; font-weight:700; color:#6b7280; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s, color .15s; }
             .szm-t svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
@@ -28762,6 +28765,18 @@ window.sfShowEn = function(){
     szAlsoFrissit();
     new MutationObserver(szAlsoFrissit).observe(document.querySelector('.main') || document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
     (function var1(){ if(ezUid()) szAlsoFrissit(); else setTimeout(var1, 500); })();
+    // iOS Safari: a ki-be csúszó eszköztár és a billentyűzet a „layout” nézetet elmozdítja –
+    // a sávot mindig a ténylegesen látható terület aljához igazítjuk, nyitott billentyűzetnél elrejtjük.
+    const vv = window.visualViewport;
+    if(vv){
+        const igazit = () => {
+            const d = Math.round(vv.offsetTop + vv.height - window.innerHeight);
+            const bill = window.innerHeight - vv.height > 150;
+            nav.classList.toggle('bill', bill);
+            nav.style.transform = !bill && d ? `translate3d(0,${d}px,0)` : '';
+        };
+        vv.addEventListener('resize', igazit); vv.addEventListener('scroll', igazit); window.addEventListener('scroll', igazit, { passive: true });
+    }
 })();
 
 // ---- Napi idézet: 50 motiváló gondolat, naponta másik (17 lépésenként, így csak 50 nap után ismétlődik) ----
