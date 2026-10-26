@@ -12945,6 +12945,12 @@ window.sfApplyPageAccess = function(map){
     document.querySelectorAll('.nav-grp[data-navcsop]').forEach(g => {
         g.hidden = ![...document.querySelectorAll(`.nav a[data-navcs="${g.dataset.navcsop}"]`)].some(a => !a.hidden);
     });
+    // Akinek egyetlen SZEM-lapja sincs engedélyezve, annak a Privát mód kapcsoló
+    // sem kell. Ha mégis privát állásban van (saját nézetben), visszaváltunk.
+    const vanPriv = [...document.querySelectorAll('.nav a[data-ter="priv"][data-page]')].some(a => !a.hidden);
+    const terBox = document.getElementById('sfTerBox');
+    if(terBox) terBox.hidden = !vanPriv;
+    if(!vanPriv && !isOther && window.sfTer === 'priv' && typeof window.sfTerValt === 'function') window.sfTerValt('ovb');
     // Ha épp egy most letiltott oldalon állunk, visszaviszünk a kezdőoldalra.
     const cur = document.querySelector('.nav a[data-page].active');
     if(cur && blocked.has(cur.dataset.page)){
