@@ -700,6 +700,30 @@
         .ma-gy-a { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
         /* Mai szokások: lista */
         .ma-szl { display:flex; flex-direction:column; padding:0 14px 4px; }
+        .ma-szl:has(.ma-szg-sor) { padding:2px 14px 12px; }
+        .ma-szg-o { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+        .ma-szg-n { position:relative; flex:none; width:54px; height:54px; }
+        .ma-szg-n svg { width:100%; height:100%; display:block; }
+        .ma-szg-n b { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:800; color:var(--text); }
+        .ma-szg-o p { margin:0; font-size:12.5px; color:var(--muted); line-height:1.35; }
+        .ma-szg-o p b { display:block; font-size:15px; color:var(--text); }
+        .ma-szg-sor { --g:10px; display:flex; gap:var(--g); overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin:0 -2px; padding:2px; }
+        .ma-szg-sor::-webkit-scrollbar { display:none; }
+        .ma-szg-g { flex:0 0 calc((100% - 3 * var(--g)) / 4); min-width:0; scroll-snap-align:start; border:0; background:none; padding:0; font:inherit; color:var(--text); text-align:center; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+        .ma-szg-r { position:relative; display:grid; place-items:center; width:100%; max-width:68px; aspect-ratio:1; margin:0 auto; }
+        .ma-szg-r > svg { position:absolute; inset:0; width:100%; height:100%; }
+        .ma-szg-r i { width:70%; height:70%; border-radius:50%; display:grid; place-items:center; background:var(--b); color:var(--c); transition:background .2s, color .2s, transform .15s; }
+        .ma-szg-r i svg { width:42%; height:42%; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .ma-szg-g:active .ma-szg-r i { transform:scale(.9); }
+        .ma-szg-g.on .ma-szg-r i { background:var(--c); color:#fff; }
+        .ma-szg-g.on .ma-szg-r i svg { stroke-width:2.6; }
+        .ma-szg-c { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:5px; font-size:11.5px; font-weight:700; line-height:1.2; min-height:2.4em; }
+        .ma-szg-g em { display:block; font-style:normal; font-size:10.5px; font-weight:800; color:#ea580c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ma-szg-het { display:flex; gap:5px; margin-top:12px; }
+        .ma-szg-het div { flex:1; text-align:center; font-size:10px; font-weight:700; color:var(--muted); }
+        .ma-szg-het div.ma { color:#7c3aed; }
+        .ma-szg-het i { display:block; height:6px; margin-top:4px; border-radius:4px; background:#ede7fb; overflow:hidden; }
+        .ma-szg-het i b { display:block; height:100%; border-radius:4px; background:#8b5cf6; }
         .ma-szl-s { display:flex; align-items:center; gap:12px; width:100%; border:0; background:none; padding:8px 2px; border-top:1px solid rgba(15,23,42,.06); font:inherit; color:var(--text); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; }
         .ma-szl-s:first-child { border-top:0; }
         .ma-szl-s i { flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; background:var(--b); color:var(--c); transition:background .15s, color .15s; }
@@ -28541,14 +28565,22 @@ document.addEventListener('keydown', e => {
 // ===================== MA (privát kezdőlap) =====================
 // Mai szokások listaként: elöl a hátralévők, a végén (halványan) a kész ma; soronként pipa, név, sorozat.
 function maSzokSorok(sz, l, ma){
-    const kesz = h => szKesz(sz, h, ma);
-    const sor = [...l.filter(h => !kesz(h)), ...l.filter(kesz)];
-    return sor.map(h => {
-        const t = prvTer(h.ter), on = kesz(h), n = szSorozat(sz, h);
-        return `<button type="button" class="ma-szl-s${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${ma}" aria-pressed="${on}" style="--c:${t.c};--b:${t.b}">
-            <i>${on ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : szIkSvg(h.ik)}</i>
-            <span class="n">${esc(h.n)}</span>${szHeti(h) ? szHetCimke(sz, h, ma) : ''}${n >= 2 ? `<em class="sor">🔥 ${n}</em>` : ''}</button>`;
+    // gyűrűk: összesítő kör + szokásonként egy kör (4 fér el egy sorban, a többi oldalra húzható) + az elmúlt 7 nap csíkja
+    const all = szNapiAllas(sz, ma), db = all.kesz, es = all.es;
+    const K = 2 * Math.PI * 23, kor = (a, c, h, w) => `<circle cx="27" cy="27" r="23" fill="none" stroke="${h}" stroke-width="${w}"/>${a > 0 ? `<circle cx="27" cy="27" r="23" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(K * Math.min(1, a)).toFixed(1)} ${K.toFixed(1)}" transform="rotate(-90 27 27)"/>` : ''}`;
+    const ossz = `<div class="ma-szg-o"><span class="ma-szg-n"><svg viewBox="0 0 54 54" aria-hidden="true">${kor(es ? db / es : 0, '#7c3aed', '#ede7fb', 6)}</svg><b>${es ? `${db}/${es}` : '—'}</b></span>
+        <p><b>${!es ? 'Mára nincs több' : db >= es ? 'Minden kész! 🎉' : `Még ${es - db} szokás van hátra`}</b>${l.length > 4 ? 'Húzd oldalra a többiért' : 'Koppints a körre, ha megvan'}</p></div>`;
+    const korok = l.map(h => {
+        const t = prvTer(h.ter), on = szKesz(sz, h, ma), n = szSorozat(sz, h);
+        const al = szHeti(h) ? `${szHetDb(sz, h, ma)}/${h.het} a héten` : n >= 2 ? `🔥 ${n}` : '';
+        return `<button type="button" class="ma-szg-g${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${ma}" aria-pressed="${on}" aria-label="${esc(h.n)}${on ? ' – kész' : ''}" style="--c:${t.c};--b:${t.b}">
+            <span class="ma-szg-r"><svg viewBox="0 0 54 54" aria-hidden="true">${kor(on ? 1 : 0, t.c, t.b, 4)}</svg><i>${on ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : szIkSvg(h.ik)}</i></span>
+            <span class="ma-szg-c">${esc(h.n)}</span><em>${al || '&nbsp;'}</em></button>`;
     }).join('');
+    const NAP = ['V', 'H', 'K', 'Sz', 'Cs', 'P', 'Sz'];
+    const het = [6, 5, 4, 3, 2, 1, 0].map(i => { const n = ezPlusz(ma, -i), x = szNapiAllas(sz, n), a = x.es ? x.kesz / x.es : 0;
+        return `<div class="${i ? '' : 'ma'}">${NAP[new Date(n + 'T12:00').getDay()]}<i><b style="width:${Math.round(a * 100)}%"></b></i></div>`; }).join('');
+    return `${ossz}<div class="ma-szg-sor">${korok}</div><div class="ma-szg-het">${het}</div>`;
 }
 async function renderPrivMa(){
     const host = document.getElementById('privMaBody'); if(!host) return;
@@ -28632,7 +28664,7 @@ async function renderPrivMa(){
         idezet: `<section class="card pv-kartya ma-idezet-k">${maIdezetHtml()}</section>`,
         fokusz: nlK && nlK.fokuszHtml ? kartya('Mai fókusz', '', nlK.fokuszHtml, 'ma-fok-k') : '',
         emlek: emlek ? kartya('Ezen a napon', '', emlek, 'ma-emlek-k') : '',
-        szokas: kartya(`Mai szokások${szAll.es ? `<span class="pv-szam">${szKeszDb} / ${szAll.es}</span>` : ''}`, 'szokasok', szl.length
+        szokas: kartya('Mai szokások', 'szokasok', szl.length
             ? `<div class="ma-szl">${maSzokSorok(sz, szl, ma)}</div>`
             : `<p class="pv-megj">Még nincs mára esedékes szokás. <button type="button" class="pv-link" data-mamenj="szokasok">Szokás felvétele ›</button></p>`, 'ma-szok-k'),
         vallalas: (h => h ? kartya(`Havi vállalások<span class="pv-szam">${(v => `${v.filter(([k]) => oiVallKesz(oiVallHo(oiA, ma.slice(0, 7)), ma, k)).length} / ${v.length}`)(OI_VALL.filter(([k]) => (oiVallHo(oiA, ma.slice(0, 7)).v || {})[k]))}</span>`, '', `<div data-mavall>${h}</div><button type="button" class="pv-link ma-vall-l" data-oivugr>Havi áttekintés ›</button>`, 'ma-vall-k') : '')(oiA ? oiVallMaHtml(oiA) : ''),
