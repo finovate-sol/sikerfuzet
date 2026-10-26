@@ -649,6 +649,15 @@
             .szm-fab:active { transform:translate3d(0,0,0) scale(.93); }
             .szm-fab.bill { visibility:hidden; }
             #page-penzugyek #pzFej .pz-fej-uj { display:none !important; }
+            /* egységes felső fülek (A · üveg szegmens): áttetsző sáv, a kiválasztott fehér lapocska; egy sorban, oldalra húzható */
+            #page-penzugyek #pzFej .pz-pill, body .oi-fulek, body .pz-seg2.ez-tabok, body .pz-seg2.nl-tabok, body .tt-fo, body .sb-ful, body #celokBody .cl-tabs { position:relative; flex-wrap:nowrap !important; max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
+                gap:2px !important; padding:4px !important; border:0 !important; border-radius:14px !important; background:rgba(255,255,255,.5) !important;
+                -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:inset 0 0 0 1px rgba(255,255,255,.7) !important; }
+            #page-penzugyek #pzFej .pz-pill::-webkit-scrollbar, body .oi-fulek::-webkit-scrollbar, body .pz-seg2.ez-tabok::-webkit-scrollbar, body .pz-seg2.nl-tabok::-webkit-scrollbar, body .tt-fo::-webkit-scrollbar, body .sb-ful::-webkit-scrollbar, body #celokBody .cl-tabs::-webkit-scrollbar { display:none; }
+            #page-penzugyek #pzFej .pz-pill button, body .oi-fulek button, body .pz-seg2.ez-tabok button, body .pz-seg2.nl-tabok button, body .tt-fo button, body .sb-ful button, body #celokBody .cl-tabs button { flex:none !important; white-space:nowrap !important; padding:8px 14px !important; border:0 !important; border-radius:11px !important;
+                background:none !important; color:#5b5670 !important; font-size:13.5px !important; font-weight:650 !important; line-height:1.2 !important; box-shadow:none !important; }
+            #page-penzugyek #pzFej .pz-pill button.on, body .oi-fulek button.on, body .pz-seg2.ez-tabok button.on, body .pz-seg2.nl-tabok button.on, body .tt-fo button.on, body .sb-ful button.on, body #celokBody .cl-tabs button.on { background:#fff !important; color:#1f5fd0 !important; font-weight:750 !important; box-shadow:0 2px 8px rgba(60,30,120,.12) !important; }
+            body.sf-privat #page-penzugyek #pzFej .pz-pill button.on, body.sf-privat .oi-fulek button.on, body.sf-privat .pz-seg2.ez-tabok button.on, body.sf-privat .pz-seg2.nl-tabok button.on, body.sf-privat .tt-fo button.on, body.sf-privat .sb-ful button.on, body.sf-privat #celokBody .cl-tabs button.on { color:#6d28d9 !important; }
             /* az oldalakon belüli „+ Új …” gombok helyett a lebegő ＋ (helyet spórol) */
             #page-szokasok .sf-hos [data-szuj], #page-konyvek .sf-hos [data-kvuj], #page-emberek .sf-hos [data-emuj], #page-enaplo .nl-cta,
             #page-onismeret .szb-fej, #page-onismeret .oi-felm .oi-uj, #page-ugyfelek #regAdd, #page-ketoras #ketorasAdd, #page-struktura #strAddBtn,
@@ -28940,6 +28949,11 @@ window.sfShowEn = function(){
     const fab = document.createElement('button'); fab.type = 'button'; fab.className = 'szm-fab'; fab.id = 'szFab'; fab.hidden = true; fab.setAttribute('aria-label', 'Új');
     fab.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
     document.body.append(fatyol, nav, fab, lap);
+    // felső fülek: a kiválasztott fül legyen látható (oldalra húzható sávban)
+    const FUL_SOR = '#pzFej .pz-pill, .oi-fulek, .pz-seg2.ez-tabok, .pz-seg2.nl-tabok, .tt-fo, .sb-ful, #celokBody .cl-tabs';
+    const fulIgazit = () => document.querySelectorAll(FUL_SOR).forEach(c => { const on = c.querySelector('button.on');
+        if(on && c.scrollWidth > c.clientWidth) c.scrollLeft = on.offsetLeft - (c.clientWidth - on.offsetWidth) / 2; });
+    let fulT = 0; new MutationObserver(() => { clearTimeout(fulT); fulT = setTimeout(fulIgazit, 60); }).observe(document.querySelector('.main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     // görgetéskor lefelé elhalványul, felfelé visszajön (ne takarja a listát)
     let utY = window.scrollY;
     window.addEventListener('scroll', () => { const y = window.scrollY, d = y - utY;
