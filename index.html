@@ -8276,6 +8276,24 @@
             .nlw-ov { padding:0; align-items:stretch; }
             .nlw { max-width:none; height:100%; border-radius:0; }
         }
+        /* ===== megnyílási animációk: háttér elsötétül, a doboz beúszik (mobilon alulról felcsúszik) ===== */
+        @keyframes sfOvBe { from { opacity:0; } }
+        @keyframes sfPopBe { from { opacity:0; transform:translateY(14px) scale(.97); } }
+        @keyframes sfLapBe { from { transform:translateY(100%); } }
+        .sf-be { animation:sfOvBe .22s ease-out both; }
+        .sf-be > :not(script):not(style) { animation:sfPopBe .3s cubic-bezier(.2,.9,.3,1.04) both; }
+        .fx-ujlap.sf-be { animation:sfOvBe .22s ease-out both; }
+        @media (max-width:760px){
+            .modal-overlay.sf-be > .modal, .nlw-ov.sf-be > .nlw, .fx-ujlap.sf-be { animation:sfLapBe .36s cubic-bezier(.22,.9,.25,1) both; }
+        }
+        /* napló-rögzítő: lépésváltáskor a tartalom oldalról becsúszik */
+        @keyframes sfLepElore { from { opacity:0; transform:translateX(36px); } }
+        @keyframes sfLepHatra { from { opacity:0; transform:translateX(-36px); } }
+        .nlw-test.elore > * { animation:sfLepElore .3s cubic-bezier(.2,.8,.2,1) both; }
+        .nlw-test.hatra > * { animation:sfLepHatra .3s cubic-bezier(.2,.8,.2,1) both; }
+        .nlw-test.elore > :nth-child(2), .nlw-test.hatra > :nth-child(2) { animation-delay:.03s; }
+        .nlw-test.elore > :nth-child(n+3), .nlw-test.hatra > :nth-child(n+3) { animation-delay:.06s; }
+        @media (prefers-reduced-motion:reduce){ .sf-be, .sf-be > *, .nlw-test > * { animation:none !important; } }
         .nl-dt { display:flex; gap:8px; justify-content:center; margin:0 0 14px; }
         .nl-dt input { height:40px; border:0; border-radius:12px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:14.5px; color:#111827; }
         .nl-hang5 { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; margin:0 0 16px; }
@@ -13705,6 +13723,23 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     document.querySelectorAll('[data-page]').forEach(a => a.addEventListener('click', () => setOpen(false)));
     document.addEventListener('keydown', e => { if(e.key === 'Escape') setOpen(false); });
     window.addEventListener('resize', () => { if(window.innerWidth > 1000) setOpen(false); });
+})();
+
+// ===== Megnyílási animációk (modal, alsó lap, napló-rögzítő) =====
+// Csak a tényleges megjelenéskor kap „sf-be” osztályt az elem (rövid ideig), így a modalok
+// belső újrarajzolása (innerHTML) nem játssza le újra az animációt.
+(function(){
+    const OV = '.modal-overlay, .org-modal-ov, .tt-modal, .ct-modal, .gk-ov, .nlw-ov';
+    const LAP = ['.fx-ujlap'];
+    const be = el => { el.classList.add('sf-be'); clearTimeout(el._sfBe); el._sfBe = setTimeout(() => el.classList.remove('sf-be'), 520); };
+    const volt = new Map(LAP.map(x => [x, false]));
+    new MutationObserver(ms => {
+        for(const m of ms){
+            if(m.type === 'childList') m.addedNodes.forEach(n => { if(n.nodeType === 1 && n.matches(OV) && !n.hidden) be(n); });
+            else if(m.target.matches && m.target.matches(OV) && !m.target.hidden && m.oldValue !== null) be(m.target);
+        }
+        LAP.forEach(sel => { const el = document.querySelector(sel); if(el && !volt.get(sel)) be(el); volt.set(sel, !!el); });
+    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'], attributeOldValue: true });
 })();
 
 // ===== Beragadt görgetés-zár elleni védelem =====
@@ -27409,7 +27444,7 @@ async function nlSzerk(id, alap){
     const ujKep = [], levettKep = [];
     let kepTolt = 0, esti = !!(x.jo || x.akadt || (x.top || []).length) || (!e && new Date().getHours() >= 17);
     // lépésenkénti rögzítés: 1. hangulat → 2. tevékenységek → 3. jegyzet és fotó (új bejegyzésnél; szerkesztésnél bármelyik lépés elérhető)
-    let lep = e ? 3 : (x.h ? 2 : 1);
+    let lep = e ? 3 : (x.h ? 2 : 1), utLep = lep;
     const nyitott = new Set();
     const ov = document.createElement('div');
     ov.className = 'nlw-ov';
@@ -27461,7 +27496,7 @@ async function nlSzerk(id, alap){
             <div class="nlw-fej"><div class="nlw-pr">${[1,2,3].map(n => `<button type="button" class="${n <= lep ? 't' : ''}" data-nllep="${n}" aria-label="${n}. lépés"></button>`).join('')}</div></div>
             <div class="nlw-test l${lep}">${tart}</div><div class="nlw-lab"><button type="button" class="nlw-kor" data-nlx aria-label="Bezárás">×</button>${lep > 1 ? '<button type="button" class="nlw-kor" data-nlvissza aria-label="Vissza">‹</button>' : ''}<span class="nlw-hely"></span>${lab}</div></div>`;
         nlKepTolt(ov);
-        const ujfo = ov.querySelector('.nlw-test'); if(ujfo) ujfo.scrollTop = gorg;
+        const ujfo = ov.querySelector('.nlw-test'); if(ujfo){ if(lep !== utLep) ujfo.classList.add(lep > utLep ? 'elore' : 'hatra'); else ujfo.scrollTop = gorg; } utLep = lep;
         ov.querySelector('[data-nlkepf]')?.addEventListener('change', kepFel);
     };
     const olvas = () => {
