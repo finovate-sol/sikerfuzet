@@ -150,15 +150,36 @@
     </script>
     <style>
         /* ===== Szem indítókép ===== */
-        #sfSplash { display:none; position:fixed; inset:0; z-index:4500; background:#fff; flex-direction:column; align-items:center; justify-content:center; gap:14px; transition:opacity .28s ease; }
+        /* ===== Szem indítókép: lágyan úszó színek, beugró betűk, napi gondolat, írisz-nyitás ===== */
+        @property --spl-r { syntax:'<length>'; inherits:false; initial-value:0px; }
+        #sfSplash { display:none; position:fixed; inset:0; z-index:4500; overflow:hidden; background:#fbfaff; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+            font-family:-apple-system, "Segoe UI", Helvetica, Arial, sans-serif; --spl-r:0px; }
         html.sf-priv-indul #sfSplash { display:flex; }
         html.sf-priv-indul body { overflow:hidden; }
-        #sfSplash img { width:96px; height:96px; border-radius:24px; box-shadow:0 12px 30px rgba(76,29,149,.22); }
-        #sfSplash b { font:800 22px/1.2 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:#1f1235; letter-spacing:-.01em; }
-        #sfSplash small { margin-top:-8px; font:600 13px/1.3 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:#7c6a9a; letter-spacing:.02em; }
-        #sfSplash i { width:26px; height:26px; margin-top:10px; border-radius:50%; border:3px solid #ede9fe; border-top-color:#7c3aed; animation:sfSpl .8s linear infinite; }
-        @keyframes sfSpl { to { transform:rotate(360deg); } }
-        #sfSplash.el { opacity:0; pointer-events:none; }
+        #sfSplash .spl-f { position:absolute; border-radius:50%; filter:blur(48px); opacity:.75; pointer-events:none; }
+        #sfSplash .spl-f1 { width:300px; height:300px; top:-80px; left:-100px; background:#c4b5fd; animation:splU1 6s ease-in-out infinite alternate; }
+        #sfSplash .spl-f2 { width:320px; height:320px; bottom:-90px; right:-110px; background:#fbcfe8; animation:splU2 7s ease-in-out infinite alternate; }
+        #sfSplash .spl-f3 { width:210px; height:210px; top:42%; left:42%; background:#a5f3fc; opacity:.55; animation:splU3 5s ease-in-out infinite alternate; }
+        @keyframes splU1 { to { transform:translate(80px,100px) scale(1.15); } }
+        @keyframes splU2 { to { transform:translate(-90px,-80px) scale(1.2); } }
+        @keyframes splU3 { to { transform:translate(-120px,40px); } }
+        #sfSplash img { position:relative; width:96px; height:96px; border-radius:24px; box-shadow:0 14px 34px rgba(76,29,149,.22);
+            animation:splRugo .7s cubic-bezier(.2,1.5,.4,1) both, splLeb 2.4s ease-in-out .7s infinite; }
+        #sfSplash b { position:relative; display:flex; font-weight:800; font-size:26px; line-height:1.1; color:#1f1235; letter-spacing:-.01em; }
+        #sfSplash b span { display:inline-block; animation:splFel .45s cubic-bezier(.2,1.4,.4,1) both; }
+        #sfSplash b span:nth-child(1) { animation-delay:.3s; } #sfSplash b span:nth-child(2) { animation-delay:.37s; }
+        #sfSplash b span:nth-child(3) { animation-delay:.44s; } #sfSplash b span:nth-child(4) { animation-delay:.51s; }
+        #sfSplash .spl-nap { position:relative; font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:#8b5cf6; animation:splFel .6s ease .7s both; }
+        #sfSplash .spl-idez { position:relative; max-width:250px; padding:0 16px; text-align:center; font:italic 500 15px/1.45 Georgia, "Times New Roman", serif; color:#6b5b8a; animation:splFel .7s ease .85s both; }
+        @keyframes splRugo { from { transform:scale(.4); opacity:0; } to { transform:none; opacity:1; } }
+        @keyframes splLeb { 50% { transform:translateY(-6px); } }
+        @keyframes splFel { from { transform:translateY(14px); opacity:0; } to { transform:none; opacity:1; } }
+        /* induláskor középről kinyíló írisz, abból tárul fel az app */
+        #sfSplash.el { pointer-events:none; -webkit-mask:radial-gradient(circle at 50% 45%, transparent var(--spl-r), #000 calc(var(--spl-r) + 1px)); mask:radial-gradient(circle at 50% 45%, transparent var(--spl-r), #000 calc(var(--spl-r) + 1px));
+            animation:splIrisz .65s cubic-bezier(.7,0,.3,1) both; }
+        #sfSplash.el > * { transition:opacity .25s, transform .3s; opacity:0; transform:scale(.94); }
+        @keyframes splIrisz { from { --spl-r:0px; } 75% { opacity:1; } to { --spl-r:150vmax; opacity:0; } }
+        @media (prefers-reduced-motion: reduce) { #sfSplash *, #sfSplash.el { animation:none !important; } #sfSplash.el { opacity:0; } }
         .zb-temak { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin:6px 0 14px; }
         .zb-temak.ovb button.on { border-color:#1f5fd0; }
         .zb-temak button { display:flex; flex-direction:column; align-items:center; gap:6px; border:2px solid transparent; border-radius:14px; background:none; padding:8px 4px; cursor:pointer; font:inherit; font-size:12px; font-weight:600; color:inherit; }
@@ -9185,7 +9206,7 @@ try { if(localStorage.getItem('sf_szogletes') === 'true') document.documentEleme
 </script>
 </head>
 <body>
-<div id="sfSplash" aria-hidden="true"><img id="sfSplashIk" src="icons/tukor-szem/icon-192.png" alt="" width="96" height="96"><b>SZEM</b><small>Személyes Élet-Menedzsment</small><i></i></div>
+<div id="sfSplash" aria-hidden="true"><span class="spl-f spl-f1"></span><span class="spl-f spl-f2"></span><span class="spl-f spl-f3"></span><img id="sfSplashIk" src="icons/tukor-szem/icon-192.png" alt="" width="96" height="96"><b><span>S</span><span>Z</span><span>E</span><span>M</span></b><div class="spl-nap" id="sfSplashNap"></div><div class="spl-idez" id="sfSplashIdez"></div></div>
 <script>
 // Indítókép (csak privát állásban látszik): a választott Szem-ikonnal; eltűnik, amint a
 // privát kezdőlap elkészült (window.sfSplashLe), legkésőbb 7 mp után.
@@ -9193,11 +9214,25 @@ try { if(localStorage.getItem('sf_szogletes') === 'true') document.documentEleme
     var sp = document.getElementById('sfSplash');
     if(!document.documentElement.classList.contains('sf-priv-indul')){ sp.remove(); window.sfSplashLe = function(){}; return; }
     try { document.getElementById('sfSplashIk').src = 'icons/' + window.sfEletIkon() + '/icon-192.png'; } catch(e){}
-    var kesz = false;
+    // mai dátum és napi gondolat (a nap sorszáma szerint körbe)
+    var GOND = ['Amire figyelsz, az növekszik.', 'Kis lépés is lépés.', 'Ma elég a mai napot jól csinálni.', 'A szokásaid építik a jövődet.',
+        'Lassan járj, tovább érsz.', 'A fegyelem a szabadság kapuja.', 'Légy jelen abban, amit csinálsz.', 'Ami mérhető, az fejleszthető.',
+        'A nyugalom is teljesítmény.', 'Minden nap egy új oldal.', 'Előbb a fontos, aztán a sürgős.', 'Hálával kezdd a napot.',
+        'Nem kell tökéletesnek lenni, csak következetesnek.', 'A pihenés is a terv része.'];
+    var most = new Date(), nap = Math.floor((most - new Date(most.getFullYear(), 0, 0)) / 864e5);
+    var NAPOK = ['Vasárnap', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'],
+        HO = ['január', 'február', 'március', 'április', 'május', 'június', 'július', 'augusztus', 'szeptember', 'október', 'november', 'december'];
+    document.getElementById('sfSplashNap').textContent = NAPOK[most.getDay()] + ' · ' + HO[most.getMonth()] + ' ' + most.getDate() + '.';
+    document.getElementById('sfSplashIdez').textContent = '„' + GOND[nap % GOND.length] + '”';
+    // legalább ennyi ideig látszik, hogy a beugró betűk és a gondolat kiolvasható legyen
+    var t0 = Date.now(), MIN = 1800, kesz = false;
     window.sfSplashLe = function(){
         if(kesz) return; kesz = true;
-        sp.classList.add('el');
-        setTimeout(function(){ document.documentElement.classList.remove('sf-priv-indul'); sp.remove(); }, 280);
+        setTimeout(function(){
+            document.documentElement.classList.remove('sf-priv-indul');
+            sp.style.display = 'flex'; sp.classList.add('el');
+            setTimeout(function(){ sp.remove(); }, 700);
+        }, Math.max(0, MIN - (Date.now() - t0)));
     };
     setTimeout(window.sfSplashLe, 7000);
 })();
