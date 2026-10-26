@@ -8206,6 +8206,71 @@
         .nl-k-cel > span:last-child { display:flex; flex-direction:column; gap:3px; font-size:13.5px; color:#374151; } .nl-k-cel b { color:#111827; } .nl-k-cel > span:last-child b + span b { color:#cbd5e1; font-size:10px; }
         /* szerkesztő */
         .nl-modal { max-width:620px; }
+        /* ===== napló-rögzítés: lépésenként (hangulat → tevékenységek → jegyzet), a hangulat színével ===== */
+        body.nlw-nyitva { overflow:hidden; }
+        .nlw-ov { position:fixed; inset:0; z-index:300; background:rgba(15,10,35,.45); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .nlw { --mc:#8b5cf6; position:relative; width:100%; max-width:440px; height:min(780px, calc(100dvh - 40px)); background:#fff; border-radius:28px; overflow:hidden;
+            display:flex; flex-direction:column; box-shadow:0 30px 80px rgba(20,10,50,.35); color:#1d1b26; }
+        .nlw-bg { position:absolute; inset:0 0 auto; height:340px; pointer-events:none; transition:background .3s;
+            background:linear-gradient(180deg, var(--mc) 0%, color-mix(in srgb, var(--mc) 35%, #fff) 62%, #fff 100%); }
+        .nlw-fej { position:relative; display:flex; align-items:center; gap:10px; padding:calc(14px + var(--sf-felul, 0px)) 16px 8px; }
+        .nlw-x { flex:none; width:36px; height:36px; border:0; border-radius:50%; background:rgba(255,255,255,.3); color:#fff; font:inherit; font-size:24px; line-height:1; cursor:pointer; display:grid; place-items:center; }
+        .nlw-pr { flex:1; display:flex; gap:5px; }
+        .nlw-pr button { flex:1; height:5px; border:0; padding:0; border-radius:3px; background:rgba(255,255,255,.35); cursor:pointer; }
+        .nlw-pr button.t { background:#fff; }
+        .nlw-dt { flex:none; display:flex; gap:2px; background:rgba(255,255,255,.3); border-radius:999px; padding:2px 6px; }
+        .nlw-dt input { border:0; background:none; color:#fff; font:inherit; font-size:12.5px; font-weight:700; padding:5px 2px; width:104px; min-width:0; color-scheme:dark; }
+        .nlw-dt input[type=time] { width:72px; }
+        .nlw-test { position:relative; flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:6px 16px 16px; }
+        .nlw-test h3 { margin:6px 0 2px; font-size:26px; letter-spacing:-.02em; color:#fff; text-align:center; }
+        .nlw-al { margin:0 0 12px; text-align:center; color:rgba(255,255,255,.92); font-size:13.5px; font-weight:600; }
+        .nlw-nagy { display:flex; flex-direction:column; align-items:center; gap:10px; margin:26px 0 28px; }
+        .nlw-nagy .nl-arc.nlw-arc { width:120px; height:120px; border-radius:38px; box-shadow:0 18px 40px rgba(0,0,0,.18); border:4px solid rgba(255,255,255,.7); }
+        .nlw-nagy .nl-arc.nlw-arc svg { width:78px; height:78px; }
+        .nlw-nagy b { font-size:24px; color:#fff; text-shadow:0 1px 8px rgba(0,0,0,.12); } .nlw-nagy b.ures { color:#4b4660; text-shadow:none; font-size:19px; }
+        .nlw-hang { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; background:rgba(255,255,255,.92); border-radius:24px; padding:12px 8px; box-shadow:0 10px 30px rgba(40,20,90,.12); }
+        .nlw-hang button { display:flex; flex-direction:column; align-items:center; gap:6px; border:0; background:none; font:inherit; cursor:pointer; padding:4px 0; -webkit-tap-highlight-color:transparent; }
+        .nlw-hang button .nl-arc { width:44px; height:44px; opacity:.55; transition:transform .15s, opacity .15s; }
+        .nlw-hang button span { font-size:11.5px; font-weight:700; color:#6f6a80; }
+        .nlw-hang button.on .nl-arc { opacity:1; transform:scale(1.15); } .nlw-hang button.on span { color:#1d1b26; }
+        .nlw-kar { background:#fff; border-radius:22px; padding:14px; margin-top:12px; box-shadow:0 8px 24px rgba(40,20,90,.08); border:1px solid #f1eef8; }
+        .nlw-gycim { font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#9a94ab; margin:0 0 8px; }
+        .nlw-felho { display:flex; flex-wrap:wrap; gap:7px; }
+        .nlw-ch { border:0; border-radius:999px; padding:8px 13px 8px 10px; background:#f4f2fa; font:inherit; font-size:13.5px; font-weight:650; color:#1d1b26; display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition:background .15s, color .15s; -webkit-tap-highlight-color:transparent; }
+        .nlw-ch i { font-style:normal; }
+        .nlw-ch.on { background:var(--mc); color:#fff; }
+        .nlw-ch.uj { background:none; border:1.5px dashed #d8d2ea; color:#6f6a80; }
+        .nlw-csop { border-top:1px solid #f1eef8; margin-top:12px; padding-top:6px; }
+        .nlw-kar > .nlw-csop:first-child { border-top:0; margin-top:0; padding-top:0; }
+        .nlw-csf { display:flex; width:100%; justify-content:space-between; align-items:center; border:0; background:none; font:inherit; font-size:14px; font-weight:750; color:#1d1b26; padding:6px 0; cursor:pointer; }
+        .nlw-csf span { color:#9a94ab; font-weight:600; font-size:12px; }
+        .nlw-csop.ny .nlw-felho { margin:6px 0 4px; }
+        .nlw-ossz { display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.92); border-radius:20px; padding:10px 12px; cursor:pointer; box-shadow:0 8px 24px rgba(40,20,90,.1); }
+        .nlw-ossz .nl-arc { width:44px; height:44px; flex:none; }
+        .nlw-ossz b { display:block; font-size:16px; } .nlw-ossz small { color:#6f6a80; font-size:12px; }
+        .nlw-felho.kicsi { margin-top:10px; cursor:pointer; } .nlw-felho.kicsi span { font-size:12.5px; font-weight:700; background:rgba(255,255,255,.92); border-radius:999px; padding:5px 10px; }
+        .nlw-kc { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; } .nlw-kc b { font-size:15.5px; } .nlw-kc small { color:#9a94ab; font-size:12px; }
+        .nlw-kerd { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -14px 10px; padding:0 14px; } .nlw-kerd::-webkit-scrollbar { display:none; }
+        .nlw-kerd button { flex:none; border:0; border-radius:999px; padding:6px 11px; background:#f1ebfe; color:#6d28d9; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+        .nlw-kar input.nlw-cim, .nlw-kar textarea { width:100%; border:0; border-radius:14px; background:#f8f7fc; padding:11px 12px; font:inherit; font-size:15px; color:#1d1b26; resize:vertical; outline:none; }
+        .nlw-kar input.nlw-cim { margin-bottom:8px; font-weight:700; }
+        .nlw-kar textarea:focus, .nlw-kar input.nlw-cim:focus { box-shadow:0 0 0 2px color-mix(in srgb, var(--mc) 45%, transparent); }
+        .nlw-kepek { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+        .nlw-kepek .nl-kep { width:auto; height:auto; aspect-ratio:1; }
+        .nlw-kep-add { aspect-ratio:1; border:1.5px dashed #d8d2ea; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:#6f6a80; font-size:12px; font-weight:700; cursor:pointer; }
+        .nlw-kep-add svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        .nlw .nl-esti { margin-top:12px; } .nlw .nl-esti summary { cursor:pointer; font-weight:750; font-size:14.5px; }
+        .nlw .nl-esti summary em { display:block; font-style:normal; font-weight:500; font-size:12px; color:#9a94ab; }
+        .nlw-lab { position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px calc(14px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid #f4f2fa; }
+        .nlw-test.l1 + .nlw-lab, .nlw-test.l2 + .nlw-lab { background:transparent; border-top:0; }
+        .nlw-ki { border:0; background:none; font:inherit; font-size:14.5px; font-weight:700; color:#6f6a80; padding:12px 6px; cursor:pointer; }
+        .nlw-ki.piros { color:#e11d48; }
+        .nlw-ment { flex:1; max-width:260px; margin-left:auto; border:0; border-radius:18px; padding:15px; background:#1d1b26; color:#fff; font:inherit; font-size:15.5px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(0,0,0,.18); }
+        .nlw-test.l1 ~ .nlw-lab .nlw-ki { color:#4b4660; }
+        @media (max-width:760px){
+            .nlw-ov { padding:0; align-items:stretch; }
+            .nlw { max-width:none; height:100%; border-radius:0; }
+        }
         .nl-dt { display:flex; gap:8px; justify-content:center; margin:0 0 14px; }
         .nl-dt input { height:40px; border:0; border-radius:12px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:14.5px; color:#111827; }
         .nl-hang5 { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; margin:0 0 16px; }
@@ -27338,43 +27403,65 @@ async function nlSzerk(id, alap){
     const top = Array.isArray(x.top) ? x.top.map(t => ({ ...t })) : []; while(top.length < 3) top.push({ t: '' });
     const ujKep = [], levettKep = [];
     let kepTolt = 0, esti = !!(x.jo || x.akadt || (x.top || []).length) || (!e && new Date().getHours() >= 17);
+    // lépésenkénti rögzítés: 1. hangulat → 2. tevékenységek → 3. jegyzet és fotó (új bejegyzésnél; szerkesztésnél bármelyik lépés elérhető)
+    let lep = e ? 3 : (x.h ? 2 : 1);
+    const nyitott = new Set();
     const ov = document.createElement('div');
-    ov.className = 'modal-overlay';
+    ov.className = 'nlw-ov';
     const csopok = () => [...B.csop, ...(B.tev.some(t => !B.csop.some(c => c.id === t.cs)) ? [{ id: '', n: 'Egyéb' }] : [])];
+    // a leggyakrabban jelölt tevékenységek (a betöltött évek bejegyzéseiből)
+    const gyakori = (() => { const db = {}; for(const k in PRV) if(/^nl\d{4}$/.test(k)) (PRV[k].bej || []).forEach(b => (b.tev || []).forEach(t => { db[t] = (db[t] || 0) + 1; }));
+        return B.tev.filter(t => db[t.id]).sort((p, q) => db[q.id] - db[p.id]).slice(0, 8).map(t => t.id); })();
+    const KERDES = ['Mi ment ma jól?', 'Miért vagy hálás?', 'Mi volt a nap legjobb pillanata?', 'Mit csinálnál másképp?'];
+    const chip = t => `<button type="button" class="nlw-ch${x.tev.includes(t.id) ? ' on' : ''}" data-nltev="${esc(t.id)}"><i>${esc(t.ik || '🏷️')}</i>${esc(t.n)}</button>`;
     const rajz = () => {
-        const fo = ov.querySelector('.modal-body'); const gorg = fo ? fo.scrollTop : 0;
-        ov.innerHTML = `<div class="modal pv-modal nl-modal">
-            <div class="modal-head"><h3>${e ? 'Bejegyzés' : 'Hogy vagy?'}</h3><button class="modal-x" data-nlx aria-label="Bezárás">&times;</button></div>
-            <div class="modal-body">
-                <div class="nl-dt"><input type="date" data-f="d" value="${esc(x.d)}" max="${ezMa()}" aria-label="Nap"><input type="time" data-f="ido" value="${esc(x.ido || '')}" aria-label="Időpont"></div>
-                <div class="nl-hang5">${[5,4,3,2,1].map(n => `<button type="button" class="${x.h === n ? 'on' : ''}" data-nlh="${n}" style="--c:${NL_SZ[n]}">${nlArc(n)}<span>${esc(NL_HANG_SZO[n])}</span></button>`).join('')}</div>
-                <div class="nl-tevek">${csopok().map(c => { const l = B.tev.filter(t => (t.cs || '') === c.id || (!c.id && !B.csop.some(g => g.id === t.cs))); if(!l.length && c.id) return '';
-                    return `<div class="nl-tcsop"><b>${esc(c.n)}</b><div class="nl-tchip">${l.map(t => `<button type="button" class="${x.tev.includes(t.id) ? 'on' : ''}" data-nltev="${esc(t.id)}"><i>${esc(t.ik || '🏷️')}</i><span>${esc(t.n)}</span></button>`).join('')}
-                        <button type="button" class="nl-tuj" data-nltevuj="${esc(c.id)}">+</button></div></div>`; }).join('')}</div>
-                <label class="pv-mezo"><span>Jegyzet</span><input type="text" data-f="cim" value="${esc(x.cim || '')}" placeholder="Cím (nem kötelező)" maxlength="120">
-                    <textarea data-f="megj" rows="4" maxlength="5000" placeholder="Mi történt ma?">${esc(x.megj || '')}</textarea></label>
-                <div class="pv-mezo"><span>Fotók</span><div class="nl-kepek">${x.kep.map((k, i) => `<span class="nl-kep"><img data-nlkep="${esc(k)}" alt=""><button type="button" data-nlkepx="${i}" aria-label="Fotó eltávolítása">×</button></span>`).join('')}
-                    ${kepTolt ? '<span class="nl-kep tolt">Feltöltés…</span>' : ''}<label class="nl-kep-add"><input type="file" accept="image/*" multiple hidden data-nlkepf>+ Fotó</label></div></div>
-                <div class="nl-eg">
-                    <label><span>🛏️ Alvás</span><input type="time" data-f="alvS" value="${x.alv ? String(Math.floor(x.alv / 60)).padStart(2, '0') + ':' + String(x.alv % 60).padStart(2, '0') : ''}" aria-label="Alvás (óra:perc)"></label>
-                    <label><span>👣 Lépés</span><input type="number" inputmode="numeric" min="0" data-f="lep" value="${x.lep || ''}" placeholder="0"></label>
-                    <div><span>⚡ Energia</span><div class="nl-energ">${[1,2,3,4,5].map(n => `<button type="button" class="${(x.e || 0) >= n ? 'on' : ''}" data-nle="${n}" aria-label="Energia ${n}/5"></button>`).join('')}</div></div>
-                </div>
-                <details class="nl-esti"${esti ? ' open' : ''}><summary>Esti zárás <em>mi ment jól, mi akadt el, holnapi top 3</em></summary>
+        const fo = ov.querySelector('.nlw-test'); const gorg = fo ? fo.scrollTop : 0;
+        const szin = NL_SZ[x.h] || '#8b5cf6';
+        let tart = '', lab = '';
+        if(lep === 1){
+            tart = `<h3>${e ? 'Milyen napod volt?' : 'Hogy vagy?'}</h3>
+                <div class="nlw-nagy">${nlArc(x.h || 0, 'nlw-arc')}<b${x.h ? '' : ' class="ures"'}>${x.h ? esc(NL_HANG_SZO[x.h]) : 'Válassz hangulatot'}</b></div>
+                <div class="nlw-hang">${[1,2,3,4,5].map(n => `<button type="button" class="${x.h === n ? 'on' : ''}" data-nlh="${n}" aria-label="${esc(NL_HANG_SZO[n])}">${nlArc(n)}<span>${esc(NL_HANG_SZO[n])}</span></button>`).join('')}</div>`;
+            lab = `<button type="button" class="nlw-ki" data-nltov>${x.h ? 'Tovább' : 'Kihagyom'} →</button>${e ? '<button type="button" class="nlw-ment" data-nlment>Mentés</button>' : ''}`;
+        } else if(lep === 2){
+            const gy = gyakori.map(id => B.tev.find(t => t.id === id)).filter(Boolean);
+            const elso = !gy.length && !nyitott.size ? (csopok()[0] || {}).id : null;
+            tart = `<h3>Mit csináltál?</h3><p class="nlw-al">${x.tev.length ? x.tev.length + ' kiválasztva' : 'Válassz bármennyit – vagy hagyd ki.'}</p>
+                <div class="nlw-kar">${gy.length ? `<div class="nlw-gycim">⭐ Gyakori</div><div class="nlw-felho">${gy.map(chip).join('')}</div>` : ''}
+                ${csopok().map(c => { const l = B.tev.filter(t => ((t.cs || '') === c.id || (!c.id && !B.csop.some(g => g.id === t.cs))) && !gyakori.includes(t.id)); if(!l.length && c.id === '') return '';
+                    const db = l.filter(t => x.tev.includes(t.id)).length, ny = nyitott.has(c.id) || c.id === elso;
+                    return `<div class="nlw-csop${ny ? ' ny' : ''}"><button type="button" class="nlw-csf" data-nlcsny="${esc(c.id)}">${esc(c.n)}<span>${db ? db + ' kiválasztva · ' : ''}${l.length} ${ny ? '▴' : '▾'}</span></button>
+                        ${ny ? `<div class="nlw-felho">${l.map(chip).join('')}<button type="button" class="nlw-ch uj" data-nltevuj="${esc(c.id)}">＋ Új</button></div>` : ''}</div>`; }).join('')}</div>`;
+            lab = `${x.tev.length ? '<span></span>' : '<button type="button" class="nlw-ki" data-nltov>Kihagyom</button>'}<button type="button" class="nlw-ment" data-nltov>Tovább${x.tev.length ? ` (${x.tev.length})` : ''}</button>`;
+        } else {
+            const tv = x.tev.map(id => B.tev.find(t => t.id === id)).filter(Boolean);
+            tart = `<div class="nlw-ossz" data-nllep="1">${nlArc(x.h || 0)}<div><b>${x.h ? esc(NL_HANG_SZO[x.h]) + ' nap' : 'Nincs hangulat'}</b><small>${tv.length ? tv.length + ' tevékenység' : 'nincs tevékenység'} · módosítás ›</small></div></div>
+                ${tv.length ? `<div class="nlw-felho kicsi" data-nllep="2">${tv.map(t => `<span>${esc(t.ik || '🏷️')} ${esc(t.n)}</span>`).join('')}</div>` : ''}
+                <div class="nlw-kar"><div class="nlw-kc"><b>Jegyzet</b><small>nem kötelező</small></div>
+                    <div class="nlw-kerd">${KERDES.map((k, i) => `<button type="button" data-nlkerd="${i}">${esc(k)}</button>`).join('')}</div>
+                    <input type="text" class="nlw-cim" data-f="cim" value="${esc(x.cim || '')}" placeholder="Cím" maxlength="120">
+                    <textarea data-f="megj" rows="5" maxlength="5000" placeholder="Mi történt ma?">${esc(x.megj || '')}</textarea></div>
+                <div class="nlw-kar"><div class="nlw-kc"><b>Fotók</b></div><div class="nlw-kepek">${x.kep.map((k, i) => `<span class="nl-kep"><img data-nlkep="${esc(k)}" alt=""><button type="button" data-nlkepx="${i}" aria-label="Fotó eltávolítása">×</button></span>`).join('')}
+                    ${kepTolt ? '<span class="nl-kep tolt">Feltöltés…</span>' : ''}<label class="nlw-kep-add"><input type="file" accept="image/*" multiple hidden data-nlkepf><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>Fotó</label></div></div>
+                <details class="nlw-kar nl-esti"${esti ? ' open' : ''}><summary>Esti zárás <em>mi ment jól, mi akadt el, holnapi top 3</em></summary>
                     <label class="pv-mezo"><span>Mi ment jól?</span><textarea data-f="jo" rows="2" maxlength="500">${esc(x.jo || '')}</textarea></label>
                     <label class="pv-mezo"><span>Mi akadt el?</span><textarea data-f="akadt" rows="2" maxlength="500">${esc(x.akadt || '')}</textarea></label>
                     <div class="pv-mezo"><span>Holnapi top 3 <i>másnap a Ma oldalon pipálhatod</i></span>${top.slice(0, 3).map((t, i) => `<input type="text" class="nl-top" data-nltop="${i}" value="${esc(t.t || '')}" placeholder="${i + 1}." maxlength="80">`).join('')}</div>
                 </details>
-                <div class="pz-hiba" data-nlhiba></div>
-            </div>
-            <div class="modal-foot">${e ? '<button class="btn pv-torol" data-nltorol>Törlés</button>' : ''}<button class="pv-ment" data-nlment>Mentés</button></div></div>`;
+                <div class="pz-hiba" data-nlhiba></div>`;
+            lab = `${e ? '<button type="button" class="nlw-ki piros" data-nltorol>Törlés</button>' : ''}<button type="button" class="nlw-ment" data-nlment>Mentés ✓</button>`;
+        }
+        ov.innerHTML = `<div class="nlw" role="dialog" aria-label="Napló-bejegyzés" style="--mc:${szin}"><div class="nlw-bg"></div>
+            <div class="nlw-fej"><button type="button" class="nlw-x" ${lep > 1 && !e ? 'data-nlvissza aria-label="Vissza"' : 'data-nlx aria-label="Bezárás"'}>${lep > 1 && !e ? '‹' : '×'}</button>
+                <div class="nlw-pr">${[1,2,3].map(n => `<button type="button" class="${n <= lep ? 't' : ''}" data-nllep="${n}" aria-label="${n}. lépés"></button>`).join('')}</div>
+                <label class="nlw-dt"><input type="date" data-f="d" value="${esc(x.d)}" max="${ezMa()}" aria-label="Nap"><input type="time" data-f="ido" value="${esc(x.ido || '')}" aria-label="Időpont"></label></div>
+            <div class="nlw-test l${lep}">${tart}</div><div class="nlw-lab">${lab}</div></div>`;
         nlKepTolt(ov);
-        const ujfo = ov.querySelector('.modal-body'); if(ujfo) ujfo.scrollTop = gorg;
-        ov.querySelector('[data-nlkepf]').addEventListener('change', kepFel);
+        const ujfo = ov.querySelector('.nlw-test'); if(ujfo) ujfo.scrollTop = gorg;
+        ov.querySelector('[data-nlkepf]')?.addEventListener('change', kepFel);
     };
     const olvas = () => {
         ov.querySelectorAll('[data-f]').forEach(i => { x[i.dataset.f] = i.value; });
-        const [ao, ap] = String(x.alvS || '').split(':').map(Number); x.alv = (ao || 0) * 60 + (ap || 0); delete x.alvS;
         x.lep = parseInt(x.lep, 10) || 0;
         ov.querySelectorAll('[data-nltop]').forEach(i => { const t = top[+i.dataset.nltop]; if(t.t !== i.value.trim()){ t.t = i.value.trim(); delete t.k; } });
         const det = ov.querySelector('.nl-esti'); if(det) esti = det.open;
@@ -27396,11 +27483,18 @@ async function nlSzerk(id, alap){
         }
     }
     rajz();
-    document.body.appendChild(ov);
+    document.body.appendChild(ov); document.body.classList.add('nlw-nyitva');
+    new MutationObserver((_, m) => { if(!ov.isConnected){ document.body.classList.remove('nlw-nyitva'); m.disconnect(); } }).observe(document.body, { childList: true });
     const megse = () => { ujKep.forEach(k => window.sfNlKep && window.sfNlKep.del(k)); ov.remove(); };
     ov.addEventListener('click', async ev => {
         if(ev.target === ov || ev.target.closest('[data-nlx]')) return megse();
-        const h = ev.target.closest('[data-nlh]'); if(h){ olvas(); x.h = +h.dataset.nlh === x.h ? 0 : +h.dataset.nlh; rajz(); return; }
+        if(ev.target.closest('[data-nlvissza]')){ olvas(); lep = Math.max(1, lep - 1); rajz(); return; }
+        const lp = ev.target.closest('[data-nllep]'); if(lp){ olvas(); lep = +lp.dataset.nllep; rajz(); return; }
+        if(ev.target.closest('[data-nltov]')){ olvas(); lep = Math.min(3, lep + 1); rajz(); return; }
+        const cn = ev.target.closest('[data-nlcsny]'); if(cn){ olvas(); const k = cn.dataset.nlcsny; if(nyitott.has(k)) nyitott.delete(k); else nyitott.add(k); rajz(); return; }
+        const kq = ev.target.closest('[data-nlkerd]'); if(kq){ const ta = ov.querySelector('textarea[data-f="megj"]'); if(ta){ const q = kq.textContent; ta.value = (ta.value.trim() ? ta.value.replace(/\s*$/, '\n\n') : '') + q + '\n'; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } return; }
+        // hangulat: koppintásra kiválaszt és (új bejegyzésnél) továbblép
+        const h = ev.target.closest('[data-nlh]'); if(h){ olvas(); x.h = +h.dataset.nlh; rajz(); if(!e) setTimeout(() => { if(ov.isConnected && lep === 1){ lep = 2; rajz(); } }, 260); return; }
         const t = ev.target.closest('[data-nltev]'); if(t){ olvas(); const i = x.tev.indexOf(t.dataset.nltev); if(i >= 0) x.tev.splice(i, 1); else x.tev.push(t.dataset.nltev); rajz(); return; }
         const tu = ev.target.closest('[data-nltevuj]');
         if(tu){ olvas(); const n = (prompt('Új tevékenység neve:') || '').trim(); if(!n) return;
