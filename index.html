@@ -3443,7 +3443,7 @@
         .mn-cell.other .mn-date { color:#c2cbd8; }
         .mn-cell.today .mn-date { background:var(--blue); color:#fff; width:22px; height:22px; line-height:22px; border-radius:50%; text-align:center; }
         .mev { display:block; font-size:9px; padding:2px 5px; border-radius:5px; margin-bottom:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; }
-        .mn-more { font-size:9px; color:var(--muted); font-weight:600; }
+        .mn-more { display:block; font-size:9px; color:var(--muted); font-weight:600; }
         /* Napló (agenda) nézet */
         .ag-list { padding:6px 0; }
         .ag-day { padding:10px 10px 4px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
@@ -29683,6 +29683,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     let calMertTop = null, calMertRejtve = false;
     function calUjraMer(){
         const grid = document.getElementById("calGrid");
+        if (grid && grid.querySelector(".mn-grid")){ fitMonth(); return; }
         const wk = grid && grid.querySelector(".wk-grid");
         if (!wk || !wk.offsetParent || !currentColumns.length) return;
         const top = Math.round(wk.getBoundingClientRect().top + window.scrollY);
@@ -30805,7 +30806,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             }
             const other = d.getMonth() !== anchorMonth ? " other" : "";
             const today = sameDay(d, now) ? " today" : "";
-            let evs = list.slice(0,3).map(({ev,task,ds,folyt}) => {
+            let evs = list.map(({ev,task,ds,folyt}) => {
                 if (task){
                     const due = taskDue(task), tm = taskTimeLabel(due);
                     return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
@@ -30818,16 +30819,51 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 const hiCls = ev.id && ev.id === pendingHighlightId ? " cal-highlight" : "";
                 return `<span class="mev${hiCls}" data-event-id="${ev.id||""}" data-title="${escM(ev.summary||"")}" style="${calStyle === "apple" ? `background:${appleBg(hex)};color:${appleTx(hex)}` : `background:${hex};color:${contrastTextColor(hex)}`};">${t}${escM(statusTitle(clean, status))}</span>`;
             }).join("");
-            if (list.length > 3) evs += `<span class="mn-more">+${list.length-3} további</span>`;
+            if (list.length) evs += `<span class="mn-more" hidden></span>`;
             cellsHtml += `<div class="mn-cell${other}${today}"><div class="mn-date">${d.getDate()}</div>${evs}</div>`;
         }
         grid.innerHTML = `<div class="mn-head">${HU_DAYS.map(d=>`<div>${d}</div>`).join("")}</div><div class="mn-grid">${cellsHtml}</div>`;
+        fitMonth();
         const hiEl = grid.querySelector(".mev.cal-highlight");
         if (hiEl){
             setTimeout(() => hiEl.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
             pendingHighlightId = null;
         }
     }
+
+    // A hónap rácsa töltse ki a képernyő aljáig tartó helyet (mint a heti nézet),
+    // és cellánként annyi esemény látsszon, amennyi kifér – a többi "+N további".
+    // Ha nincs elég hely (kis képernyő), marad a régi: legfeljebb 3 esemény/nap.
+    function fitMonth(){
+        const g = document.querySelector("#calGrid .mn-grid");
+        if (!g || !g.offsetParent) return;
+        const content = document.querySelector(".content");
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const sorok = Math.ceil(g.children.length / 7) || 6;
+        const avail = window.innerHeight - g.getBoundingClientRect().top - planCardHeight() - padB;
+        const kitolt = avail / sorok >= 96;
+        g.style.gridTemplateRows = kitolt ? `repeat(${sorok}, ${Math.floor(avail / sorok)}px)` : "";
+        g.querySelectorAll(".mn-cell").forEach(c => {
+            const evs = [...c.querySelectorAll(".mev")], more = c.querySelector(".mn-more");
+            if (!more) return;
+            evs.forEach(e => { e.hidden = false; });
+            more.hidden = true;
+            let lat = evs.length;
+            const allit = () => { more.hidden = lat >= evs.length; more.textContent = `+${evs.length - lat} további`; };
+            if (!kitolt){
+                lat = Math.min(3, evs.length);
+                evs.slice(lat).forEach(e => { e.hidden = true; });
+                allit(); return;
+            }
+            const alja = c.getBoundingClientRect().bottom - 4;
+            if (!evs.length || evs[evs.length - 1].getBoundingClientRect().bottom <= alja) return;
+            // A "+N további" sornak is helyet kell hagyni: addig rejtünk, amíg az is befér.
+            do { evs[--lat].hidden = true; more.hidden = false; more.textContent = `+${evs.length - lat} további`; }
+            while (lat > 0 && more.getBoundingClientRect().bottom > alja);
+        });
+    }
+    let fitMonthRaf = 0;
+    window.addEventListener("resize", () => { cancelAnimationFrame(fitMonthRaf); fitMonthRaf = requestAnimationFrame(fitMonth); });
 
     // ===== Listás (agenda) nézet – a nézetváltóból a "Napló" kikerült,
     // ezt a megjelenítést már csak az "Ügyfelek" nézet használja. =====
