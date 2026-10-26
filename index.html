@@ -583,15 +583,23 @@
         }
         .page[hidden] { display:none; }
         /* ===== SZEM: közös alsó sáv, ＋ lap, Én oldal ===== */
-        .szm-also, .szm-lap-h[hidden], .mb-plusz, .pz-fej-uj { display:none; }
+        .szm-also, .szm-fatyol, .szm-lap-h[hidden], .mb-plusz, .pz-fej-uj { display:none; }
         @media (max-width:760px){
             /* lebegő, de mindig a helyén lévő sáv: 4 saját hely + Én, felirattal */
-            .szm-also { display:flex; position:fixed; z-index:45; left:12px; right:12px; bottom:calc(12px + var(--sf-alul)); height:62px; padding:4px;
-                border-radius:22px; background:#fff; border:1px solid rgba(220,224,235,.9); box-shadow:0 10px 28px rgba(40,20,90,.16); gap:2px; box-sizing:border-box;
+            /* a sáv a home-csík fölött, de nem túl magasan */
+            :root { --szm-le:max(8px, calc(var(--sf-alul) - 12px)); }
+            .szm-also { display:flex; position:fixed; z-index:45; left:12px; right:12px; bottom:var(--szm-le); height:62px; padding:4px;
+                border-radius:22px; background:rgba(255,255,255,.74); border:1px solid rgba(255,255,255,.85); box-shadow:0 10px 28px rgba(40,20,90,.16), inset 0 1px 0 rgba(255,255,255,.7);
+                -webkit-backdrop-filter:blur(18px) saturate(1.6); backdrop-filter:blur(18px) saturate(1.6); gap:2px; box-sizing:border-box;
                 --szm-sz:#1f5fd0; --szm-arny:rgba(31,95,208,.35);
                 /* saját rajzolási réteg: iOS-en az elmosott hátterű fix elem különben görgetés közben a tartalommal megy */
                 -webkit-transform:translate3d(0,0,0); transform:translate3d(0,0,0); will-change:transform; -webkit-backface-visibility:hidden; }
-            .szm-also.bill { visibility:hidden; }
+            .szm-also.bill, .szm-fatyol.bill { visibility:hidden; }
+            /* a sáv alatt és mögött a tartalom fokozatosan elmosódik */
+            .szm-fatyol { display:block; position:fixed; z-index:44; left:0; right:0; bottom:0; height:calc(var(--szm-le) + 62px + 34px); pointer-events:none;
+                -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+                -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 60%); mask-image:linear-gradient(to bottom, transparent 0, #000 60%);
+                background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,.35)); }
             .szm-t { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:0; border-radius:19px; background:none;
                 font-family:inherit; font-size:10.5px; font-weight:700; color:#6b7280; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s, color .15s; }
             .szm-t svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
@@ -28804,22 +28812,17 @@ window.sfShowEn = function(){
     const nav = document.createElement('nav'); nav.className = 'szm-also'; nav.id = 'szAlso'; nav.setAttribute('aria-label', 'SZEM');
     const lap = document.createElement('div'); lap.className = 'szm-lap-h'; lap.id = 'szLap'; lap.hidden = true;
     lap.innerHTML = '<div class="szm-lap" role="dialog" aria-modal="true" aria-label="Rögzítés"><span class="sf-tobb-fogo" aria-hidden="true"></span><div class="szm-lap-b"></div></div>';
-    document.body.append(nav, lap);
+    const fatyol = document.createElement('div'); fatyol.className = 'szm-fatyol'; fatyol.setAttribute('aria-hidden', 'true');
+    document.body.append(fatyol, nav, lap);
     szAlsoFrissit();
     new MutationObserver(szAlsoFrissit).observe(document.querySelector('.main') || document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
     (function var1(){ if(ezUid()) szAlsoFrissit(); else setTimeout(var1, 500); })();
     window.addEventListener('sf-ter', () => { szCsere = null; szAlsoFrissit(); if(!document.getElementById('page-en')?.hidden) window.sfShowEn(); });
-    // iOS Safari: a ki-be csúszó eszköztár és a billentyűzet a „layout” nézetet elmozdítja –
-    // a sávot mindig a ténylegesen látható terület aljához igazítjuk, nyitott billentyűzetnél elrejtjük.
+    // nyitott billentyűzetnél a sáv elrejtőzik (különben a billentyűzet fölé ugrana)
     const vv = window.visualViewport;
     if(vv){
-        const igazit = () => {
-            const d = Math.round(vv.offsetTop + vv.height - window.innerHeight);
-            const bill = window.innerHeight - vv.height > 150;
-            nav.classList.toggle('bill', bill);
-            nav.style.transform = !bill && d ? `translate3d(0,${d}px,0)` : '';
-        };
-        vv.addEventListener('resize', igazit); vv.addEventListener('scroll', igazit); window.addEventListener('scroll', igazit, { passive: true });
+        const bill = () => { const b = window.innerHeight - vv.height > 150; nav.classList.toggle('bill', b); fatyol.classList.toggle('bill', b); };
+        vv.addEventListener('resize', bill);
     }
 })();
 
