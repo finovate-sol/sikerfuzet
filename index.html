@@ -699,6 +699,7 @@
                 font-size:11.5px; font-weight:600; font-family:inherit; color:var(--navy); cursor:pointer; white-space:nowrap; }
         .fbtn:hover { border-color:var(--blue); background:var(--blue-light); }
         .fbtn.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+        .fbtn.reg-fho-most:not(.on) { border-color:var(--blue); color:var(--blue); }
         /* Az aktív szűrők sávja a panelen KÍVÜL van, és mindig látszik: egy
            bekapcsva felejtett szűrő különben csak üres listának látszana. */
         .reg-active { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
@@ -19288,6 +19289,7 @@ const REG_FIELDS = [
     {key:'tanacsadas', label:'Tanácsadás', type:'bool'},
     {key:'ajanlasok', label:'Adott ajánlás', type:'text'},
     {key:'tags', label:'Címke', type:'tag'},
+    {key:'tervHo', label:'Tervezett hónap', type:'ho'},
 ];
 const REG_STATUS = [
     ['Folyamatban', ['Új','Telefonra Vár','Elemzés','Tanácsadás','Szerviz']],
@@ -19379,6 +19381,7 @@ function regFilterLabel(f){
     if(!fld) return `${f.field}: ${f.value}`;
     if(fld.type === 'status') return `Státusz: ${f.value}`;
     if(fld.type === 'bool') return (f.value === true || f.value === 'true') ? fld.label : `${fld.label}: nem`;
+    if(fld.type === 'ho') return `${fld.label}: ${f.value === 'nincs' ? 'nincs tervezve' : regTervHoNev(f.value)}`;
     return `${fld.label}: ${f.value}`;
 }
 // Az aktív szűrők sávja: a panelen kívül, mindig látható, egy gombbal üríthető.
@@ -19427,6 +19430,14 @@ function renderRegFilters(){
     const archTotal = registry.filter(r => !r.mt && regIsArchived(r.status)).length;
     const cimkek = regCimkek(false);
     const tagChips = cimkek.map(([t, db]) => `<button class="fbtn${regFilterIdx('tags',t)>=0?' on':''}" data-fq="tags:${esc(t)}">#${esc(t)} <span class="fdb">${db}</span></button>`).join('');
+    // Tervezett hónap: a listában előforduló hónapok időrendben, darabszámmal,
+    // a végén azok, akik még nincsenek hónapra tervezve.
+    const hoDb = new Map(); let nincsDb = 0;
+    registry.forEach(r => { if(r.mt || regIsArchived(r.status)) return; if(regTervHoOk(r.tervHo)) hoDb.set(r.tervHo, (hoDb.get(r.tervHo) || 0) + 1); else nincsDb++; });
+    const maHo = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)(new Date());
+    const hoChips = hoDb.size ? [...hoDb.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([h, db]) => `<button class="fbtn${regFilterIdx('tervHo',h)>=0?' on':''}${h === maHo ? ' reg-fho-most' : ''}" data-fq="tervHo:${h}">${esc(regTervHoNev(h))} <span class="fdb">${db}</span></button>`).join('')
+        + `<button class="fbtn${regFilterIdx('tervHo','nincs')>=0?' on':''}" data-fq="tervHo:nincs">Nincs tervezve <span class="fdb">${nincsDb}</span></button>` : '';
     const textFields = REG_FIELDS.filter(f => f.type === 'text');
     if(!textFields.some(f => f.key === regLive.field)) regLive.field = textFields[0].key;
     const textOpts = textFields
@@ -19434,6 +19445,7 @@ function renderRegFilters(){
     // Két sor: fent a státuszok, alatta egymás mellett a jelölők, a mezőszűrő és az archivált-kapcsoló.
     bar.innerHTML = `
         <div class="reg-fsec"><span class="lbl">Státusz</span><div class="chips">${statusChips}</div></div>
+        ${hoChips ? `<div class="reg-fsep"></div><div class="reg-fsec"><span class="lbl">Tervezett hónap</span><div class="chips">${hoChips}</div></div>` : ''}
         ${tagChips ? `<div class="reg-fsep"></div><div class="reg-fsec"><span class="lbl">Címke</span><div class="chips">${tagChips}</div></div>` : ''}
         <div class="reg-fsep"></div>
         <div class="reg-fsor2">
@@ -19521,6 +19533,7 @@ function rowMatchesFilters(r){
             if(fld.type === 'bool') return (!!r[field]) === (f.value === true || f.value === 'true');
             if(fld.type === 'status') return (r.status||'') === f.value;
             if(fld.type === 'tag') return (r.tags||[]).some(t => t.toLowerCase() === String(f.value||'').toLowerCase());
+            if(fld.type === 'ho') return f.value === 'nincs' ? !regTervHoOk(r.tervHo) : r.tervHo === f.value;
             return String(r[field]||'').toLowerCase().includes(String(f.value||'').toLowerCase());
         });
         if(!ok) return false;
@@ -19726,6 +19739,12 @@ const RD_GYEREK_OPTS = ['Nincs gyermeke','1 gyermek','2 gyermek','3 gyermek','4 
 // hónap tervezett ügyfelei jelennek meg. A választó a 3 hónappal korábbitól 12 hónappal későbbiig kínál.
 // A sorban: kis jelvény a tervezett hónappal (a mostani hónap kék, kitöltött; a többi körvonalas, a lejárt piros).
 const REG_HO_ROV = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+function regTervHoOk(v){ return !!v && /^\d{4}-\d{2}$/.test(v); }
+function regTervHoNev(v){
+    if(!regTervHoOk(v)) return v || '';
+    const ev = v.slice(0, 4), nev = HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase();
+    return ev === String(new Date().getFullYear()) ? nev.charAt(0).toUpperCase() + nev.slice(1) : `${ev}. ${nev}`;
+}
 function regTervBadge(r){
     const v = r && r.tervHo; if(!v || !/^\d{4}-\d{2}$/.test(v)) return '';
     const ma = new Date(), most = `${ma.getFullYear()}-${String(ma.getMonth() + 1).padStart(2, '0')}`;
