@@ -586,9 +586,9 @@
         .szm-also, .szm-lap-h[hidden], .mb-plusz, .pz-fej-uj { display:none; }
         @media (max-width:760px){
             /* lebegő, de mindig a helyén lévő sáv: 4 saját hely + Én, felirattal */
-            .szm-also { display:flex; position:fixed; z-index:45; left:12px; right:12px; bottom:calc(12px + var(--sf-alul)); height:62px; padding:5px;
-                border-radius:24px; background:rgba(255,255,255,.88); border:1px solid rgba(213,220,230,.9); box-shadow:0 12px 28px rgba(60,30,120,.18);
-                -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); gap:2px; box-sizing:border-box;
+            .szm-also { display:flex; position:fixed; z-index:45; left:12px; right:12px; bottom:calc(12px + var(--sf-alul)); height:62px; padding:4px;
+                border-radius:22px; background:#fff; border:1px solid rgba(220,224,235,.9); box-shadow:0 10px 28px rgba(40,20,90,.16); gap:2px; box-sizing:border-box;
+                --szm-sz:#1f5fd0; --szm-arny:rgba(31,95,208,.35);
                 /* saját rajzolási réteg: iOS-en az elmosott hátterű fix elem különben görgetés közben a tartalommal megy */
                 -webkit-transform:translate3d(0,0,0); transform:translate3d(0,0,0); will-change:transform; -webkit-backface-visibility:hidden; }
             .szm-also.bill { visibility:hidden; }
@@ -596,10 +596,16 @@
                 font-family:inherit; font-size:10.5px; font-weight:700; color:#6b7280; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s, color .15s; }
             .szm-t svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
             .szm-t span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-            .szm-t.on { background:#e8effc; color:#1f5fd0; }
-            body.sf-privat .szm-t.on { background:#ede9fe; color:#6d28d9; }
+            body.sf-privat .szm-also { --szm-sz:#7c3aed; --szm-arny:rgba(124,58,237,.38); }
+            .szm-t.on { color:var(--szm-sz); }
+            /* a középső hely: kis színes kör, ami csak kicsit emelkedik ki a sávból */
+            .szm-t.kozep { position:relative; justify-content:flex-end; padding-bottom:7px; color:var(--szm-sz); }
+            .szm-t.kozep i { position:absolute; top:-12px; left:50%; width:44px; height:44px; margin-left:-22px; border-radius:50%; background:var(--szm-sz); color:#fff;
+                display:grid; place-items:center; border:3px solid #fff; box-shadow:0 6px 14px var(--szm-arny); box-sizing:border-box; }
+            .szm-t.kozep i svg { width:21px; height:21px; }
+            .szm-t.kozep:not(.on) { color:#6b7280; }
             .szm-t:active { transform:scale(.95); }
-            .szm-also.szerk .szm-t:not([data-szmenj="en"]) { animation:szmRemeg .28s ease-in-out infinite alternate; }
+            .szm-also.szerk .szm-t:not([data-szmenj="en"]):not(.kozep) { animation:szmRemeg .28s ease-in-out infinite alternate; }
             .szm-t.csere { outline:2px solid #7c3aed; outline-offset:-2px; animation:none !important; }
             @keyframes szmRemeg { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
             /* telefonon nincs hamburgermenü – minden a sávról (Én / Menü) érhető el */
@@ -28613,7 +28619,10 @@ window.sfShowPrivMa = function(){ renderPrivMa(); };
 // A sávon 4 saját hely + az „Én” (mindig az utolsó). A választás a privát beállításokban él
 // (privat/{uid}_beall → sav: [lap, …]); a szerkesztés az Én oldalon történik.
 // Mindkét részre (SZEM és Sikerfüzet) ugyanaz a sáv, külön beállítással (sav / savOvb).
-const SZ_SAV_ALAP = { priv: ['privma', 'penzugyek', 'szokasok', 'enaplo'], ovb: ['home', 'feladatok', 'havi', 'ugyfelek'] };
+// A középső hely fix és kiemelt (SZEM: Ma, Sikerfüzet: a kezdőlap); mellette 3 saját hely + Én / Menü.
+const SZ_SAV_ALAP = { priv: ['penzugyek', 'szokasok', 'enaplo'], ovb: ['feladatok', 'havi', 'ugyfelek'] };
+const SZ_KOZEP = { priv: 'privma', ovb: 'home' };
+const SZ_HELY = 3;
 let szSav = {}, szSavKert = false, szSavSzerk = false, szCsere = null;
 const szTer = () => window.sfTer === 'priv' ? 'priv' : 'ovb';
 const szSavKulcs = () => szTer() === 'priv' ? 'sav' : 'savOvb';
@@ -28630,7 +28639,8 @@ const SZ_ROVID = { penzugyek: 'Pénz', enaplo: 'Napló', szokasok: 'Szokások', 
     struktura: 'Struktúra', jegyzetek: 'Jegyzetek', sablonok: 'Sablonok', prezik: 'Prezik', idd: 'IDD', gst: 'GST', tudastar: 'Tudástár', kiertekelo: 'Kiértékelő' };
 function szSavLista(){
     const van = new Set(szLapok().map(x => x.lap));
-    return (szSav[szTer()] || SZ_SAV_ALAP[szTer()]).filter(l => van.has(l)).slice(0, 4);
+    const k = SZ_KOZEP[szTer()];
+    return (szSav[szTer()] || SZ_SAV_ALAP[szTer()]).filter(l => van.has(l) && l !== k).slice(0, SZ_HELY);
 }
 function szSavTolt(){
     if(szSavKert || !ezUid()) return;
@@ -28639,7 +28649,7 @@ function szSavTolt(){
 }
 function szSavMent(l){
     const t = szTer(), k = szSavKulcs();
-    szSav[t] = l.slice(0, 4); szAlsoFrissit();
+    szSav[t] = l.filter(x => x !== SZ_KOZEP[t]).slice(0, SZ_HELY); szAlsoFrissit();
     prvBetolt('beall').then(b => { b[k] = szSav[t]; prvMent('beall'); }).catch(() => {});
 }
 function szMenj(lap){
@@ -28651,12 +28661,14 @@ function szAktLap(){ const p = document.querySelector('.page:not([hidden])'); re
 function szAlsoFrissit(){
     const nav = document.getElementById('szAlso'); if(!nav) return;
     szSavTolt();
-    const akt = szAktLap(), lapok = szLapok(), sav = szSavLista();
-    const fo = sav.includes(akt) ? akt : 'en';
+    const akt = szAktLap(), lapok = szLapok(), sav = szSavLista(), kozep = SZ_KOZEP[szTer()];
+    const fo = sav.includes(akt) || akt === kozep ? akt : 'en';
     const enSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
     nav.classList.toggle('szerk', szSavSzerk);
-    nav.innerHTML = sav.map(l => { const x = lapok.find(y => y.lap === l);
-            return `<button type="button" class="szm-t${l === fo ? ' on' : ''}${szCsere === l ? ' csere' : ''}" data-szmenj="${l}"${l === fo ? ' aria-current="page"' : ''}>${x.svg}<span>${esc(SZ_ROVID[l] || x.n)}</span></button>`; }).join('')
+    const gomb = l => { const x = lapok.find(y => y.lap === l); if(!x) return '';
+        return `<button type="button" class="szm-t${l === kozep ? ' kozep' : ''}${l === fo ? ' on' : ''}${szCsere === l ? ' csere' : ''}" data-szmenj="${l}"${l === fo ? ' aria-current="page"' : ''}>${l === kozep ? `<i>${x.svg}</i>` : x.svg}<span>${esc(SZ_ROVID[l] || x.n)}</span></button>`; };
+    // sorrend: 2 saját · középső (kiemelt) · 1 saját · Én / Menü
+    nav.innerHTML = sav.slice(0, 2).map(gomb).join('') + gomb(kozep) + sav.slice(2).map(gomb).join('')
         + `<button type="button" class="szm-t${fo === 'en' ? ' on' : ''}" data-szmenj="en"${fo === 'en' ? ' aria-current="page"' : ''}>${szTer() === 'priv' ? enSvg : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'}<span>${szTer() === 'priv' ? 'Én' : 'Menü'}</span></button>`;
     // felső ＋: a Ma oldalon a gyors rögzítés, máshol az oldal saját „új” gombja (ha van)
     const pl = document.getElementById('mbPlusz');
@@ -28716,7 +28728,7 @@ document.addEventListener('click', async e => {
     const m = e.target.closest('[data-szmenj]');
     if(m){
         // szerkesztés közben a sávon két ikonra koppintva helyet cserélnek
-        if(szSavSzerk && m.closest('#szAlso') && m.dataset.szmenj !== 'en'){
+        if(szSavSzerk && m.closest('#szAlso') && m.dataset.szmenj !== 'en' && m.dataset.szmenj !== SZ_KOZEP[szTer()]){
             const l = m.dataset.szmenj;
             if(!szCsere || szCsere === l){ szCsere = szCsere === l ? null : l; szAlsoFrissit(); return; }
             const sav = szSavLista(), i = sav.indexOf(szCsere), j = sav.indexOf(l);
@@ -28724,8 +28736,9 @@ document.addEventListener('click', async e => {
         }
         if(szSavSzerk && m.closest('#enBody')){
             const l = m.dataset.szmenj, sav = szSavLista();
+            if(l === SZ_KOZEP[szTer()]) return;
             if(sav.includes(l)) szSavMent(sav.filter(x => x !== l));
-            else if(sav.length < 4) szSavMent([...sav, l]);
+            else if(sav.length < SZ_HELY) szSavMent([...sav, l]);
             window.sfShowEn(); return;
         }
         szMenj(m.dataset.szmenj); return;
@@ -28780,9 +28793,10 @@ window.sfShowEn = function(){
             const l = [...document.querySelectorAll('#viewAsLista [data-viewas]')]; if(priv || !l.length || document.getElementById('viewAsBtn')?.hidden) return '';
             return `<div class="en-va"><span>Kinek a nézete</span><div>${l.map(b => `<button type="button" data-szva="${esc(b.dataset.viewas)}" class="${b.classList.contains('on') ? 'on' : ''}">${esc((b.querySelector('span') || b).textContent.trim())}</button>`).join('')}</div></div>`; })()}
         <div class="en-fej"><h2>${cim}</h2><button type="button" class="en-szerk${szSavSzerk ? ' on' : ''}" data-szszerk>${szSavSzerk ? 'Kész' : 'Sáv szerkesztése'}</button></div>
-        ${szSavSzerk ? `<p class="en-tipp"><b>Sáv szerkesztése · ${sav.length} / 4 hely.</b> Koppints egy csempére a fel- vagy levételhez. A sorrendhez a lenti sávon koppints két ikonra – helyet cserélnek.</p>` : ''}
+        ${szSavSzerk ? `<p class="en-tipp"><b>Sáv szerkesztése · ${sav.length} / ${SZ_HELY} hely.</b> Koppints egy csempére a fel- vagy levételhez (a ${priv ? 'Ma' : 'Sikerfüzet'} mindig középen van). A sorrendhez a lenti sávon koppints két ikonra – helyet cserélnek.</p>` : ''}
         <div class="en-racs${szSavSzerk ? ' szerk' : ''}">${szLapok().map(x => { const bent = sav.includes(x.lap);
-            return `<button type="button" class="card en-cs${szSavSzerk && bent ? ' bent' : ''}" data-szmenj="${x.lap}"><i>${x.svg}</i>${szSavSzerk ? `<em class="en-jel">${bent ? '✓' : '○'}</em>` : ''}<b>${esc(x.n)}</b><span>${szSavSzerk ? (bent ? 'a sávon' : sav.length < 4 ? 'feltesz' : 'tele a sáv') : esc(EN_LEIRAS[x.lap] || '')}</span></button>`; }).join('')}</div>
+            const kozep = x.lap === SZ_KOZEP[szTer()];
+            return `<button type="button" class="card en-cs${szSavSzerk && (bent || kozep) ? ' bent' : ''}" data-szmenj="${x.lap}"><i>${x.svg}</i>${szSavSzerk ? `<em class="en-jel">${kozep ? '★' : bent ? '✓' : '○'}</em>` : ''}<b>${esc(x.n)}</b><span>${szSavSzerk ? (kozep ? 'mindig középen' : bent ? 'a sávon' : sav.length < SZ_HELY ? 'feltesz' : 'tele a sáv') : esc(EN_LEIRAS[x.lap] || '')}</span></button>`; }).join('')}</div>
         ${priv ? '' : `<div class="en-kulso">${[...document.querySelectorAll('.sidebar-extlinks a')].map(a => `<a class="card" href="${esc(a.href)}" target="_blank" rel="noopener">${(a.querySelector('svg') || {}).outerHTML || ''}<b>${esc((a.querySelector('.nav-label') || a).textContent.trim())}</b><span>↗</span></a>`).join('')}</div>`}`;
 };
 // a sáv a lapváltáskor és a privát módba lépéskor frissül
