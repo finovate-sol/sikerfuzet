@@ -2432,12 +2432,15 @@
         .ej-fej .cal-h2 { margin:0; }
         .ej-fej .ej-gomb { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
         .ej-test { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
-        .ej-keret { padding:0 !important; overflow:hidden; display:flex; flex-direction:column; min-height:70vh; }
-        .ej-keret iframe { flex:1; width:100%; min-height:70vh; border:0; background:#fff; }
-        .ej-keret .ej-alja { padding:8px 12px; font-size:12px; color:var(--muted); border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-        .ej-keret .ej-alja button { background:none; border:none; color:var(--blue); font:inherit; font-weight:600; cursor:pointer; padding:0; }
-        .ej-ujlap { padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px; }
-        .ej-ujlap p { margin:0; color:var(--muted); font-size:13.5px; max-width:420px; }
+        .ej-keret { padding:0 !important; }
+        .ej-ujlap { padding:44px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
+        .ej-ujlap svg { color:var(--blue); }
+        .ej-ujlap b { font-size:17px; color:var(--navy); }
+        .ej-ujlap p { margin:0; color:var(--muted); font-size:13.5px; max-width:460px; line-height:1.5; }
+        .ej-ujlap-gomb { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+        #page-ej .btn.primary, .ej-kartya .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+        #page-ej .btn.primary:hover, .ej-kartya .btn.primary:hover { background:#1a52b8; }
+        .ej-lepes { text-align:left; margin:8px 0 0; padding-left:20px; color:var(--text); font-size:13px; line-height:1.7; }
         .ej-oldal { position:sticky; top:12px; padding:16px !important; }
         .ej-het { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
         .ej-het b { font-size:15px; color:var(--navy); }
@@ -9316,7 +9319,6 @@
               <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V14M10 20V9M16 20V4M2 20h20"/></svg></span>Erfolgsjournal</h2>
               <span class="cal-date" id="ejHonap"></span>
               <div class="ej-gomb">
-                <button type="button" class="btn" id="ejFrissit" title="Az Erfolgsjournal újratöltése">↻</button>
                 <a class="btn" id="ejUjLap" href="https://erfolgsjournal.app/" target="_blank" rel="noopener">Megnyitás új lapon ↗</a>
               </div>
             </section>
@@ -19059,12 +19061,12 @@ async function renderKov(){
 
 // ===== ERFOLGSJOURNAL =====
 // A kötelező Erfolgsjournal ugyanazt a havi tervet kéri (havi képlet, heti
-// Cél/Van, Szerviz). Beágyazva nyitjuk meg, mellette a Sikerfüzetben már meglévő
-// heti számokkal, hogy csak át kelljen írni. Ha a beágyazás nem megy (pl. iPhone-on
-// nem marad meg a belépés), egy kattintással "mindig új lapon" módra lehet váltani.
+// Cél/Van, Szerviz). Beágyazni nem engedi (üres keret), ezért külön ablakban
+// nyitjuk meg, a Sikerfüzetben pedig ott vannak mellette a heti számok,
+// kattintásra másolhatóan – így csak át kell írni őket.
 const EJ_URL = 'https://erfolgsjournal.app';
 const EJ_SOR = [[0,'Kontaktus'],[1,'EL időpont'],[2,'Elemzés'],[3,'TA időpont'],[4,'Tanácsadás'],[5,'Lezárt ÜF'],[6,'ES'],[7,'Ajánlások']];
-let ejHo = null, ejHet = 0, ejBetoltve = '';
+let ejHo = null, ejHet = 0;
 function ejHoUrl(d){ return `${EJ_URL}/month/${d.getFullYear()}/${d.getMonth()+1}`; }
 function ejMutat(honap, het){
     ejHo = new Date(honap.getFullYear(), honap.getMonth(), 1); ejHet = het || 0;
@@ -19075,18 +19077,28 @@ function ejKeretRajz(){
     const host = document.getElementById('ejKeret'); if(!host) return;
     const url = ejHoUrl(ejHo);
     document.getElementById('ejUjLap').href = url;
-    if(store.load('sf_ej_ujlap', false)){
-        ejBetoltve = '';
-        host.innerHTML = `<div class="ej-ujlap"><b>Az Erfolgsjournal új lapon nyílik</b>
-            <p>Írd be a jobb oldali számokat, aztán gyere vissza. A számra kattintva a vágólapra kerül.</p>
-            <a class="btn primary" href="${url}" target="_blank" rel="noopener">Erfolgsjournal megnyitása ↗</a>
-            <button type="button" class="btn" data-ejmod="be">Próbáljuk beágyazva</button></div>`;
-        return;
-    }
-    if(ejBetoltve === url && host.querySelector('iframe')) return;
-    ejBetoltve = url;
-    host.innerHTML = `<iframe src="${url}" title="Erfolgsjournal" allow="clipboard-read; clipboard-write"></iframe>
-        <div class="ej-alja"><span>Üres a keret, vagy nem marad meg a belépés?</span><button type="button" data-ejmod="ki">Mindig új lapon nyissa</button></div>`;
+    if(host.dataset.url === url) return;
+    host.dataset.url = url;
+    host.innerHTML = `<div class="ej-ujlap">
+        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V14M10 20V9M16 20V4M2 20h20"/></svg>
+        <b>Az Erfolgsjournal külön ablakban nyílik</b>
+        <p>Az oldal nem engedi, hogy más oldalba ágyazzák, ezért ablakban nyitjuk meg a Sikerfüzet mellett. A jobb oldali számokra kattintva vágólapra kerülnek, onnan csak be kell illeszteni.</p>
+        <div class="ej-ujlap-gomb">
+            <button type="button" class="btn primary" data-ejablak>Megnyitás ablakban, mellette</button>
+            <a class="btn" href="${url}" target="_blank" rel="noopener">Megnyitás új lapon ↗</a>
+        </div>
+        <ol class="ej-lepes"><li>Nyisd meg az Erfolgsjournalt, és lépj be.</li><li>Válaszd ki a hetet itt és ott is (a KW-szám mindkettőben ugyanaz).</li><li>Kattints a számra, majd illeszd be a mezőbe.</li></ol>
+    </div>`;
+}
+// Asztali gépen a képernyő bal kétharmadára nyitjuk, hogy a Sikerfüzet mellette
+// látszódjon; ugyanazt az ablakot használjuk újra. Telefonon ez sima új lap.
+function ejAblak(){
+    const url = ejHoUrl(ejHo);
+    const sw = screen.availWidth || 1440, sh = screen.availHeight || 900;
+    const w = Math.max(900, Math.round(sw * 0.62));
+    const ab = window.open(url, 'erfolgsjournal', window.innerWidth > 900 ? `popup=yes,width=${w},height=${sh},left=0,top=0` : '');
+    if(ab) try { ab.focus(); } catch(_){}
+    else window.open(url, '_blank', 'noopener');
 }
 function ejOldalRajz(){
     const host = document.getElementById('ejOldal'); if(!host) return;
@@ -19141,9 +19153,7 @@ document.getElementById('page-ej').addEventListener('click', e => {
         else if(ejHet >= n){ ejHo = new Date(ejHo.getFullYear(), ejHo.getMonth()+1, 1); ejHet = 0; }
         renderEJ(); return;
     }
-    const mod = e.target.closest('[data-ejmod]');
-    if(mod){ store.save('sf_ej_ujlap', mod.dataset.ejmod === 'ki'); ejBetoltve = ''; ejKeretRajz(); return; }
-    if(e.target.closest('#ejFrissit')){ ejBetoltve = ''; ejKeretRajz(); return; }
+    if(e.target.closest('[data-ejablak]')){ ejAblak(); return; }
     const m1 = e.target.closest('[data-ejmasol]');
     if(m1){ ejMasol(m1.dataset.ejmasol, m1); return; }
     if(e.target.closest('[data-ejmind]')){
