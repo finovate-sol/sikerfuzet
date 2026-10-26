@@ -8213,7 +8213,12 @@
             display:flex; flex-direction:column; box-shadow:0 30px 80px rgba(20,10,50,.35); color:#1d1b26; }
         .nlw-bg { position:absolute; inset:0 0 auto; height:340px; pointer-events:none; transition:background .3s;
             background:linear-gradient(180deg, var(--mc) 0%, color-mix(in srgb, var(--mc) 35%, #fff) 62%, #fff 100%); }
-        .nlw-fej { position:relative; display:flex; align-items:center; gap:10px; padding:calc(14px + var(--sf-felul, 0px)) 16px 8px; }
+        .nlw-fej { position:relative; display:flex; align-items:center; gap:10px; padding:calc(16px + var(--sf-felul, 0px)) 20px 8px; }
+        .nlw-dtk { display:flex; justify-content:center; margin:8px 0 0; }
+        .nlw-kor { flex:none; width:48px; height:48px; border:0; border-radius:50%; background:#f4f2fa; color:#1d1b26; font:inherit; font-size:26px; line-height:1; cursor:pointer; display:grid; place-items:center; }
+        .nlw-hely { flex:1; }
+        .nlw-ment.halk { background:#f4f2fa; color:#4b4660; box-shadow:none; }
+        .nlw-torol { display:block; margin:18px auto 4px; border:0; background:none; color:#e11d48; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
         .nlw-x { flex:none; width:36px; height:36px; border:0; border-radius:50%; background:rgba(255,255,255,.3); color:#fff; font:inherit; font-size:24px; line-height:1; cursor:pointer; display:grid; place-items:center; }
         .nlw-pr { flex:1; display:flex; gap:5px; }
         .nlw-pr button { flex:1; height:5px; border:0; padding:0; border-radius:3px; background:rgba(255,255,255,.35); cursor:pointer; }
@@ -8265,7 +8270,7 @@
         .nlw-test.l1 + .nlw-lab, .nlw-test.l2 + .nlw-lab { background:transparent; border-top:0; }
         .nlw-ki { border:0; background:none; font:inherit; font-size:14.5px; font-weight:700; color:#6f6a80; padding:12px 6px; cursor:pointer; }
         .nlw-ki.piros { color:#e11d48; }
-        .nlw-ment { flex:1; max-width:260px; margin-left:auto; border:0; border-radius:18px; padding:15px; background:#1d1b26; color:#fff; font:inherit; font-size:15.5px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(0,0,0,.18); }
+        .nlw-ment { flex:1; max-width:240px; border:0; border-radius:18px; padding:15px; background:#1d1b26; color:#fff; font:inherit; font-size:15.5px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(0,0,0,.18); }
         .nlw-test.l1 ~ .nlw-lab .nlw-ki { color:#4b4660; }
         @media (max-width:760px){
             .nlw-ov { padding:0; align-items:stretch; }
@@ -27420,9 +27425,11 @@ async function nlSzerk(id, alap){
         let tart = '', lab = '';
         if(lep === 1){
             tart = `<h3>${e ? 'Milyen napod volt?' : 'Hogy vagy?'}</h3>
+                <div class="nlw-dtk"><label class="nlw-dt"><input type="date" data-f="d" value="${esc(x.d)}" max="${ezMa()}" aria-label="Nap"><input type="time" data-f="ido" value="${esc(x.ido || '')}" aria-label="Időpont"></label></div>
                 <div class="nlw-nagy">${nlArc(x.h || 0, 'nlw-arc')}<b${x.h ? '' : ' class="ures"'}>${x.h ? esc(NL_HANG_SZO[x.h]) : 'Válassz hangulatot'}</b></div>
                 <div class="nlw-hang">${[1,2,3,4,5].map(n => `<button type="button" class="${x.h === n ? 'on' : ''}" data-nlh="${n}" aria-label="${esc(NL_HANG_SZO[n])}">${nlArc(n)}<span>${esc(NL_HANG_SZO[n])}</span></button>`).join('')}</div>`;
-            lab = `<button type="button" class="nlw-ki" data-nltov>${x.h ? 'Tovább' : 'Kihagyom'} →</button>${e ? '<button type="button" class="nlw-ment" data-nlment>Mentés</button>' : ''}`;
+            lab = e ? '<button type="button" class="nlw-ki" data-nltov>Tovább →</button><button type="button" class="nlw-ment" data-nlment>Mentés</button>'
+                : `<button type="button" class="nlw-ment${x.h ? '' : ' halk'}" data-nltov>${x.h ? 'Tovább' : 'Kihagyom'} →</button>`;
         } else if(lep === 2){
             const gy = gyakori.map(id => B.tev.find(t => t.id === id)).filter(Boolean);
             const elso = !gy.length && !nyitott.size ? (csopok()[0] || {}).id : null;
@@ -27432,7 +27439,7 @@ async function nlSzerk(id, alap){
                     const db = l.filter(t => x.tev.includes(t.id)).length, ny = nyitott.has(c.id) || c.id === elso;
                     return `<div class="nlw-csop${ny ? ' ny' : ''}"><button type="button" class="nlw-csf" data-nlcsny="${esc(c.id)}">${esc(c.n)}<span>${db ? db + ' kiválasztva · ' : ''}${l.length} ${ny ? '▴' : '▾'}</span></button>
                         ${ny ? `<div class="nlw-felho">${l.map(chip).join('')}<button type="button" class="nlw-ch uj" data-nltevuj="${esc(c.id)}">＋ Új</button></div>` : ''}</div>`; }).join('')}</div>`;
-            lab = `${x.tev.length ? '<span></span>' : '<button type="button" class="nlw-ki" data-nltov>Kihagyom</button>'}<button type="button" class="nlw-ment" data-nltov>Tovább${x.tev.length ? ` (${x.tev.length})` : ''}</button>`;
+            lab = `${x.tev.length ? '' : '<button type="button" class="nlw-ki" data-nltov>Kihagyom</button>'}<button type="button" class="nlw-ment" data-nltov>Tovább${x.tev.length ? ` (${x.tev.length})` : ''}</button>`;
         } else {
             const tv = x.tev.map(id => B.tev.find(t => t.id === id)).filter(Boolean);
             tart = `<div class="nlw-ossz" data-nllep="1">${nlArc(x.h || 0)}<div><b>${x.h ? esc(NL_HANG_SZO[x.h]) + ' nap' : 'Nincs hangulat'}</b><small>${tv.length ? tv.length + ' tevékenység' : 'nincs tevékenység'} · módosítás ›</small></div></div>
@@ -27448,14 +27455,12 @@ async function nlSzerk(id, alap){
                     <label class="pv-mezo"><span>Mi akadt el?</span><textarea data-f="akadt" rows="2" maxlength="500">${esc(x.akadt || '')}</textarea></label>
                     <div class="pv-mezo"><span>Holnapi top 3 <i>másnap a Ma oldalon pipálhatod</i></span>${top.slice(0, 3).map((t, i) => `<input type="text" class="nl-top" data-nltop="${i}" value="${esc(t.t || '')}" placeholder="${i + 1}." maxlength="80">`).join('')}</div>
                 </details>
-                <div class="pz-hiba" data-nlhiba></div>`;
-            lab = `${e ? '<button type="button" class="nlw-ki piros" data-nltorol>Törlés</button>' : ''}<button type="button" class="nlw-ment" data-nlment>Mentés ✓</button>`;
+                <div class="pz-hiba" data-nlhiba></div>${e ? '<button type="button" class="nlw-torol" data-nltorol>Bejegyzés törlése</button>' : ''}`;
+            lab = `<button type="button" class="nlw-ment" data-nlment>Mentés ✓</button>`;
         }
         ov.innerHTML = `<div class="nlw" role="dialog" aria-label="Napló-bejegyzés" style="--mc:${szin}"><div class="nlw-bg"></div>
-            <div class="nlw-fej"><button type="button" class="nlw-x" ${lep > 1 && !e ? 'data-nlvissza aria-label="Vissza"' : 'data-nlx aria-label="Bezárás"'}>${lep > 1 && !e ? '‹' : '×'}</button>
-                <div class="nlw-pr">${[1,2,3].map(n => `<button type="button" class="${n <= lep ? 't' : ''}" data-nllep="${n}" aria-label="${n}. lépés"></button>`).join('')}</div>
-                <label class="nlw-dt"><input type="date" data-f="d" value="${esc(x.d)}" max="${ezMa()}" aria-label="Nap"><input type="time" data-f="ido" value="${esc(x.ido || '')}" aria-label="Időpont"></label></div>
-            <div class="nlw-test l${lep}">${tart}</div><div class="nlw-lab">${lab}</div></div>`;
+            <div class="nlw-fej"><div class="nlw-pr">${[1,2,3].map(n => `<button type="button" class="${n <= lep ? 't' : ''}" data-nllep="${n}" aria-label="${n}. lépés"></button>`).join('')}</div></div>
+            <div class="nlw-test l${lep}">${tart}</div><div class="nlw-lab"><button type="button" class="nlw-kor" data-nlx aria-label="Bezárás">×</button>${lep > 1 ? '<button type="button" class="nlw-kor" data-nlvissza aria-label="Vissza">‹</button>' : ''}<span class="nlw-hely"></span>${lab}</div></div>`;
         nlKepTolt(ov);
         const ujfo = ov.querySelector('.nlw-test'); if(ujfo) ujfo.scrollTop = gorg;
         ov.querySelector('[data-nlkepf]')?.addEventListener('change', kepFel);
