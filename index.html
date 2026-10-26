@@ -582,6 +582,24 @@
             }
         }
         .page[hidden] { display:none; }
+        /* Szögletes elrendezés: nincs lekerekítés, árnyék és perem – a dobozok a
+           képernyő széléig érnek és egymáshoz simulnak (a naptár a sarokból indul). */
+        html.sf-szog { --radius:0px; }
+        html.sf-szog .card, html.sf-szog .rail, html.sf-szog .col-side { border-radius:0 !important; box-shadow:none !important; }
+        html.sf-szog .content { --cpad-y:0px; --cpad-x:0px; gap:0; }
+        html.sf-szog .col-main { gap:0; }
+        html.sf-szog .col-main > .card + .card { margin-top:-1px; }
+        html.sf-szog .content > .col-main > .card { border-left:0; }
+        html.sf-szog .col-side { gap:0; padding:0 !important; }
+        html.sf-szog .side-panel, html.sf-szog .side-view { gap:0; }
+        html.sf-szog .side-view > .card + .card { margin-top:-1px; }
+        .bl-doboz i { background:#eef2f7; overflow:hidden; }
+        .bl-doboz i b { position:absolute; width:16px; height:16px; background:#1f5fd0; border-radius:4px; opacity:.85; }
+        .bl-doboz i b:first-child { left:6px; top:6px; }
+        .bl-doboz i b:last-child { right:6px; bottom:6px; }
+        .bl-doboz .bl-doboz-szog, .bl-doboz .bl-doboz-szog b { border-radius:0; }
+        .bl-doboz .bl-doboz-szog b:first-child { left:0; top:0; width:28px; height:44px; }
+        .bl-doboz .bl-doboz-szog b:last-child { right:0; bottom:0; width:16px; height:44px; opacity:.45; }
         .page-wrap { padding:26px 28px; }
 
         /* ===== ÜGYFÉL NYILVÁNTARTÓ ===== */
@@ -8881,6 +8899,10 @@
             .bl-k { padding:16px; }
         }
     </style>
+<script>
+// Szögletes elrendezés (Beállítások → Megjelenés): már a festés előtt, hogy ne ugráljon.
+try { if(localStorage.getItem('sf_szogletes') === 'true') document.documentElement.classList.add('sf-szog'); } catch(e){}
+</script>
 </head>
 <body>
 <div id="sfSplash" aria-hidden="true"><img id="sfSplashIk" src="icons/tukor-szem/icon-192.png" alt="" width="96" height="96"><b>SZEM</b><small>Személyes Élet-Menedzsment</small><i></i></div>
@@ -13169,7 +13191,11 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         if(k === 'megj'){
             host.innerHTML = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>
                 <section class="card bl-k"><h3>Téma – SZEM (privát)</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
-                <p class="bl-megj" style="margin:12px 0 0">Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>`;
+                <p class="bl-megj" style="margin:12px 0 0">Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>
+                <section class="card bl-k"><h3>Dobozok</h3><p class="bl-megj">Lekerekített, egymástól elválasztott kártyák – vagy szögletesen, perem nélkül, hogy a tartalom (pl. a naptár) a képernyő sarkától induljon. Ezen az eszközön érvényes.</p>
+                <div class="zb-temak bl-temak bl-doboz">${[['kerek', 'Lekerekített'], ['szog', 'Szögletes']].map(([k, n]) => {
+                    const on = (k === 'szog') === document.documentElement.classList.contains('sf-szog');
+                    return `<button type="button" data-bldoboz="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i class="bl-doboz-${k}"><b></b><b></b></i><span>${n}</span></button>`; }).join('')}</div></section>`;
         } else if(k === 'kapcs'){
             const nk = window.sfNaptarKapcs, van = nk && nk.van();
             host.innerHTML = `<section class="card bl-k"><h3>Google Naptár és Feladatok</h3><p class="bl-megj">A naptár, a Google Tasks és a naptárlista egy összekötéssel. Egyszer kell összekötni – utána minden eszközön magától csatlakozik.</p>
@@ -13215,6 +13241,14 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         if(!e.target.closest || !e.target.closest('#beallBody')) return;
         const sz = e.target.closest('[data-blszek]'); if(sz){ blSzek = sz.dataset.blszek; window.sfShowBeallitasok(); window.scrollTo(0, 0); return; }
         if(e.target.closest('[data-blvissza]')){ blSzek = null; window.sfShowBeallitasok(); return; }
+        const dz = e.target.closest('[data-bldoboz]');
+        if(dz){
+            const szog = dz.dataset.bldoboz === 'szog';
+            document.documentElement.classList.toggle('sf-szog', szog);
+            try { localStorage.setItem('sf_szogletes', szog ? 'true' : 'false'); } catch(_){}
+            window.dispatchEvent(new Event('resize'));
+            window.sfShowBeallitasok(); return;
+        }
         const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); window.sfShowBeallitasok(); return; }
         const t = e.target.closest('[data-tmszem]'); if(t){ window.sfTemaBeallit(t.dataset.tmszem); window.sfShowBeallitasok(); return; }
         const uzi = m => { const u = document.querySelector('#beallBody .zb-uzi'); if(u) u.textContent = m; };
@@ -29679,7 +29713,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const top = wk ? wk.getBoundingClientRect().top
                        : grid.getBoundingClientRect().top + 88;
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
         const avail = Math.max(280, window.innerHeight - top - planCardHeight() - padB);
         return Math.max(22, avail / (VIEW_END_H - VIEW_START_H));
     }
@@ -29709,7 +29743,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         calMertRejtve = !wk.offsetParent;
         calMertTop = Math.round(wk.getBoundingClientRect().top + window.scrollY);
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
         const ideal = (VIEW_END_H - VIEW_START_H) * ROW;
         const fits = window.innerHeight - wk.getBoundingClientRect().top - padB;
         // Csak zsugorítunk: az "ideal" fölé sosem megyünk (görgetett oldalnál a
@@ -30886,7 +30920,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const g = document.querySelector("#calGrid .mn-grid");
         if (!g || !g.offsetParent) return;
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
         const sorok = g.children.length || 6;
         const avail = window.innerHeight - g.getBoundingClientRect().top - planCardHeight() - padB;
         const kitolt = avail / sorok >= 96;
@@ -34312,7 +34346,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (!k || !k.offsetParent) return;
         const cal = document.getElementById("calGrid"), calK = cal && cal.offsetParent ? cal.closest(".card") : null;
         const content = document.querySelector(".content");
-        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 16) : 16;
+        const padB = content ? (parseFloat(getComputedStyle(content).paddingBottom) || 0) : 16;
         const also = calK ? calK.getBoundingClientRect().bottom : window.innerHeight - padB;
         k.style.height = Math.max(300, Math.round(also - k.getBoundingClientRect().top)) + "px";
     }
