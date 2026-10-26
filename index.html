@@ -2440,8 +2440,6 @@
         .havi-weekscard table.havi input { width:100%; max-width:60px; min-width:34px; box-sizing:border-box; }
         table.havi th.hszv { color:#8a6d1f; }
         .hszv-nincs { color:var(--muted); }
-        .hsaj-cel { grid-column:1/-1; }
-        .hsaj-cel .hsaj-val { font-size:15px; font-weight:700; }
         .ej-kartya p { margin:0 0 10px; font-size:12.5px; color:var(--muted); }
         .ej-kartya .btn { width:100%; justify-content:center; }
         /* Erfolgsjournal oldal: beágyazott oldal + a beírandó számok */
@@ -8947,10 +8945,6 @@ try { if(localStorage.getItem('sf_szogletes') === 'true') document.documentEleme
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
                 <span class="nav-label">Havi Terv</span>
             </a>
-            <a href="#" data-ter="ovb" data-page="ej" data-navcs="terv" title="Erfolgsjournal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V14M10 20V9M16 20V4M2 20h20"/></svg>
-                <span class="nav-label">Erfolgsjournal</span>
-            </a>
             <a href="#" data-ter="ovb" data-page="eves" data-navcs="terv" title="Éves Terv">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
                 <span class="nav-label">Éves Terv</span>
@@ -9347,9 +9341,13 @@ try { if(localStorage.getItem('sf_szogletes') === 'true') document.documentEleme
         </div><!-- /page-home -->
 
         <!-- ERFOLGSJOURNAL (beágyazva) + a beírandó heti számok -->
+        <!-- Az Erfolgsjournal oldal nincs a menüben, csak a Havi terv kártyájáról nyílik
+             (a lapváltó a [data-page] elemekből dolgozik, ezért kell ez a rejtett link). -->
+        <a href="#" data-page="ej" id="ejLapLink" hidden aria-hidden="true" tabindex="-1"></a>
         <div id="page-ej" class="page" hidden>
           <div class="page-wrap">
             <section class="card ej-fej">
+              <button type="button" class="btn" data-ejhavi>← Havi terv</button>
               <h2 class="cal-h2"><span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V14M10 20V9M16 20V4M2 20h20"/></svg></span>Erfolgsjournal</h2>
               <span class="cal-date" id="ejHonap"></span>
               <div class="ej-gomb">
@@ -13334,7 +13332,7 @@ let haviData = null;
 function haviViewedUid(){ return window.sfViewedUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || 'local'; }
 function haviKey(d){ return `sf_havi_${haviViewedUid()}_${d.getFullYear()}_${d.getMonth()}`; }
 function blankHavi(){
-    return { nev:"", rang:"", celPenz:"", celES:"", csapatFt:"", csapatEH:"", note:"", celSzoveg:"",
+    return { nev:"", rang:"", celPenz:"", celES:"", csapatFt:"", csapatEH:"", note:"",
         formula: Array(8).fill(""),
         weeks: Array.from({length:6}, () => ({ cel:Array(8).fill(""), van:Array(8).fill(""), szv:"" })),
         clients: [] };
@@ -13344,7 +13342,7 @@ function loadHavi(d){
     const b = blankHavi();
     if(!raw) return b;
     b.nev=raw.nev||""; b.rang=raw.rang||""; b.celPenz=raw.celPenz||""; b.celES=raw.celES||"";
-    b.csapatFt=raw.csapatFt||""; b.csapatEH=raw.csapatEH||""; b.note=raw.note||""; b.celSzoveg=raw.celSzoveg||"";
+    b.csapatFt=raw.csapatFt||""; b.csapatEH=raw.csapatEH||""; b.note=raw.note||"";
     if(Array.isArray(raw.formula)) for(let i=0;i<8;i++) b.formula[i]=raw.formula[i]??"";
     if(Array.isArray(raw.weeks)) for(let w=0;w<6 && w<raw.weeks.length;w++){
         const rw=raw.weeks[w]||{};
@@ -13453,7 +13451,6 @@ function renderHaviBody(){
         <div class="hsaj-item"><span class="hsaj-ic">${ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')}</span><div><div class="hsaj-lbl">Rang</div><select class="hsaj-val hsaj-sel" data-hf="rang"><option value="">—</option>${rankOpts}</select></div></div>
         <div class="hsaj-item"><span class="hsaj-ic">${ic('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>')}</span><div><div class="hsaj-lbl">Célom pénzben</div><div class="hsaj-inline"><input class="hsaj-val" data-hf="celPenz" value="${esc(haviData.celPenz)}"><span>Ft</span></div></div></div>
         <div class="hsaj-item"><span class="hsaj-ic">${ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>')}</span><div><div class="hsaj-lbl">Célom ES-ben</div><div class="hsaj-inline"><input class="hsaj-val" data-hf="celES" value="${esc(haviData.celES)}"><span>EH</span></div></div></div>
-        <div class="hsaj-item hsaj-cel"><span class="hsaj-ic">${ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>')}</span><div><div class="hsaj-lbl">A havi tervezési célom</div><input class="hsaj-val" data-hf="celSzoveg" value="${esc(haviData.celSzoveg)}" placeholder="Tervezési cél megadása…"></div></div>
     </div>`;
 
     // --- Történelmi teljesítményképlet (mindig nyitva) ---
@@ -19116,7 +19113,7 @@ let ejHo = null, ejHet = 0;
 function ejHoUrl(d){ return `${EJ_URL}/month/${d.getFullYear()}/${d.getMonth()+1}`; }
 function ejMutat(honap, het){
     ejHo = new Date(honap.getFullYear(), honap.getMonth(), 1); ejHet = het || 0;
-    const l = document.querySelector('.nav a[data-page="ej"]');
+    const l = document.getElementById('ejLapLink');
     if(l && !l.classList.contains('active')) l.click(); else renderEJ();
 }
 function ejKeretRajz(){
@@ -19171,7 +19168,6 @@ function ejOldalRajz(){
         <button type="button" class="btn ej-masol" data-ejmind>Heti számok másolása</button>
         <div class="ej-cim">Havi célok</div>
         <table class="ej-tbl"><tbody>
-            <tr><td>Tervezési cél</td><td colspan="2">${ert(h.celSzoveg, 'Tervezési cél')}</td></tr>
             <tr><td>Rang</td><td colspan="2">${ert(h.rang, 'Rang')}</td></tr>
             <tr><td>Célom pénzben</td><td colspan="2">${ert(h.celPenz, 'Célom pénzben')}</td></tr>
             <tr><td>Célom ES-ben</td><td colspan="2">${ert(h.celES, 'Célom ES-ben')}</td></tr></tbody></table>
