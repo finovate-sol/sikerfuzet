@@ -618,7 +618,7 @@
             @keyframes szmRemeg { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
             /* telefonon nincs hamburgermenü – minden a sávról (Én / Menü) érhető el */
             .mb-burger, .pz-fej-burger { display:none !important; }
-            .mb-plusz:not([hidden]) { display:inline-flex; width:40px; height:40px; border-radius:50%; border:0; background:#1f5fd0; color:#fff;
+            .mb-plusz:not([hidden]) { display:inline-flex; order:99; margin-left:auto; width:40px; height:40px; border-radius:50%; border:0; background:#1f5fd0; color:#fff;
                 align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(31,95,208,.3); flex:none; cursor:pointer; }
             body.sf-privat .mb-plusz:not([hidden]) { background:#7c3aed; box-shadow:0 6px 14px rgba(124,58,237,.35); }
             .mb-plusz svg { width:20px; height:20px; }
@@ -28667,6 +28667,18 @@ function szMenj(lap){
     window.scrollTo(0, 0);
 }
 function szAktLap(){ const p = document.querySelector('.page:not([hidden])'); return p ? p.id.replace(/^page-/, '') : ''; }
+// oldalanként az „új” gomb, amit a fejléc ＋ elindít
+const SZ_UJ = { szokasok: '[data-szuj]', edzes: '[data-ezuj]', celok: '[data-cluj], #clNew', enaplo: '[data-nluj]', konyvek: '[data-kvuj]',
+    jegyzetek: '#jgNew, [data-jgalsouj]', emberek: '[data-emuj]', onismeret: '[data-oiuj]',
+    home: '#calAddEvent', ugyfelek: '#regAdd', ketoras: '#ketorasAdd', struktura: '#strAddBtn', prezik: '[data-pziuj]', tudastar: '[data-ttuj]', pg: '#pgNewBtn' };
+async function szUjInditas(){
+    const lap = szAktLap();
+    if(lap === 'privma'){ szLapNyit(true); return; }
+    if(lap === 'egeszseg'){ szLapNyit(true); szLapNezet = 'suly'; szLapRajz(); return; }
+    const sel = SZ_UJ[lap] ? SZ_UJ[lap].split(',').map(x => `#page-${lap} ${x.trim()}`).join(', ') : `#page-${lap} .sf-also-plusz`;
+    const g = document.querySelector(sel) || await szVarElem(sel, 2000);
+    if(g) g.click();
+}
 function szAlsoFrissit(){
     const nav = document.getElementById('szAlso'); if(!nav) return;
     szSavTolt();
@@ -28679,10 +28691,10 @@ function szAlsoFrissit(){
     // sorrend: 2 saját · középső (kiemelt) · 1 saját · Én / Menü
     nav.innerHTML = sav.slice(0, 2).map(gomb).join('') + gomb(kozep) + sav.slice(2).map(gomb).join('')
         + `<button type="button" class="szm-t${fo === 'en' ? ' on' : ''}" data-szmenj="en"${fo === 'en' ? ' aria-current="page"' : ''}>${szTer() === 'priv' ? enSvg : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'}<span>${szTer() === 'priv' ? 'Én' : 'Menü'}</span></button>`;
-    // felső ＋: a Ma oldalon a gyors rögzítés, máshol az oldal saját „új” gombja (ha van)
+    // felső ＋ (mindig a fejléc jobb szélén): a Ma oldalon a gyors rögzítés, máshol az oldal saját „új” gombja
     const pl = document.getElementById('mbPlusz');
     // csak változáskor írjuk (a hidden attribútumot a lapfigyelő is nézi – különben körbe futna)
-    const rejt = !(akt === 'privma' || document.querySelector(`#page-${akt} .sf-also-plusz`));
+    const rejt = !(akt === 'privma' || akt === 'egeszseg' || SZ_UJ[akt] || document.querySelector(`#page-${akt} .sf-also-plusz`));
     if(pl && pl.hidden !== rejt) pl.hidden = rejt;
 }
 // ---- ＋ lap ----
@@ -28752,10 +28764,7 @@ document.addEventListener('click', async e => {
         }
         szMenj(m.dataset.szmenj); return;
     }
-    if(e.target.closest('#mbPlusz')){
-        if(szAktLap() === 'privma'){ szLapNyit(true); return; }
-        document.querySelector(`#page-${szAktLap()} .sf-also-plusz`)?.click(); return;
-    }
+    if(e.target.closest('#mbPlusz')){ szUjInditas(); return; }
     if(e.target.closest('[data-szplusz]')){ e.preventDefault(); szLapNyit(true); return; }
     if(e.target.closest('[data-szszerk]')){ szSavSzerk = !szSavSzerk; szCsere = null; szAlsoFrissit(); window.sfShowEn(); return; }
     if(e.target.closest('[data-szvalt]')){ szSavSzerk = false; if(window.sfTerValt) window.sfTerValt(szTer() === 'priv' ? 'ovb' : 'priv'); return; }
