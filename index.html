@@ -30020,17 +30020,19 @@ function gkKeres(q){
         tesz('Ugrás', lapok.map(l => ({ ...l, p: 0, ic: 'lap', fn: () => prvMenj(l.lap) })), 30);
         return ki;
     }
-    tesz('Ügyfelek', registry.map((r, i) => ({ r, i })).filter(({ r }) => r && !r.mt && egyezik([r.name, r.phone, r.lakhely, r.ajanlo, r.status, r.munkatars, r.email].join(' ')))
+    // a SZEM (privát) kereső csak a SZEM tartalmában keres, a Sikerfüzet-é csak a Sikerfüzetben
+    const priv = window.sfTer === 'priv';
+    if(!priv) tesz('Ügyfelek', registry.map((r, i) => ({ r, i })).filter(({ r }) => r && !r.mt && egyezik([r.name, r.phone, r.lakhely, r.ajanlo, r.status, r.munkatars, r.email].join(' ')))
         .map(({ r, i }) => ({ cim: r.name || 'Névtelen', al: [regStatusNorm(r.status) || 'Új', r.phone, r.lakhely].filter(Boolean).join(' · '), p: pont(r.name), ic: 'ugyfel', fn: () => regSorNyit(i) })), 8);
-    tesz('2 órás jelöltek', registry.map((r, i) => ({ r, i })).filter(({ r }) => r && r.mt && egyezik([r.name, r.phone, r.lakhely, r.ajanlo].join(' ')))
+    if(!priv) tesz('2 órás jelöltek', registry.map((r, i) => ({ r, i })).filter(({ r }) => r && r.mt && egyezik([r.name, r.phone, r.lakhely, r.ajanlo].join(' ')))
         .map(({ r, i }) => ({ cim: r.name || 'Névtelen', al: [r.phone, r.lakhely].filter(Boolean).join(' · '), p: pont(r.name), ic: 'jelolt', fn: () => regSorNyit(i) })), 6);
-    tesz('Feladatok', (gkAdat.feladat || []).filter(t => egyezik(t.title + ' ' + (t.notes || '')))
+    if(!priv) tesz('Feladatok', (gkAdat.feladat || []).filter(t => egyezik(t.title + ' ' + (t.notes || '')))
         .map(t => ({ cim: t.title, al: [t.listTitle, window.sfFeladatKesz && window.sfFeladatKesz(t) ? 'kész' : '', t.due ? String(t.due).slice(0, 10).replace(/-/g, '.') : ''].filter(Boolean).join(' · '), p: pont(t.title) - (window.sfFeladatKesz && window.sfFeladatKesz(t) ? 4 : 0), ic: 'feladat', fn: () => window.sfFeladatNyit(t.id) })), 6);
-    tesz('Jegyzetek', (gkAdat.jegyzet || []).filter(nt => egyezik((nt.title || '') + ' ' + gkSzoveg(nt.body) + ' ' + (nt.tags || []).join(' ')))
+    tesz('Jegyzetek', (gkAdat.jegyzet || []).filter(nt => (nt.ter === 'priv') === priv && egyezik((nt.title || '') + ' ' + gkSzoveg(nt.body) + ' ' + (nt.tags || []).join(' ')))
         .map(nt => { const b = gkSzoveg(nt.body), n = gkNorm(b), j = Math.max(0, n.indexOf(sz[0]) - 30);
             return { cim: nt.title || b.slice(0, 50) || 'Névtelen jegyzet', al: (nt.ter === 'priv' ? 'Privát · ' : '') + (j ? '…' : '') + b.slice(j, j + 90), p: pont(nt.title || ''), ic: 'jegyzet',
                 fn: () => { if(window.sfTerValt) window.sfTerValt(nt.ter === 'priv' ? 'priv' : 'ovb'); if(window.sfJegyzetNyit) window.sfJegyzetNyit(nt.id); prvMenj('jegyzetek'); } }; }), 6);
-    tesz('Szabályaim', (gkAdat.szabaly || []).filter(x => egyezik(x.c + ' ' + x.m + ' ' + x.tema))
+    if(priv) tesz('Szabályaim', (gkAdat.szabaly || []).filter(x => egyezik(x.c + ' ' + x.m + ' ' + x.tema))
         .map(x => ({ cim: x.c, al: x.tema + (x.m ? ' · ' + x.m : ''), p: pont(x.c), ic: 'szabaly', fn: () => window.sfSzabalyNyit(x.id) })), 6);
     tesz('Ugrás', lapok.filter(l => egyezik(l.cim)).map(l => ({ ...l, p: pont(l.cim), ic: 'lap', fn: () => prvMenj(l.lap) })), 4);
     return ki;
@@ -30079,7 +30081,7 @@ function gkNyit(){
     if(document.getElementById('gkOv')) return;
     const ov = document.createElement('div'); ov.id = 'gkOv'; ov.className = 'gk-ov';
     ov.innerHTML = `<div class="gk" role="dialog" aria-modal="true" aria-label="Keresés"><div class="gk-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" enterkeyhint="search" placeholder="Ügyfél, jelölt, feladat, jegyzet vagy oldal…" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><button type="button" class="gk-megse" data-gkzar>Mégse</button><div class="gk-legut" hidden></div><div class="gk-l"></div>
+        <input type="search" enterkeyhint="search" placeholder="${window.sfTer === 'priv' ? 'Jegyzet, szabály vagy oldal…' : 'Ügyfél, jelölt, feladat, jegyzet vagy oldal…'}" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><button type="button" class="gk-megse" data-gkzar>Mégse</button><div class="gk-legut" hidden></div><div class="gk-l"></div>
         <div class="gk-lab"><span><kbd>↑</kbd><kbd>↓</kbd> választás</span><span><kbd>↵</kbd> megnyitás</span><span><kbd>Ctrl</kbd>+<kbd>K</kbd> bárhonnan</span></div></div>`;
     document.body.appendChild(ov);
     const inp = ov.querySelector('input');
