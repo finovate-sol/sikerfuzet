@@ -36802,7 +36802,18 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const ownUid = window.sfCurrentUser && window.sfCurrentUser.uid;
         if(window.sfViewedUid && window.sfViewedUid !== ownUid){
             const emp = (window.sfViewAsEmployees || []).find(e => e.uid === window.sfViewedUid);
-            body.innerHTML = `<section class="card"><div class="card-body fd-empty">A Google Tasks fiókonként privát – ${escM(emp ? (emp.name || emp.email) : "a munkatárs")} feladatai innen nem érhetők el.</div></section>`;
+            const nev = emp ? (emp.name || emp.email) : "a munkatárs";
+            body.innerHTML = `<section class="card"><div class="card-body fd-empty">A Google Tasks fiókonként privát – ${escM(nev)} Google-feladatai innen nem érhetők el. Az akcióterveit lent látod.</div></section><div id="fdNezAk"><div class="card"><div class="card-body fd-empty">Akciótervek betöltése…</div></div></div>`;
+            // Az akciótervek a Sikerfüzet saját adatbázisában vannak: amit te adtál ki neki, azt mindig látod; adminként az összeset.
+            try { await pgLoadAll(); } catch(_){}
+            const vid = window.sfViewedUid, m = new Map(pgAkciok.filter(a => a.mtUid === vid).map(a => [a.id, a]));
+            if(window.sfIsAdmin){ try { (await getAkciok(vid) || []).filter(a => a.mtUid === vid).forEach(a => m.set(a.id, a)); } catch(_){} }
+            const l = [...m.values()].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+            const hely = document.getElementById("fdNezAk"); if(!hely || window.sfViewedUid !== vid) return;
+            hely.innerHTML = `<section class="card pg-card fx-ak" style="margin-top:14px"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>${escM(nev)} akciótervei</h2><span class="pg-count">${l.filter(a => !a.done).length} nyitott · ${l.filter(a => a.done).length} kész</span></div>
+                <div class="card-body">${l.length ? `<div class="pg-ak-list">${l.map(pgAkcioRowHtml).join("")}</div>` : `<div class="pg-empty">${window.sfIsAdmin ? "Nincs akcióterve." : "Nincs tőled kapott akcióterve."}</div>`}
+                <p class="pg-note-txt">Ezt látja a munkatárs a Feladatok oldalán, az „Akcióterveim” között (a nyitottakat). Kipipálni ő tudja.</p></div></section>`;
+            hely.querySelectorAll("[data-akdel]").forEach(b => b.remove());
             return;
         }
         if(!isConfigured){ renderFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
