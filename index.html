@@ -18961,10 +18961,13 @@ function pzTovabbFigyel(){
 function pzNaploMagassag(){
     const lista = document.getElementById('pzFeedLista');
     const oldalsok = document.querySelectorAll('#pzNaplo .pz-b-bal, #pzNaplo .pz-b-jobb');
-    if(!lista) return;
+    const wrap = document.querySelector('#page-penzugyek .page-wrap');
+    if(!lista){ if(wrap) wrap.style.paddingBottom = ''; return; }
     if(window.innerWidth <= 760 || pzView !== 'naplo'){
-        lista.style.height = ''; oldalsok.forEach(x => { x.style.maxHeight = ''; }); return;
+        lista.style.height = ''; oldalsok.forEach(x => { x.style.maxHeight = ''; }); if(wrap) wrap.style.paddingBottom = ''; return;
     }
+    // Az oldal alsó helye (a lebegő gombnak) itt nem kell: a lista a képernyő aljáig ér, az oldal nem görög.
+    if(wrap) wrap.style.paddingBottom = '0px';
     const alja = 22;
     const teteje = lista.getBoundingClientRect().top + window.scrollY;
     let mag = Math.max(320, window.innerHeight - teteje - alja);
@@ -19189,6 +19192,7 @@ function renderPzView(){
     const panel = { honap:'pzHonap', naplo:'pzNaplo', attek:'pzAttek', terv:'pzTerv', nyilv:'pzTorzs' };
     if(!panel[pzView]) pzView = 'attek';
     const aktiv = panel[pzView];
+    if(pzView !== 'naplo'){ const w = document.querySelector('#page-penzugyek .page-wrap'); if(w) w.style.paddingBottom = ''; }
     for(const id of Object.values(panel)){
         const el = document.getElementById(id); if(!el) continue;
         el.hidden = id !== aktiv;
