@@ -658,6 +658,34 @@
                 background:none !important; color:#5b5670 !important; font-size:13.5px !important; font-weight:650 !important; line-height:1.2 !important; box-shadow:none !important; }
             #page-penzugyek #pzFej .pz-pill button.on, body .oi-fulek button.on, body .pz-seg2.ez-tabok button.on, body .pz-seg2.nl-tabok button.on, body .tt-fo button.on, body .sb-ful button.on, body #celokBody .cl-tabs button.on { background:#fff !important; color:#1f5fd0 !important; font-weight:750 !important; box-shadow:0 2px 8px rgba(60,30,120,.12) !important; }
             body.sf-privat #page-penzugyek #pzFej .pz-pill button.on, body.sf-privat .oi-fulek button.on, body.sf-privat .pz-seg2.ez-tabok button.on, body.sf-privat .pz-seg2.nl-tabok button.on, body.sf-privat .tt-fo button.on, body.sf-privat .sb-ful button.on, body.sf-privat #celokBody .cl-tabs button.on { color:#6d28d9 !important; }
+            /* az oldal fülei lent, a sávon (hosszú nyomás a középső gombon) – fent nincs fülsor */
+            html body #page-penzugyek #pzFej .pz-pill, html body .oi-fulek, html body .pz-seg2.ez-tabok, html body .pz-seg2.nl-tabok, html body .tt-fo, html body .sb-ful, html body #celokBody .cl-tabs,
+            html body.sf-privat #page-penzugyek #pzFej .pz-pill, html body.sf-privat #celokBody .cl-tabs, html body.sf-privat #page-enaplo .nl-tabok { display:none !important; }
+            .szm-also { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+            .szm-also.valt > * { animation:szmValt .3s cubic-bezier(.2,.8,.2,1) both; }
+            .szm-also.valt > :nth-child(2), .szm-also.valt > :nth-child(4) { animation-delay:.03s; }
+            .szm-also.valt > :nth-child(1), .szm-also.valt > :nth-child(5) { animation-delay:.06s; }
+            @keyframes szmValt { from { opacity:0; transform:translateY(10px) scale(.9); } }
+            .szm-also.valt > .kozep { animation:none; }
+            .szm-also.fulmod .szm-t.ful span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px; }
+            .szm-also.fulmod .szm-t.ful.on::after { content:""; position:absolute; bottom:5px; left:50%; width:16px; height:3px; margin-left:-8px; border-radius:2px; background:var(--szm-sz); }
+            .szm-also.fulmod .szm-t.ful { position:relative; min-width:0; }
+            .szm-also.fulmod .szm-t.kozep i { background:#1d1b26 !important; transform:rotate(0); animation:szmFordul .35s cubic-bezier(.2,.8,.2,1); }
+            @keyframes szmFordul { from { transform:rotate(-180deg) scale(.8); } }
+            .szm-t.ures { flex:1; }
+            .szm-t.kozep.nyom i { transform:scale(1.14); transition:transform .4s ease-out; }
+            .szm-t.kozep.van-ful i::after { content:""; position:absolute; bottom:4px; left:50%; width:14px; height:4px; margin-left:-7px;
+                background:radial-gradient(circle, #fff 1.2px, transparent 1.6px) 0 50% / 5px 4px repeat-x; opacity:.85; }
+            .szm-tipp { position:fixed; left:50%; bottom:calc(var(--szm-le) + 62px + 20px); z-index:47; transform:translate(-50%, 8px); background:#1d1b26; color:#fff;
+                font-size:12.5px; font-weight:700; border-radius:12px; padding:8px 12px; white-space:nowrap; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; }
+            .szm-tipp::after { content:""; position:absolute; left:50%; bottom:-5px; width:10px; height:10px; margin-left:-5px; background:#1d1b26; transform:rotate(45deg); border-radius:2px; }
+            .szm-tipp.lat { opacity:1; transform:translate(-50%, 0); }
+            .szm-ful-menu { position:fixed; right:16px; bottom:calc(var(--szm-le) + 62px + 10px); z-index:47; min-width:190px; padding:6px; border-radius:18px;
+                background:rgba(255,255,255,.96); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); box-shadow:0 14px 36px rgba(40,20,90,.22); animation:sfPopBe .2s ease-out both; }
+            .szm-ful-menu button { display:flex; align-items:center; gap:10px; width:100%; border:0; background:none; border-radius:12px; padding:10px 12px; font:inherit; font-size:14px; font-weight:650; color:#1d1b26; text-align:left; cursor:pointer; }
+            .szm-ful-menu button svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; color:#6b7280; }
+            .szm-ful-menu button.on { background:#eef2ff; color:#1f5fd0; } body.sf-privat .szm-ful-menu button.on { background:#f1ebfe; color:#6d28d9; }
+            .szm-ful-menu button.on svg { color:inherit; }
             /* naptár: a saját ＋ helyett a lebegő ＋; a „Ma” gomb a sáv fölé, a ＋-szal egy magasságba */
             body #page-home .cal-m-fab, body #page-feladatok .fx-fab { display:none !important; }
             /* nyitott alsó lap (új feladat, feladat részletei) alatt ne legyen ott a sáv és a ＋ */
@@ -28944,8 +28972,50 @@ async function szUjInditas(){
     const g = document.querySelector(sel) || await szVarElem(sel, 2000);
     if(g) g.click();
 }
+// ---- az oldal fülei a sávon: hosszú nyomás a középső gombon → a menüpontok helyére a fülek kerülnek ----
+const SZ_FUL_SEL = '#pzFej .pz-pill, .oi-fulek, .pz-seg2.ez-tabok, .pz-seg2.nl-tabok, .tt-fo, .sb-ful, #celokBody .cl-tabs';
+const SZ_FUL_ROVID = { 'Bejegyzések': 'Lista', 'Statisztika': 'Stat', 'Tevékenységek': 'Tevék.', 'Tranzakciók': 'Tranz.', 'Nyilvántartások': 'Nyilv.',
+    'Pénztárcák': 'Tárcák', 'Előfizetések': 'Előfiz.', 'Áttekintés': 'Összkép', 'Hawkins-skála': 'Hawkins', 'Havi vállalás': 'Vállalás', 'Szabályaim': 'Szabályok',
+    'Tudásbázis': 'Tudás', 'Bedolgozás': 'Bedolg.', 'Elemzések': 'Elemzés', 'Skoolposzt és komment': 'Skool', 'E-mail': 'E-mail', 'Telefonhívás-segédletek': 'Telefon' };
+const SZ_FUL_IK = [[/lista|bejegyz/i, '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'], [/stat|elemz/i, '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+    [/naptár|hónap|idővonal/i, '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'], [/tevék|címk/i, '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>'],
+    [/áttek|összkép|galéria/i, '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],
+    [/tranz/i, '<path d="M4 8h14l-3-3M20 16H6l3 3"/>'], [/nyilv|tudás|szabály/i, '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>'],
+    [/tárc/i, '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M16 12.5h2"/>'], [/előfiz/i, '<path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M20 4v5h-5M4 20v-5h5"/>'],
+    [/terület|kerék/i, '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>'], [/tábla/i, '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>'],
+    [/mérhet|hawkins/i, '<path d="M4 20 20 4M4 4v16h16"/>'], [/célfal|verseny/i, '<path d="M5 21V4h11l-2 4 2 4H5"/>'], [/vállal|control/i, '<path d="m5 12 4 4 10-10"/>'],
+    [/^ma$/i, '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'], [/csúcs/i, '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>'],
+    [/sablon|bedolg/i, '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'],
+    [/skool/i, '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'], [/mail/i, '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'],
+    [/telefon/i, '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>']];
+let szFulMod = false, szFulLap = '', szNyomElnyel = false;
+// az aktuális oldal fülei: { b: eredeti gomb, n: rövid név, on }
+function szFulok(){
+    const pg = document.getElementById('page-' + szAktLap()); const c = pg && pg.querySelector(SZ_FUL_SEL); if(!c) return [];
+    return [...c.querySelectorAll('button')].map(b => { const k = b.cloneNode(true); k.querySelectorAll('em, i, small, .pz-pill-n').forEach(x => x.remove());
+        const n = k.textContent.replace(/\s+/g, ' ').trim(); return { b, n: SZ_FUL_ROVID[n] || n, teljes: n, on: b.classList.contains('on') || b.classList.contains('active') || b.getAttribute('aria-selected') === 'true' }; }).filter(x => x.n);
+}
+const szFulIk = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${(SZ_FUL_IK.find(([r]) => r.test(n)) || [0, '<circle cx="12" cy="12" r="3.5"/>'])[1]}</svg>`;
+function szFulMenuZar(){ document.getElementById('szFulMenu')?.remove(); }
 function szAlsoFrissit(){
     const nav = document.getElementById('szAlso'); if(!nav) return;
+    if(szFulMod && szFulLap !== szAktLap()){ szFulMod = false; szFulMenuZar(); }
+    const fulok = szFulok();
+    if(szFulMod && fulok.length){
+        // fül-mód: 2 fül · középen „Vissza” · 2 fül (több fül esetén a 4. hely „Több”)
+        const tobb = fulok.length > 4, l = tobb ? fulok.slice(0, 3) : fulok.slice(0, 4);
+        const fg = (f, i) => `<button type="button" class="szm-t ful${f.on ? ' on' : ''}" data-szful="${i}" title="${esc(f.teljes)}">${szFulIk(f.n)}<span>${esc(f.n)}</span></button>`;
+        const tobbOn = tobb && fulok.slice(3).some(f => f.on);
+        nav.classList.add('fulmod');
+        nav.innerHTML = l.slice(0, 2).map(fg).join('') + (l.length < 2 ? '<span class="szm-t ures"></span>'.repeat(2 - l.length) : '')
+            + '<button type="button" class="szm-t kozep" data-szfulvissza aria-label="Vissza a menühöz"><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></i><span>Menü</span></button>'
+            + l.slice(2).map((f, i) => fg(f, i + 2)).join('')
+            + (tobb ? `<button type="button" class="szm-t ful${tobbOn ? ' on' : ''}" data-szfultobb><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>${tobbOn ? esc(fulok.find(f => f.on).n) : 'Több'}</span></button>` : '')
+            + (l.length < 4 && !tobb ? '<span class="szm-t ures"></span>'.repeat(4 - Math.max(2, l.length)) : '');
+        return szFabFrissit();
+    }
+    if(szFulMod){ szFulMod = false; szFulMenuZar(); }
+    nav.classList.remove('fulmod');
     szSavTolt();
     const akt = szAktLap(), lapok = szLapok(), sav = szSavLista(), kozep = SZ_KOZEP[szTer()];
     const fo = sav.includes(akt) || akt === kozep ? akt : 'en';
@@ -28956,12 +29026,43 @@ function szAlsoFrissit(){
     // sorrend: 2 saját · középső (kiemelt) · 1 saját · Én / Menü
     nav.innerHTML = sav.slice(0, 2).map(gomb).join('') + gomb(kozep) + sav.slice(2).map(gomb).join('')
         + `<button type="button" class="szm-t${fo === 'en' ? ' on' : ''}" data-szmenj="en"${fo === 'en' ? ' aria-current="page"' : ''}>${szTer() === 'priv' ? enSvg : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'}<span>${szTer() === 'priv' ? 'Én' : 'Menü'}</span></button>`;
-    // felső ＋ (mindig a fejléc jobb szélén): a Ma oldalon a gyors rögzítés, máshol az oldal saját „új” gombja
+    // ha az oldalnak vannak fülei, a középső gombon kis jelzés: hosszan nyomva előjönnek
+    nav.querySelector('.szm-t.kozep')?.classList.toggle('van-ful', fulok.length > 1);
+    if(fulok.length > 1) szFulTipp();
+    szFabFrissit();
+}
+function szFabFrissit(){
+    const akt = szAktLap();
     // lebegő ＋ (jobb alul, a sáv fölött): ott, ahol van mit létrehozni
     const pl = document.getElementById('szFab');
     // csak változáskor írjuk (a hidden attribútumot a lapfigyelő is nézi – különben körbe futna)
     const rejt = !(akt === 'privma' || akt === 'egeszseg' || SZ_UJ[akt] || document.querySelector(`#page-${akt} .sf-also-plusz`));
     if(pl && pl.hidden !== rejt) pl.hidden = rejt;
+}
+// első néhány alkalommal egy buborék megtanítja a hosszú nyomást
+let szTippT = 0;
+function szFulTipp(){
+    let n = 0; try { n = +localStorage.getItem('sf_ful_tipp') || 0; } catch(e){}
+    if(n >= 3 || document.getElementById('szFulTipp') || szTippT) return;
+    szTippT = setTimeout(() => { szTippT = 0;
+        if(szFulMod || szFulok().length < 2 || getComputedStyle(document.getElementById('szAlso')).display === 'none') return;
+        try { localStorage.setItem('sf_ful_tipp', String(n + 1)); } catch(e){}
+        const t = document.createElement('div'); t.id = 'szFulTipp'; t.className = 'szm-tipp'; t.textContent = 'Tartsd nyomva az oldal füleihez';
+        document.body.appendChild(t); requestAnimationFrame(() => t.classList.add('lat'));
+        setTimeout(() => { t.classList.remove('lat'); setTimeout(() => t.remove(), 300); }, 3200); }, 900);
+}
+function szFulValt(be){
+    if(be && szFulok().length < 2) return;
+    szFulMod = be; szFulLap = szAktLap(); szFulMenuZar(); document.getElementById('szFulTipp')?.remove();
+    try { if(be) localStorage.setItem('sf_ful_tipp', '9'); } catch(e){}
+    if(navigator.vibrate) try { navigator.vibrate(12); } catch(e){}
+    const nav = document.getElementById('szAlso'); nav?.classList.add('valt'); szAlsoFrissit(); setTimeout(() => nav?.classList.remove('valt'), 320);
+}
+function szFulMenuNyit(){
+    szFulMenuZar(); const fulok = szFulok(); if(fulok.length < 5) return;
+    const m = document.createElement('div'); m.id = 'szFulMenu'; m.className = 'szm-ful-menu';
+    m.innerHTML = fulok.slice(3).map((f, i) => `<button type="button" class="${f.on ? 'on' : ''}" data-szful="${i + 3}">${szFulIk(f.n)}${esc(f.teljes)}</button>`).join('');
+    document.body.appendChild(m);
 }
 // ---- ＋ lap ----
 const SZ_GYORS = [['kiadas', '💸', 'Kiadás'], ['szokas', '✅', 'Szokás'], ['edzes', '🏃', 'Edzés'], ['naplo', '📓', 'Napló'], ['suly', '⚖️', 'Súly'], ['cel', '🎯', 'Cél']];
@@ -29012,6 +29113,12 @@ async function szGyors(k){
     const g = await szVarElem(cel[1]); if(g) g.click();
 }
 document.addEventListener('click', async e => {
+    if(szNyomElnyel && e.target.closest('#szAlso')){ szNyomElnyel = false; e.preventDefault(); e.stopPropagation(); return; }
+    if(!e.target.closest('#szFulMenu, [data-szfultobb]')) szFulMenuZar();
+    const fl = e.target.closest('[data-szful]');
+    if(fl){ const f = szFulok()[+fl.dataset.szful]; szFulMenuZar(); if(f){ f.b.click(); window.scrollTo(0, 0); setTimeout(szAlsoFrissit, 60); } return; }
+    if(e.target.closest('[data-szfultobb]')){ if(document.getElementById('szFulMenu')) szFulMenuZar(); else szFulMenuNyit(); return; }
+    if(e.target.closest('[data-szfulvissza]')){ szFulValt(false); return; }
     const m = e.target.closest('[data-szmenj]');
     if(m){
         // szerkesztés közben a sávon két ikonra koppintva helyet cserélnek
@@ -29097,6 +29204,21 @@ window.sfShowEn = function(){
     const fulIgazit = () => document.querySelectorAll(FUL_SOR).forEach(c => { const on = c.querySelector('button.on');
         if(on && c.scrollWidth > c.clientWidth) c.scrollLeft = on.offsetLeft - (c.clientWidth - on.offsetWidth) / 2; });
     let fulT = 0; new MutationObserver(() => { clearTimeout(fulT); fulT = setTimeout(fulIgazit, 60); }).observe(document.querySelector('.main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    // hosszú nyomás a középső gombon: fül-mód be/ki
+    let nyT = 0, nyX = 0, nyY = 0;
+    nav.addEventListener('pointerdown', e => { const k = e.target.closest('.szm-t.kozep'); if(!k || szSavSzerk) return;
+        nyX = e.clientX; nyY = e.clientY; k.classList.add('nyom');
+        nyT = setTimeout(() => { nyT = 0; k.classList.remove('nyom'); if(szFulMod || szFulok().length > 1){ szNyomElnyel = true; szFulValt(!szFulMod); } }, 430); });
+    // a hosszú nyomás utáni „click” ne navigáljon – de ha nem jön (a sáv közben újrarajzolódott), ne nyelje el a következőt
+    const nyVege = () => { clearTimeout(nyT); nyT = 0; nav.querySelector('.nyom')?.classList.remove('nyom'); if(szNyomElnyel) setTimeout(() => { szNyomElnyel = false; }, 350); };
+    nav.addEventListener('pointerup', nyVege); nav.addEventListener('pointercancel', nyVege); nav.addEventListener('pointerleave', nyVege);
+    nav.addEventListener('pointermove', e => { if(nyT && Math.hypot(e.clientX - nyX, e.clientY - nyY) > 12) nyVege(); });
+    nav.addEventListener('contextmenu', e => e.preventDefault());
+    // fül-módban az oldal újrarajzolása után (fülváltás) a sáv is frissül
+    // (és ha az oldal később rajzolja ki a füleit, a középső gomb jelzése is frissül)
+    let fmT = 0; new MutationObserver(() => { clearTimeout(fmT); fmT = setTimeout(() => {
+        if(szFulMod) return szAlsoFrissit();
+        const k = nav.querySelector('.szm-t.kozep'); if(k && (szFulok().length > 1) !== k.classList.contains('van-ful')) szAlsoFrissit(); }, 80); }).observe(document.querySelector('.main') || document.body, { childList: true, subtree: true });
     // görgetéskor lefelé elhalványul, felfelé visszajön (ne takarja a listát)
     let utY = window.scrollY;
     window.addEventListener('scroll', () => { const y = window.scrollY, d = y - utY;
