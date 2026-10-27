@@ -14383,7 +14383,10 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
     window.sfStSzinek = function(){
         const r = document.documentElement.style;
+        // „Homok” alap: a Meleg természet saját, téma nélküli színei (a CSS-ben megadott alapértékek) – ez az alapbeállítás.
+        let homok = true; try { homok = localStorage.getItem('sf_st_homok') !== '0'; } catch(_){}
         const beall = (resz, kulcs, lista) => { const szin = (lista[kulcs] || [])[1] || '#7c3aed';
+            if(homok && kulcs !== 'ejszaka'){ ['bg', 'k', 'f'].forEach(x => r.removeProperty(`--st-${x}-${resz}`)); return; }
             const [bg, k, f] = kulcs === 'ejszaka' ? ['#0e1424', '#161e33', '#1f2942']
                 : [keverHex('#f1ece4', szin, .10), keverHex('#fdfbf7', szin, .035), keverHex('#e8e1d5', szin, .14)];
             r.setProperty('--st-bg-' + resz, bg); r.setProperty('--st-k-' + resz, k); r.setProperty('--st-f-' + resz, f); };
@@ -14451,7 +14454,11 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                 <section class="card bl-k"><h3>Stílus</h3><p class="bl-megj">A felületek anyaga – az elrendezés és a működés ugyanaz marad. Ezen az eszközön érvényes.</p>
                 <div class="zb-temak bl-temak bl-stilus">${[['termeszet', 'Meleg természet', '#efe9e1', '#fbf8f3'], ['tiszta', 'Tiszta (iOS)', '#f2f2f7', '#ffffff'], ['uveg', 'Üveg', 'linear-gradient(135deg,#c4b5fd,#f9a8d4)', 'rgba(255,255,255,.55)']].map(([k, n, bg, kt]) => {
                     const on = (localStorage.getItem('sf_stilus') || 'termeszet') === k;
-                    return `<button type="button" data-blstilus="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div></section>
+                    return `<button type="button" data-blstilus="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div>
+                ${(localStorage.getItem('sf_stilus') || 'termeszet') === 'termeszet' ? `<p class="bl-megj" style="margin:14px 0 8px">Háttér árnyalata</p>
+                <div class="zb-temak bl-temak bl-stilus">${[['1', 'Homok', '#efe9e1', '#fbf8f3'], ['0', 'A téma színével', 'linear-gradient(135deg,#e6ecf3,#e3efe7)', '#fbfcfd']].map(([v, n, bg, kt]) => {
+                    const on = ((localStorage.getItem('sf_st_homok') === '0') ? '0' : '1') === v;
+                    return `<button type="button" data-blhomok="${v}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div>` : ''}</section>
 `;
         } else if(k === 'kapcs'){
             const nk = window.sfNaptarKapcs, van = nk && nk.van();
@@ -14506,6 +14513,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             window.dispatchEvent(new Event('resize'));
             window.sfShowBeallitasok(); return;
         }
+        const hm = e.target.closest('[data-blhomok]');
+        if(hm){ try { localStorage.setItem('sf_st_homok', hm.dataset.blhomok); } catch(_){} window.sfTemaKeszit(); window.sfShowBeallitasok(); return; }
         const stv = e.target.closest('[data-blstilus]');
         if(stv){
             const st = stv.dataset.blstilus, h = document.documentElement;
