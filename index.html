@@ -9458,6 +9458,9 @@
         html:is(.sf-st-termeszet, .sf-st-tiszta) * { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
         html.sf-st-termeszet { --st-bg:#efe9e1; --st-kartya:#fbf8f3; --st-arny:0 2px 10px rgba(80,60,30,.07); --st-sav:#fbf8f3; --st-savarny:0 4px 16px rgba(80,60,30,.12); --st-ful:#e6ddd0; --st-vonal:#e6ddd0;
             --uveg:#fbf8f3; --uveg-keret:transparent; --uveg-arny:0 2px 10px rgba(80,60,30,.07); --sf-keret:transparent; --sf-arny-puha:0 2px 10px rgba(80,60,30,.07); }
+        /* a választott téma színe is érvényesül: a meleg alap finoman a téma színébe hajlik (a színeket a JS számolja: sfStSzinek) */
+        html.sf-st-termeszet body { --st-bg:var(--st-bg-ovb, #efe9e1); --st-kartya:var(--st-k-ovb, #fbf8f3); --st-sav:var(--st-k-ovb, #fbf8f3); --st-ful:var(--st-f-ovb, #e6ddd0); --uveg:var(--st-k-ovb, #fbf8f3); }
+        html.sf-st-termeszet body.sf-privat { --st-bg:var(--st-bg-priv, #efe9e1); --st-kartya:var(--st-k-priv, #fbf8f3); --st-sav:var(--st-k-priv, #fbf8f3); --st-ful:var(--st-f-priv, #e6ddd0); --uveg:var(--st-k-priv, #fbf8f3); }
         html.sf-st-tiszta { --st-bg:#f2f2f7; --st-kartya:#ffffff; --st-arny:0 1px 2px rgba(0,0,0,.05); --st-sav:#ffffff; --st-savarny:0 2px 10px rgba(0,0,0,.06); --st-ful:#e5e5ea; --st-vonal:#e5e7eb;
             --uveg:#ffffff; --uveg-keret:transparent; --uveg-arny:0 1px 2px rgba(0,0,0,.05); --sf-keret:transparent; --sf-arny-puha:0 1px 2px rgba(0,0,0,.05); }
         html:is(.sf-st-termeszet, .sf-st-tiszta) body, html:is(.sf-st-termeszet, .sf-st-tiszta) body .main { background:var(--st-bg) !important; --sf-teteje:var(--st-bg); --bg:var(--st-bg); }
@@ -13727,7 +13730,20 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             body:not(.sf-privat) ::placeholder{color:#7d88a6}` };
     let tag = null, tagOvb = null;
     const gyujt = (f, ki, sc, ovb) => { for(const sh of [...document.styleSheets]){ if(sh.ownerNode === tag || sh.ownerNode === tagOvb) continue; let rs; try { rs = sh.cssRules; } catch(e){ continue; } if(rs) szabalyok(rs, f, ki, sc, ovb); } };
+    // Meleg természet stílus: a háttér, a kártyák és a fülsávok a meleg alapból indulnak, de a téma színe felé hajlanak
+    // (sötét témánál sötét alap) – így a kiválasztott szín ebben a stílusban is látszik
+    const keverHex = (a, b, t) => { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b);
+        return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+    window.sfStSzinek = function(){
+        const r = document.documentElement.style;
+        const beall = (resz, kulcs, lista) => { const szin = (lista[kulcs] || [])[1] || '#7c3aed';
+            const [bg, k, f] = kulcs === 'ejszaka' ? ['#0e1424', '#161e33', '#1f2942']
+                : [keverHex('#f1ece4', szin, .10), keverHex('#fdfbf7', szin, .035), keverHex('#e8e1d5', szin, .14)];
+            r.setProperty('--st-bg-' + resz, bg); r.setProperty('--st-k-' + resz, k); r.setProperty('--st-f-' + resz, f); };
+        beall('priv', window.sfTema(), window.SF_TEMAK); beall('ovb', window.sfOvbTema(), window.SF_OVB_TEMAK);
+    };
     window.sfTemaKeszit = function(){
+        window.sfStSzinek();
         const t = window.sfTema(), to = window.sfOvbTema();
         if(!tag){ tag = document.createElement('style'); tag.id = 'sfTemaCss'; document.head.appendChild(tag); }
         if(!tagOvb){ tagOvb = document.createElement('style'); tagOvb.id = 'sfOvbTemaCss'; document.head.appendChild(tagOvb); }
@@ -13851,8 +13867,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             const st = stv.dataset.blstilus, h = document.documentElement;
             try { localStorage.setItem('sf_stilus', st); } catch(_){}
             h.classList.remove('sf-st-termeszet', 'sf-st-tiszta'); if(st !== 'uveg') h.classList.add('sf-st-' + st);
-            // a Meleg természethez a SZEM zsálya színe illik – ha még az alap lila, átváltjuk
-            if(st === 'termeszet' && window.sfTema() === 'lila') window.sfTemaBeallit('zsalya'); else window.sfTemaKeszit();
+            window.sfTemaKeszit();
             window.sfShowBeallitasok(); return;
         }
         const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); window.sfShowBeallitasok(); return; }
