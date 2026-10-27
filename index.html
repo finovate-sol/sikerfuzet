@@ -1812,6 +1812,9 @@
         .pzi-ed-h.h-e { left:100%; top:50%; cursor:ew-resize; } .pzi-ed-h.h-se { left:100%; top:100%; cursor:nwse-resize; } .pzi-ed-h.h-s { left:50%; top:100%; cursor:ns-resize; }
         .pzi-ed-h.h-sw { left:0; top:100%; cursor:nesw-resize; } .pzi-ed-h.h-w { left:0; top:50%; cursor:ew-resize; }
         .pzi-ed-vonal { position:absolute; background:#ec4899; }
+        .pzi-ed-vonal.halk { background:none; } .pzi-ed-vonal.x.halk { border-left:1px dashed #ec4899; } .pzi-ed-vonal.y.halk { border-top:1px dashed #ec4899; }
+        .pzi-ed-poz { position:absolute; white-space:nowrap; font-size:11px; font-weight:700; color:#fff; background:rgba(15,23,42,.82); padding:2px 8px; border-radius:6px; font-variant-numeric:tabular-nums; pointer-events:none; }
+        .pzi-ed-poz b { color:#f9a8d4; }
         .pzi-jelzes { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--navy); color:#fff; font-size:13px; font-weight:600; padding:10px 18px; border-radius:12px; z-index:2000; box-shadow:0 8px 24px rgba(15,23,42,.25); transition:opacity .4s; max-width:90vw; }
         .pzi-jelzes.ki { opacity:0; }
         .pzi-gal-modal .modal-body { max-height:72vh; overflow-y:auto; }
@@ -1868,6 +1871,10 @@
         .pzi-t-cim, .pzi-t-lista, .pzi-t-lepesek { justify-content:center; }
         /* animált (kész) diák */
         .pzi-t-html { padding:0; display:block; position:relative; }
+        /* A PowerPointból átalakított szövegdobozok bekezdései: a sor magasságát a span betűmérete adja.
+           (A .pzi-dia p általános 34 px-e és áttetszősége eddig lefelé tolta és halványította a kis feliratokat.) */
+        .pzi-t-html .ce-tx p { font-size:1px; opacity:1; }
+        .pzi-t-html .ce-tx p:not(:has(span)) { font-size:inherit; }
         .pzi-vaszon { animation:pziBe .45s ease; } @keyframes pziBe { from { opacity:0; } to { opacity:1; } }
         .pzi-vetito .pzi-t-html [data-a] { opacity:0; transition:opacity .55s ease var(--d, 0s), transform .8s cubic-bezier(.2,.75,.2,1) var(--d, 0s); }
         .pzi-vetito .pzi-t-html [data-a="fel"] { transform:translateY(28px); }
@@ -12653,7 +12660,11 @@ async function renderPrezik(){
     if(pziSzerk){ pziEdSel = []; pziEdSzoveg = null;
         const x = pziSzerk.diak[pziDia];
         if(x && x.t !== 'html'){ pziSzerk.diak[pziDia] = { ...pziAtalakit(x, pziSzerk.tema), ...(x.o != null ? { o: x.o } : {}), ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); }
-        host.innerHTML = pziSzerkHtml(); pziSkala(); pziKepekBetolt(host); pziEdKeret(); return; }
+        // diaváltáskor / mentéskor ne ugorjon el se az oldal, se a dialista
+        const lst = host.querySelector('.pzi-sz-lista'), lPoz = lst ? lst.scrollTop : 0, aPoz = window.scrollY, volt = !!lst;
+        host.innerHTML = pziSzerkHtml();
+        if(volt){ const l2 = host.querySelector('.pzi-sz-lista'); if(l2) l2.scrollTop = lPoz; if(Math.abs(window.scrollY - aPoz) > 1) window.scrollTo(0, aPoz);
+            requestAnimationFrame(() => { if(Math.abs(window.scrollY - aPoz) > 1) window.scrollTo(0, aPoz); }); } pziSkala(); pziKepekBetolt(host); pziEdKeret(); return; }
     host.innerHTML = `<div class="sb-fej"><div><h2>Prezentációk</h2><p>Indítsd el egy kattintással teljes képernyőn – ügyféltalálkozón, bemutatón, csapatmegbeszélésen.</p></div>
             <span class="pzi-sz-fg"><label class="btn" title="PDF vagy képek (a PowerPointot előbb mentsd PDF-ként)">⤒ Feltöltés<input type="file" accept="application/pdf,.pdf,image/*,.pptx,.ppt,.key" multiple hidden data-pzifajl></label>
             <button type="button" class="btn primary" data-pziuj>+ Új prezentáció</button></span></div>
@@ -12763,13 +12774,27 @@ function pziEdKeret(){
     k.innerHTML = pziEdSel.map((el, n) => { const r = el.getBoundingClientRect();
         return `<div class="pzi-ed-doboz" style="left:${r.left - vr.left}px;top:${r.top - vr.top}px;width:${r.width}px;height:${r.height}px;">${pziEdSel.length === 1 && pziEdSzoveg !== el
             ? ['nw','n','ne','e','se','s','sw','w'].map(h => `<i class="pzi-ed-h h-${h}" data-pziedh="${h}"></i>`).join('') : ''}</div>`; }).join('');
+    // Egy kijelölt elemnél: melyik másik elemmel (vagy a dia közepével) van egy vonalban, és a pontos helye.
+    const el = pziEdSel.length === 1 && !pziEdHuz && pziEdSel[0];
+    if(el){
+        const g = pziEdGyoker(), sk = pziEdSk(), br = pziEdBel().getBoundingClientRect(), r = el.getBoundingClientRect();
+        const l = el.offsetLeft, t = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+        const xs = [l, l + w / 2, l + w], ys = [t, t + h / 2, t + h];
+        const tobbi = g ? [...g.querySelectorAll('.ab')].filter(a => a !== el && !pziEdHatter(a) && a.offsetWidth && !el.contains(a) && !a.contains(el)) : [];
+        const vx = new Set(), vy = new Set();
+        for(const x of xs){ if(Math.abs(x - 640) < 1.5) vx.add(640); for(const a of tobbi) for(const c of [a.offsetLeft, a.offsetLeft + a.offsetWidth / 2, a.offsetLeft + a.offsetWidth]) if(Math.abs(x - c) < 1.5) vx.add(Math.round(c)); }
+        for(const y of ys){ if(Math.abs(y - 360) < 1.5) vy.add(360); for(const a of tobbi) for(const c of [a.offsetTop, a.offsetTop + a.offsetHeight / 2, a.offsetTop + a.offsetHeight]) if(Math.abs(y - c) < 1.5) vy.add(Math.round(c)); }
+        const ox = br.left - vr.left, oy = br.top - vr.top;
+        k.insertAdjacentHTML('beforeend', [...vx].map(x => `<i class="pzi-ed-vonal x halk" style="left:${ox + x * sk}px"></i>`).join('') + [...vy].map(y => `<i class="pzi-ed-vonal y halk" style="top:${oy + y * sk}px"></i>`).join('')
+            + `<span class="pzi-ed-poz" style="left:${r.left - vr.left}px;top:${r.bottom - vr.top + 6}px">X ${Math.round(l)} · Y ${Math.round(t)} · ${Math.round(w)}×${Math.round(h)}${vx.size || vy.size ? ' · <b>egy vonalban</b>' : ''}</span>`);
+    }
     pziEdSavRajz();
 }
 function pziEdSavRajz(){
     const s = document.querySelector('#page-prezik .pzi-ed-kij'); if(!s) return;
     const el = pziEdSel[0];
     if(!el){ s.innerHTML = '<span class="pzi-ed-tipp">Kattints egy elemre a kijelöléshez · dupla kattintás: szöveg átírása · Shift: több elem · nyilak: finom mozgatás</span>'; return; }
-    const szov = pziEdSel.some(pziEdVanSzoveg), cs = getComputedStyle(pziEdSzovegEl(el).querySelector('span, p') || el);
+    const tx0 = pziEdSzovegEl(el), szov = pziEdSel.some(pziEdVanSzoveg), cs = getComputedStyle(tx0.querySelector('span') || tx0.querySelector('p, li, b') || el);
     const rgb2hex = c => { const m = String(c).match(/\d+/g); return m ? '#' + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('') : '#000000'; };
     const kitolt = el.querySelector(':scope > .ce-in');
     s.innerHTML = `${szov ? `<span class="pzi-ed-cs"><button type="button" data-pzied="kis" title="Kisebb betű">A−</button><b>${Math.round(parseFloat(cs.fontSize) || 0)}</b><button type="button" data-pzied="nagy" title="Nagyobb betű">A+</button></span>
@@ -12811,8 +12836,8 @@ function pziEdStilus(fn){
 }
 function pziEdMuvelet(m){
     const g = pziEdGyoker(); if(!g) return;
-    if(m === 'kis' || m === 'nagy') return pziEdStilus((el, l) => l.forEach(s => { const f = parseFloat(getComputedStyle(s).fontSize) || 16; s.style.fontSize = Math.max(6, Math.round(f * (m === 'nagy' ? 1.1 : 1 / 1.1) * 10) / 10) + 'px'; }));
-    if(m === 'felk'){ const vast = (+getComputedStyle(pziEdSzovegEl(pziEdSel[0]).querySelector('span, p') || pziEdSel[0]).fontWeight || 400) >= 600;
+    if(m === 'kis' || m === 'nagy') return pziEdStilus((el, l) => l.filter(s => !(s.tagName === 'P' && s.querySelector('span'))).forEach(s => { const f = parseFloat(getComputedStyle(s).fontSize) || 16; s.style.fontSize = Math.max(6, Math.round(f * (m === 'nagy' ? 1.1 : 1 / 1.1) * 10) / 10) + 'px'; }));
+    if(m === 'felk'){ const t0 = pziEdSzovegEl(pziEdSel[0]), vast = (+getComputedStyle(t0.querySelector('span') || t0.querySelector('p, b') || pziEdSel[0]).fontWeight || 400) >= 600;
         return pziEdStilus((el, l) => l.forEach(s => { s.style.fontWeight = vast ? '400' : '700'; })); }
     if(m.startsWith('ig-')) return pziEdStilus(el => { const t = pziEdSzovegEl(el); t.style.textAlign = m.slice(3); t.querySelectorAll('p, li').forEach(p => { p.style.textAlign = m.slice(3); }); });
     if(!pziEdSel.length && m !== 'ujszoveg' && m !== 'ujforma') return;
