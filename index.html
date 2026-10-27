@@ -29251,8 +29251,11 @@ function szFanNyit(ny){
     if(ny){
         szFulMenuZar();
         const lapok = szLapok(), akt = szAktLap();
-        const elemek = [...szSavLista().map(l => { const x = lapok.find(y => y.lap === l); return x && { lap: l, svg: x.svg, n: SZ_ROVID[l] || x.n }; }).filter(Boolean),
-            { lap: 'en', svg: SZ_MIND_SVG, n: 'Minden' }];
+        // a Ma (SZEM) / Sikerfüzet (OVB) mindig a félkör közepén, körülötte a kedvencek, a végén a „Minden”
+        const kozep = SZ_KOZEP[szTer()], elem = l => { const x = lapok.find(y => y.lap === l); return x && { lap: l, svg: x.svg, n: SZ_ROVID[l] || x.n }; };
+        const tobbi = szSavLista().filter(l => l !== kozep).map(elem).filter(Boolean).slice(0, 3), kozepE = elem(kozep);
+        const elemek = [...tobbi, { lap: 'en', svg: SZ_MIND_SVG, n: 'Minden' }];
+        if(kozepE) elemek.splice(Math.floor((elemek.length + 1) / 2), 0, kozepE);
         const N = elemek.length;
         // ellipszis-ív a gomb fölött (165°→15°), hogy hüvelykujjal minden elérhető legyen
         f.querySelector('.szm-fan-ivek').innerHTML = elemek.map((x, i) => { const a = Math.PI * (165 - 150 * (N > 1 ? i / (N - 1) : .5)) / 180;
@@ -29391,7 +29394,7 @@ window.sfShowEn = function(){
             const l = [...document.querySelectorAll('#viewAsLista [data-viewas]')]; if(priv || !l.length || document.getElementById('viewAsBtn')?.hidden) return '';
             return `<div class="en-va"><span>Kinek a nézete</span><div>${l.map(b => `<button type="button" data-szva="${esc(b.dataset.viewas)}" class="${b.classList.contains('on') ? 'on' : ''}">${esc((b.querySelector('span') || b).textContent.trim())}</button>`).join('')}</div></div>`; })()}
         <div class="en-fej"><h2>${cim}</h2><button type="button" class="en-szerk${szSavSzerk ? ' on' : ''}" data-szszerk>${szSavSzerk ? 'Kész' : 'Kedvencek szerkesztése'}</button></div>
-        ${szSavSzerk ? `<p class="en-tipp"><b>Kedvencek · ${sav.length} / ${SZ_HELY} hely.</b> Ezek nyílnak ki félkörben a középső gombra koppintva (az 5. hely mindig „Minden”). Koppints egy csempére a fel- vagy levételhez; a sorrendhez a lenti sávon koppints két ikonra egymás után.</p>` : ''}
+        ${szSavSzerk ? `<p class="en-tipp"><b>Kedvencek · ${sav.length} / ${SZ_HELY} hely.</b> Ezek nyílnak ki félkörben a középső gombra koppintva – középen mindig a ${priv ? 'Ma' : 'Sikerfüzet'}, a szélén a „Minden”. Koppints egy csempére a fel- vagy levételhez; a sorrendhez a lenti sávon koppints két ikonra egymás után.</p>` : ''}
         <div class="en-racs${szSavSzerk ? ' szerk' : ''}">${szLapok().map(x => { const bent = sav.includes(x.lap);
             return `<button type="button" class="card en-cs${szSavSzerk && bent ? ' bent' : ''}" data-szmenj="${x.lap}"><i>${x.svg}</i>${szSavSzerk ? `<em class="en-jel">${bent ? '✓' : '○'}</em>` : ''}<b>${esc(x.n)}</b><span>${szSavSzerk ? (bent ? 'kedvenc' : sav.length < SZ_HELY ? 'feltesz' : 'betelt (4/4)') : esc(EN_LEIRAS[x.lap] || '')}</span></button>`; }).join('')}</div>
         ${priv ? '' : `<div class="en-kulso">${[...document.querySelectorAll('.sidebar-extlinks a')].map(a => `<a class="card" href="${esc(a.href)}" target="_blank" rel="noopener">${(a.querySelector('svg') || {}).outerHTML || ''}<b>${esc((a.querySelector('.nav-label') || a).textContent.trim())}</b><span>↗</span></a>`).join('')}</div>`}`;
