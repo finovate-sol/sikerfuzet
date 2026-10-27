@@ -11637,7 +11637,7 @@ async function renderOnismeret(){
     if(!prvLap('onismeret')) return;
     const fulek = `<div class="oi-fulek" role="tablist">${[['kerek', 'Életkerék'], ['szab', 'Szabályaim'], ['hawk', 'Hawkins-skála'], ['vall', 'Havi vállalás']].map(([k, n]) =>
         `<button type="button" role="tab" data-oitab="${k}" class="${oiTab === k ? 'on' : ''}" aria-selected="${oiTab === k}">${n}</button>`).join('')}</div>`;
-    const hiba = prvHiba.has('onismeret') ? '<div class="oi-hiba">Az adatot most nem sikerült a szerverről betölteni – amit módosítasz, csak ezen az eszközön mentődik.</div>' : '';
+    const hiba = prvHiba.has('onismeret') ? '<div class="oi-hiba">Most nem érem el a szervert – újrapróbálom, addig a változások ezen az eszközön mentődnek. <button type="button" class="pv-link" data-prvujra>Újra</button></div>' : '';
     const y = window.scrollY;
     host.innerHTML = hiba + fulek + (oiTab === 'szab' ? '<div id="szabBody"></div>' : oiTab === 'hawk' ? oiHawkHtml(a) : oiTab === 'vall' ? oiVallHtml(a) : oiKerekHtml(a));
     window.scrollTo(0, y);
@@ -15139,7 +15139,7 @@ function sfKesoFrissit(){
         if(document.querySelector('.modal-overlay') || (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable))){ sfKesoFrissit(); return; }
         const lap = id => { const p = document.getElementById('page-' + id); return p && !p.hidden; };
         const R = { penzugyek: () => pzFrissit(), privma: () => renderPrivMa(), szokasok: () => renderSzokasok(), egeszseg: () => renderEgeszseg(),
-            mentesek: () => renderMentesek(), kiszemelt: () => renderKiszemelt(), emberek: () => renderEmberek(), konyvek: () => renderKonyvek(), enaplo: () => renderNaplo(), edzes: () => renderEdz() };
+            mentesek: () => renderMentesek(), kiszemelt: () => renderKiszemelt(), emberek: () => renderEmberek(), konyvek: () => renderKonyvek(), enaplo: () => renderNaplo(), edzes: () => renderEdz(), onismeret: () => renderOnismeret() };
         for(const id in R) if(lap(id)){ try { R[id](); } catch(e){ console.warn(e); } }
     }, 400);
 }
@@ -26407,7 +26407,7 @@ async function prvBetoltSzerverrol(k){
             szerver.then(r2 => {
                 if(kie !== prvUid || PRV[k] !== obj) return;
                 prvKesik.delete(k);
-                if(!r2.ok){ prvHiba.add(k); console.warn('Privát adat betöltése sikertelen:', k, r2.e); return; }
+                if(!r2.ok){ prvHibaJel(k, pill); console.warn('Privát adat betöltése sikertelen:', k, r2.e); return; }
                 prvHiba.delete(k);
                 if(!r2.v){ if(JSON.stringify(obj) !== pill) prvMent(k); return; }
                 const m = sfKesoBeolvaszt(obj, pill, prvUj(k, r2.v));
@@ -26420,8 +26420,37 @@ async function prvBetoltSzerverrol(k){
     }
     const obj = prvUj(k, adat);
     if(kie !== prvUid) return obj;
-    return (PRV[k] = obj);
+    PRV[k] = obj;
+    if(prvHiba.has(k)) prvHibaJel(k, JSON.stringify(obj));
+    return obj;
 }
+// Ha egy kulcs nem jött le a szerverről (pl. pillanatnyi hálózati hiba az app megnyitásakor),
+// nem maradunk örökre „csak helyben” módban: újrapróbáljuk (netre visszatéréskor, az appba
+// visszalépéskor és időnként), és sikerkor a közben tett helyi módosításokat összefésüljük.
+const prvHibaPill = {};
+let prvUjraT = 0, prvUjraDb = 0;
+function prvHibaJel(k, pill){ prvHiba.add(k); prvHibaPill[k] = pill; prvUjraIdozit(); }
+function prvUjraIdozit(){ clearTimeout(prvUjraT); if(prvUjraDb < 12) prvUjraT = setTimeout(prvUjraprobal, Math.min(60000, 4000 * (prvUjraDb + 1))); }
+async function prvUjraprobal(){
+    clearTimeout(prvUjraT);
+    const uid = ezUid(), kie = prvUid; if(!uid || !prvHiba.size || typeof window.sfGetPrivatStrict !== 'function') return;
+    prvUjraDb++;
+    for(const k of [...prvHiba]){
+        const r = await sfEredmeny(window.sfGetPrivatStrict(uid, k));
+        if(kie !== prvUid || !r.ok) continue;
+        const obj = PRV[k]; prvHiba.delete(k);
+        const pill = prvHibaPill[k]; delete prvHibaPill[k];
+        if(!obj) continue;
+        if(!r.v){ if(pill && JSON.stringify(obj) !== pill) prvMent(k); sfKesoFrissit(); continue; }
+        const m = sfKesoBeolvaszt(obj, pill || JSON.stringify(obj), prvUj(k, r.v));
+        if(m === 'fesult') prvMent(k); else sfHelyiMasolat(prvKulcs(k), obj);
+        sfKesoFrissit();
+    }
+    if(prvHiba.size) prvUjraIdozit(); else prvUjraDb = 0;
+}
+window.addEventListener('online', () => { prvUjraDb = 0; prvUjraprobal(); });
+document.addEventListener('click', e => { if(e.target.closest('[data-prvujra]')){ prvUjraDb = 0; prvUjraprobal(); } });
+document.addEventListener('visibilitychange', () => { if(!document.hidden && prvHiba.size){ prvUjraDb = 0; prvUjraprobal(); } });
 // Ha a szerverről nem jött le, csak helyben mentünk – különben egy üres/régi
 // példánnyal írnánk felül azt, ami a szerveren van.
 function prvMent(k){
