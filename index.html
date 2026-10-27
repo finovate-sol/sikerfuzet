@@ -5799,6 +5799,23 @@
         .ez-kcs-fej b { font-size:12.5px; color:var(--navy); } .ez-kcs-fej em { font-style:normal; font-size:11px; color:var(--muted); }
         .ez-kcs-fej .ez-tipw { margin:0; } .ez-kcs-fej .ez-info { width:20px; height:20px; font-size:10px; }
         .ez-kk-racs { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+        /* sablon-csempék: rács, színes fejléc a sportág színével */
+        .ez-sk-racs { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; }
+        .ez-sk { display:flex; flex-direction:column; min-width:0; background:#fff; border:1px solid #e8eef6; border-radius:20px; overflow:hidden; box-shadow:0 2px 6px rgba(15,23,42,.05); transition:box-shadow .15s, transform .15s; }
+        .ez-sk:hover { box-shadow:0 8px 22px rgba(15,23,42,.1); transform:translateY(-1px); }
+        .ez-sk-fej { position:relative; display:block; width:100%; min-height:96px; border:0; padding:14px 14px 12px; text-align:left; cursor:pointer; color:#fff; font:inherit;
+            background:linear-gradient(135deg, var(--sc), color-mix(in srgb, var(--sc) 55%, #fff)); }
+        .ez-sk-fej .ez-ik { width:34px; height:34px; border-radius:11px; background:rgba(255,255,255,.22) !important; color:#fff !important; }
+        .ez-sk-fej .ez-ik svg { stroke:#fff; }
+        .ez-sk-ido { position:absolute; right:12px; top:12px; font-size:12px; font-weight:800; background:rgba(255,255,255,.25); border-radius:999px; padding:3px 9px; white-space:nowrap; max-width:55%; overflow:hidden; text-overflow:ellipsis; }
+        .ez-sk-fej b { display:block; margin-top:10px; font-size:15.5px; line-height:1.2; font-weight:800; text-shadow:0 1px 6px rgba(0,0,0,.12); }
+        .ez-sk-tt { flex:1; display:flex; flex-direction:column; gap:8px; padding:10px 12px 12px; }
+        .ez-sk-tt p { margin:0; font-size:12.5px; line-height:1.35; color:#475569; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .ez-sk-lab { display:flex; gap:6px; margin-top:auto; }
+        .ez-sk-terv { flex:1; border:0; border-radius:11px; background:#0f172a; color:#fff; font:inherit; font-size:13px; font-weight:700; padding:9px; cursor:pointer; }
+        .ez-sk-terv:hover { background:#1e293b; }
+        .ez-sk-lab .ez-kebab { margin:0; width:38px; border-radius:11px; background:#f1f5f9; }
+        @media (max-width:520px){ .ez-sk-racs { grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; } .ez-sk-fej { min-height:88px; padding:12px; } .ez-sk-fej b { font-size:14px; } }
         .ez-kk { position:relative; display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--border); border-radius:12px; padding:8px 6px 8px 12px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
         .ez-kk::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--sc, #94a3b8); }
         .ez-kk:hover { border-color:#c7d2e1; box-shadow:0 4px 12px rgba(15,47,95,.07); }
@@ -24285,10 +24302,12 @@ const EZ_SP_SZIN = { borostyan:'#d97706', kek:'#2563eb', lila:'#7c3aed', turkiz:
 const ezSpSzin = k => EZ_SP_SZIN[ezSp(k)[1]] || '#94a3b8';
 const ezSabMeta = s => s.gyak && s.gyak.length ? `${s.gyak.length} gyakorlat · ${s.gyak.reduce((n, g) => n + (g.sz || 0), 0)} szett` : ezCel(s);
 const ezSabProg = s => s.prog ? EZ_PROGRAMOK.find(p => p.id === s.prog) || null : null;
-const ezSabKartya = s => `<div class="ez-kk" style="--sc:${ezSpSzin(s.sport)}">
-        <button type="button" class="ez-kk-f" data-ezsabnyit="${esc(s.id)}">${ezIk(s.sport)}<span class="ez-kk-t"><b>${esc(s.n)}</b><em>${esc(ezSabMeta(s))}</em></span></button>
-        <button type="button" class="ez-kk-terv" data-eztervez="${esc(s.id)}">Tervezés</button>
-        <button type="button" class="ez-kebab" data-ezsabmenu="${esc(s.id)}" aria-label="${esc(s.n)} – műveletek">⋯</button></div>`;
+// csempe: színes fejléc a sportág színével (ikon, fő adat, teljes név), alatta a részletek és a gombok
+const ezSabKartya = s => { const m = ezSabMeta(s).split(' · '), fo = m.shift(), tobbi = [m.join(' · '), (s.leiras || '').split('\n')[0]].filter(x => x && x !== '—').join(' · ');
+    return `<div class="ez-sk" style="--sc:${ezSpSzin(s.sport)}">
+        <button type="button" class="ez-sk-fej" data-ezsabnyit="${esc(s.id)}">${ezIk(s.sport)}${fo && fo !== '—' ? `<span class="ez-sk-ido">${esc(fo)}</span>` : ''}<b>${esc(s.n)}</b></button>
+        <div class="ez-sk-tt"><p>${esc(tobbi || ezSp(s.sport)[0] || '')}</p>
+            <div class="ez-sk-lab"><button type="button" class="ez-sk-terv" data-eztervez="${esc(s.id)}">Tervezés</button><button type="button" class="ez-kebab" data-ezsabmenu="${esc(s.id)}" aria-label="${esc(s.n)} – műveletek">⋯</button></div></div></div>`; };
 // Mikor csináltad utoljára (a betöltött évekből).
 function ezSabUtoljara(sid){
     let u = '';
@@ -24532,7 +24551,7 @@ function ezSablonHtml(){
             <label class="ez-csop-val">Csoportosítás: <select data-ezsabcsop>${[['forras', 'Forrás'], ['sport', 'Sportág'], ['nincs', 'Nincs']].map(([k, n]) => `<option value="${k}"${ezSabCsop === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>
         ${csoportok.filter(([, , , l]) => l.length).map(([pid, n, al, l]) => `<section class="ez-kcs">
             ${n ? `<div class="ez-kcs-fej"><b>${esc(n)}</b><span class="ez-db">${l.length}</span>${al ? `<em>${esc(al)}</em>` : ''}${pid ? ezProgInfo(EZ_PROGRAMOK.find(p => p.id === pid), l) + `<button type="button" class="ez-kk-terv ez-kcs-terv" data-ezprogterv="${esc(pid)}">Betervezem</button>` : ''}</div>` : ''}
-            <div class="ez-kk-racs">${l.map(ezSabKartya).join('')}</div></section>`).join('') || '<p class="ez-megj">Ebben a sportágban még nincs sablonod.</p>'}`;
+            <div class="ez-sk-racs">${l.map(ezSabKartya).join('')}</div></section>`).join('') || '<p class="ez-megj">Ebben a sportágban még nincs sablonod.</p>'}`;
 }
 
 // ---- Versenyek ----
