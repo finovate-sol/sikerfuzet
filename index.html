@@ -1412,6 +1412,11 @@
         .rc-rail-av { width:56px; height:56px; border-radius:50%; font-size:17px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-bottom:11px; background:var(--blue-light); color:var(--navy); }
         .rc-rail-av.empty { background:var(--amber-light); color:var(--amber); }
         .rc-rail h3 { font-size:14.5px; font-weight:800; color:var(--navy); margin:0 0 3px; }
+        .rc-rail input.rc-rail-nev { display:block; width:100%; box-sizing:border-box; text-align:inherit; font:inherit; font-size:14.5px; font-weight:800; color:var(--navy); margin:0 0 3px; padding:3px 6px; border:1px dashed transparent; border-radius:8px; background:transparent; }
+        .rc-rail input.rc-rail-nev:hover { border-color:var(--line, #d8dee8); }
+        .rc-rail input.rc-rail-nev:focus { outline:none; border:1px solid #1f5fd0; background:#fff; }
+        .rc-rail input.rc-rail-nev::placeholder { color:var(--amber); font-style:italic; font-weight:600; }
+        .sf-ment-hiba { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999; background:#b42318; color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.2); max-width:calc(100vw - 32px); }
         .rc-rail-sub { font-size:11px; color:var(--muted); margin-bottom:14px; }
         .rc-qa { display:flex; gap:7px; margin-bottom:16px; flex-wrap:wrap; }
         .rc-qa a { flex:1; min-width:88px; border:1px solid var(--border); background:#fff; border-radius:9px; padding:8px 0; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--muted); text-decoration:none; font-size:11px; font-weight:700; }
@@ -10824,6 +10829,12 @@ function refreshMoneyCareer(){ renderMoney(); renderCareer(); }
 // A modul-script hívja meg, amikor a megosztott (Firestore) ügyféllista
 // megérkezett/frissült – a felhasználó szerepkörének megfelelően már
 // leszűrve (munkatárs: csak a saját ügyfelei; vezető/admin: mind).
+function sfMentHiba(msg){
+    if(document.querySelector('.sf-ment-hiba')) return;
+    const d = document.createElement('div'); d.className = 'sf-ment-hiba'; d.textContent = msg;
+    document.body.appendChild(d); setTimeout(() => d.remove(), 7000);
+}
+window.sfMentHiba = sfMentHiba;
 window.sfSetRegistry = function(list){
     // Megőrizzük a helyben létrehozott, Firestore-ba még nem mentett rekordokat
     // (amelyeknek van _localKey-jük, de még nincs id-jük).
@@ -10847,7 +10858,27 @@ function regClientPayload(r){
     // Az aláhúzással kezdődő mezők csak a felületnek kellenek (pl. _prevSeen a
     // "melyik jegyzet volt új" kiemeléshez) – nem mennek ki a Firestore-ba.
     const { id, _localKey, _prevSeen, ...rest } = r;
-    return rest;
+    return regTisztit(rest);
+}
+// Név gépelése közben a lista sora, a fejléc és a másik névmező is kövesse
+// (újrarajzolás nélkül, hogy a fókusz és a kurzor a helyén maradjon).
+function cliNevSzinkron(i, src){
+    const r = registry[i]; if(!r) return;
+    const nev = String(r.name || ''), van = !!nev.trim();
+    document.querySelectorAll(`[data-regdetail="${i}"] input[data-name], [data-tobdetail="${i}"] input[data-tobname]`).forEach(x => { if(x !== src) x.value = nev; });
+    document.querySelectorAll(`.reg-name[data-open="${i}"], [data-ketopen="${i}"] .ket-name, [data-ketpipe="${i}"] .pipe-nm`).forEach(x => {
+        x.innerHTML = (x.classList.contains('pipe-nm') ? '' : cliDot(r)) + (van ? esc(nev) : 'Nincs név megadva');
+        x.classList.toggle('empty', !van);
+    });
+    document.querySelectorAll('.drawer .sv-dnm').forEach(x => { if(x.closest('.drawer').querySelector(`[data-tobdetail="${i}"], [data-regdetail="${i}"]`)) x.textContent = van ? nev : 'Nincs név megadva'; });
+}
+// A Firestore az undefined mezőt nem fogadja el – egy ilyen az egész mentést elbuktatná.
+function regTisztit(v){
+    if(Array.isArray(v)) return v.map(x => x === undefined ? null : regTisztit(x));
+    if(v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype){
+        const o = {}; for(const [k, x] of Object.entries(v)) if(x !== undefined) o[k] = regTisztit(x); return o;
+    }
+    return v;
 }
 function persistReg(i){
     const r = registry[i];
@@ -22952,7 +22983,7 @@ function regCardDetailHtml(i){
     return `<div class="rc-detail" data-regdetail="${i}">
         <div class="rc-rail">
             <span class="rc-rail-av${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-            <h3>${hasName?esc(r.name):'Nincs név megadva'}</h3>
+            <input class="rc-rail-nev" data-name="1" value="${esc(r.name||'')}" placeholder="Nincs név megadva" aria-label="Név" title="Kattints a név átírásához">
             <div class="rc-rail-sub">${esc(r.phone||'nincs telefonszám')}</div>
             <div class="rc-qa">
                 ${tel ? `<a class="go" href="tel:${esc(tel)}" title="Hívás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>Hívás</a>
@@ -23433,7 +23464,7 @@ function openRegAddModal(){
         const i = regExpandedIdx; if(i==null) return;
         const r = registry[i]; if(!r) return;
         r.details = r.details || {}; r.celok = r.celok || {};
-        if(t.dataset.name!==undefined) r.name = t.value;
+        if(t.dataset.name!==undefined){ r.name = t.value; cliNevSzinkron(i, t); }
         else if(t.dataset.d!==undefined) r.details[t.dataset.d] = t.value;
         else if(t.dataset.c!==undefined) r.celok[t.dataset.c] = t.value;
         else return;
@@ -23941,6 +23972,7 @@ function ketorasDetailHtml(i){
         <div class="rd-sec">Időpontegyeztetés</div>
         ${ketLogFields(tob, 'idopontok')}
         <div class="modal-foot">
+            <button class="btn" id="tobDelete" style="color:#b42318;margin-right:auto;">Törlés</button>
             <button class="btn" id="tobUnflag">← Vissza a 10 perces füzetbe</button>
             <button class="btn primary" id="tobClose">Kész</button>
         </div>
@@ -24132,7 +24164,7 @@ function ketCardDetailHtml(i){
     return `<div class="rc-detail" data-tobdetail="${i}">
         <div class="rc-rail">
             <span class="rc-rail-av${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}</span>
-            <h3>${hasName?esc(r.name):'Nincs név megadva'}</h3>
+            <input class="rc-rail-nev" data-tobname value="${esc(r.name||'')}" placeholder="Nincs név megadva" aria-label="Név" title="Kattints a név átírásához">
             <div class="rc-rail-sub">${esc(r.phone||'nincs telefonszám')}</div>
             <div class="rc-qa">
                 ${tel ? `<a class="go" href="tel:${esc(tel)}" title="Hívás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg>Hívás</a>
@@ -24153,7 +24185,8 @@ function ketCardDetailHtml(i){
             <div class="rc-pane">${pane}</div>
             <div class="rc-foot">
                 <span class="rc-saved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 5 5L20 7"/></svg>Automatikusan mentve</span>
-                <button class="btn" id="tobUnflag" style="margin-left:auto;" title="A jelölt visszakerül a 10 perces füzetbe">← Vissza a 10 perces füzetbe</button>
+                <button class="btn" id="tobDelete" style="margin-left:auto;color:#b42318;" title="A jelölt végleges törlése">Törlés</button>
+                <button class="btn" id="tobUnflag" style="margin-left:9px;" title="A jelölt visszakerül a 10 perces füzetbe">← Vissza a 10 perces füzetbe</button>
                 <button class="btn primary" id="tobClose" style="margin-left:9px;">Kész</button>
             </div>
         </div>
@@ -24169,7 +24202,7 @@ function ketCardDetailHtml(i){
         const i = ketorasExpandedIdx; if(i==null) return;
         const r = registry[i]; if(!r) return;
         const tob = r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
-        if(t.dataset.tobname!==undefined) r.name = t.value;
+        if(t.dataset.tobname!==undefined){ r.name = t.value; cliNevSzinkron(i, t); }
         else if(t.dataset.tobphone!==undefined) r.phone = t.value;
         else if(t.dataset.toblakhely!==undefined) r.lakhely = t.value;
         else if(t.dataset.tobajanlo!==undefined) r.ajanlo = t.value;
@@ -24234,6 +24267,13 @@ function ketCardDetailHtml(i){
             const [kind,ri] = del.dataset.tobdel.split(':');
             registry[i].toborzas[kind].splice(+ri,1);
             persistExpanded(); renderKetorasList(); return;
+        }
+        if(e.target.closest('#tobDelete') && i!=null){
+            const r = registry[i]; if(!r) return;
+            if(!confirm(`Biztosan törlöd${r.name ? ' „' + r.name + '”' : ' ezt a jelöltet'}? Ez nem vonható vissza.`)) return;
+            if(r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
+            registry.splice(i, 1); ketorasExpandedIdx = null;
+            store.save('sf_registry', registry); renderRegistry(); renderKetorasList(); refreshMoneyCareer(); return;
         }
         if(e.target.closest('#tobUnflag') && i!=null){
             registry[i].mt = false;
@@ -31568,11 +31608,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     };
     window.sfSaveClient = function(id, data){
         if (!isConfigured) return;
-        saveClient(id, data).catch(e => console.warn("Ügyfél mentése sikertelen:", e));
+        saveClient(id, data).catch(e => { console.warn("Ügyfél mentése sikertelen:", e); sfMentHiba("Az ügyfél mentése nem sikerült: " + ((e && e.message) || e)); });
     };
     window.sfDeleteClient = function(id){
         if (!isConfigured) return;
-        deleteClient(id).catch(e => console.warn("Ügyfél törlése sikertelen:", e));
+        deleteClient(id).catch(e => { console.warn("Ügyfél törlése sikertelen:", e); sfMentHiba("A törlés nem sikerült: " + ((e && e.message) || e)); });
     };
     // Az "INFO résztvevők" megosztott lista mentése a felhőbe (config/app.infoParticipants).
     window.sfSaveInfoParticipants = function(list){
