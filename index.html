@@ -4601,6 +4601,7 @@
             background:color-mix(in srgb, var(--c) 9%, #fff) !important; }
         html body .fx.fx button.fx-ik.fx-ik.card.card.on.on b { color:var(--c); }
         .fx .fx-tabs { margin-bottom:12px; }
+        .fx .fx-ak { margin-bottom:14px; flex:none; } .fx .fx-ak .card-body { max-height:30vh; overflow-y:auto; }
         @media (max-width:760px){
             .fx .pg-rec.fx-t { flex-wrap:wrap; row-gap:4px; }
             .fx .pg-rec .fx-datum { order:3; flex:0 1 auto; width:auto; margin-left:31px; }
@@ -36411,6 +36412,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <div class="fx-racs">
                 <div class="fx-kozep">
                     ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="card fx-ik${fxIdo === k ? " on" : ""}${k === "lej" && v ? " lej" : ""}" data-fxido="${k}" style="--c:${FX_IDO[k][0]}" aria-pressed="${fxIdo === k}"><span class="fx-ik-ic">${FX_IDO[k][1]}</span><span><b>${v}</b><span>${n}</span></span></button>`).join("")}</div>`}
+                    ${(() => { const ak = (typeof pgMyAkciok === 'function' ? pgMyAkciok() : []).filter(a => !a.done);
+                        return ak.length && fdFilter !== "kesz" ? `<section class="card pg-card fx-ak"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>Akcióterveim</h2><span class="pg-count">${ak.length} nyitott · a vezetődtől / PG-ből</span></div>
+                            <div class="card-body"><div class="pg-ak-list">${ak.map(pgAkcioRowHtml).join("")}</div></div></section>` : ""; })()}
                     <section class="card pg-card fx-lap">
                         <div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7.5 4.5"/><path d="m3 12 1.5 1.5L7.5 10.5"/><path d="m3 18 1.5 1.5L7.5 16.5"/></svg></span>${fdFilter === "kesz" ? "Kész feladatok" : "Teendők"}</h2><span class="pg-count">${lathato.filter(t => fdFilter === "kesz" || !taskIsDone(t)).length} feladat</span></div>
                         <div class="card-body fx-lista">${torzs}</div>
@@ -36566,6 +36570,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         }
 
         // --- sorok ---
+        body.querySelectorAll(".fx-ak [data-akdone]").forEach(cb => cb.addEventListener("change", async () => { await pgToggleAkcio(cb.dataset.akdone, cb.checked); renderFeladatok(); }));
+        body.querySelectorAll(".fx-ak [data-akdel]").forEach(b => b.remove());
         body.querySelectorAll("[data-fdtoggle]").forEach(cb => cb.addEventListener("change", e => {
             e.stopPropagation(); fdPipa(cb, cb.dataset.fdtoggle);
         }));
@@ -36804,6 +36810,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         try {
             await loadAllTasks(false);
             await loadTaskMeta();
+            // a vezetőtől kapott akciótervek (Bedolgozás házi, PG) – a munkatárs a Bedolgozás oldalt nem látja, ezért itt jelennek meg
+            try { await pgLoadAll(); } catch(_){}
             renderFeladatok();
         } catch(e){
             renderFeladatokConnect((e.status === 401 || e.status === 403)
@@ -37237,7 +37245,7 @@ Vállalkozás nyitásának átbeszélése`, '']
             <div class="card-head"><h2><span class="icon">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}</span>Bedolgozás</h2>
                 ${window.sfIsAdmin ? '<button class="bed-link" id="bedSablonBtn" type="button">Program szerkesztése</button>' : `<span class="pg-count">${aktiv.length} folyamatban</span>`}</div>
             <div class="card-body">${savok}
-                <p class="pg-note-txt" style="margin:0 0 14px">1:1-ben, lépésről lépésre. A következő lépésre akkor lépj, ha az előző házi feladata kész. A kiadott házi feladat a munkatárs <b>Akciótervei</b> közé kerül (a következő alkalom napjára), ő pipálja ki – te a sorában látod, hány nyitott.</p>
+                <p class="pg-note-txt" style="margin:0 0 14px">1:1-ben, lépésről lépésre. A következő lépésre akkor lépj, ha az előző házi feladata kész. A kiadott házi feladat a munkatárs <b>Feladatok</b> oldalára kerül, az „Akcióterveim” közé (a következő alkalom napjára), ő pipálja ki – te a sorában látod, hány nyitott.</p>
                 ${ujSor}
                 ${aktiv.length ? `<div class="pg-group">Folyamatban · ${aktiv.length}</div>${aktiv.map(sor).join('')}` : (emps.length ? `<div class="bed-ures">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}<b>Még nincs folyamatban bedolgozás</b><span>Válassz munkatársat és a Starter PG napját, majd indítsd el.</span></div>` : '')}</div>
         </section>`;
@@ -37254,7 +37262,7 @@ Vállalkozás nyitásának átbeszélése`, '']
               : x.done ? '<span class="pg-ak-task on">✓ Kész</span>' : x.done === null ? '<span class="pg-ak-from">kiadva</span>' : '<span class="pg-ak-from">⏳ Folyamatban</span>'}</div>`;
         return `<div class="pg-ak-list">${h.length ? h.map(sor).join('') : '<div class="pg-empty" style="padding:8px 0;text-align:left">Ehhez a lépéshez nincs házi feladat.</div>'}</div>
             ${szerk ? `<div class="bed-hazi-add"><input type="text" class="pg-ak-inp" id="bedHaziUj" placeholder="Saját házi feladat kiadása…" maxlength="300"><button class="btn" id="bedHaziUjBtn">Kiadom</button></div>
-            <p class="pg-note-txt">A kiadott házi a munkatárs akciótervébe kerül (a következő alkalom napjára), ő pipálja ki.</p>` : ''}`;
+            <p class="pg-note-txt">A kiadott házi a munkatárs Feladatok oldalán, az „Akcióterveim” között jelenik meg (a következő alkalom napjára), ő pipálja ki.</p>` : ''}`;
     }
     function bedReszletHtml(uid){
         const d = bedDocs[uid]; if(!d) return bedListaHtml();
