@@ -6074,7 +6074,7 @@
             /* ablakok telefonon: alulról felcsúszó lap (bottom sheet) a középre úszó doboz helyett */
             .modal-overlay { align-items:flex-end; padding:0; }
             .modal-overlay > .modal { width:100%; max-width:none !important; margin:0; border-radius:20px 20px 0 0; max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px);
-                                      display:flex; flex-direction:column; animation:sfLapFel .24s cubic-bezier(.2,.8,.2,1); box-shadow:0 -12px 36px rgba(10,37,71,.28); }
+                                      display:flex; flex-direction:column; box-shadow:0 -12px 36px rgba(10,37,71,.28); }
             .modal-overlay > .modal > .modal-head { position:relative; padding-top:24px; flex:none; }
             .modal-overlay > .modal > .modal-head::before { content:''; position:absolute; top:9px; left:50%; width:40px; height:4px; margin-left:-20px; border-radius:99px; background:#d5dce6; }
             .modal-overlay > .modal > .modal-body { flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; overscroll-behavior:contain; }
@@ -8358,10 +8358,10 @@
         @keyframes sfPopBe { from { opacity:0; transform:translateY(14px) scale(.97); } }
         @keyframes sfLapBe { from { transform:translateY(100%); } }
         .sf-be { animation:sfOvBe .22s ease-out both; }
-        .sf-be > :not(script):not(style) { animation:sfPopBe .3s cubic-bezier(.2,.9,.3,1.04) both; }
+        .sf-be-gy { animation:sfPopBe .3s cubic-bezier(.2,.9,.3,1.04) both; }
         .fx-ujlap.sf-be { animation:sfOvBe .22s ease-out both; }
         @media (max-width:760px){
-            .modal-overlay.sf-be > .modal, .nlw-ov.sf-be > .nlw, .fx-ujlap.sf-be { animation:sfLapBe .36s cubic-bezier(.22,.9,.25,1) both; }
+            .modal-overlay > .modal.sf-be-gy, .nlw-ov > .nlw.sf-be-gy, .fx-ujlap.sf-be { animation:sfLapBe .34s cubic-bezier(.22,.9,.25,1) both; }
         }
         /* napló-rögzítő: lépésváltáskor a tartalom oldalról becsúszik */
         @keyframes sfLepElore { from { opacity:0; transform:translateX(36px); } }
@@ -8370,7 +8370,7 @@
         .nlw-test.hatra > * { animation:sfLepHatra .3s cubic-bezier(.2,.8,.2,1) both; }
         .nlw-test.elore > :nth-child(2), .nlw-test.hatra > :nth-child(2) { animation-delay:.03s; }
         .nlw-test.elore > :nth-child(n+3), .nlw-test.hatra > :nth-child(n+3) { animation-delay:.06s; }
-        @media (prefers-reduced-motion:reduce){ .sf-be, .sf-be > *, .nlw-test > * { animation:none !important; } }
+        @media (prefers-reduced-motion:reduce){ .sf-be, .sf-be-gy, .nlw-test > * { animation:none !important; } }
         .nl-dt { display:flex; gap:8px; justify-content:center; margin:0 0 14px; }
         .nl-dt input { height:40px; border:0; border-radius:12px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:14.5px; color:#111827; }
         .nl-hang5 { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; margin:0 0 16px; }
@@ -13849,7 +13849,10 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
 (function(){
     const OV = '.modal-overlay, .org-modal-ov, .tt-modal, .ct-modal, .gk-ov, .nlw-ov';
     const LAP = ['.fx-ujlap'];
-    const be = el => { el.classList.add('sf-be'); clearTimeout(el._sfBe); el._sfBe = setTimeout(() => el.classList.remove('sf-be'), 520); };
+    // a háttér rövid ideig „sf-be”; a doboz (gyerek) tartósan „sf-be-gy” – így a jelölés levétele nem indítja újra az animációt,
+    // az újrarajzolt (kicserélt) doboz pedig már nem kapja meg, tehát nem „nyílik ki még egyszer”
+    const be = el => { el.classList.add('sf-be'); [...el.children].forEach(c => { if(!/^(SCRIPT|STYLE)$/.test(c.tagName)) c.classList.add('sf-be-gy'); });
+        clearTimeout(el._sfBe); el._sfBe = setTimeout(() => el.classList.remove('sf-be'), 520); };
     const volt = new Map(LAP.map(x => [x, false]));
     new MutationObserver(ms => {
         for(const m of ms){
