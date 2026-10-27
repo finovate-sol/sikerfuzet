@@ -12958,7 +12958,26 @@ document.addEventListener('dblclick', e => {
     const el = pziEdSel[0]; if(el && pziEdVanSzoveg(el)) pziEdSzovegKezd(el);
 });
 document.addEventListener('focusout', e => { if(pziEdSzoveg && e.target === pziEdSzovegEl(pziEdSzoveg)) setTimeout(() => { if(pziEdSzoveg && document.activeElement !== pziEdSzovegEl(pziEdSzoveg)) pziEdSzovegVege(); }, 0); });
-document.addEventListener('input', e => { if(pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg).contains(e.target)) pziEdKeret(); });
+// a doboz nő a szöveggel (különben a sorok kilógnának / egymásra csúsznának)
+function pziEdNo(){
+    const el = pziEdSzoveg; if(!el) return;
+    const t = pziEdSzovegEl(el), kell = Math.ceil(t.scrollHeight);
+    if(kell > el.offsetHeight + 1) el.style.height = kell + 'px';
+    pziEdKeret();
+}
+document.addEventListener('input', e => { if(pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg).contains(e.target)) pziEdNo(); });
+// Enter: mindig sima sortörés (<br>) az aktuális bekezdésen belül – a böngésző alapból új
+// <div>-et szúrna be, ami a rugalmas (flex) dobozokban egymás mellé, nagy hézaggal kerülne.
+document.addEventListener('keydown', e => {
+    if(!pziEdSzoveg || e.key !== 'Enter' || e.isComposing) return;
+    if(!pziEdSzovegEl(pziEdSzoveg).contains(e.target)) return;
+    e.preventDefault(); e.stopPropagation();
+    if(!document.execCommand('insertLineBreak')){
+        const s = getSelection(); if(!s.rangeCount) return;
+        const r = s.getRangeAt(0); r.deleteContents(); const br = document.createElement('br'); r.insertNode(br); r.setStartAfter(br); r.collapse(true); s.removeAllRanges(); s.addRange(r);
+    }
+    pziEdNo();
+}, true);
 document.addEventListener('keydown', e => {
     if(!pziSzerk || !document.querySelector('#page-prezik .pzi-ed-vaszon') || document.querySelector('.modal-overlay, .pzi-vetito')) return;
     if(pziEdSzoveg){ if(e.key === 'Escape'){ e.preventDefault(); pziEdSzovegEl(pziEdSzoveg).blur(); pziEdSzovegVege(); } return; }
