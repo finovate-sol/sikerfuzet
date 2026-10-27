@@ -665,6 +665,11 @@
             /* ===== középső gomb + félkör menü; a sávon az oldal fülei (2 bal · gomb · 2 jobb) ===== */
             .szm-also.ures { background:transparent; border-color:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; pointer-events:none; }
             .szm-hely { flex:0 0 76px; }
+            /* fül nélküli oldalon: kis kapszula a gomb körül (keresés · gomb · ＋) */
+            .szm-also.kapszula { left:50%; right:auto; width:196px; margin-left:-98px; border-radius:26px; }
+            .szm-t.kap svg { width:23px; height:23px; }
+            .szm-t.kap { color:#4b5563; }
+            .szm-t.kap.plusz { color:var(--szm-sz); } .szm-t.kap.plusz svg { stroke-width:2.6; }
             .szm-t.ures { flex:1; }
             .szm-t.ful { position:relative; }
             .szm-t.ful.on::after { content:""; position:absolute; bottom:4px; left:50%; width:16px; height:3px; margin-left:-8px; border-radius:2px; background:var(--szm-sz); }
@@ -741,11 +746,18 @@
         @media (min-width:761px){ .szm-lap-h { align-items:center; } .szm-lap { border-radius:22px; padding-bottom:22px; } }
         .szm-lap h5 { margin:6px 0 12px; font-size:17px; font-weight:800; color:var(--text); }
         .szm-lap h5 span { font-size:13px; color:var(--muted); font-weight:700; margin-left:6px; }
-        .szm-gyors { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+        .szm-gyors { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .szm-lap h5.szm-lap-cim { font-size:22px; letter-spacing:-.02em; margin:4px 2px 14px; }
+        .szm-gyors button { display:grid !important; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto; column-gap:12px; row-gap:1px; align-items:center; text-align:left;
+            padding:14px 12px !important; border-radius:20px !important; background:var(--b) !important; color:#1d1b26 !important; }
+        .szm-gyors button i { grid-row:1 / 3; width:46px; height:46px; border-radius:15px; background:#fff; color:var(--c); display:grid; place-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+        .szm-gyors button i svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .szm-gyors button b { font-size:16.5px; font-weight:800; line-height:1.15; align-self:end; }
+        .szm-gyors button small { font-size:12.5px; font-weight:600; color:color-mix(in srgb, var(--c) 70%, #333); align-self:start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .szm-gyors button { border:0; background:#f1ebfe; color:#4c1d95; border-radius:16px; padding:14px 6px 12px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
         .szm-gyors button span { font-size:24px; line-height:1; }
         .szm-gyors button:active { transform:scale(.97); }
-        .szm-lap-ctx { width:100%; margin:0 0 10px; border:1.5px dashed #a78bfa; background:none; color:#6d28d9; border-radius:14px; padding:11px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+        .szm-lap-ctx { width:100%; margin:0 0 10px; border:1.5px dashed #a78bfa; background:none; color:#6d28d9; border-radius:16px; padding:14px; font:inherit; font-size:15.5px; font-weight:800; cursor:pointer; }
         .szm-lap-fej { display:flex; align-items:center; gap:8px; }
         .szm-lap-fej h5 { flex:1; }
         .szm-lap-vissza { width:34px; height:34px; border-radius:50%; border:0; background:#f1ebfe; color:#6d28d9; font-size:20px; cursor:pointer; }
@@ -29036,14 +29048,22 @@ function szAlsoFrissit(){
         // szerkesztéskor a sáv a 4 kedvencet mutatja (két ikonra koppintva helyet cserélnek) + Minden
         const g = l => { const x = lapok.find(y => y.lap === l); if(!x) return '';
             return `<button type="button" class="szm-t${szCsere === l ? ' csere' : ''}" data-szmenj="${l}">${x.svg}<span>${esc(SZ_ROVID[l] || x.n)}</span></button>`; };
-        nav.classList.remove('ures');
+        nav.classList.remove('ures', 'kapszula');
         nav.innerHTML = szSavLista().map(g).join('') + `<button type="button" class="szm-t" data-szmenj="en">${SZ_MIND_SVG}<span>Minden</span></button>`;
         return szFabFrissit();
     }
     // az oldal fülei a sávon: 2 bal oldalt, középen a gomb, 2 jobb oldalt (4-nél több fülnél a 4. hely „Több”)
     const fulok = szFulok();
-    if(fulok.length < 2){ nav.classList.add('ures'); nav.innerHTML = ''; return szFabFrissit(); }
-    nav.classList.remove('ures');
+    if(fulok.length < 2){
+        // fül nélküli oldal: kis kapszula a gomb körül – balra keresés, jobbra az oldal ＋ művelete (vagy „Minden”)
+        nav.classList.remove('ures'); nav.classList.add('kapszula');
+        const uj = szVanUj();
+        nav.innerHTML = `<button type="button" class="szm-t kap" data-szkeres aria-label="Keresés"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg></button><span class="szm-hely" aria-hidden="true"></span>`
+            + (uj ? `<button type="button" class="szm-t kap plusz" data-szkapuj aria-label="Új"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`
+                : `<button type="button" class="szm-t kap" data-szmenj="en" aria-label="Minden oldal">${SZ_MIND_SVG}</button>`);
+        return szFabFrissit();
+    }
+    nav.classList.remove('ures', 'kapszula');
     const tobb = fulok.length > 4, l = tobb ? fulok.slice(0, 3) : fulok.slice(0, 4), tobbOn = tobb && fulok.slice(3).some(f => f.on);
     const fg = (f, i) => `<button type="button" class="szm-t ful${f.on ? ' on' : ''}" data-szful="${i}" title="${esc(f.teljes)}">${szFulIk(f.n)}<span>${esc(f.n)}</span></button>`;
     const ures = n => '<span class="szm-t ures"></span>'.repeat(Math.max(0, n));
@@ -29052,12 +29072,12 @@ function szAlsoFrissit(){
     nav.innerHTML = ures(2 - bal.length) + bal.map(fg).join('') + '<span class="szm-hely" aria-hidden="true"></span>' + jobb.join('') + ures(2 - jobb.length);
     szFabFrissit();
 }
+const szVanUj = () => { const akt = szAktLap(); return !!(akt === 'privma' || akt === 'egeszseg' || SZ_UJ[akt] || document.querySelector(`#page-${akt} .sf-also-plusz`)); };
 function szFabFrissit(){
-    const akt = szAktLap();
-    // lebegő ＋ (jobb alul, a sáv fölött): ott, ahol van mit létrehozni
+    // lebegő ＋ (jobb alul, a sáv fölött): ott, ahol van mit létrehozni – a kapszulás oldalakon a ＋ a kapszulában van
     const pl = document.getElementById('szFab');
     // csak változáskor írjuk (a hidden attribútumot a lapfigyelő is nézi – különben körbe futna)
-    const rejt = !(akt === 'privma' || akt === 'egeszseg' || SZ_UJ[akt] || document.querySelector(`#page-${akt} .sf-also-plusz`));
+    const rejt = !szVanUj() || !!document.getElementById('szAlso')?.classList.contains('kapszula');
     if(pl && pl.hidden !== rejt) pl.hidden = rejt;
 }
 function szFulMenuNyit(){
@@ -29086,7 +29106,12 @@ function szFanNyit(ny){
     }
 }
 // ---- ＋ lap ----
-const SZ_GYORS = [['kiadas', '💸', 'Kiadás'], ['szokas', '✅', 'Szokás'], ['edzes', '🏃', 'Edzés'], ['naplo', '📓', 'Napló'], ['suly', '⚖️', 'Súly'], ['cel', '🎯', 'Cél']];
+const SZ_GYORS = [['kiadas', '<rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12.5h2M2 10h20"/>', 'Kiadás', 'költés rögzítése', '#ea580c', '#ffedd5'],
+    ['szokas', '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="m8 12.5 3 3 5-6"/>', 'Szokás', 'mai pipák', '#16a34a', '#dcfce7'],
+    ['edzes', '<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>', 'Edzés', 'mai edzés', '#0891b2', '#cffafe'],
+    ['naplo', '<path d="M6 4h9l4 4v12H6z"/><path d="M9 12h6M9 16h4"/>', 'Napló', 'hangulat', '#7c3aed', '#ede9fe'],
+    ['suly', '<path d="M12 4v16M6 20h12M4 7h16"/><path d="M7 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0z"/>', 'Súly', 'mai mérés', '#db2777', '#fce7f3'],
+    ['cel', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>', 'Cél', 'új cél felvétele', '#2563eb', '#dbeafe']];
 let szLapNezet = '';
 async function szVarElem(sel, ms){ const vege = Date.now() + (ms || 4000); while(Date.now() < vege){ const el = document.querySelector(sel); if(el) return el; await new Promise(r => setTimeout(r, 100)); } return null; }
 function szLapNyit(ny){
@@ -29118,7 +29143,8 @@ async function szLapRajz(){
     const ctx = document.querySelector('.page:not([hidden]) .sf-also-plusz');
     const lap = szAktLap(), fedett = { penzugyek: 1, edzes: 1, enaplo: 1, celok: 1 };
     const ctxHtml = ctx && !fedett[lap] ? `<button type="button" class="szm-lap-ctx" data-szgyors="ctx">＋ ${esc(ctx.getAttribute('aria-label') || 'Új')}</button>` : '';
-    b.innerHTML = `<h5>Mit rögzítesz?</h5>${ctxHtml}<div class="szm-gyors">${SZ_GYORS.map(([k, ik, n]) => `<button type="button" data-szgyors="${k}"><span>${ik}</span>${n}</button>`).join('')}</div>`;
+    b.innerHTML = `<h5 class="szm-lap-cim">Mit rögzítesz?</h5>${ctxHtml}<div class="szm-gyors">${SZ_GYORS.map(([k, ik, n, al, c, bg]) =>
+        `<button type="button" data-szgyors="${k}" style="--c:${c};--b:${bg}"><i><svg viewBox="0 0 24 24" aria-hidden="true">${ik}</svg></i><b>${n}</b><small>${al}</small></button>`).join('')}</div>`;
 }
 async function szGyors(k){
     if(k === 'szokas' || k === 'suly'){ szLapNezet = k; szLapRajz(); return; }
@@ -29158,7 +29184,8 @@ document.addEventListener('click', async e => {
         }
         szMenj(m.dataset.szmenj); return;
     }
-    if(e.target.closest('#mbPlusz, #szFab')){ szUjInditas(); return; }
+    if(e.target.closest('#mbPlusz, #szFab, [data-szkapuj]')){ szUjInditas(); return; }
+    if(e.target.closest('[data-szkeres]')){ if(typeof gkNyit === 'function') gkNyit(); else document.getElementById('navKereso')?.click(); return; }
     if(e.target.closest('[data-szplusz]')){ e.preventDefault(); szLapNyit(true); return; }
     if(e.target.closest('.en-szerk[data-szszerk]')){ szSavSzerk = !szSavSzerk; szCsere = null; szAlsoFrissit(); window.sfShowEn(); return; }
     if(e.target.closest('[data-szvalt]')){ szSavSzerk = false; if(window.sfTerValt) window.sfTerValt(szTer() === 'priv' ? 'ovb' : 'priv'); return; }
