@@ -13745,6 +13745,20 @@ const ttAtlag = (p, cs) => cs.m.reduce((a, [id]) => a + (+((p.e || {})[id]) || 0
 const ttKesz = (p, cs) => cs.m.every(([id]) => (+((p.e || {})[id]) || 0) >= 0.8);
 const ttSzin = v => `hsl(${Math.round(v * 125)}, 70%, ${v == null ? 96 : 88}%)`;
 const ttMonogram = n => String(n || '?').trim().split(/\s+/).map(x => x[0] || '').slice(0, 2).join('').toUpperCase();
+// A munkatársak a Sikerfüzet felhasználóiból jönnek (akik hozzáférnek az apphoz és
+// rálátsz): aki még nincs a tudástárban, magától bekerül; a meglévő (pl. régi, névvel
+// felvett) bejegyzések a név alapján párosulnak a felhasználóval.
+function ttSzinkron(d){
+    if(typeof ctrlEmberek !== 'function') return;
+    let valt = false;
+    for(const e of ctrlEmberek()){
+        const nev = String(e.name || '').replace(/ \(te\)$/, '').trim(); if(!e.uid || !nev) continue;
+        let x = d.sz.find(p => p.u === e.uid) || d.sz.find(p => !p.u && pzNorm(p.n) === pzNorm(nev));
+        if(x){ if(!x.u){ x.u = e.uid; valt = true; } continue; }
+        d.sz.push({ id: 'u' + e.uid, u: e.uid, n: nev, k: '', v: '', g: false, e: {} }); valt = true;
+    }
+    if(valt) prvMent('tudastar');
+}
 function ttSzurt(){
     let l = ttLista().slice();
     if(ttKarrier !== 'mind') l = l.filter(p => p.k === ttKarrier);
@@ -13752,7 +13766,7 @@ function ttSzurt(){
     return l.sort((a, b) => TT_KARRIER.indexOf(b.k) - TT_KARRIER.indexOf(a.k) || String(a.n).localeCompare(String(b.n), 'hu'));
 }
 function ttKartyak(l){
-    if(!l.length) return '<div class="card tt-ures">Még nincs munkatárs a tudástárban. Vegyél fel valakit, vagy importáld a Notion-adatokat.</div>';
+    if(!l.length) return '<div class="card tt-ures">Még nincs munkatárs a tudástárban. Aki hozzáférést kap a Sikerfüzethez, magától megjelenik itt.</div>';
     return `<div class="tt-racs">${l.map(p => `<div class="card tt-sz">
         <div class="tt-sz-fej"><span class="tt-av">${esc(ttMonogram(p.n))}</span><div class="tt-nev"><b>${esc(p.n)}</b><span>${p.k ? `<span class="tt-k ${esc(p.k)}">${esc(p.k)}</span>` : ''}${p.g ? '<span class="tt-jel">GST-jelölt</span>' : ''}</span>
         <small>${p.v ? 'Vezető: ' + esc(p.v) : 'Nincs vezető megadva'}</small></div><button type="button" data-ttszerk="${esc(p.id)}">Szerkeszt</button></div>
@@ -13784,12 +13798,13 @@ async function renderTudastar(){
     const d = await prvBetolt('tudastar');
     if(!prvLap('tudastar')) return;
     if(!Array.isArray(d.sz)) d.sz = [];
+    ttSzinkron(d);
     const l = ttSzurt(), cs = TT_CSOP.find(x => x.k === ttNezet);
     if(!cs) ttNezet = 'attek';
     const ful = (k, n) => `<button type="button" class="sb-chip ${ttNezet === k ? 'on' : ''}" data-ttnezet="${k}">${esc(n)}</button>`;
     const kchip = (k, n) => `<button type="button" class="sb-chip ${ttKarrier === k ? 'on' : ''}" data-ttkarrier="${k}">${esc(n)}</button>`;
     host.innerHTML = ttFoValto() + `<div class="tt-fej"><div><h2>Tudásbázis</h2><p>Ki mennyire tudja az anyagokat · ${d.sz.length} munkatárs · 80% fölött számít késznek egy anyag</p></div>
-        <div class="tt-gombok"><button type="button" class="tt-gomb" data-ttimport>Importálás</button><button type="button" class="tt-gomb fo" data-ttuj>+ Munkatárs</button></div></div>
+</div>
         <div class="tt-ful">${ful('attek', 'Áttekintés')}${TT_CSOP.map(c => ful(c.k, c.n)).join('')}</div>
         <div class="tt-szur"><div class="sb-chipek">${kchip('mind', 'Mindenki')}${TT_KARRIER.map(k => kchip(k, k)).join('')}</div>
         <label class="sb-kapcs"><input type="checkbox" data-ttcsakgst ${ttCsakGst ? 'checked' : ''}> Csak GST-jelöltek</label></div>
@@ -30243,7 +30258,7 @@ function szAktLap(){ const p = document.querySelector('.page:not([hidden])'); re
 // oldalanként az „új” gomb, amit a fejléc ＋ elindít
 const SZ_UJ = { feladatok: '[data-fdfab]', penzugyek: '.pz-fej-uj, [data-pzuj]', szokasok: '[data-szuj]', edzes: '[data-ezuj]', celok: '[data-cluj], #clNew', enaplo: '[data-nluj]', konyvek: '[data-kvuj]',
     jegyzetek: '#jgNew, [data-jgalsouj]', emberek: '[data-emuj]', onismeret: '[data-oiuj], [data-szujnyit]',
-    home: '#calAddEvent', ugyfelek: '#regAdd', ketoras: '#ketorasAdd', struktura: '#strAddBtn', prezik: '[data-pziuj]', tudastar: '[data-ttuj]', pg: '#pgNewBtn' };
+    home: '#calAddEvent', ugyfelek: '#regAdd', ketoras: '#ketorasAdd', struktura: '#strAddBtn', prezik: '[data-pziuj]', pg: '#pgNewBtn' };
 async function szUjInditas(){
     const lap = szAktLap();
     if(lap === 'privma'){ szLapNyit(true); return; }
