@@ -9251,7 +9251,7 @@
         .cl-wall-item img { cursor:zoom-in; }
         @media (max-width:760px){
             /* telefonon: teljes képernyős, homályos háttér; fent nagy keresőmező + Mégse, alatta csempék / találatok */
-            .gk-ov { padding:calc(var(--sf-felul, 0px) + 12px) 14px 0 !important; align-items:stretch !important; background:rgba(30,16,60,.28) !important;
+            .gk-ov { padding:calc(var(--sf-felul, 0px) + 12px) 14px 0 !important; align-items:stretch !important; background:rgba(30,22,48,.74) !important; overscroll-behavior:contain;
                 -webkit-backdrop-filter:blur(22px) saturate(1.4) !important; backdrop-filter:blur(22px) saturate(1.4) !important; animation:sfOvBe .2s ease-out both; }
             .gk { width:100% !important; max-height:none !important; background:none !important; box-shadow:none !important; border-radius:0 !important; overflow:visible !important;
                 display:grid !important; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:minmax(0,1fr) auto auto; column-gap:10px; height:100%; }
@@ -9281,6 +9281,8 @@
             .gk-t.on { outline:2px solid rgba(124,58,237,.4); }
             .gk-ures { color:#fff !important; text-align:center; }
         }
+        :root.gk-nyitva, :root.gk-nyitva body { overflow:hidden !important; overscroll-behavior:none; }
+        .gk-l { overscroll-behavior:contain; }
         .gk-ov { position:fixed; inset:0; z-index:9000; background:rgba(15,23,42,.42); display:flex; justify-content:center; align-items:flex-start; padding:12vh 16px 16px; backdrop-filter:blur(2px); }
         .gk { width:min(640px,100%); background:#fff; border-radius:16px; box-shadow:0 24px 60px rgba(15,23,42,.35); overflow:hidden; display:flex; flex-direction:column; max-height:72vh; }
         .gk-in { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); }
@@ -31333,6 +31335,12 @@ function gkNyit(){
         <input type="search" enterkeyhint="search" placeholder="${window.sfTer === 'priv' ? 'Jegyzet, szabály vagy oldal…' : 'Ügyfél, jelölt, feladat, jegyzet vagy oldal…'}" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div><button type="button" class="gk-megse" data-gkzar>Mégse</button><div class="gk-legut" hidden></div><div class="gk-l"></div>
         <div class="gk-lab"><span><kbd>↑</kbd><kbd>↓</kbd> választás</span><span><kbd>↵</kbd> megnyitás</span><span><kbd>Ctrl</kbd>+<kbd>K</kbd> bárhonnan</span></div></div>`;
     document.body.appendChild(ov);
+    // a háttér ne görögjön a kereső alatt (iPhone-on a húzás különben az alatta lévő oldalt mozgatja)
+    document.documentElement.classList.add('gk-nyitva');
+    ov.addEventListener('touchmove', e => {
+        const g = e.target.closest('.gk-l, .gk-legut');
+        if(!g || g.scrollHeight <= g.clientHeight && g.scrollWidth <= g.clientWidth) e.preventDefault();
+    }, { passive: false });
     const inp = ov.querySelector('input');
     gkSel = 0; gkRajz(); inp.focus();
     inp.addEventListener('input', () => { gkSel = 0; gkRajz(); });
@@ -31359,7 +31367,7 @@ function gkNyit(){
         (window.sfSzabalyLista ? window.sfSzabalyLista().catch(() => []) : Promise.resolve([])).then(l => { gkAdat.szabaly = l || []; kesz(); });
     }
 }
-function gkZar(){ const ov = document.getElementById('gkOv'); if(ov) ov.remove(); }
+function gkZar(){ const ov = document.getElementById('gkOv'); if(ov) ov.remove(); document.documentElement.classList.remove('gk-nyitva'); }
 // ===== Képnéző: teljes képernyőn, lapozással (nyilak, billentyűk, húzás), Esc / koppintás bezárja =====
 function sfKepNezo(kepek, i){
     if(!kepek || !kepek.length) return;
