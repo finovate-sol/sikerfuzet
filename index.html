@@ -3065,6 +3065,17 @@
         .bed-mini { display:inline-flex; gap:4px; } .bed-mini i { width:9px; height:9px; border-radius:50%; background:#e5e9f0; } .bed-mini i.kesz { background:var(--green); } .bed-mini i.akt { background:var(--blue); box-shadow:0 0 0 3px var(--blue-light); }
         .bed-elakadt { background:#fde8e8 !important; color:#b42318 !important; }
         .bed-cimke { display:inline-flex; flex-direction:column; gap:4px; font-size:11px; font-weight:700; color:var(--muted); }
+        .bed-ut { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:2px 0 10px; }
+        .bed-ut-l { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--navy); background:var(--card); border:1px solid var(--border); border-radius:999px; padding:4px 11px 4px 4px; }
+        .bed-ut-l i { width:20px; height:20px; border-radius:50%; background:var(--blue-light); color:var(--blue); font-style:normal; font-size:11px; display:grid; place-items:center; }
+        .bed-ut-ny { color:var(--muted); font-weight:700; }
+        .bed-uj { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:6px; }
+        .bed-uj-cim { flex-basis:100%; font-size:13px; color:var(--navy); }
+        .bed-uj .bed-cimke select, .bed-uj .bed-cimke input { height:38px; box-sizing:border-box; padding:0 11px; border:1px solid var(--border); border-radius:9px; font:inherit; font-size:13px; color:var(--text); background:var(--card); min-width:200px; }
+        .bed-uj .bed-cimke input { min-width:150px; }
+        .bed-uj .btn.primary { height:38px; background:var(--blue); color:#fff; border-color:var(--blue); }
+        .bed-ures { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:28px 12px 18px; color:var(--muted); font-size:12.5px; }
+        .bed-ures svg { width:34px; height:34px; color:var(--blue); opacity:.7; } .bed-ures b { color:var(--navy); font-size:14px; }
         .bed-cimke input { padding:7px 10px; border:1px solid var(--border); border-radius:9px; font:inherit; font-size:12.5px; color:var(--text); background:var(--card); }
         .bed-lepcso { display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:6px; margin:0 0 16px; }
         .bed-l { display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 6px; border:1px solid var(--border); border-radius:12px; background:var(--card); font:inherit; color:var(--muted); text-align:center; }
@@ -35387,7 +35398,6 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return `
         <div class="pg-hero">
             <div class="pg-hero-txt"><h2>Bedolgozás</h2><p>Az új munkatárs útja lépésről lépésre – a kimenete az <b>akciótervekbe</b> fut be.</p></div>
-            <a class="link" href="https://tasks.google.com" target="_blank" rel="noopener">Google Tasks ↗</a>
         </div>
         <div class="pg-tabs">${tab('bed','Bedolgozás')}${tab('akcio', `Akciótervek${openCount?` <span class="pg-badge">${openCount}</span>`:''}`)}</div>
         <div id="pgMount"><div class="card pg-loading">Betöltés…</div></div>`;
@@ -35539,10 +35549,6 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <span class="pg-ak-from">${escM(from)}</span>
             <span class="pg-ak-prio ${PG_PRIO_CLASS[a.prio]||'low'}">${escM(a.prio||'Alacsony')}</span>
             <span class="pg-ak-due${late?' late':''}">${a.due ? escM(pgDateLabel(a.due)) : '—'}</span>
-            ${mine ? (a.taskId
-                ? `<span class="pg-ak-task on" title="Kikerült a Google Tasks-ba">✓ Tasks</span>`
-                : `<button class="pg-ak-task" data-akpush="${escM(a.id)}" title="Kiteszem a saját Google Tasks-omba">→ Tasks</button>`)
-              : `<span class="pg-ak-task ghost" title="A munkatárs teszi ki a saját Google Tasks-ába">—</span>`}
             <button class="pg-x" data-akdel="${escM(a.id)}" title="Törlés">×</button>
         </div>`;
     }
@@ -35569,7 +35575,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 <div class="pg-filter">${fb('open','Nyitott')}${fb('done','Kész')}${fb('all','Mind')}</div>
                 <div class="pg-ak-list">${list.length ? list.map(pgAkcioRowHtml).join('') : `<div class="pg-empty">Nincs ilyen akcióterv.</div>`}</div>
                 ${pgAkcioAddHtml('pgTab')}
-                <p class="pg-note-txt">A <b>→ Tasks</b> gomb a saját Google Tasks-listádba teszi ki a feladatot (a Tasks fiókonként privát, ezért csak te tudod megtenni).</p>
+                <p class="pg-note-txt">A munkatárs a saját Akciótervek fülén látja a neki kiadott feladatokat, és ő pipálja ki őket.</p>
             </div></section>`;
     }
 
@@ -37220,16 +37226,20 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <span class="pg-rec-meta">${l ? `${bedPontDb(d, l)}/${bedPontIdk(l).length} pont · ${escM(pgDateLabel(bedDatum(d, l)))}` : escM(pgDateLabel(d.lezarvaNap || ''))}</span>
                 ${ny ? `<span class="pg-rec-ak">${ny} házi nyitott</span>` : ''}${bedElakadt(d) ? '<span class="pg-chip bed-elakadt">7+ napja nem mozdult</span>' : ''}
             </button>`; };
-        const ujSor = uj.length ? `<div class="pg-new">
-                <select id="bedUjMt">${uj.map(e => `<option value="${escM(e.uid)}">${escM(e.name || e.email)}</option>`).join('')}</select>
-                <label class="bed-cimke">Starter PG napja <input type="date" id="bedUjNap" value="${pgToday()}"></label>
-                <button class="btn primary" id="bedUjBtn" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Bedolgozás indítása</button>
+        const ujSor = uj.length ? `<div class="bed-uj">
+                <b class="bed-uj-cim">Új bedolgozás</b>
+                <label class="bed-cimke">Munkatárs<select id="bedUjMt">${uj.map(e => `<option value="${escM(e.uid)}">${escM(e.name || e.email)}</option>`).join('')}</select></label>
+                <label class="bed-cimke">Starter PG napja<input type="date" id="bedUjNap" value="${pgToday()}"></label>
+                <button class="btn primary" id="bedUjBtn">+ Bedolgozás indítása</button>
             </div>` : emps.length ? '' : `<div class="pg-empty">Nincs hozzád rendelt munkatárs. Az Admin → Hozzáférés fülön állítható be, ki tartozik hozzád.</div>`;
+        const savok = `<div class="bed-ut">${bedLepesek().map((l, i) => `<span class="bed-ut-l"><i>${i + 1}</i>${escM(l.n)}</span>`).join('<span class="bed-ut-ny">›</span>')}</div>`;
         return `${sajat}<section class="card pg-card">
             <div class="card-head"><h2><span class="icon">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}</span>Bedolgozás</h2>
                 ${window.sfIsAdmin ? '<button class="bed-link" id="bedSablonBtn" type="button">Program szerkesztése</button>' : `<span class="pg-count">${aktiv.length} folyamatban</span>`}</div>
-            <div class="card-body"><p class="pg-note-txt" style="margin:0 0 12px">Starter PG → PG 1 → PG 2 → PG 3 → PG 4 → Lezárás, 1:1-ben. A következő lépésre akkor lépj, ha az előző házi feladata kész.</p>
-                ${ujSor}${aktiv.length ? aktiv.map(sor).join('') : (emps.length ? '<div class="pg-empty">Még nincs folyamatban bedolgozás.</div>' : '')}</div>
+            <div class="card-body">${savok}
+                <p class="pg-note-txt" style="margin:0 0 14px">1:1-ben, lépésről lépésre. A következő lépésre akkor lépj, ha az előző házi feladata kész. A kiadott házi feladat a munkatárs <b>Akciótervei</b> közé kerül (a következő alkalom napjára), ő pipálja ki – te a sorában látod, hány nyitott.</p>
+                ${ujSor}
+                ${aktiv.length ? `<div class="pg-group">Folyamatban · ${aktiv.length}</div>${aktiv.map(sor).join('')}` : (emps.length ? `<div class="bed-ures">${bedIc('<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>')}<b>Még nincs folyamatban bedolgozás</b><span>Válassz munkatársat és a Starter PG napját, majd indítsd el.</span></div>` : '')}</div>
         </section>`;
     }
     function bedPontokHtml(d, l, szerk){
