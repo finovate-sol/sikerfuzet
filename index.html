@@ -6491,6 +6491,11 @@
         .pz-tg { display:inline-flex; align-items:center; flex:none; margin-left:6px; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; line-height:1.6;
                  background:rgba(13,148,136,.12); color:#0f766e; white-space:nowrap; vertical-align:middle; max-width:140px; overflow:hidden; text-overflow:ellipsis; }
         .pz-tg::before { content:"#"; opacity:.6; margin-right:1px; }
+        .pz-ido { font-size:11.5px; font-weight:500; color:#94a3b8; font-variant-numeric:tabular-nums; margin-left:8px; letter-spacing:0; }
+        .pz-mal .pz-ido { margin-left:0; font-size:inherit; }
+        .pz-r-dido { display:flex; gap:6px; min-width:0; } .pz-r-dido input[type="date"] { flex:1 1 auto; min-width:0; } .pz-r-dido input[type="time"] { flex:0 0 112px; min-width:0; }
+        .pz-uj-c .pz-nap-ido { display:inline-flex; align-items:center; gap:6px; }
+        .pz-uj-c .pz-nap-ido input { border:0; background:transparent; font:inherit; color:inherit; padding:0; width:auto; min-width:0; box-shadow:none; }
         .pz-fk-sor > span.kat { display:flex; align-items:center; gap:4px; }
         .pz-fk-sor > span.kat .pz-fk-chip { flex:0 1 auto; min-width:0; white-space:nowrap; text-overflow:ellipsis; }
         .pz-fk-sor > span.kat .pz-tg { flex:0 1 auto; min-width:0; max-width:45%; margin-left:0; }
@@ -15988,7 +15993,7 @@ async function pzSzamlaNez(sz){
 function pzTetelModal(letezo, elotolt){
     const e0 = elotolt || {};
     const t = letezo || { id:'', t: e0.t || 'ki',
-        d: pzTHo === pzMaHo() ? pzMaStr() : pzTHo + '-01',
+        d: pzTHo === pzMaHo() ? pzMaStr() : pzTHo + '-01', ido: pzMostIdo(),
         k: e0.k || '', a: e0.a || '', m: e0.m || '', o: e0.o != null ? e0.o : null, ...(e0.p ? { p:e0.p } : {}), ...(e0.p2 ? { p2:e0.p2 } : {}) };
     if(!String(t.d).startsWith(pzTHo)) t.d = pzTHo + '-01';
     let tipus = t.t === 'bev' || t.t === 'atu' ? t.t : 'ki', kat = t.k, alkat = t.a;
@@ -16092,7 +16097,8 @@ function pzTetelModal(letezo, elotolt){
         ov.querySelector('#pzNapok').innerHTML =
             [[maStr,'Ma'],[tegnapStr,'Tegnap']].map(([v,l]) =>
                 `<button type="button" class="pz-nap${t.d===v?' on':''}" data-pznap="${v}">${l}</button>`).join('')
-            + `<label class="pz-nap pz-nap-d${t.d!==maStr && t.d!==tegnapStr ? ' on' : ''}">${pzSvg('naptar')}<span>${t.d ? esc(PZ_HO_ROV[+t.d.slice(5,7) - 1] + ' ' + (+t.d.slice(8,10)) + '.') : 'Dátum'}</span><input type="date" id="pzfD" value="${esc(t.d)}" aria-label="Dátum"></label>`;
+            + `<label class="pz-nap pz-nap-d${t.d!==maStr && t.d!==tegnapStr ? ' on' : ''}">${pzSvg('naptar')}<span>${t.d ? esc(PZ_HO_ROV[+t.d.slice(5,7) - 1] + ' ' + (+t.d.slice(8,10)) + '.') : 'Dátum'}</span><input type="date" id="pzfD" value="${esc(t.d)}" aria-label="Dátum"></label>`
+            + `<label class="pz-nap pz-nap-ido${t.ido ? ' on' : ''}" title="Pontos időpont – ebből lesz a sorrend a napon belül"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><input type="time" id="pzfIdo" value="${esc(t.ido || '')}" aria-label="Időpont"></label>`;
         jelRajz();
     };
     // Az összeg előjele a típushoz igazodik: kiadás −, bevétel + (zölden), átutalás jel nélkül.
@@ -16269,7 +16275,8 @@ function pzTetelModal(letezo, elotolt){
             zar(); pzFrissit(); return;
         }
     });
-    ov.addEventListener('change', e => { if(e.target.id === 'pzfD'){ t.d = e.target.value; napokRajz(); } });
+    ov.addEventListener('change', e => { if(e.target.id === 'pzfD'){ t.d = e.target.value; napokRajz(); }
+        if(e.target.id === 'pzfIdo'){ t.ido = e.target.value; e.target.closest('.pz-nap-ido').classList.toggle('on', !!t.ido); } });
 
     const torolGomb = ov.querySelector('#pzfTorol');
     if(torolGomb) torolGomb.addEventListener('click', () => {
@@ -16291,7 +16298,7 @@ function pzTetelModal(letezo, elotolt){
         if(tipus !== 'atu' && !kat){ hiba.textContent = 'Válassz kategóriát – enélkül a bontásban nem lehetne megtalálni.'; return; }
         if(!t.d){ hiba.textContent = 'A dátum kötelező – ebből tudjuk, melyik hónaphoz tartozik.'; return; }
         const uj = { id: t.id || ('t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)),
-                     t: tipus, d: t.d, k: tipus === 'atu' ? '' : kat, a: tipus === 'atu' ? '' : alkat, m: ov.querySelector('#pzfM').value.trim(), o,
+                     t: tipus, d: t.d, ...(t.ido ? { ido: t.ido } : {}), k: tipus === 'atu' ? '' : kat, a: tipus === 'atu' ? '' : alkat, m: ov.querySelector('#pzfM').value.trim(), o,
                      ...(tarca ? { p: tarca } : {}), ...(tipus === 'atu' && tarca2 ? { p2: tarca2 } : {}), ...(t.cel ? { cel: t.cel } : {}),
                      ...(szamlak.length ? { sz: szamlak.map(x => ({ id: x.id, nev: x.nev, mime: x.mime })) } : {}),
                      ...(tipus !== 'atu' && ov.querySelector('#pzfKh').checked ? { kh: true } : {}) };
@@ -17850,7 +17857,7 @@ async function pzGyMent(){
     if(pzGyTip === 'atu'){
         if(!tarca || !pzGyHova){ info.innerHTML = '<span class="pz-hibaszo">Válaszd ki, melyik tárcából melyikbe megy a pénz.</span>'; return; }
         const ho = pzMaHo(); await pzLoadTranz(ho);
-        const uj = { id:'t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), t:'atu', d:pzMaStr(),
+        const uj = { id:'t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), t:'atu', d:pzMaStr(), ido:pzMostIdo(),
                      k:'', a:'', m:box.querySelector('#pzGyM').value.trim(), o, p:tarca, p2:pzGyHova };
         pzTranz[ho].push(uj); pzSaveTranz(ho);
         if(pzTarcaHat(uj, 1)) pzSaveTorzs();
@@ -17864,7 +17871,7 @@ async function pzGyMent(){
     const ho = pzMaHo();
     await pzLoadTranz(ho);
     const uj = { id:'t' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-                 t:pzGyTip, d:pzMaStr(), k:pzGyKat, a:pzGyAl, m:box.querySelector('#pzGyM').value.trim(), o,
+                 t:pzGyTip, d:pzMaStr(), ido:pzMostIdo(), k:pzGyKat, a:pzGyAl, m:box.querySelector('#pzGyM').value.trim(), o,
                  ...(tarca ? { p:tarca } : {}) };
     pzTranz[ho].push(uj);
     pzSaveTranz(ho);
@@ -18380,14 +18387,14 @@ function pzNaploSorHtml(t, tarcaSzuro, datum){
         + (t.sz && t.sz.length ? `<i class="pz-ism pz-csatolt" title="${t.sz.length} csatolt számla">${PZ_CLIP}</i>` : '')
         + (t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : '');
     return pzSorKeret(t, `${pzTetelIkHtml(t, ik, 'pz-nt-av') || `<i class="pz-nt-ik sz-${esc(ik.c)}">${pzSvg(ik.i)}</i>`}
-        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', t.k, ik.c, t.a, pzTgHtml(t))}</span>
+        <span class="n"><b>${cimM !== cimD ? `<span class="pz-cim-d">${esc(cimD)}</span><span class="pz-cim-m">${esc(cimM)}</span>` : esc(cimD)}${ism}</b><span class="pz-al">${pzAlsor(t, typeof datum === 'string' ? datum : '', w)}</span>${pzMobAlsor(w ? w.n : '', typeof datum === 'string' ? datum : '', t.k, ik.c, t.a, pzTgHtml(t), t.ido)}</span>
         <span class="jobb"><b class="o${bev ? ' pz-up' : ''}">${bev ? '+' : '−'}${pzFt(t.o)} Ft</b></span>`);
 }
 // Telefonos második sor (két soros tétel): fent a megjegyzés, alatta egy halvány sorban
 // „Revolut · ● Autó · Parkolás” – tárca, a kategória (színpöttyel), az alkategória.
 // Ha nem fér ki, az alkategória vágódik le.
-function pzMobAlsor(tarca, datum, kat, szin, alkat, tg){
-    const r = [tarca ? `<span class="f">${esc(tarca)}</span>` : '',
+function pzMobAlsor(tarca, datum, kat, szin, alkat, tg, ido){
+    const r = [ido ? `<span class="f pz-ido">${esc(ido)}</span>` : '', tarca ? `<span class="f">${esc(tarca)}</span>` : '',
         kat ? `<span class="f pz-mcimke"><i class="pz-mpont sz-${esc(szin || 'szurke')}"></i>${esc(kat)}</span>` : '',
         alkat ? `<span class="t">${esc(alkat)}</span>` : ''].filter(Boolean);
     return `<span class="pz-mal">${r.join('<span class="f pz-msep">·</span>')}${tg || ''}${datum ? `<em>${esc(datum)}</em>` : ''}</span>`;
@@ -18447,14 +18454,14 @@ function pzReszletHtml(){
     const tH = String(t.d).slice(0, 7);
     return `<aside class="card pz-reszlet" aria-label="Tétel részletei">
         <div class="pz-r-fej">${pzTetelIkHtml(t, ik, 'pz-ikon') || pzIk(ik.i, ik.c)}
-            <div class="pz-r-cim"><b>${esc(nev)}</b><span>${x.getFullYear()}. ${PZ_MONTHS[x.getMonth()].toLowerCase()} ${x.getDate()}. · ${PZ_NAPNEV[x.getDay()]}</span></div>
+            <div class="pz-r-cim"><b>${esc(nev)}</b><span>${x.getFullYear()}. ${PZ_MONTHS[x.getMonth()].toLowerCase()} ${x.getDate()}. · ${PZ_NAPNEV[x.getDay()]}${t.ido ? ' · ' + esc(t.ido) : ''}</span></div>
             <button type="button" class="pz-r-x" data-pzrzar title="Bezárás (Esc)" aria-label="Bezárás">×</button></div>
         <label class="pz-r-o${t.t === 'bev' ? ' pz-up' : atu ? ' pz-atu-o' : ''}"><span>${atu ? '' : t.t === 'bev' ? '+' : '−'}</span><input type="text" inputmode="numeric" data-pzr="o" value="${esc(pzFt(t.o))}" size="${Math.max(2, pzFt(t.o).length)}" aria-label="Összeg"><span>Ft</span></label>
         ${atu ? '' : `<div class="pz-r-tip"><button type="button" data-pzrtip="ki"${t.t === 'ki' ? ' class="on"' : ''}>Kiadás</button><button type="button" data-pzrtip="bev"${t.t === 'bev' ? ' class="on"' : ''}>Bevétel</button></div>`}
         <div class="pz-r-mezok">
             <label>Megnevezés</label><input type="text" data-pzr="m" value="${esc(pzMegjRovid(t.m))}" maxlength="120" placeholder="Kinél? Megjegyzés">
             ${atu ? '' : `<label>Logó</label><span class="pz-r-mnev">${pzSzolgAv(t.m || nev, 'mini')}${pzSzolgNevOk(t.m || '') && !(pzSzolgOf(t.m) && pzSzolgKep(pzSzolgOf(t.m))) && !pzSzolgSajatKep(t.m) && !pzSzolgAutoWeb(t.m) ? '<button type="button" class="pz-r-logo" data-pzrlogo>+ logó</button>' : '<span class="pz-halvany" style="font-size:12.5px;">a szolgáltató logója</span>'}</span>`}
-            <label>Dátum</label><input type="date" data-pzr="d" value="${esc(t.d)}">
+            <label>Dátum</label><span class="pz-r-dido"><input type="date" data-pzr="d" value="${esc(t.d)}"><input type="time" data-pzr="ido" value="${esc(t.ido || '')}" aria-label="Időpont" title="Pontos időpont – ebből lesz a sorrend a napon belül"></span>
             ${atu ? `<label>Átutalás</label><div class="pz-r-ert">${esc(a ? a.n : '?')} → ${esc(b2 ? b2.n : '?')}</div>` : `
             <label>Kategória</label><select data-pzr="k"><option value="">— nincs —</option>${opt(katok, t.k || '')}</select>
             <label>Alkategória</label><select data-pzr="a"${alok.length ? '' : ' disabled'}><option value="">—</option>${opt(alok, t.a || '')}</select>
@@ -18502,6 +18509,7 @@ function pzReszletMent(mezo, ertek){
         }
     }
     else if(mezo === 'kh'){ if(ertek) t.kh = true; else delete t.kh; }
+    else if(mezo === 'ido'){ if(/^\d{2}:\d{2}$/.test(ertek)) t.ido = ertek; else delete t.ido; }
     else if(mezo === 'tg+' || mezo === 'tg-'){
         const n = mezo === 'tg+' ? pzCimkeNev(ertek) : ertek; if(!n) return;
         const l = pzTg(t).filter(x => pzNorm(x) !== pzNorm(n)); if(mezo === 'tg+') l.push(n);
@@ -18567,6 +18575,8 @@ function pzReszletLep(d){
 // a széles/keskeny határon átlépve más elrendezés kell
 { let szeles = window.innerWidth > 760; window.addEventListener('resize', () => { const most = window.innerWidth > 760; if(most !== szeles){ szeles = most; if(pzView === 'naplo') renderPzNaplo(); } }); }
 let pzGorgKulcs = '';
+// Napon belül az időpont szerint (ha mindkettőnek van); különben a rögzítési sorrend dönt.
+const pzIdoRend = (a, b) => a.ido && b.ido ? a.ido.localeCompare(b.ido) : 0;
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
@@ -18616,10 +18626,10 @@ async function renderPzNaplo(){
         .filter(t => !(pzSz.tg || []).length || pzTg(t).some(n => pzSz.tg.includes(n)))
         .filter(t => (pzSz.min == null || (t.o || 0) >= pzSz.min) && (pzSz.max == null || (t.o || 0) <= pzSz.max))
         .filter(t => !pzSz.ism || pzIsmetlodo(t))
-        .sort(pzSz.rend === 'regi' ? ((a,b) => String(a.d).localeCompare(String(b.d)) || a._i - b._i)
+        .sort(pzSz.rend === 'regi' ? ((a,b) => String(a.d).localeCompare(String(b.d)) || pzIdoRend(a, b) || a._i - b._i)
             : pzSz.rend === 'nagy' ? ((a,b) => (b.o || 0) - (a.o || 0))
             : pzSz.rend === 'kicsi' ? ((a,b) => (a.o || 0) - (b.o || 0))
-            : ((a,b) => String(b.d).localeCompare(String(a.d)) || b._i - a._i));
+            : ((a,b) => String(b.d).localeCompare(String(a.d)) || pzIdoRend(b, a) || b._i - a._i));
     // kategória- és alkategória-darabszámok a címkékhez
     const katDb = new Map(), alDb = new Map();
     const tgDb = new Map(); for(const t of alap) for(const n of pzTg(t)) tgDb.set(n, (tgDb.get(n) || 0) + 1);
@@ -18683,7 +18693,7 @@ async function renderPzNaplo(){
             const jelO = atu ? (pzNTarca ? (t.p2 === pzNTarca ? '+' : '−') : '') : t.t === 'bev' ? '+' : '−';
             return `<tr class="pz-sorgomb${jel && pzJelolt.has(t.id) ? ' jelolt' : ''}${t.kh ? ' pz-kh' : ''}" data-pztid="${esc(t.id)}" role="button" tabindex="0">
                 ${jel ? `<td class="j"><span class="pz-jelolo" aria-hidden="true">${pzJelolt.has(t.id) ? '✓' : ''}</span></td>` : ''}
-                <td class="d">${esc((tobbEv ? t.d : t.d.slice(5)).replace(/-/g, '.'))}.<span>${['V','H','K','Sze','Cs','P','Szo'][x.getDay()]}</span></td>
+                <td class="d">${esc((tobbEv ? t.d : t.d.slice(5)).replace(/-/g, '.'))}.${t.ido ? ` <small class="pz-ido">${esc(t.ido)}</small>` : ''}<span>${['V','H','K','Sze','Cs','P','Szo'][x.getDay()]}</span></td>
                 <td class="nev">${esc(pzNevTiszta(t.m) || t.a || t.k || (atu ? 'Átutalás' : '—'))}${pzTgHtml(t)}${pzIsmetlodo(t) ? `<i class="pz-ism" title="Ismétlődő">${pzSvg('ismetles')}</i>` : ''}${t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : ''}</td>
                 <td class="kat"><span>${pzIk(ik.i, ik.c)}${esc(atu ? 'Átutalás' : (t.k || '—'))}</span></td>
                 <td>${atu ? `<span class="pz-tag sz-kek">${esc(a ? a.n : '?')} → ${esc(b2 ? b2.n : '?')}</span>` : t.a ? `<span class="pz-tag sz-${esc(ik.c)}">${esc(t.a)}</span>` : '<span class="pz-halvany">—</span>'}</td>
@@ -18709,7 +18719,7 @@ async function renderPzNaplo(){
             const jelO = atu ? (pzNTarca ? (t.p2 === pzNTarca ? '+' : '−') : '') : t.t === 'bev' ? '+' : '−';
             return `<div class="pz-sorgomb pz-fk-sor${pzReszletId === t.id ? ' sel' : ''}${pzJelol && pzJelolt.has(t.id) ? ' jelolt' : ''}${t.kh ? ' pz-kh' : ''}" data-pztid="${esc(t.id)}" tabindex="0">
                 ${pzJelol ? `<span class="j"><span class="pz-jelolo" aria-hidden="true">${pzJelolt.has(t.id) ? '✓' : ''}</span></span>` : ''}
-                <span class="nev"><span class="pz-fk-n">${pzTetelIkHtml(t, ik, 'pz-ikon') || pzIk(ik.i, ik.c)}<span class="t">${esc(pzNevTiszta(t.m) || t.a || t.k || (atu ? 'Átutalás' : '—'))}</span>${pzIsmetlodo(t) ? ism : ''}${t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : ''}</span></span>
+                <span class="nev"><span class="pz-fk-n">${pzTetelIkHtml(t, ik, 'pz-ikon') || pzIk(ik.i, ik.c)}<span class="t">${esc(pzNevTiszta(t.m) || t.a || t.k || (atu ? 'Átutalás' : '—'))}${t.ido ? `<small class="pz-ido">${esc(t.ido)}</small>` : ''}</span>${pzIsmetlodo(t) ? ism : ''}${t.kh ? `<i class="pz-ism pz-kh-ik" title="Kihagyva a kimutatásokból">${pzKhIk}</i>` : ''}</span></span>
                 <span class="kat">${atu ? `<span class="pz-fk-chip sz-kek">⇄ Átutalás</span>` : t.k ? `<span class="pz-fk-chip sz-${esc(ik.c)}"><i></i>${esc(t.k)}${t.a ? ' · ' + esc(t.a) : ''}</span>` : '<span class="pz-fk-chip pz-fk-nincs">Kategorizálatlan</span>'}${pzTgHtml(t)}</span>
                 <span class="w">${atu ? `${esc(a ? a.n : '?')} → ${esc(b2 ? b2.n : '?')}` : w ? esc(w.n) : '<span class="pz-halvany">—</span>'}</span>
                 <span class="r o${t.t === 'bev' ? ' pz-up' : atu ? ' pz-atu-o' : ''}">${jelO}${pzFt(t.o)} Ft</span>
@@ -19692,7 +19702,8 @@ const pzNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 
 // Oszlop-felismerés a fejléc alapján. A sorrend számít: az első találat nyer.
 const PZ_IMP_MEZOK = [
-    ['d', 'Dátum',        /^(date|datum|started date|completed date|transaction date|booking date|konyvelesi datum|ertek ?nap|time|ido(pont)?)$/],
+    ['d', 'Dátum',        /^(date|datum|started date|completed date|transaction date|booking date|konyvelesi datum|ertek ?nap|tranzakcio datuma)$/],
+    ['i', 'Időpont',      /^(time|ido|idopont|ora|transaction time|tranzakcio ideje)$/],
     ['o', 'Összeg',       /^(amount|osszeg|value|ertek|amount \(huf\)|osszeg \(huf\))$/],
     ['t', 'Típus',        /^(type|tipus|irany|income\/expense|transaction type)$/],
     ['k', 'Kategória',    /^(category|category name|kategoria|fokategoria|main category)$/],
@@ -19707,8 +19718,20 @@ function pzOszlopTalal(fejlec){
         const i = n.findIndex((h, j) => re.test(h) && !Object.values(ki).includes(j));
         ki[k] = i;
     }
+    // ha csak egy „Time” oszlop van (benne dátum és idő), az a dátum is
+    if(ki.d < 0 && ki.i >= 0){ ki.d = ki.i; ki.i = -1; }
     return ki;
 }
+// Időpont egy dátum-idő vagy idő szövegből: "2026-10-24 13:45:12", "13:45", "1:05 PM" → "HH:MM".
+function pzIdoBont(s){
+    const m = String(s || '').match(/(?:^|[^\d])(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(am|pm|de\.?|du\.?)?/i); if(!m) return '';
+    let h = +m[1]; const p = (m[3] || '').toLowerCase();
+    if((p === 'pm' || p.startsWith('du')) && h < 12) h += 12;
+    if((p === 'am' || p.startsWith('de')) && h === 12) h = 0;
+    if(h > 23 || +m[2] > 59) return '';
+    return String(h).padStart(2, '0') + ':' + m[2];
+}
+const pzMostIdo = () => { const x = new Date(); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); };
 
 // Dátum: a mintákból választjuk ki a formátumot, amelyik MINDEGYIKRE illik.
 // A 03/04/2026 önmagában kétértelmű – ezért nem soronként döntünk.
@@ -19938,7 +19961,8 @@ function pzParPont(uj, regi){
     const nap = pzImNapKul(uj.d, regi.d); if(nap > 3) return 0;
     const ures = !pzSzavak(uj.m).size || !pzSzavak(regi.m).size;
     const h = pzMegjHasonlo(uj.m, regi.m);
-    if(h >= 0.5 || (nap <= 1 && h >= 0.25) || (nap === 0 && ures)) return 10 + h * 5 - nap;
+    const ido = uj.ido && regi.ido && nap === 0 ? (uj.ido === regi.ido ? 4 : -2) : 0;
+    if(h >= 0.5 || (nap <= 1 && h >= 0.25) || (nap === 0 && ures) || (ido > 0 && h >= 0.15)) return 10 + h * 5 - nap + ido;
     return 0;
 }
 // Párosítás: minden meglévő tétel legfeljebb egy importált sorral párosul.
@@ -20118,7 +20142,8 @@ function pzOpenTranzImport(){
             const deviza = oszlopErtek(sor, 'p').toUpperCase();
             if(kihagyDeviza && deviza && !/^(HUF|FT|FORINT)$/.test(deviza)){ hibak.deviza++; continue; }
             const t = pzTipusBont(oszlopErtek(sor, 't')) || (o < 0 ? 'ki' : 'bev');
-            ki.push({ d, t, o: Math.round(Math.abs(o)), fk: oszlopErtek(sor, 'k'), fa: oszlopErtek(sor, 'a'),
+            const ido = pzIdoBont(oszlopErtek(sor, 'i')) || pzIdoBont(oszlopErtek(sor, 'd'));
+            ki.push({ d, t, o: Math.round(Math.abs(o)), ...(ido ? { ido } : {}), fk: oszlopErtek(sor, 'k'), fa: oszlopErtek(sor, 'a'),
                       m: oszlopErtek(sor, 'm').slice(0, 120), fw: oszlopErtek(sor, 'w') });
         }
         return { ki, hibak };
@@ -20173,6 +20198,7 @@ function pzOpenTranzImport(){
             return x; });
         const uj = tetelek.filter(t => !t.dup);
         const pontosDb = tetelek.filter(t => t.dup && !t.val).length, valok = tetelek.filter(t => t.val);
+        const potol = tetelek.filter(t => t.dup && t.regi && t.ido && !t.regi.ido);   // a meglévő párba beírjuk az időpontot
         const hok = [...new Set(uj.map(t => t.d.slice(0,7)))].sort();
         const be = uj.filter(t => t.t === 'bev').reduce((s,t) => s + t.o, 0), kia = uj.filter(t => t.t !== 'bev').reduce((s,t) => s + t.o, 0);
 
@@ -20217,11 +20243,12 @@ function pzOpenTranzImport(){
                 ${uj.filter(t => t.szab).length ? `<br>${uj.filter(t => t.szab).length} tételt a kategória-szabályaid sorolnak be.` : ''}
                 ${pontosDb ? `<br>${pontosDb} tétel már szerepel a naplóban – kimarad.` : ''}
                 ${valok.length ? `<br>${valok.length} tételnek valószínűleg már megvan a párja (alább) – ${valok.filter(t => t.dup).length} kimarad.` : ''}
+                ${potol.length ? `<br>${potol.length} meglévő tételhez a pontos időpontot is beírja a fájlból.` : ''}
                 ${hibak.datum ? `<br><span class="pz-hibaszo">${hibak.datum} sor kimarad: a dátum nem értelmezhető (nézd meg az oszlopot és a formátumot).</span>` : ''}
                 ${hibak.osszeg ? `<br><span class="pz-hibaszo">${hibak.osszeg} sor kimarad: üres vagy nulla összeg.</span>` : ''}
                 ${hibak.deviza ? `<br>${hibak.deviza} nem forintos tétel kimarad.` : ''}
             </div>`;
-        ov.querySelector('#pzImGo').disabled = !uj.length;
+        ov.querySelector('#pzImGo').disabled = !uj.length && !potol.length;
         ov.querySelector('#pzImAll').textContent = '';
     }
 
@@ -20266,7 +20293,8 @@ function pzOpenTranzImport(){
     ov.querySelector('#pzImGo').addEventListener('click', async () => {
         const gomb = ov.querySelector('#pzImGo'), all = ov.querySelector('#pzImAll');
         const uj = tetelek.filter(t => !t.dup);
-        if(!uj.length) return;
+        const potol = tetelek.filter(t => t.dup && t.regi && t.ido && !t.regi.ido);
+        if(!uj.length && !potol.length) return;
         gomb.disabled = true;
         try {
             all.textContent = 'Tervező betöltése…';
@@ -20296,19 +20324,24 @@ function pzOpenTranzImport(){
                 const [kn, an] = t.szab ? [t.szab.k, t.szab.a || ''] : par === '+' ? [ujKat[kk], ''] : par.split('\u0000');
                 const p = tarcaPar[t.fw] === '+' ? ujTarca[t.fw] : (tarcaPar[t.fw] || '');
                 const tetel = { id:'i' + Date.now().toString(36) + i.toString(36) + Math.random().toString(36).slice(2,5),
-                                t:t.t, d:t.d, k:kn || 'Egyéb', m:pzMegjRovid(t.m), o:t.o, ...(p ? { p } : {}),
+                                t:t.t, d:t.d, ...(t.ido ? { ido:t.ido } : {}), k:kn || 'Egyéb', m:pzMegjRovid(t.m), o:t.o, ...(p ? { p } : {}),
                                 f:pzUjjlenyomat(t),   // az eredeti import-ujjlenyomat: szerkesztés után is felismerhető
                                 // ha főkategóriára párosítottuk, de a forrás alkategóriája ott is létezik, megtartjuk
                                 a: an || ((pzKatOf(t.t, kn) || {}).al || []).find(x => pzNorm(x) === pzNorm(t.fa)) || '' };
                 if(tarcaHat && pzTarcaHat(tetel, 1)) torzsValt = true;
                 (hoTetel[t.d.slice(0,7)] ||= []).push(tetel);
             });
-            const hok = Object.keys(hoTetel).sort();
+            // a meglévő (kihagyott) párok megkapják a fájl pontos időpontját
+            // (azonosító szerint, mert a betöltés közben a hónap tömbje lecserélődhetett)
+            const potolHo = {};
+            for(const t of potol) (potolHo[String(t.regi.d).slice(0, 7)] ||= new Map()).set(t.regi.id, t.ido);
+            const hok = [...new Set([...Object.keys(hoTetel), ...Object.keys(potolHo)])].sort();
             for(let i = 0; i < hok.length; i++){
                 const h = hok[i];
                 all.textContent = `Mentés: ${pzHoNev(h)} (${i+1}/${hok.length})…`;
                 await pzLoadTranz(h);
-                pzTranz[h].push(...hoTetel[h]);
+                if(potolHo[h]) for(const x of pzTranz[h]) if(!x.ido && potolHo[h].has(x.id)) x.ido = potolHo[h].get(x.id);
+                pzTranz[h].push(...(hoTetel[h] || []));
                 const lista = pzTranz[h];
                 store.save(pzTKey() + '_' + h, lista);
                 // Itt MEGVÁRJUK a szervert: egy félbeszakadt import rosszabb, mint egy lassú.
@@ -20318,7 +20351,7 @@ function pzOpenTranzImport(){
             if(katValt) pzSaveKat();
             if(torzsValt) pzSaveTorzs();
             const db = uj.length;
-            ov.querySelector('#pzImBody').innerHTML = `<div class="pz-im-kesz"><b>✓ ${db} tétel beolvasva</b>
+            ov.querySelector('#pzImBody').innerHTML = `<div class="pz-im-kesz"><b>✓ ${db} tétel beolvasva</b>${potol.length ? `<span>${potol.length} meglévő tételhez beírtam a pontos időpontot.</span>` : ''}
                 <span>${pzHoNev(hok[0])} – ${pzHoNev(hok[hok.length-1])}, ${hok.length} hónap. A Tervező tény-oszlopai ezekből a hónapokból frissültek.</span>
                 ${katValt ? '<span>Új kategóriák jöttek létre – a Pénzügyek → Hónap → Kategóriák gombbal adhatsz nekik ikont.</span>' : ''}</div>`;
             ov.querySelector('.modal-foot').innerHTML = `<button class="btn primary" data-pzx style="background:var(--blue);color:#fff;border-color:var(--blue);">Kész</button>`;
