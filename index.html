@@ -9063,6 +9063,14 @@
         .sidebar.collapsed .nav-kbd { display:none; }
         @media (max-width:1000px){ .nav-kbd { display:none; } }
         .gk-megse, .gk-racs { display:none; }
+        .sf-kn { position:fixed; inset:0; z-index:9500; background:rgba(8,6,20,.92); display:flex; align-items:center; justify-content:center; padding:calc(var(--sf-felul, 0px) + 40px) 16px calc(var(--sf-alul, 0px) + 60px); animation:sfOvBe .2s ease-out both; cursor:zoom-out; }
+        .sf-kn img { max-width:100%; max-height:100%; object-fit:contain; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.5); animation:sfPopBe .28s ease-out both; cursor:default; }
+        .sf-kn-cim { position:absolute; left:0; right:0; bottom:calc(var(--sf-alul, 0px) + 18px); text-align:center; color:#fff; font-weight:700; font-size:15px; padding:0 20px; }
+        .sf-kn-x { position:absolute; top:calc(var(--sf-felul, 0px) + 10px); right:14px; width:42px; height:42px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:26px; cursor:pointer; }
+        .sf-kn-ny { position:absolute; top:50%; margin-top:-24px; width:48px; height:48px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:28px; cursor:pointer; }
+        .sf-kn-ny.bal { left:12px; } .sf-kn-ny.jobb { right:12px; }
+        .sf-kn-db { position:absolute; top:calc(var(--sf-felul, 0px) + 20px); left:0; right:0; text-align:center; color:rgba(255,255,255,.75); font-size:13px; font-weight:700; pointer-events:none; }
+        .cl-wall-item img { cursor:zoom-in; }
         @media (max-width:760px){
             /* telefonon: teljes képernyős, homályos háttér; fent nagy keresőmező + Mégse, alatta csempék / találatok */
             .gk-ov { padding:calc(var(--sf-felul, 0px) + 12px) 14px 0 !important; align-items:stretch !important; background:rgba(30,16,60,.28) !important;
@@ -30058,6 +30066,26 @@ function gkNyit(){
     }
 }
 function gkZar(){ const ov = document.getElementById('gkOv'); if(ov) ov.remove(); }
+// ===== Képnéző: teljes képernyőn, lapozással (nyilak, billentyűk, húzás), Esc / koppintás bezárja =====
+function sfKepNezo(kepek, i){
+    if(!kepek || !kepek.length) return;
+    document.getElementById('sfKepNezo')?.remove();
+    let k = Math.max(0, i || 0);
+    const ov = document.createElement('div'); ov.id = 'sfKepNezo'; ov.className = 'sf-kn';
+    const rajz = () => { const x = kepek[k];
+        ov.innerHTML = `<img src="${esc(x.src)}" alt="${esc(x.cim || '')}">${x.cim ? `<div class="sf-kn-cim">${esc(x.cim)}</div>` : ''}
+            <button type="button" class="sf-kn-x" data-knzar aria-label="Bezárás">×</button>
+            ${kepek.length > 1 ? `<button type="button" class="sf-kn-ny bal" data-knl="-1" aria-label="Előző">‹</button><button type="button" class="sf-kn-ny jobb" data-knl="1" aria-label="Következő">›</button>
+            <div class="sf-kn-db">${k + 1} / ${kepek.length}</div>` : ''}`; };
+    const lep = d => { if(kepek.length < 2) return; k = (k + d + kepek.length) % kepek.length; rajz(); };
+    const zar = () => { ov.remove(); document.removeEventListener('keydown', bill, true); };
+    const bill = e => { if(e.key === 'Escape'){ e.stopPropagation(); zar(); } else if(e.key === 'ArrowLeft') lep(-1); else if(e.key === 'ArrowRight') lep(1); };
+    ov.addEventListener('click', e => { const n = e.target.closest('[data-knl]'); if(n){ lep(+n.dataset.knl); return; } if(e.target.tagName !== 'IMG' || e.target.closest('[data-knzar]')) zar(); });
+    let sx = null; ov.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    ov.addEventListener('touchend', e => { if(sx === null) return; const d = e.changedTouches[0].clientX - sx; sx = null; if(Math.abs(d) > 50) lep(d < 0 ? 1 : -1); }, { passive: true });
+    document.addEventListener('keydown', bill, true);
+    rajz(); document.body.appendChild(ov);
+}
 function gkValaszt(k){
     const x = gkTalalat[k]; if(!x) return;
     gkZar();
@@ -36874,6 +36902,7 @@ Vállalkozás nyitásának átbeszélése`, '']
             }
             if((b = c('[data-clak]'))){ clAddAkcio(b.dataset.clak); return; }
             if((b = c('[data-clwalldel]'))){ e.preventDefault(); clDeleteWallImage(b.dataset.clwalldel); return; }
+            if((b = c('.cl-wall-item img'))){ const l = [...document.querySelectorAll('.cl-wall-item img')]; sfKepNezo(l.map(i => ({ src: i.currentSrc || i.src, cim: i.closest('figure')?.querySelector('input')?.value || '' })), l.indexOf(b)); return; }
             if((b = c('[data-clujter]'))){ clNyit(null, { ter: [b.dataset.clujter] }); return; }
             if((b = c('[data-clnyit]'))){ clNyit(b.dataset.clnyit); return; }
             if(c('#clNew') || c('[data-cluj]')){ clNyit(null, clTerSzuro ? { ter: [clTerSzuro] } : null); return; }
