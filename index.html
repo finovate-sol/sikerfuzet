@@ -18452,7 +18452,8 @@ function pzReszletHtml(){
         <label class="pz-r-o${t.t === 'bev' ? ' pz-up' : atu ? ' pz-atu-o' : ''}"><span>${atu ? '' : t.t === 'bev' ? '+' : '−'}</span><input type="text" inputmode="numeric" data-pzr="o" value="${esc(pzFt(t.o))}" size="${Math.max(2, pzFt(t.o).length)}" aria-label="Összeg"><span>Ft</span></label>
         ${atu ? '' : `<div class="pz-r-tip"><button type="button" data-pzrtip="ki"${t.t === 'ki' ? ' class="on"' : ''}>Kiadás</button><button type="button" data-pzrtip="bev"${t.t === 'bev' ? ' class="on"' : ''}>Bevétel</button></div>`}
         <div class="pz-r-mezok">
-            <label>Megnevezés</label><span class="pz-r-mnev">${pzSzolgAv(t.m || nev, 'mini')}<input type="text" data-pzr="m" value="${esc(pzMegjRovid(t.m))}" maxlength="120" placeholder="Kinél? Megjegyzés">${!atu && pzSzolgNevOk(t.m || '') && !(pzSzolgOf(t.m) && pzSzolgKep(pzSzolgOf(t.m))) && !pzSzolgSajatKep(t.m) && !pzSzolgAutoWeb(t.m) ? '<button type="button" class="pz-r-logo" data-pzrlogo>+ logó</button>' : ''}</span>
+            <label>Megnevezés</label><input type="text" data-pzr="m" value="${esc(pzMegjRovid(t.m))}" maxlength="120" placeholder="Kinél? Megjegyzés">
+            ${atu ? '' : `<label>Logó</label><span class="pz-r-mnev">${pzSzolgAv(t.m || nev, 'mini')}${pzSzolgNevOk(t.m || '') && !(pzSzolgOf(t.m) && pzSzolgKep(pzSzolgOf(t.m))) && !pzSzolgSajatKep(t.m) && !pzSzolgAutoWeb(t.m) ? '<button type="button" class="pz-r-logo" data-pzrlogo>+ logó</button>' : '<span class="pz-halvany" style="font-size:12.5px;">a szolgáltató logója</span>'}</span>`}
             <label>Dátum</label><input type="date" data-pzr="d" value="${esc(t.d)}">
             ${atu ? `<label>Átutalás</label><div class="pz-r-ert">${esc(a ? a.n : '?')} → ${esc(b2 ? b2.n : '?')}</div>` : `
             <label>Kategória</label><select data-pzr="k"><option value="">— nincs —</option>${opt(katok, t.k || '')}</select>
@@ -18565,6 +18566,7 @@ function pzReszletLep(d){
 }
 // a széles/keskeny határon átlépve más elrendezés kell
 { let szeles = window.innerWidth > 760; window.addEventListener('resize', () => { const most = window.innerWidth > 760; if(most !== szeles){ szeles = most; if(pzView === 'naplo') renderPzNaplo(); } }); }
+let pzGorgKulcs = '';
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
@@ -18752,6 +18754,12 @@ async function renderPzNaplo(){
     const maHo = pzMaHo();
     const mobCim = (pzKerHat === 'ho' ? (pzTHo === maHo ? 'Ez a hónap' : pzHoNevKis(pzTHo)) : hatokor)
         + (szuro ? ' · ' + szuro : '') + (keres ? ' · szűrve' : '');
+    // Szerkesztés / mentés utáni újrarajzolás ne ugorjon el: ha ugyanazt a listát
+    // rajzoljuk újra (hónap, szűrők, nézet változatlan), a görgetés a helyén marad.
+    const gKulcs = JSON.stringify([pzTHo, pzKerHat, pzKerTol, pzKerIg, pzKer, pzKerTip, pzSz, pzNTarca, pzNezet, pzAszt]);
+    const gRegi = document.getElementById('pzFeedLista'), gMarad = gKulcs === pzGorgKulcs && !!gRegi;
+    const gLista = gRegi ? gRegi.scrollTop : 0, gAblak = window.scrollY, gRsz = document.querySelector('#pzNaplo .pz-reszlet')?.scrollTop || 0;
+    pzGorgKulcs = gKulcs;
     host.innerHTML = `
     <div class="pz-mini" id="pzMini" aria-hidden="true">
         <button type="button" class="pz-mini-g" data-sfburger aria-label="Menü megnyitása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
@@ -18877,6 +18885,8 @@ async function renderPzNaplo(){
     </div>`;
     pzMobHokGorget('pzMhok');
     pzNaploMagassag();
+    if(gMarad){ const fl = document.getElementById('pzFeedLista'); if(fl) fl.scrollTop = gLista; if(Math.abs(window.scrollY - gAblak) > 1) window.scrollTo(0, gAblak);
+        const rsz = document.querySelector('#pzNaplo .pz-reszlet'); if(rsz && gRsz) rsz.scrollTop = gRsz; }
     pzTovabbFigyel();
     pzHoAkt = '';
     document.getElementById('pzFeedLista')?.addEventListener('scroll', pzHoKovet, { passive:true });
