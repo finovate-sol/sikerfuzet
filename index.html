@@ -1627,6 +1627,14 @@
         /* mint a papíros elemzőfüzetben: a cél szövege a kép jobb oldalán, mellette a 3–2–1–0 jelölők */
         .ef-cel-szov { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:4px; }
         .ef-cel .ef-pont { flex:none; }
+        .ef-cel[data-efkiv] { cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+        .ef-cel[data-efkiv]:hover { border-color:#9adcec; }
+        .ef-cel .ef-pont button { cursor:pointer; }
+        .ef-cel.kiv { border-color:var(--ef-cian) !important; box-shadow:0 0 0 3px rgba(41,184,219,.22); background:#f2fbfe; }
+        .ef-cel-fej { position:relative; }
+        .ef-kiv-jel { position:absolute; left:6px; top:6px; z-index:1; background:var(--ef-navy, #0f2f5f); color:#fff; font-size:12px; font-weight:800; padding:3px 9px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+        .ef-kiv-db { display:inline-block; margin-left:6px; padding:1px 9px; border-radius:999px; background:#e8f7fc; color:#0f2f5f; }
+        .ef-kiv-db.rezeg { animation:efRezeg .4s; background:#fde2ef; } @keyframes efRezeg { 20%,60% { transform:translateX(-4px); } 40%,80% { transform:translateX(4px); } }
         @media (max-width:560px){ .ef-cel-fej img { flex-basis:36%; height:96px; } .ef-cel-fej { gap:9px; } }
         .ef-cel .ef-pont { flex-direction:column; gap:3px; width:46px; }
         .ef-cel .ef-pont button { height:26px; display:flex; align-items:center; gap:4px; padding:0; border:0; background:none; }
@@ -22150,7 +22158,8 @@ function efPirAllapot(id, forras, a = efA()){
 }
 function efPiramisHtml(ugyfelnek){
     const a = efA(), fontos = {};
-    Object.entries(EF_PIR_CEL).forEach(([c, b]) => { const p = efSzam(a['cel.' + c]); if(p > (fontos[b] || 0)) fontos[b] = p; });
+    const kiv = efKivCelok(a);
+    Object.entries(EF_PIR_CEL).forEach(([c, b]) => { if(kiv.includes(c)) fontos[b] = 3; });
     const db = { nalam: 0, mashol: 0, hianyzik: 0, nem: 0 };
     const gomb = ([id, n, f], kis) => { const [all, kezi] = efPirAllapot(id, f); db[all]++;
         return `<button type="button" class="ef-pir2-b ${all}${kis ? ' kis' : ''}" data-efpir="${id}" title="${esc(EF_PIR_ALL[all][1])}${kezi ? ' (kézzel állítva)' : ''} – kattintásra vált">
@@ -22222,9 +22231,11 @@ function efFejHtml(f){
             <div class="ef-racs3">${efInp('tf.bank_ceg', 'Bank neve')}${efInp('tf.bizt_ceg', 'Biztosító neve')}${efInp('tf.kozv_ceg', 'Közvetítő neve')}</div>`)}`;
     if(f === 'celok') return `<span class="ef-kot-jel">A bekeretezett mezők kitöltése kötelező!</span>
         <h4 class="ef-cel-cim">Kérjük, az alábbi célok és vágyak közül a három legfontosabbat állítsa sorrendbe!</h4>
-        <p class="ef-tipp"><b>3</b> – nagyon fontos · <b>2</b> – fontos · <b>1</b> – kevésbé fontos · <b>0</b> – nem érint. A kiválasztott célokhoz tartozó fejezetek kitöltése kötelező – a bal oldali listában ★ jelzi őket.</p>
-        ${efKot(`<div class="ef-celok">${EF_CELOK.map(([k, n, al], j) => { const v = String(a['cel.' + k] ?? '');
-            return `<div class="ef-cel${efSzam(v) >= 2 ? ' fontos' : ''}"><div class="ef-cel-fej"><img src="${EF_K}cel${j + 1}.jpg" alt="">
+        <p class="ef-tipp"><b>1.</b> Menjetek végig minden képen, és pontozzátok: <b>3</b> – nagyon fontos · <b>2</b> – fontos · <b>1</b> – kevésbé fontos · <b>0</b> – nem érint.
+            <b>2.</b> Utána kérdezd meg, melyik a <b>két legfontosabb</b> – kattints a képére vagy a kártyájára. Ezekhez tartozó fejezetek kitöltése kötelező, a bal oldali listában ★ jelzi őket.
+            <span class="ef-kiv-db">Kiválasztva: <b>${efKivCelok(a).length}/2</b></span></p>
+        ${efKot(`<div class="ef-celok">${EF_CELOK.map(([k, n, al], j) => { const v = String(a['cel.' + k] ?? ''), ki = efKivCelok(a).indexOf(k);
+            return `<div class="ef-cel${ki >= 0 ? ' fontos kiv' : ''}" data-efkiv="${k}" title="${ki >= 0 ? 'Kiválasztva – kattintásra visszavonod' : 'Kattints, ha ez az egyik legfontosabb cél'}"><div class="ef-cel-fej">${ki >= 0 ? `<span class="ef-kiv-jel">★ ${ki + 1}.</span>` : ''}<img src="${EF_K}cel${j + 1}.jpg" alt="">
             <div class="ef-cel-szov"><b>${esc(n)}</b><em>${esc(al)}</em></div>
             <div class="ef-pont">${[3, 2, 1, 0].map(p => `<button type="button" class="${v === String(p) ? 'on' : ''}" data-efcel="${k}" data-efp="${p}"><i>${p}</i><s></s></button>`).join('')}</div></div></div>`; }).join('')}</div>
             <div class="ef-racs2">${efInp('cel.havi_tol', 'Céljai elérése érdekében havonta mennyit kész öngondoskodásra költeni? – tól', { szam: 1, me: 'Ft' })}${efInp('cel.havi_ig', '– ig', { szam: 1, me: 'Ft' })}</div>
@@ -22389,7 +22400,9 @@ function efFejHtml(f){
         ${efBov('ajanlas', `<div class="ef-racs2">${[3, 4, 5, 6].map(szemely).join('')}</div>`)}
         <p class="ef-tipp">Az ajánló igazolja, hogy az általa ajánlott személyeket a kapcsolatfelvétel előtt tájékoztatja – ezt és az aláírást a papíros füzeten rögzítsd.</p>`; }
     if(f === 'osszegzes'){
-        const r = registry[efI], celok = EF_CELOK.map(([k, n], j) => ({ n, p: efSzam(a['cel.' + k]), j })).filter(c => c.p > 0).sort((x, y) => y.p - x.p).slice(0, 3);
+        const kv = efKivCelok(a);
+        const r = registry[efI], celok = EF_CELOK.map(([k, n], j) => ({ n, p: efSzam(a['cel.' + k]), j, kv: kv.indexOf(k) })).filter(c => c.p > 0 || c.kv >= 0)
+            .sort((x, y) => (x.kv < 0 ? 9 : x.kv) - (y.kv < 0 ? 9 : y.kv) || y.p - x.p).slice(0, 3);
         const ido = []; EF_SAVOK.forEach((sv, si) => EF_NAPOK.forEach((nap, ni) => { if(a[`lp.ido.${ni}.${si}`]) ido.push(`${nap} ${sv}`); }));
         const lepesek = [['Meglévő programjainak felülvizsgálata', '', ''], ...[2, 3].map(n => [a[`lp.${n}.cel`], a[`lp.${n}.osszeg`], a[`lp.${n}.mikor`]])].filter(l => (l[0] || '').trim());
         const nym = efNyMondat(a), celossz = a['ny.u.celosszeg'];
@@ -22447,9 +22460,11 @@ function efFejHtml(f){
 const EF_ELO = { torodik: ['ugyfel', 'ajanlo', 'tanacsado', 'tajekoztatas', 'honnan', 'volt', 'cel.', 'tf.'], kapcs: ['kb.', 'mt.', 'bf.', 'fsz.', 'hit.', 'kp.'], otthon: ['ot.'], gyerek: ['gy.'],
     nyugdij: ['ny.'], felelos: ['fe.'], vagyon: ['va.'], koltseg: ['kv.'], piramis: ['pir.'], lepesek: ['lp.'], osszegzes: [], karrier: ['aj.', 'am.'], szemelyes: ['sz.'], vallalkozo: ['vl.'], szerviz: ['sv.'], jegyzet: ['jegyzet'] };
 const efKitoltott = f => Object.entries(efA()).filter(([k, v]) => EF_ELO[f].some(p => k.startsWith(p)) && (Array.isArray(v) ? v.length : String(v).trim())).length;
+// A két legfontosabb cél: a pontozás után külön, kattintással választja ki az ügyfél (cel.kiv).
+const efKivCelok = a => (Array.isArray(a['cel.kiv']) ? a['cel.kiv'] : []).filter(k => EF_CELOK.some(c => c[0] === k)).slice(0, 2);
 function efFontos(){
-    const a = efA(), s = new Set();
-    EF_CELOK.forEach(([k, , , l]) => { if(efSzam(a['cel.' + k]) >= 1) l.forEach(f => s.add(f)); });
+    const a = efA(), s = new Set(), kiv = efKivCelok(a);
+    EF_CELOK.forEach(([k, , , l]) => { if(kiv.includes(k)) l.forEach(f => s.add(f)); });
     return s;
 }
 function efRajz(gorget){
@@ -22789,6 +22804,7 @@ function efNyomtat(){
         const jel = {}; tmp.querySelectorAll('[data-efj]').forEach(b => { const k = b.dataset.efj, v = a[k]; if(v && !jel[k]) jel[k] = [b.closest('.ef-mezo, .ef-rang, .ef-haromszog')?.querySelector('span, b')?.textContent || k, Array.isArray(v) ? v.join(', ') : v]; });
         Object.values(jel).forEach(x => sorok.push(x));
         if(f === 'torodik') EF_CELOK.forEach(([k, nn]) => { if(a['cel.' + k] != null && a['cel.' + k] !== '') sorok.push([nn, a['cel.' + k] + ' pont']); });
+        if(f === 'torodik' && efKivCelok(a).length) sorok.push(['Legfontosabb célok', efKivCelok(a).map((k, i) => `${i + 1}. ${(EF_CELOK.find(c => c[0] === k) || [])[1] || k}`).join(', ')]);
         if(f === 'piramis') efPirElemek().forEach(({ id, n: nn, f: fo, szint: sz, csop }) => sorok.push([sz + ' – ' + (csop ? csop + ': ' : '') + nn, EF_PIR_ALL[efPirAllapot(id, fo)[0]][0]]));
         if(f === 'koltseg'){ const t = document.querySelector('.ef [data-efcalc="szabad"]'); if(t) sorok.push(['Szabad jövedelem', t.textContent]); }
         return sorok.length ? `<h2>${n}</h2><table>${sorok.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` : '';
@@ -22853,6 +22869,12 @@ document.addEventListener('click', e => {
         efMent(); efSzamol(); if(k === 'ny.nem') efSzamol(); return; }
     const cb = e.target.closest('[data-efcel]');
     if(cb){ const k = 'cel.' + cb.dataset.efcel; a[k] = a[k] === cb.dataset.efp ? '' : cb.dataset.efp; efMent(); efRajz(false); return; }
+    const kv = e.target.closest('[data-efkiv]');
+    if(kv){ const l = efKivCelok(a), k = kv.dataset.efkiv;
+        if(l.includes(k)) a['cel.kiv'] = l.filter(x => x !== k);
+        else if(l.length >= 2){ const db = document.querySelector('.ef .ef-kiv-db'); if(db){ db.classList.remove('rezeg'); void db.offsetWidth; db.classList.add('rezeg'); } return; }
+        else a['cel.kiv'] = [...l, k];
+        efMent(); efRajz(false); return; }
     const vb = e.target.closest('[data-efvan]');
     if(vb){ const k = vb.dataset.efvan; a[k] = a[k] ? '' : '1';
         if(k.endsWith('.nalam') && a[k]) a[k.replace(/\.nalam$/, '.van')] = '1';
