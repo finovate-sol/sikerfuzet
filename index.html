@@ -2965,6 +2965,31 @@
         .hweek-chevron svg { width:16px; height:16px; }
         .hweek-block.collapsed .hweek-chevron { transform:rotate(-90deg); }
         .hweek-block.collapsed .havi-table-wrap { display:none; }
+        /* telefonon a heti táblák „elforgatva”: soronként egy metrika – név · Cél · Van · ± (a cellák ugyanazok, csak rácsba rendezve) */
+        @media (max-width:760px){
+            #haviBody .hweek-block .havi-table-wrap { overflow:visible; }
+            #haviBody table.havi { display:grid !important; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr) 64px; min-width:0 !important; width:100%; border-collapse:separate; }
+            #haviBody table.havi :is(thead, tbody, tr) { display:contents; }
+            #haviBody table.havi thead > tr > * { grid-column:1; text-align:left !important; justify-content:flex-start; font-size:12.5px !important; text-transform:none !important; letter-spacing:0 !important; color:var(--navy); font-weight:700; padding:8px 10px !important; }
+            #haviBody table.havi tbody > tr:nth-child(1) > * { grid-column:2; }
+            #haviBody table.havi tbody > tr:nth-child(2) > * { grid-column:3; }
+            #haviBody table.havi tbody > tr:nth-child(3) > * { grid-column:4; }
+            #haviBody table.havi :is(th, td):nth-child(1) { grid-row:1; }
+            #haviBody table.havi :is(th, td):nth-child(2) { grid-row:2; }
+            #haviBody table.havi :is(th, td):nth-child(3) { grid-row:3; }
+            #haviBody table.havi :is(th, td):nth-child(4) { grid-row:4; }
+            #haviBody table.havi :is(th, td):nth-child(5) { grid-row:5; }
+            #haviBody table.havi :is(th, td):nth-child(6) { grid-row:6; }
+            #haviBody table.havi :is(th, td):nth-child(7) { grid-row:7; }
+            #haviBody table.havi :is(th, td):nth-child(8) { grid-row:8; }
+            #haviBody table.havi :is(th, td):nth-child(9) { grid-row:9; }
+            #haviBody table.havi :is(th, td):nth-child(10) { grid-row:10; }
+            #haviBody table.havi :is(th, td) { display:flex; align-items:center; justify-content:center; padding:5px 4px !important; border-right:0 !important; border-bottom:1px solid var(--border, #eef1f5) !important; min-width:0; }
+            #haviBody table.havi tbody td.hlblcol { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); background:none !important; }
+            #haviBody table.havi thead th.hlblcol { background:none; }
+            #haviBody table.havi input { width:100% !important; min-width:0; box-sizing:border-box; font-size:15px !important; padding:6px 6px !important; text-align:center; }
+            #haviBody table.havi .havi-diff { min-width:38px; display:inline-flex; justify-content:center; }
+        }
         .havi-formcard .hcard-title[data-hform-toggle] { cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
         .havi-formcard.collapsed .hcard-title[data-hform-toggle] { margin-bottom:0; }
         .hform-chevron { color:var(--muted); display:flex; transition:transform .2s; flex-shrink:0; }
@@ -15557,7 +15582,8 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
     for(let w = 0; w < n; w++){
         const cur = w === cwIdx, wk = haviData.weeks[w], auto = haviAutoErtek(haviAnchor, w);
         const ures = auto.some((v, i) => v && String((i < 8 ? wk.van[i] : wk.szv) ?? '').trim() === '');
-        t += `<div class="hweek-block${cur ? ' current' : ''}"><div class="hweek-title${cur ? ' current' : ''}" data-wk-toggle="${w}">${w + 1}. hét <span>KW ${haviWeekKW(haviAnchor, w)} · ${ranges[w]}</span>
+        const csuk = !cur && window.matchMedia && matchMedia('(max-width:760px)').matches;
+        t += `<div class="hweek-block${cur ? ' current' : ''}${csuk ? ' collapsed' : ''}"><div class="hweek-title${cur ? ' current' : ''}" data-wk-toggle="${w}">${w + 1}. hét <span>KW ${haviWeekKW(haviAnchor, w)} · ${ranges[w]}</span>
             <div class="hweek-title-right">${ures ? `<button type="button" class="hv-auto" data-hvauto="${w}" title="Az üres Van mezőkbe beírja a Sikerfüzetből számolt értékeket">Számoltak beírása</button>` : ''}${cur ? '<span class="hweek-badge">Aktuális</span>' : ''}${chev}</div></div>
             <div class="havi-table-wrap"><table class="havi"><thead>${thRow}</thead><tbody>`
             + `<tr><td class="hlblcol">Cél</td>${HAVI_METRICS.map((m, i) => {
