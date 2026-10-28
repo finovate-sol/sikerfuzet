@@ -10558,7 +10558,17 @@ try {
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// A képkészítő (html2canvas) csak az első képmentéskor töltődik be – nem lassítja az indulást.
+window.sfH2C = function(){
+    if(typeof window.html2canvas === 'function') return Promise.resolve(window.html2canvas);
+    return window.__sfH2C || (window.__sfH2C = new Promise((ok, hiba) => {
+        const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        sc.onload = () => ok(window.html2canvas); sc.onerror = () => { window.__sfH2C = null; hiba(new Error('A képkészítő nem töltődött be.')); };
+        document.head.appendChild(sc);
+    }));
+};
+</script>
 <script>
 // ===== STORAGE HELPERS =====
 const store = {
@@ -11847,7 +11857,7 @@ function oiKuldSzoveg(a){
 }
 // Képernyőkép: egy külön, letisztult kártya a vállalásokról (html2canvas), megosztásra vagy mentésre.
 async function oiKuldKep(a){
-    if(typeof window.html2canvas !== 'function') throw new Error('A képkészítő nem töltődött be.');
+    await window.sfH2C();
     const { targy, adat: x } = oiKuldSzoveg(a);
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;left:-10000px;top:0;width:440px;padding:22px;background:#faf8ff;font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1f1235;';
@@ -14485,15 +14495,52 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             r.setProperty('--st-bg-' + resz, bg); r.setProperty('--st-k-' + resz, k); r.setProperty('--st-f-' + resz, f); };
         beall('priv', window.sfTema(), window.SF_TEMAK); beall('ovb', window.sfOvbTema(), window.SF_OVB_TEMAK);
     };
+    // Teljesítmény: az átszínezett másolat elkészítése az összes CSS-szabályon megy végig (telefonon több száz ms).
+    // Ezért induláskor csak az épp látható rész (SZEM vagy Sikerfüzet) témája készül el, a másik ráérő időben –
+    // vagy azonnal, ha közben átváltasz.
+    let kesz = { priv: false, ovb: false }, varo = 0;
+    const epit = resz => {
+        if(kesz[resz]) return; kesz[resz] = true;
+        if(resz === 'priv'){ const t = window.sfTema();
+            if(t === 'lila') tag.textContent = '';
+            else { const ki = []; gyujt(ATAL[t], ki, 'body.sf-privat', false); tag.textContent = ki.join('\n') + (EXTRA[t] || ''); } }
+        else { const to = window.sfOvbTema();
+            if(to === 'kek') tagOvb.textContent = '';
+            else { const ki = []; gyujt(ATAL_OVB[to], ki, 'body:not(.sf-privat)', true); tagOvb.textContent = ki.join('\n') + (EXTRA_OVB[to] || ''); } }
+    };
+    const aktResz = () => { if(document.body) return document.body.classList.contains('sf-privat') ? 'priv' : 'ovb';
+        try { return JSON.parse(localStorage.getItem('sf_ter') || 'null') === 'priv' ? 'priv' : 'ovb'; } catch(e){ return 'ovb'; } };
+    let figyel = null;
+    const figyelo = () => { if(figyel || !document.body) return;
+        figyel = new MutationObserver(() => { const r = aktResz(); if(!kesz[r]) epit(r); });
+        figyel.observe(document.body, { attributes: true, attributeFilter: ['class'] }); };
     window.sfTemaKeszit = function(){
         window.sfStSzinek();
-        const t = window.sfTema(), to = window.sfOvbTema();
         if(!tag){ tag = document.createElement('style'); tag.id = 'sfTemaCss'; document.head.appendChild(tag); }
         if(!tagOvb){ tagOvb = document.createElement('style'); tagOvb.id = 'sfOvbTemaCss'; document.head.appendChild(tagOvb); }
-        if(t === 'lila') tag.textContent = '';
-        else { const ki = []; gyujt(ATAL[t], ki, 'body.sf-privat', false); tag.textContent = ki.join('\n') + (EXTRA[t] || ''); }
-        if(to === 'kek') tagOvb.textContent = '';
-        else { const ki = []; gyujt(ATAL_OVB[to], ki, 'body:not(.sf-privat)', true); tagOvb.textContent = ki.join('\n') + (EXTRA_OVB[to] || ''); }
+        kesz = { priv: false, ovb: false };
+        const r = aktResz(); epit(r);
+        if(document.body) figyelo(); else document.addEventListener('DOMContentLoaded', figyelo, { once: true });
+        const masik = r === 'priv' ? 'ovb' : 'priv', sajat = ++varo;
+        // a másik rész témája apró szeletekben, üresjáratban készül (nem akasztja meg a görgetést és a koppintást)
+        const t = masik === 'priv' ? window.sfTema() : window.sfOvbTema();
+        if(masik === 'priv' ? t === 'lila' : t === 'kek'){ epit(masik); return; }
+        const f = masik === 'priv' ? ATAL[t] : ATAL_OVB[t], sc = masik === 'priv' ? 'body.sf-privat' : 'body:not(.sf-privat)', ovb = masik === 'ovb';
+        const lapok = [...document.styleSheets].filter(sh => sh.ownerNode !== tag && sh.ownerNode !== tagOvb).map(sh => { try { return sh.cssRules; } catch(e){ return null; } }).filter(Boolean);
+        const ki = []; let li = 0, ri = 0;
+        const ido = window.requestIdleCallback ? (fn => requestIdleCallback(fn, { timeout: 2000 })) : (fn => setTimeout(() => fn({ timeRemaining: () => 8 }), 30));
+        const lepes = hat => {
+            if(sajat !== varo || kesz[masik]) return;
+            const vege = performance.now() + Math.min(12, Math.max(4, hat.timeRemaining()));
+            while(li < lapok.length && performance.now() < vege){
+                const rs = lapok[li], j = Math.min(rs.length, ri + 40);
+                szabalyok(Array.prototype.slice.call(rs, ri, j), f, ki, sc, ovb); ri = j;
+                if(ri >= rs.length){ li++; ri = 0; }
+            }
+            if(li < lapok.length){ ido(lepes); return; }
+            kesz[masik] = true; (masik === 'priv' ? tag : tagOvb).textContent = ki.join('\n') + ((masik === 'priv' ? EXTRA : EXTRA_OVB)[t] || '');
+        };
+        setTimeout(() => ido(lepes), 1200);
     };
     window.sfOvbTemaBeallit = function(t){
         try { localStorage.setItem('sf_ovb_tema', JSON.stringify(t)); } catch(e){}
@@ -33296,10 +33343,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
         const shot = document.getElementById("calScreenshot");
         if (shot) shot.addEventListener("click", async () => {
-            if (typeof window.html2canvas !== "function"){
-                alert("A képmentés funkció még betöltés alatt van, próbáld újra pár másodperc múlva.");
-                return;
-            }
+            try { await window.sfH2C(); } catch(e){ alert("A képmentés funkció nem töltődött be – ellenőrizd a netkapcsolatot."); return; }
             const target = document.getElementById("calGrid");
             shot.disabled = true;
             try {
@@ -41297,6 +41341,10 @@ Vállalkozás nyitásának átbeszélése`, '']
     window.sfShowStruktura = function(){ loadAndRenderStruktura(); reloadKarrierLetra(); };
 
 
+</script>
+<script>
+// Offline-gyorsítótár: második megnyitástól a statikus fájlok azonnal jönnek, térerő nélkül is elindul az app.
+if('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 </script>
 </body>
 </html>
