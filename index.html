@@ -9780,6 +9780,12 @@
         }
         /* választó (Beállítások) */
         .bl-stilus i { position:relative; overflow:hidden; }
+        @media (max-width:760px){ .bl:not(.reszlet) > .bl-fej { display:none; } }
+        details.zb-pin-d > summary { display:flex; align-items:center; gap:10px; list-style:none; cursor:pointer; padding:12px 0; border-top:1px solid var(--border, #e6ecf5); }
+        details.zb-pin-d > summary::-webkit-details-marker { display:none; }
+        details.zb-pin-d > summary::after { content:'›'; margin-left:auto; color:#9ca3af; font-size:20px; transition:transform .2s; }
+        details.zb-pin-d[open] > summary::after { transform:rotate(90deg); }
+        details.zb-pin-d > summary .t { display:flex; flex-direction:column; gap:2px; } details.zb-pin-d > summary .t span { font-size:12.5px; color:var(--muted); }
         .bl-stilus i b { position:absolute; left:18%; right:18%; height:26%; border-radius:4px; }
         .bl-stilus i b:first-child { top:22%; } .bl-stilus i b:last-child { top:54%; }
     </style>
@@ -11735,12 +11741,13 @@ window.addEventListener('popstate', e => {
                     <p class="pv-megj zb-bev">A privát rész (Ma, napló, pénzügyek, szokások…) csak feloldás után látszik ezen az eszközön.</p>
                     <div class="zb-sor"><span class="t"><b>Arc / ujjlenyomat</b><span>${vanBio ? (x.bio ? 'Bekapcsolva ezen az eszközön' : 'Face ID, Touch ID, ujjlenyomat vagy a telefon kódja') : 'Ez az eszköz vagy böngésző nem támogatja'}</span></span>
                         ${vanBio ? `<button type="button" class="${x.bio ? 'btn' : 'pv-kapsz'}" data-zbbio>${x.bio ? 'Kikapcsolás' : 'Bekapcsolás'}</button>` : ''}</div>
-                    <div class="zb-sor" style="flex-wrap:wrap"><span class="t"><b>PIN-kód</b><span>${x.pin ? 'Beállítva' : vanBio ? 'Tartalék, ha az arc / ujj nem megy' : '4–8 számjegy'}</span></span>
+                    <details class="zb-pin-d"${vanBio && x.bio ? '' : ' open'}><summary><span class="t"><b>${vanBio ? 'Tartalék PIN-kód' : 'PIN-kód'}</b><span>${x.pin ? 'Beállítva' : vanBio ? 'Ha az arc / ujj épp nem megy' : '4–8 számjegy'}</span></span></summary>
+                    <div class="zb-sor" style="flex-wrap:wrap;border-top:0;padding-top:0">
                         ${x.pin ? '<button type="button" class="btn" data-zbpindel>Törlés</button>' : ''}
-                        <div class="zb-pin" style="flex:1 1 100%"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="${x.pin ? 'új PIN' : 'PIN'}" data-zbp1 aria-label="PIN-kód"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="még egyszer" data-zbp2 aria-label="PIN-kód még egyszer"><button type="button" class="pv-kapsz" data-zbpin>Mentés</button></div></div>
-                    <div class="zb-sor"><span class="t"><b>Zárolás háttérben</b><span>Ha az app ennyi ideig nincs előtérben</span></span>
+                        <div class="zb-pin" style="flex:1 1 100%"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="${x.pin ? 'új PIN' : 'PIN'}" data-zbp1 aria-label="PIN-kód"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="még egyszer" data-zbp2 aria-label="PIN-kód még egyszer"><button type="button" class="pv-kapsz" data-zbpin>Mentés</button></div></div></details>
+                    <div class="zb-sor"><span class="t"><b>Automatikus zárolás</b><span>Ha az app ennyi ideig a háttérben van</span></span>
                         <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
-                    <div class="zb-sor"><span class="t"><b>Zárolás az OVB részre váltáskor</b><span>Visszaváltáskor újra fel kell oldani</span></span>
+                    <div class="zb-sor"><span class="t"><b>A Sikerfüzetre váltva is zároljon</b><span>Visszaváltáskor újra fel kell oldani</span></span>
                         <input type="checkbox" data-zbkilep${x.kilep !== false ? ' checked' : ''} aria-label="Zárolás az OVB részre váltáskor"></div>`;
             const uziHtml = `<p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
             if(host){
@@ -11792,7 +11799,7 @@ window.addEventListener('popstate', e => {
     // OVB részben az általános beállítások (téma), privátban a SZEM beállításai (téma, ikonok, zár)
     // a fogaskerék a Beállítások oldalt nyitja (témák, privát beállítások, admin); a SZEM-beállítások ablaka onnan nyílik
     window.sfSzemBeallit = beallit;
-    if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(window.sfBeallNyit) window.sfBeallNyit(document.body.classList.contains('sf-privat') ? 'zar' : null); if(pg && !pg.hidden){ window.sfShowBeallitasok && window.sfShowBeallitasok(); return; } document.getElementById('adminInfoBtn')?.click(); });
+    if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(window.sfBeallNyit) window.sfBeallNyit(null); if(pg && !pg.hidden){ window.sfShowBeallitasok && window.sfShowBeallitasok(); return; } document.getElementById('adminInfoBtn')?.click(); });
     window.sfZarBeallit = beallit;
     gomb(); frissit();
     // Indításkor (privát állásban) rögtön kérjük az arcot / ujjat – ahol a böngésző gesztus nélkül nem engedi, ott a gomb marad.
@@ -14682,6 +14689,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     // Egy oldal: bal oldalt a témakörök, jobb oldalt a kiválasztott beállítás – felugró ablak nélkül.
     // Telefonon lista; egy pontra koppintva nyílik a beállítás, felül „‹” vissza.
     const BL_IK = {
+        ma: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
         megj: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
         kapcs: '<path d="M8 7h11l-3-3M16 17H5l3 3"/>',
         zar: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -14701,7 +14709,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         ['Közös', [['megj', 'Megjelenés', '#6366f1'], ['ikonok', 'App-ikonok', '#a855f7'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
         ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
             ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1],
-        ['SZEM', [['zar', 'Zár és biztonság', '#7c3aed'], ['logok', 'Tranzakció-logók', '#10b981']], 'priv']
+        ['SZEM', [['ma', 'A Ma oldal elrendezése', '#f59e0b'], ['zar', 'Zár és biztonság', '#7c3aed'], ['logok', 'Tranzakció-logók', '#10b981']], 'priv']
     ];
     let blSzek = null;
     const blMobil = () => window.matchMedia('(max-width:760px)').matches;
@@ -14716,9 +14724,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     };
     async function blPanel(k, host){
         if(k === 'megj'){
-            host.innerHTML = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>
-                <section class="card bl-k"><h3>Téma – SZEM (privát)</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
-                <p class="bl-megj" style="margin:12px 0 0">Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>
+            const temaOvb = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>`;
+            const temaSzem = `<section class="card bl-k"><h3>Téma – SZEM</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}</section>`;
+            host.innerHTML = (document.body.classList.contains('sf-privat') ? temaSzem + temaOvb : temaOvb + temaSzem) + `
                 <section class="card bl-k"><h3>Sötét mód</h3><p class="bl-megj">Automatikusan az Éjszaka témára vált – amíg sötét mód van, a fenti témák helyett az látszik.</p>
                 <div class="sb-chipek bl-sotet">${[['ki', 'Kikapcsolva'], ['rendszer', 'A telefon szerint'], ['este', 'Este (19–7 óra)']].map(([k, n]) => `<button type="button" class="sb-chip ${window.sfSotetMod() === k ? 'on' : ''}" data-blsotet="${k}" aria-pressed="${window.sfSotetMod() === k}">${n}</button>`).join('')}</div></section>
                 <section class="card bl-k"><h3>Stílus</h3><p class="bl-megj">A felületek anyaga – az elrendezés és a működés ugyanaz marad. Ezen az eszközön érvényes.</p>
@@ -14755,10 +14763,13 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     }
     window.sfShowBeallitasok = function(){
         const host = document.getElementById('beallBody'); if(!host) return;
+        const mbt = document.getElementById('mbTitle'); if(mbt) mbt.textContent = 'Beállítások';
         const ab = document.getElementById('adminBody'); if(ab){ ab.hidden = true; ab.innerHTML = ''; }
         const adm = window.sfVanAdmin();
         // mindkét rész beállításai látszanak, bármelyik részből nyitod (a Sikerfüzet-pontok csak adminnak)
-        const csop = BL_SZEK.filter(c => !c[3] || adm), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        // az épp aktív rész csoportja kerül felülre (privátban a SZEM, a Sikerfüzetben a Sikerfüzet)
+        const priv = document.body.classList.contains('sf-privat'), sajat = priv ? 'priv' : 'ovb';
+        const csop = BL_SZEK.filter(c => !c[3] || adm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
         const ik = (k, c) => `<i style="background:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${BL_IK[k] || ''}</svg></i>`;
@@ -14773,6 +14784,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     };
     document.addEventListener('click', async e => {
         if(!e.target.closest || !e.target.closest('#beallBody')) return;
+        // „A Ma oldal elrendezése”: a Ma oldalra visz, szerkesztő módban (ott húzhatók, rejthetők a kártyák)
+        if(e.target.closest('[data-blszek="ma"]')){ blSzek = null; if(window.sfTerValt) window.sfTerValt('priv'); prvMenj('privma', () => { maEdit = true; renderPrivMa(); }); return; }
         const sz = e.target.closest('[data-blszek]'); if(sz){ blSzek = sz.dataset.blszek; window.sfShowBeallitasok(); window.scrollTo(0, 0); return; }
         if(e.target.closest('[data-blvissza]')){ blSzek = null; window.sfShowBeallitasok(); return; }
         const dz = e.target.closest('[data-bldoboz]');
