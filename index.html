@@ -30712,7 +30712,9 @@ async function renderPrivMa(){
     }).join('');
     // költés-figyelmeztetés: a keretes kategóriák közül az, amelyik már 80% fölött jár, és jóval a hónap előtt halad (vagy túllépte)
     const honapArany = dt.getDate() / hossz;
-    const figy = keret ? pzLista('ki').filter(k => (k.k || 0) > 0).map(k => {
+    // a megtakarítás / befektetés jellegű kategóriák kimaradnak: ott a „túllépés” jó hír
+    const megtakaritas = k => k.i === 'erme' || /megtakar|befektet|nyugd/i.test(k.n || '');
+    const figy = keret ? pzLista('ki').filter(k => (k.k || 0) > 0 && !megtakaritas(k)).map(k => {
             const kolt2 = lista.reduce((a, t) => a + (pzKi(t) && (t.k || 'Egyéb') === k.n ? (t.o || 0) : 0), 0);
             return { k, kolt: kolt2, ar: kolt2 / k.k }; })
         .filter(x => x.ar >= 1 || (x.ar >= .8 && x.ar > honapArany + .15)).sort((a, b) => b.ar - a.ar) : [];
