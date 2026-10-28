@@ -662,6 +662,9 @@
             .sz-ker-ik svg, .sz-ker-x svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
             .sz-ker-ik.on { background:#1f5fd0; color:#fff; } body.sf-privat .sz-ker-ik.on { background:#7c3aed; }
             .sz-ker-x { background:none; box-shadow:none; }
+            .sz-ker-sor { flex-wrap:wrap; }
+            .sz-ker-mind:not([hidden]) { flex:1 1 100%; display:flex; align-items:center; gap:4px; border:0; background:none; padding:2px 6px; font:inherit; font-size:13.5px; color:#4b5563; cursor:pointer; text-align:left; }
+            .sz-ker-mind b { color:#1f5fd0; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%; } body.sf-privat .sz-ker-mind b { color:#6d28d9; }
             .mb-ker-g { position:relative; }
             .mb-ker-g.jel::after { content:""; position:absolute; top:7px; right:8px; width:9px; height:9px; border-radius:50%; background:#ef4444; border:2px solid #fff; }
             #page-penzugyek .pz-ker-fo, #page-ugyfelek .reg-search, #page-ketoras .reg-search, #page-feladatok #fdSearch,
@@ -31332,7 +31335,8 @@ function szOldalKer(ny){
     const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>';
     sor.innerHTML = `<label class="sz-ker-mezo">${ik}<input type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(m.placeholder || 'Keresés…')}" value="${esc(m.value)}"></label>
         ${(k.gomb || []).map((g, i) => `<button type="button" class="sz-ker-ik" data-szkergomb="${i}" aria-label="${esc(document.querySelector(g)?.getAttribute('aria-label') || '')}"></button>`).join('')}
-        <button type="button" class="sz-ker-x" data-szkerzar aria-label="Keresés bezárása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
+        <button type="button" class="sz-ker-x" data-szkerzar aria-label="Keresés bezárása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button type="button" class="sz-ker-mind" data-szkermind${m.value ? '' : ' hidden'}>Keresés mindenhol: <b>„${esc(m.value)}”</b> ›</button>`;
     szKerGombFrissit();
     sor.hidden = false; document.body.classList.add('sz-ker-nyit');
     const inp = sor.querySelector('input'); inp.focus();
@@ -31353,12 +31357,17 @@ function szKerJelzes(){
 }
 document.addEventListener('input', e => {
     const inp = e.target.closest && e.target.closest('#szKerSor input'); if(!inp) return;
+    const mind = document.querySelector('#szKerSor [data-szkermind]');
+    if(mind){ mind.hidden = !inp.value.trim(); mind.querySelector('b').textContent = '„' + inp.value.trim() + '”'; }
     const m = szKerMezo(); if(!m) return; m.value = inp.value; m.dispatchEvent(new Event('input', { bubbles: true }));
 });
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.closest && e.target.closest('#szKerSor input')) e.target.blur(); });
 document.addEventListener('click', e => {
     if(e.target.closest('#mbKerG')){ e.stopImmediatePropagation(); szOldalKer(!document.body.classList.contains('sz-ker-nyit')); return; }
     if(e.target.closest('[data-szkerzar]')){ szOldalKer(false); return; }
+    // a nagy kereső ugyanazzal a szöveggel (ha az oldalon nincs meg, amit keresel)
+    if(e.target.closest('[data-szkermind]')){ const q = document.querySelector('#szKerSor input')?.value || ''; szOldalKer(false);
+        if(typeof gkNyit === 'function'){ gkNyit(); const gi = document.querySelector('#gkOv input'); if(gi){ gi.value = q; gi.dispatchEvent(new Event('input', { bubbles: true })); } } return; }
     const g = e.target.closest('[data-szkergomb]');
     if(g){ const k = SZ_KER[szAktLap()]; document.querySelector(k && k.gomb[+g.dataset.szkergomb])?.click(); setTimeout(szKerJelzes, 60); }
 }, true);
@@ -31367,24 +31376,26 @@ document.addEventListener('click', e => {
     // lapváltáskor a nyitott oldalkereső bezárul
     let lap = ''; setInterval(() => { const a = szAktLap(); if(a !== lap){ lap = a; if(document.body.classList.contains('sz-ker-nyit')){ const s = document.getElementById('szKerSor'); if(s) s.hidden = true; document.body.classList.remove('sz-ker-nyit'); } } }, 400);
 })();
-// hosszú nyomás a középső gombon: a nagy kereső (rövid koppintás: Ma / Sikerfüzet)
+// hosszú nyomás a középső gombon (SZEM): a gyors rögzítés lapja („Mit rögzítesz?”); rövid koppintás: Ma
 (function(){
     let ido = 0, hosszu = false;
     const vege = () => { clearTimeout(ido); ido = 0; };
     document.addEventListener('pointerdown', e => {
-        if(!e.target.closest('#szGomb')) return; hosszu = false; vege();
+        if(!e.target.closest('#szGomb') || szTer() !== 'priv') return; hosszu = false; vege();
         ido = setTimeout(() => { hosszu = true; ido = 0; if(navigator.vibrate) try { navigator.vibrate(12); } catch(_){}
-            try { store.save('sf_ker_tipp', 9); } catch(_){} document.getElementById('szKerTipp')?.remove();
-            if(typeof gkNyit === 'function') gkNyit(); }, 450);
+            try { store.save('sf_gyors_tipp', 9); } catch(_){} document.getElementById('szKerTipp')?.remove();
+            szLapNyit(true); }, 450);
     }, true);
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => document.addEventListener(t, e => { if(e.target.closest && e.target.closest('#szGomb')) vege(); }, true));
-    document.addEventListener('click', e => { if(hosszu && e.target.closest('#szGomb')){ e.stopImmediatePropagation(); e.preventDefault(); hosszu = false; } }, true);
+    // a felengedés utáni kattintás (a gomb vagy a már kinyílt lap hátterén) ne csukja be / ne navigáljon
+    document.addEventListener('click', e => { if(hosszu){ e.stopImmediatePropagation(); e.preventDefault(); hosszu = false; } }, true);
+    document.addEventListener('pointerup', () => { if(hosszu) setTimeout(() => { hosszu = false; }, 400); }, true);
     document.addEventListener('contextmenu', e => { if(e.target.closest('#szGomb')) e.preventDefault(); });
     // az első néhány alkalommal egy apró súgó a gomb fölött
-    setTimeout(() => { let n = 0; try { n = +store.load('sf_ker_tipp', 0) || 0; } catch(_){}
-        if(n >= 3 || !matchMedia('(max-width:760px)').matches || !document.getElementById('szGomb')) return;
-        try { store.save('sf_ker_tipp', n + 1); } catch(_){}
-        const t = document.createElement('div'); t.id = 'szKerTipp'; t.className = 'sz-ker-tipp'; t.textContent = 'Tartsd nyomva a kereséshez';
+    setTimeout(() => { let n = 0; try { n = +store.load('sf_gyors_tipp', 0) || 0; } catch(_){}
+        if(n >= 3 || szTer() !== 'priv' || !matchMedia('(max-width:760px)').matches || !document.getElementById('szGomb')) return;
+        try { store.save('sf_gyors_tipp', n + 1); } catch(_){}
+        const t = document.createElement('div'); t.id = 'szKerTipp'; t.className = 'sz-ker-tipp'; t.textContent = 'Tartsd nyomva a gyors rögzítéshez';
         document.body.appendChild(t); setTimeout(() => t.classList.add('ki'), 3600); setTimeout(() => t.remove(), 4100);
     }, 3500);
 })();
