@@ -9782,6 +9782,19 @@
         .bl-stilus i { position:relative; overflow:hidden; }
         @media (max-width:760px){ .bl:not(.reszlet) > .bl-fej { display:none; } }
         .ma-figy { display:flex; flex-direction:column; gap:8px; margin:0 0 14px; padding:12px 14px; border-radius:20px; background:#fff7ed; border:1px solid #fed7aa; cursor:pointer; }
+        .ct-rang { padding:16px 18px; margin-bottom:14px; }
+        .ct-rang-f { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+        .ct-rang-f h3 { margin:0; font-size:16px; color:var(--navy); } .ct-rang-f p { margin:2px 0 0; font-size:12px; color:var(--muted); }
+        .ct-rang-l { display:flex; flex-direction:column; gap:10px; }
+        .ct-rang-s { display:flex; align-items:center; gap:12px; }
+        .ct-rang-s .hely { width:28px; flex:none; text-align:center; font-size:18px; font-weight:800; color:var(--muted); }
+        .ct-rang-s .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+        .ct-rang-s .t b { font-size:14px; color:var(--text); } .ct-rang-s .t b em { font-style:normal; font-weight:600; color:var(--muted); }
+        .ct-rang-s .t small { font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ct-rang-sav { height:7px; border-radius:4px; background:var(--border, #e6ecf5); overflow:hidden; } .ct-rang-sav i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg, #60a5fa, #2563eb); }
+        .ct-rang-s .pont { flex:none; text-align:right; font-size:18px; color:var(--navy); line-height:1; } .ct-rang-s .pont small { display:block; font-size:10px; color:var(--muted); font-weight:600; }
+        .ct-rang-s.en { background:color-mix(in srgb, #2563eb 6%, transparent); border-radius:12px; padding:6px 8px; margin:0 -8px; }
+        .ct-rang-s.nulla { opacity:.6; }
         .ma-tipp { display:flex; gap:12px; align-items:flex-start; margin:0 0 14px; padding:12px 16px; border-radius:20px; background:color-mix(in srgb, var(--blue, #1f5fd0) 7%, #fff); cursor:pointer; }
         body.sf-privat .ma-tipp { background:color-mix(in srgb, #7c3aed 7%, #fff); }
         .ma-tipp i { font-style:normal; font-size:20px; line-height:1.2; } .ma-tipp p { margin:0; font-size:14px; line-height:1.45; color:#1f2937; } .ma-tipp p span { color:#6b7280; }
@@ -14296,12 +14309,37 @@ function ctHtml(){
     return `<div class="ct-fej"><div class="ct-lep"><button type="button" data-ctho="-1">‹</button><span class="ho">${ctHoNev(ctHo)}</span><button type="button" data-ctho="1">›</button>
         <button type="button" data-ctarch>Archívum</button><button type="button" class="fo" data-cttag>+ Munkatárs</button></div></div>
         <div class="ct-kpik">${kpi('#2563eb', 'Egység', o.van, egysegTerv, 'EH')}${kpi('#7c3aed', 'Csapatlétszám', lMost, lCel, 'fő')}${kpi('#16a34a', 'INFO', o.iv, infoTerv, 'db')}</div>
+        ${ctRangHtml(tagok)}
         <div class="ct-rek">${rek}<button type="button" class="card ct-rk uj" data-ctrek="">+ Rekord</button></div>
         <div class="card ct-tabla-k"><table class="ct-tabla"><thead><tr><th>#</th><th>Munkatárs</th><th>Terv EH</th><th>Van EH</th><th>Állás</th><th>Várható zárás</th><th>Darab (van / terv)</th><th>INFO (van / cél)</th><th>Infóra hozza</th><th></th></tr></thead>
         <tbody>${sorok.map(sorHtml).join('') || '<tr><td colspan="10" class="ct-ures">Még nincs munkatárs a csapattervben.</td></tr>'}
         <tr class="ct-osz"><td></td><td>Csapat összesen</td><td>${ctFt(o.terv)}</td><td>${ctFt(o.van)}</td><td>${ctMini(o.van, o.terv)}</td><td>${ctFt(o.zaras)}</td><td>${ctFt(o.dv)} / ${ctFt(o.dt)}</td><td>${ctFt(o.iv)} / ${ctFt(o.ic)}</td><td colspan="2"></td></tr></tbody></table></div>
         <div class="ct-kartyak">${sorok.map(kartyaHtml).join('') || '<div class="card ct-kartya ct-ures">Még nincs munkatárs a csapattervben.</div>'}</div>
         ${d.rejtett.length ? `<p class="sb-tipp">${d.rejtett.length} munkatárs ki van véve a tervből · <a href="#" data-ctvissza>visszahozás</a></p>` : ''}`;
+}
+// ===== Heti aktivitás-ranglista (finom motiváció) =====
+// A munkatársak Havi tervéből (heti „van” értékek) pontozva: kontakt 1, EL időpont 2, elemzés 3, TA időpont 3, tanácsadás 4, lezárt ügyfél 5, ajánlás 1.
+let ctRangMod = 'het';
+const CT_PONT = [1, 2, 3, 3, 4, 5, 0, 1], CT_PONT_NEV = ['kontakt', 'EL időpont', 'elemzés', 'TA időpont', 'tanácsadás', 'lezárt', '', 'ajánlás'];
+function ctRangHtml(tagok){
+    const most = currentHaviWeek(), ugyanaz = most.monthDate.getFullYear() === ctHo.getFullYear() && most.monthDate.getMonth() === ctHo.getMonth();
+    const mod = ugyanaz ? ctRangMod : 'ho';
+    const l = tagok.filter(t => t.uid).map(t => {
+        const h = ctHavi[`${t.uid}_${ctHo.getFullYear()}_${ctHo.getMonth()}`]; if(!h) return null;
+        const hetek = (h.weeks || []).filter((w, i) => w && (mod === 'ho' || i === most.weekIdx));
+        const db = CT_PONT.map((_, k) => hetek.reduce((a, w) => a + ctSzam((w.van || [])[k]), 0));
+        return { t, db, pont: db.reduce((a, v, k) => a + v * CT_PONT[k], 0) };
+    }).filter(Boolean).sort((a, b) => b.pont - a.pont);
+    if(!l.length) return '';
+    const max = Math.max(1, l[0].pont), ermek = ['🥇', '🥈', '🥉'];
+    return `<section class="card ct-rang"><div class="ct-rang-f"><div><h3>${mod === 'het' ? 'A hét legaktívabbjai' : 'A hónap legaktívabbjai'}</h3>
+            <p>${mod === 'het' ? `${most.weekIdx + 1}. hét` : esc(ctHoNev(ctHo).split(' · ')[0])} · pontok a Havi tervek „van” értékeiből</p></div>
+            ${ugyanaz ? `<span class="pz-seg2"><button type="button" data-ctrang="het"${mod === 'het' ? ' class="on"' : ''}>Hét</button><button type="button" data-ctrang="ho"${mod === 'ho' ? ' class="on"' : ''}>Hónap</button></span>` : ''}</div>
+        <div class="ct-rang-l">${l.map((x, i) => `<div class="ct-rang-s${x.t.sajat ? ' en' : ''}${x.pont ? '' : ' nulla'}"><span class="hely">${x.pont && i < 3 ? ermek[i] : i + 1}</span>
+            <span class="t"><b>${esc(x.t.n)}${x.t.sajat ? ' <em>(te)</em>' : ''}</b>
+            <span class="ct-rang-sav"><i style="width:${(x.pont / max * 100).toFixed(0)}%"></i></span>
+            <small>${x.db.map((v, k) => v && CT_PONT[k] ? `${ctFt(v)} ${CT_PONT_NEV[k]}` : '').filter(Boolean).join(' · ') || 'még nincs rögzített aktivitás'}</small></span>
+            <b class="pont">${ctFt(x.pont)}<small>pont</small></b></div>`).join('')}</div></section>`;
 }
 function ctArchHtml(){
     const h = ctAdat().honapok, ev = {};
@@ -14403,6 +14441,7 @@ document.addEventListener('click', e => {
     if(!e.target.closest || !e.target.closest('#page-csapatterv')) return;
     const ho = e.target.closest('[data-ctho]'); if(ho){ ctHo = new Date(ctHo.getFullYear(), ctHo.getMonth() + (+ho.dataset.ctho), 1); ctHavi = {}; renderCsapatterv(); return; }
     if(e.target.closest('[data-ctarch]')){ ctArchiv = !ctArchiv; renderCsapatterv(); return; }
+    const rm = e.target.closest('[data-ctrang]'); if(rm){ ctRangMod = rm.dataset.ctrang; renderCsapatterv(); return; }
     const ug = e.target.closest('[data-ctugrik]'); if(ug){ const k = ug.dataset.ctugrik; ctHo = new Date(+k.slice(0, 4), +k.slice(5) - 1, 1); ctArchiv = false; ctHavi = {}; renderCsapatterv(); return; }
     if(e.target.closest('[data-ctimport]')){ ctImport(); return; }
     if(e.target.closest('[data-cttag]')){ ctTagModal(); return; }
