@@ -9799,6 +9799,10 @@
         body.sf-privat .ma-tipp { background:color-mix(in srgb, #7c3aed 7%, #fff); }
         .ma-tipp i { font-style:normal; font-size:20px; line-height:1.2; } .ma-tipp p { margin:0; font-size:14px; line-height:1.45; color:#1f2937; } .ma-tipp p span { color:#6b7280; }
         .nl-tipp span { color:#6b7280; }
+        .ma-figy { position:relative; }
+        .ma-figy-tobb { position:absolute; top:10px; right:12px; padding:3px 9px; border-radius:999px; background:#fff; color:#9a3412; font-size:11.5px; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+        .ma-figy:has(.tul) .ma-figy-tobb { color:#be123c; }
+        .ma-figy-s .t b { padding-right:80px; }
         .ma-figy-s { display:flex; align-items:center; gap:12px; }
         .ma-figy-s .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
         .ma-figy-s .t b { font-size:14px; color:#9a3412; } .ma-figy-s.tul .t b { color:#be123c; }
@@ -30711,14 +30715,15 @@ async function renderPrivMa(){
     const figy = keret ? pzLista('ki').filter(k => (k.k || 0) > 0).map(k => {
             const kolt2 = lista.reduce((a, t) => a + (pzKi(t) && (t.k || 'Egyéb') === k.n ? (t.o || 0) : 0), 0);
             return { k, kolt: kolt2, ar: kolt2 / k.k }; })
-        .filter(x => x.ar >= 1 || (x.ar >= .8 && x.ar > honapArany + .15)).sort((a, b) => b.ar - a.ar).slice(0, 3) : [];
+        .filter(x => x.ar >= 1 || (x.ar >= .8 && x.ar > honapArany + .15)).sort((a, b) => b.ar - a.ar) : [];
     // napi tipp a naplóból: mi tesz jót? (az elmúlt 90 nap alapján; a legerősebb 3 pozitív tényező naponta váltakozva)
     let tippHtml = '';
     if(!maEdit) try { const nlB = await nlBeall();
         const jok = nlHatasok(nlB, sz, ezPlusz(ma, -1)).filter(r => r.a - r.b >= .3 && r.joA - r.joB >= .15 && r.n >= 5).slice(0, 3);
         if(jok.length){ const r = jok[Math.floor(Date.now() / 864e5) % jok.length]; tippHtml = `<div class="ma-tipp" data-mamenj="enaplo" role="button" tabindex="0"><i>💡</i><p>${nlHatasMondat(r)}</p></div>`; }
     } catch(e){}
-    const figyHtml = figy.length && !maEdit ? `<div class="ma-figy" data-mamenj="penzugyek" role="button" tabindex="0">${figy.map(x => `<div class="ma-figy-s${x.ar >= 1 ? ' tul' : ''}">
+    // csak a legsúlyosabb kategória látszik, mellette egy jelvény, ha több is elérte a határt (a részletek a Pénzügyekben)
+    const figyHtml = figy.length && !maEdit ? `<div class="ma-figy" data-mamenj="penzugyek" role="button" tabindex="0">${figy.length > 1 ? `<span class="ma-figy-tobb">+${figy.length - 1} további</span>` : ''}${figy.slice(0, 1).map(x => `<div class="ma-figy-s${x.ar >= 1 ? ' tul' : ''}">
             ${pzIk(x.k.ik, x.k.c)}<span class="t"><b>${esc(x.k.n)}: ${Math.round(x.ar * 100)}% elköltve</b>
             <span>${x.ar >= 1 ? `${pzFt(x.kolt - x.k.k)} Ft-tal túllépted a keretet` : `a hónap ${Math.round(honapArany * 100)}%-ánál · maradt ${pzFt(x.k.k - x.kolt)} Ft`}</span>
             <span class="ma-csik kicsi"><i style="width:${Math.min(100, x.ar * 100).toFixed(0)}%" class="${x.ar >= 1 ? 'tul' : 'fig'}"></i></span></span></div>`).join('')}</div>` : '';
