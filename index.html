@@ -30352,6 +30352,19 @@ document.addEventListener('click', async e => {
     var_();
 })();
 
+// Gyorsparancsok (az app-ikont hosszan nyomva, manifest „shortcuts”): ?gyors=kolt | naplo | ugyfel
+(function gyorsParancs(){
+    const q = new URLSearchParams(location.search), g = q.get('gyors'); if(!g) return;
+    try { history.replaceState(history.state, '', location.pathname + (q.get('app') ? '?app=' + q.get('app') : '') + location.hash); } catch(e){}
+    const var_ = (n = 0) => {
+        if(!window.sfCurrentUser || typeof prvBetolt !== 'function'){ if(n < 100) setTimeout(() => var_(n + 1), 300); return; }
+        if(g === 'kolt'){ if(window.sfTerValt) window.sfTerValt('priv'); prvMenj('penzugyek', () => { pzTHo = pzMaHo(); Promise.all([pzLoadTorzs(), pzLoadTranz(pzTHo)]).then(() => pzTetelModal(null, { t: 'ki' })).catch(() => {}); }); }
+        else if(g === 'naplo'){ if(window.sfTerValt) window.sfTerValt('priv'); prvMenj('enaplo', () => setTimeout(() => nlSzerk(), 300)); }
+        else if(g === 'ugyfel'){ if(window.sfTerValt) window.sfTerValt('ovb'); prvMenj('ugyfelek', () => setTimeout(() => { if(typeof openRegAddModal === 'function') openRegAddModal(); }, 300)); }
+    };
+    var_();
+})();
+
 // ===================== EGÉSZSÉG (külön oldal) =====================
 // Alvás és víz (a napló év-dokumentumaiban, nlYYYY.eg), testsúly (ezAdat.torzs.meresek).
 function egTortHtml(){
