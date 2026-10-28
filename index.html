@@ -2314,6 +2314,23 @@
         .rc.open .rc-rail-av { width:44px; height:44px; font-size:15px; margin-bottom:8px; }
         .rc.open .rc-rail-sub { margin-bottom:10px; } .rc.open .rc-qa { margin-bottom:10px; }
         .rc.open .rc-kv { padding:6px 0; border-top-style:dashed; }
+        /* telefonon tömör adatlap-fej: ikon mellett a név és a telefonszám, alatta gombok, az adatok két oszlopban */
+        @media (max-width:760px){
+            .rc.open { scroll-margin-top:calc(var(--sf-felul, 0px) + 60px); }
+            .rc.open .rd-terv { flex-wrap:wrap; gap:8px 10px; }
+            .rc.open .rd-terv label { flex:1 1 calc(100% - 50px); }
+            .rc.open .rd-terv select { flex:1 1 auto; min-width:0; }
+            .rc.open .rc-rail { display:grid; grid-template-columns:40px minmax(0,1fr) minmax(0,1fr); column-gap:10px; align-items:center; padding:12px 12px 6px; }
+            .rc.open .rc-rail-av { grid-row:1 / span 2; grid-column:1; width:40px; height:40px; font-size:14px; margin:0; }
+            .rc.open .rc-rail > h3, .rc.open .rc-rail > .rc-rail-nev { grid-column:2 / -1; margin:0; font-size:15px; }
+            .rc.open .rc-rail input.rc-rail-nev { padding:2px 6px; margin-left:-6px; }
+            .rc.open .rc-rail-sub { grid-column:2 / -1; margin:0; font-size:12px; }
+            .rc.open .rc-qa { grid-column:1 / -1; margin:10px 0 6px; gap:6px; }
+            .rc.open .rc-qa a, .rc.open .rc-qa button { min-width:0; padding:7px 0; }
+            .rc.open .rc-kv { grid-column:span 1; flex-direction:column; justify-content:flex-start; gap:1px; padding:6px 0; font-size:10.5px; }
+            .rc.open .rc-kv:nth-of-type(odd) { grid-column:1 / 3; }
+            .rc.open .rc-kv b { text-align:left; font-size:12px; }
+        }
         .rc.open .rc-tabs { padding:8px 16px; gap:6px; border-bottom:none; }
         .rc.open .rc-tabs button { padding:6px 13px; border-radius:999px; background:#f1f4f9; color:#334155; border-bottom:none; }
         .rc.open .rc-tabs button.on { background:var(--navy); color:#fff; }
@@ -10903,6 +10920,11 @@ function regTisztit(v){
         const o = {}; for(const [k, x] of Object.entries(v)) if(x !== undefined) o[k] = regTisztit(x); return o;
     }
     return v;
+}
+// Telefonon a kinyitott adatlap a képernyő tetejére gördül, hogy az egész kijelzőt kitöltse.
+function rcNyitFelre(hol){
+    if(!window.matchMedia || !matchMedia('(max-width:760px)').matches) return;
+    requestAnimationFrame(() => { const el = document.querySelector(hol + ' .rc.open'); if(el) el.scrollIntoView({ block:'start', behavior:'smooth' }); });
 }
 function persistReg(i){
     const r = registry[i];
@@ -23584,7 +23606,7 @@ function openRegAddModal(){
         const tabBtn = e.target.closest('[data-rdtab]');
         if(tabBtn){ regDetailTab = tabBtn.dataset.rdtab; renderRegistry(); return; }
         const nameBtn = e.target.closest('.reg-name[data-open]');
-        if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); return; }
+        if(nameBtn){ const idx=+nameBtn.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); rcNyitFelre('#regViews'); return; }
         // FIGYELEM: a jegyzet-ágaknak a lenti mező-őr ELŐTT kell állniuk, mert a
         // "Hozzáadás" és a törlés × is gomb – az őr különben kilépne, mielőtt ide
         // érnénk, és a gombok némán nem csinálnának semmit.
@@ -23609,7 +23631,7 @@ function openRegAddModal(){
         // Kártyasor nyitása/zárása – a már kinyitott adatlapon belüli kattintás nem zárja be.
         if(e.target.closest('.rc-detail')) return;
         const row = e.target.closest('.rc[data-open]');
-        if(row){ const idx=+row.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); }
+        if(row){ const idx=+row.dataset.open; regExpandedIdx = (regExpandedIdx===idx) ? null : idx; regDetailTab='adatok'; if(regExpandedIdx!=null) cliMarkSeen(regExpandedIdx); renderRegistry(); rcNyitFelre('#regViews'); }
     });
     // --- Nézetváltó ---
     const viewTog = document.getElementById('regViewTog');
@@ -24342,7 +24364,7 @@ function ketCardDetailHtml(i){
         const pipeCard = e.target.closest('[data-ketpipe]');
         if(pipeCard){ ketorasExpandedIdx = +pipeCard.dataset.ketpipe; cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); return; }
         const o = e.target.closest('[data-ketopen]');
-        if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; if(ketorasExpandedIdx!=null) cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); }
+        if(o){ const idx = +o.dataset.ketopen; ketorasExpandedIdx = (ketorasExpandedIdx === idx) ? null : idx; ketDetailTab='adatok'; if(ketorasExpandedIdx!=null) cliMarkSeen(ketorasExpandedIdx); renderKetorasList(); rcNyitFelre('#ketorasViews'); }
     });
     const ketGSel = document.getElementById('ketGroupSel');
     if(ketGSel){
