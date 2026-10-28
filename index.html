@@ -134,6 +134,12 @@
         document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') nez(); });
     })();
     </script>
+    <script>
+    // Betöltés közben üres felirat helyett vázlatos (skeleton) kártyák – az oldal formája azonnal látszik.
+    window.sfVaz = function(n){ n = n || 3; var k = '';
+        for(var i = 0; i < n; i++) k += '<div class="sf-vaz-k"><i style="width:' + [42, 56, 34][i % 3] + '%"></i><i></i><i style="width:' + [78, 64, 70][i % 3] + '%"></i></div>';
+        return '<div class="sf-vaz" role="status" aria-label="Betöltés…">' + k + '</div>'; };
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -8574,6 +8580,33 @@
         .nlw-test.elore > :nth-child(2), .nlw-test.hatra > :nth-child(2) { animation-delay:.03s; }
         .nlw-test.elore > :nth-child(n+3), .nlw-test.hatra > :nth-child(n+3) { animation-delay:.06s; }
         @media (prefers-reduced-motion:reduce){ .sf-be, .sf-be-gy, .nlw-test > * { animation:none !important; } }
+        /* vázlatos betöltés (skeleton) */
+        .sf-vaz { display:flex; flex-direction:column; gap:12px; padding:4px 0; }
+        .sf-vaz-k { display:flex; flex-direction:column; gap:10px; padding:18px; border-radius:20px; background:var(--card, #fff); box-shadow:0 1px 3px rgba(15,23,42,.05); }
+        .sf-vaz-k i { display:block; height:12px; border-radius:6px; width:100%;
+            background:linear-gradient(90deg, rgba(148,163,184,.16) 0%, rgba(148,163,184,.30) 50%, rgba(148,163,184,.16) 100%); background-size:200% 100%; animation:sfVazFeny 1.3s ease-in-out infinite; }
+        .sf-vaz-k i:first-child { height:16px; }
+        @keyframes sfVazFeny { from { background-position:100% 0; } to { background-position:-100% 0; } }
+        /* ===== közös mozgáskészlet (SZEM és Sikerfüzet) ===== */
+        :root { --sf-rugo:cubic-bezier(.2,.9,.3,1.04); --sf-lagy:cubic-bezier(.22,.8,.25,1); }
+        /* oldalváltás: az új oldal lágyan beúszik, a kártyái kicsit lépcsőzetesen (csak átlátszóság + kis emelés; fix elemeket tartalmazó kártya nem mozdul) */
+        @keyframes sfLapUsz { from { opacity:0; } }
+        @keyframes sfKartyaBe { from { opacity:0; transform:translateY(10px); } }
+        .page.sf-lap-be { animation:sfLapUsz .24s ease-out both; }
+        .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):not(:has(.drawer, .fx-reszl, .fx-fab, [style*="position:fixed"])) { animation:sfKartyaBe .38s var(--sf-lagy) both; }
+        .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(2) { animation-delay:.03s; }
+        .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(3) { animation-delay:.06s; }
+        .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(n+4) { animation-delay:.09s; }
+        /* koppintásra finom „benyomódás” (érintőképernyőn) */
+        @media (hover:none){
+            :is(.btn, .pg-tab, .pg-chip, .rc-qa a, .rc-qa button, .gk-cs-t, .fx-ik, .nlw-hang button, .sf-also-t, .szm-also button) { transition:transform .14s var(--sf-lagy), background-color .15s, box-shadow .15s; }
+            :is(.btn, .pg-tab, .pg-chip, .rc-qa a, .rc-qa button, .gk-cs-t, .fx-ik, .nlw-hang button):active { transform:scale(.96); }
+            :is(.pg-rec, .rc-line, .gk-t):active { filter:brightness(.97); }
+        }
+        /* csökkentett mozgás (rendszerbeállítás): minden animáció és átmenet szinte azonnali */
+        @media (prefers-reduced-motion:reduce){
+            *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; animation-delay:0s !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+        }
         .nl-dt { display:flex; gap:8px; justify-content:center; margin:0 0 14px; }
         .nl-dt input { height:40px; border:0; border-radius:12px; background:#f3f4f6; padding:0 12px; font:inherit; font-size:14.5px; color:#111827; }
         .nl-hang5 { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; margin:0 0 16px; }
@@ -11343,6 +11376,12 @@ if(store.load('sf_side_collapsed', false)){
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
 
+// Oldalváltáskor az új oldal rövid beúszó animációt kap (az osztály utána lekerül, így újrarajzoláskor nem ismétlődik).
+function sfLapBeusz(pg){
+    if(!pg) return;
+    pg.classList.remove('sf-lap-be'); void pg.offsetWidth; pg.classList.add('sf-lap-be');
+    clearTimeout(pg._sfLapBe); pg._sfLapBe = setTimeout(() => pg.classList.remove('sf-lap-be'), 700);
+}
 // ===== OLDAL-VÁLTÁS (menü) =====
 (function(){
     const links = Array.from(document.querySelectorAll('[data-page]'));
@@ -11361,6 +11400,7 @@ renderMoney(); renderCareer(); renderInfo();
         // Ha épp jegyzetet írtunk, a lapváltás előtt mentsük ki.
         if(typeof window.sfLeaveJegyzetek === 'function') window.sfLeaveJegyzetek();
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
+        sfLapBeusz(document.getElementById('page-' + p));
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
         if(p === 'home' && typeof window.sfCalUjraMer === 'function') requestAnimationFrame(window.sfCalUjraMer);
@@ -11988,7 +12028,7 @@ function oiMent(){ if(oiAdat && PRV.onismeret === oiAdat) prvMent('onismeret'); 
 async function renderOnismeret(){
     const host = document.getElementById('onismeretBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Az Önismeret privát – ránézés módban nem látszik.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<section class="card"><div class="card-body" style="color:var(--muted);">Betöltés…</div></section>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const a = await oiBetolt();
     await szAdat();   // a terület szabályai a kerék mellett
     if(!prvLap('onismeret')) return;
@@ -12427,7 +12467,7 @@ async function renderSablonok(){
         tartalom = `<div class="sb-alful" role="tablist">${SB_SKOOL.map(([k, n, al]) => `<button type="button" role="tab" class="${sbSkool === k ? 'on' : ''}" data-sbskool="${k}" aria-selected="${sbSkool === k}">${esc(n)}<em>${esc(al)}</em></button>`).join('')}</div>
             ${sbSkool === 'komment' ? sbKommentHtml() : sbSikerHtml()}`;
     } else {
-        if(!host.querySelector('[data-sbmentett]')) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+        if(!host.querySelector('[data-sbmentett]')) host.innerHTML = sfVaz();
         const d = await sbSablonok();
         if(!prvLap('sablonok')) return;
         tartalom = `<div data-sbmentett>${sbMentettHtml(d, sbFo)}</div>`;
@@ -12770,7 +12810,7 @@ function pziKartya(p){
 }
 async function renderPrezik(){
     const host = document.getElementById('prezikBody'); if(!host) return;
-    if(!host.firstChild) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.firstChild) host.innerHTML = sfVaz();
     const d = await pziAdat();
     if(!prvLap('prezik')) return;
     if(pziSzerk){ pziEdSel = []; pziEdSzoveg = null;
@@ -13639,7 +13679,7 @@ function iddReszletHtml(v){
 }
 async function renderIdd(){
     const host = document.getElementById('iddBody'); if(!host) return;
-    if(!window.SF_IDD || !PRV.idd) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!window.SF_IDD || !PRV.idd) host.innerHTML = sfVaz();
     let adat;
     try { await Promise.all([iddAdatBetolt(), prvBetolt('idd')]); adat = iddOsszes(); }
     catch(e){ host.innerHTML = '<div class="card pv-ures">Nem sikerült betölteni a vizsgakérdéseket. Ellenőrizd a netkapcsolatot, és nyisd meg újra.</div>'; return; }
@@ -13796,7 +13836,7 @@ function gstReszletHtml(v){
 }
 async function renderGst(){
     const host = document.getElementById('gstBody'); if(!host) return;
-    if(!window.SF_GST || !PRV.gst) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!window.SF_GST || !PRV.gst) host.innerHTML = sfVaz();
     let adat;
     try { [adat] = await Promise.all([gstAdatBetolt(), prvBetolt('gst')]); }
     catch(e){ host.innerHTML = '<div class="card pv-ures">Nem sikerült betölteni a GST tananyagot. Ellenőrizd a netkapcsolatot, és nyisd meg újra.</div>'; return; }
@@ -13893,11 +13933,11 @@ async function renderTudastar(){
     if(ttFo === 'control') return renderControl(host);
     if(ttFo === 'bed'){
         const fej = ttFoValto() + '<div class="tt-fej"><div><h2>Bedolgozás</h2><p>Az új munkatársak útja: Starter PG → PG 1–4 → Lezárás – ki hol tart, és kinél nyitott a házi feladat</p></div></div>';
-        if(typeof window.sfBedAttekintes !== 'function'){ host.innerHTML = fej + '<div class="card tt-ures">Betöltés…</div>'; return; }
+        if(typeof window.sfBedAttekintes !== 'function'){ host.innerHTML = fej + sfVaz(); return; }
         return window.sfBedAttekintes(host, fej);
     }
     if(ttFo === 'elemzes') return renderElemzesek(host);
-    if(!PRV.tudastar) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!PRV.tudastar) host.innerHTML = sfVaz();
     const d = await prvBetolt('tudastar');
     if(!prvLap('tudastar')) return;
     if(!Array.isArray(d.sz)) d.sz = [];
@@ -13950,9 +13990,9 @@ async function renderControl(host){
     const cim = `${napok[0].getFullYear()}. ${napok[0].toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} – ${napok[6].toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}`;
     const fej = ttFoValto() + `<div class="tt-fej"><div><h2>Control</h2><p>Ki melyik nap hány percet foglalkozott a 10 perces és a 2 órás füzettel, és mennyit volt az oldalon</p></div>
         <div class="ctrl-het"><button type="button" class="tt-gomb" data-ctrlhet="-1" aria-label="Előző hét">‹</button><span>${ctrlHet === 0 ? 'Ez a hét' : ctrlHet === -1 ? 'Előző hét' : esc(cim)}</span><button type="button" class="tt-gomb" data-ctrlhet="1" aria-label="Következő hét"${ctrlHet >= 0 ? ' disabled' : ''}>›</button></div></div>`;
-    if(typeof window.sfAktivitasOlvas !== 'function'){ host.innerHTML = fej + '<div class="card tt-ures">Betöltés…</div>'; return; }
+    if(typeof window.sfAktivitasOlvas !== 'function'){ host.innerHTML = fej + sfVaz(); return; }
     const emb = ctrlEmberek();
-    host.innerHTML = fej + '<div class="card tt-ures">Betöltés…</div>';
+    host.innerHTML = fej + sfVaz();
     const adat = await Promise.all(emb.map(e => ctrlAdat(e.uid, napok).catch(() => null)));
     if(ttFo !== 'control' || !host.isConnected) return;
     const sor = (nev, k, l, cel) => `<tr><th>${nev}</th>${l.map((x, i) => { const p = ctrlPerc(x[k]), nk = ctrlNapK(napok[i]);
@@ -14176,7 +14216,7 @@ function ctArchHtml(){
 }
 async function renderCsapatterv(){
     const host = document.getElementById('csapattervBody'); if(!host) return;
-    if(!PRV.csapatterv) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!PRV.csapatterv) host.innerHTML = sfVaz();
     await prvBetolt('csapatterv');
     if(!prvLap('csapatterv')) return;
     if(ctArchiv){ host.innerHTML = ctArchHtml(); return; }
@@ -18046,7 +18086,7 @@ function pzAMent(el){
 // csak: egyetlen kártya (data-pzw) frissül, a lap többi része – és a görgetés – marad.
 async function renderPzAttek(csak){
     const host = document.getElementById('pzAttek'); if(!host) return;
-    if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const ho = pzTHo, elozo = pzHoLep(ho, -1);
     await pzLoadKat(); await pzLoadTorzs();
     await pzLoadTranz(ho); await pzLoadTranz(elozo);
@@ -18707,7 +18747,7 @@ const PZ_HEGY_SVG = `<svg class="pz-hb-bg" viewBox="0 0 1200 160" preserveAspect
 </svg>`;
 async function renderPzHonap(){
     const host = document.getElementById('pzHonap'); if(!host) return;
-    if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     await pzNezetBetolt();
     if(pzView !== 'honap') return;          // közben fület váltott
 
@@ -19321,7 +19361,7 @@ let pzGorgKulcs = '';
 const pzIdoRend = (a, b) => a.ido && b.ido ? a.ido.localeCompare(b.ido) : 0;
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
-    if(!host.innerHTML) host.innerHTML = '<div class="pz-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     await pzNezetBetolt();
     const ev = pzTHo.slice(0, 4);
     // Időszak: az alapértelmezés az elmúlt 3 hónap; legfeljebb 36 hónapot töltünk be.
@@ -21237,7 +21277,7 @@ function renderKovBody(){
 // aztán renderel. Ezt hívja a lapváltó menü és a negyedév-lapozó gombok.
 async function renderKov(){
     const body=document.getElementById('kovBody'); if(!body) return;
-    body.innerHTML='<div class="card pg-loading">Betöltés…</div>';
+    body.innerHTML=sfVaz();
     kovData=await loadKov();
     renderKovBody();
 }
@@ -25248,7 +25288,7 @@ async function renderEdz(){
     if(ezMasNezet()){ body.innerHTML = `<div class="card ez-ures">Az edzésnapló privát – ránézés módban nem látszik.</div>`; return; }
     const ma = ezMa();
     ezHet = ezHet || ezHetfo(ma); ezHo = ezHo || ma.slice(0, 7);
-    if(!body.innerHTML) body.innerHTML = '<div class="ez-ures">Betöltés…</div>';
+    if(!body.innerHTML) body.innerHTML = sfVaz();
     await Promise.all([ezBetolt('torzs'), ezBetolt('strava')]);
     if(ezTab === 'ma') await ezEvekBetolt(ezHet, ezPlusz(ezHet, 6), ma, ezPlusz(ma, 14));
     else if(ezTab === 'attek') await ezEvekBetolt(ezHo + '-01', ma, ezPlusz(ezHetfo(ma), -7 * 26));
@@ -28103,7 +28143,7 @@ let szTerSzuro = store.load('sf_sz_ter', '');
 async function renderSzokasok(){
     const host = document.getElementById('szokasokBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A szokások privátak – ránézés módban nem látszanak.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await prvBetolt('szokasok');
     const ma = ezMa(); szNap = szNap && szNap <= ma ? szNap : ma; szHo = szHo || ma.slice(0, 7);
     const lista = szAktiv(d), all = szNapiAllas(d, szNap);
@@ -28296,7 +28336,7 @@ let emSzuro = 'mind';
 async function renderEmberek(){
     const host = document.getElementById('emberekBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Ez a lista privát – ránézés módban nem látszik.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await prvBetolt('emberek');
     const osszes = emOsszes(d), kov = emKozelgo(d)[0];
     const tipusok = Object.keys(EM_TIP).filter(t => osszes.some(x => x.ev.t === t));
@@ -28473,7 +28513,7 @@ const kvOlvasKartya = k => `<div class="kv-olvas">${kvBorito(k)}
 async function renderKonyvek(){
     const host = document.getElementById('konyvekBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Ez a lista privát – ránézés módban nem látszik.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await prvBetolt('konyvek');
     const l = kvLista(d), ma = ezMa(), ev = ma.slice(0, 4);
     const olvas = l.filter(k => k.st === 'olvas'), kov = l.filter(k => k.st === 'kov');
@@ -29068,7 +29108,7 @@ const NL_NEZET = [['bej', 'Bejegyzések', 'jegyzet'], ['stat', 'Statisztika', 'a
 async function renderNaplo(){
     const host = document.getElementById('enaploBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A napló privát – ránézés módban nem látszik.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const ma = ezMa(); nlHo = nlHo || ma.slice(0, 7);
     const ev = +nlHo.slice(0, 4);
     const [B, sz] = await Promise.all([nlBeall(), prvBetolt('szokasok').catch(() => null)]);
@@ -29811,7 +29851,7 @@ async function kszAtvesz(d){
 async function renderKiszemelt(){
     const host = document.getElementById('kszBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A kiszemeltek privátak – ránézés módban nem látszanak.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await prvBetolt('kiszemelt'); if(!Array.isArray(d.lista)) d.lista = [];
     await kszAtvesz(d);
     if(!prvLap('kiszemelt')) return;
@@ -29967,7 +30007,7 @@ function mtKartya(x){
 async function renderMentesek(){
     const host = document.getElementById('mtBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A mentések privátak – ránézés módban nem látszanak.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await prvBetolt('mentesek'); if(!prvLap('mentesek')) return;
     const lista = d.lista || [];
     const tagek = [...new Set(lista.flatMap(x => x.t || []))].sort((a, b) => a.localeCompare(b, 'hu'));
@@ -30159,7 +30199,7 @@ function egQMent(v){
 async function renderEgeszseg(){
     const host = document.getElementById('egBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">Az egészség-adatok privátak – ránézés módban nem látszanak.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const ma = ezMa();
     await Promise.all([ezBetolt('torzs'), nlBeall(), nlEv(+ma.slice(0, 4)), nlEv(+ezPlusz(ma, -29).slice(0, 4))]).catch(() => null);
     if(!prvLap('egeszseg')) return;
@@ -30218,7 +30258,7 @@ function maSzokSorok(sz, l, ma){
 async function renderPrivMa(){
     const host = document.getElementById('privMaBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = `<div class="card pv-ures">A Ma oldal privát – ránézés módban nem látszik.</div>`; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const ma = ezMa(), ho = pzMaHo();
     const [sz, em, , , , , , celok, oiA] = await Promise.all([
         prvBetolt('szokasok'), prvBetolt('emberek'), ezBetolt('torzs'), ezBetolt('strava'), ezEvekBetolt(ma),
@@ -31043,7 +31083,7 @@ function szKiemel(szoveg, q){
 async function renderSzabalyok(){
     const host = document.getElementById('szabBody'); if(!host) return;
     if(ezMasNezet()){ host.innerHTML = '<div class="card pv-ures">A szabályaid privátak – ránézés módban nem látszanak.</div>'; return; }
-    if(!host.innerHTML) host.innerHTML = '<div class="pv-ures">Betöltés…</div>';
+    if(!host.innerHTML) host.innerHTML = sfVaz();
     const d = await szAdat(); await oiBetolt(); if(!szLap()) return;
     if(szTema !== 'mind' && !d.temak.some(t => t.id === szTema)) szTema = 'mind';
     const q = nlNorm(szKer), szavak = q.split(' ').filter(Boolean);
@@ -35541,7 +35581,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <div class="pg-hero-txt"><h2>Bedolgozás</h2><p>Az új munkatárs útja lépésről lépésre – a kimenete az <b>akciótervekbe</b> fut be.</p></div>
         </div>
         <div class="pg-tabs">${tab('bed','Bedolgozás')}${tab('akcio', `Akciótervek${openCount?` <span class="pg-badge">${openCount}</span>`:''}`)}</div>
-        <div id="pgMount"><div class="card pg-loading">Betöltés…</div></div>`;
+        <div id="pgMount">${sfVaz()}</div>`;
     }
 
     // ===== SZEMÉLYES PG =====
@@ -35898,7 +35938,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const rec = pgOpenId ? pgRecs.find(r => r.id === pgOpenId) : null;
             m.innerHTML = rec ? pgPersonalEditHtml(rec) : pgPersonalListHtml();
         } else if(pgTab === 'bed'){
-            m.innerHTML = bedSablon ? (bedOpen ? bedReszletHtml(bedOpen) : bedListaHtml()) : '<div class="card pg-loading">Betöltés…</div>';
+            m.innerHTML = bedSablon ? (bedOpen ? bedReszletHtml(bedOpen) : bedListaHtml()) : sfVaz();
             wireBed(m);
         } else if(pgTab === 'csendes'){
             m.innerHTML = pgCsendesHtml();
@@ -36957,7 +36997,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             return;
         }
         if(!isConfigured){ renderFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
-        body.innerHTML = `<section class="card"><div class="card-body fd-empty">Betöltés…</div></section>`;
+        body.innerHTML = sfVaz();
         try {
             await loadAllTasks(false);
             await loadTaskMeta();
@@ -37555,7 +37595,7 @@ Vállalkozás nyitásának átbeszélése`, '']
     }
     // A Control „Bedolgozás” füle: a vezető (és fölötte a lánc) egy táblában látja, ki hol tart.
     window.sfBedAttekintes = async function(host, fej){
-        host.innerHTML = fej + '<div class="card tt-ures">Betöltés…</div>';
+        host.innerHTML = fej + sfVaz();
         try { await bedLoad(); } catch(e){}
         try { if(!pgAkciok.length) pgAkciok = (await getAkciok(pgOwnUid())) || []; } catch(e){}
         if(!host.isConnected) return;
@@ -37599,7 +37639,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         const body = document.getElementById("csendesBody"); if(!body) return;
         const pg = document.getElementById("pgBody"); if(pg) pg.innerHTML = '';
         pgTab = 'csendes'; pgOpenId = null; bedOpen = null;
-        body.innerHTML = `<div id="pgMount"><div class="card pg-loading">Betöltés…</div></div>`;
+        body.innerHTML = `<div id="pgMount">${sfVaz()}</div>`;
         if(!isConfigured){ document.getElementById('pgMount').innerHTML = `<div class="card"><div class="card-body pg-empty">A Google bejelentkezés még nincs beállítva, ezért a Csendes PG nem menthető.</div></div>`; return; }
         await pgLoadAll();
         try { await loadPGTasks(false); } catch(e){ /* nincs (még) Tasks jog */ }
@@ -40693,7 +40733,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         return false;
     }
     async function renderAdmRoles(cont){
-        cont.innerHTML = '<div class="card pg-loading">Betöltés…</div>';
+        cont.innerHTML = sfVaz();
         let employees, accessMap, allowedEmails;
         try { [employees, accessMap, allowedEmails] = await Promise.all([getEmployees(), getAccessMap(), getAllowedUsers()]); }
         catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
@@ -40832,7 +40872,7 @@ Vállalkozás nyitásának átbeszélése`, '']
     // negyedév-lapozóval, hogy admin közben ne zavarja a fő nézetet.
     let admKovAnchor = { year:new Date().getFullYear(), q:Math.floor(new Date().getMonth()/3)+1 };
     async function renderAdmSeminar(cont){
-        cont.innerHTML = '<div class="card pg-loading">Betöltés…</div>';
+        cont.innerHTML = sfVaz();
         const key = `sf_kov_${admKovAnchor.year}_Q${admKovAnchor.q}`;
         let raw = null;
         if(window.sfIsConfigured && typeof window.sfGetKovQuarter==='function'){
