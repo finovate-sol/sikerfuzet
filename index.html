@@ -31163,7 +31163,8 @@ function szAlsoFrissit(){
     const tobb = fulok.length > 4, l = tobb ? fulok.slice(0, 3) : fulok.slice(0, 4), tobbOn = tobb && fulok.slice(3).some(f => f.on);
     const fg = (f, i) => `<button type="button" class="szm-t ful${f.on ? ' on' : ''}" data-szful="${i}" title="${esc(f.teljes)}">${szFulIk(f.n)}<span>${esc(f.n)}</span></button>`;
     const ures = n => '<span class="szm-t ures"></span>'.repeat(Math.max(0, n));
-    const bal = l.slice(0, 2), jobb = l.slice(2).map((f, i) => fg(f, i + 2));
+    // a fülek egyenletesen a gomb két oldalán (2 fülnél 1–1, 3-nál 2–1)
+    const nb = Math.ceil((l.length + (tobb ? 1 : 0)) / 2), bal = l.slice(0, nb), jobb = l.slice(nb).map((f, i) => fg(f, i + nb));
     if(tobb) jobb.push(`<button type="button" class="szm-t ful${tobbOn ? ' on' : ''}" data-szfultobb><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>${tobbOn ? esc(fulok.find(f => f.on).n) : 'Több'}</span></button>`);
     nav.innerHTML = ures(2 - bal.length) + bal.map(fg).join('') + '<span class="szm-hely" aria-hidden="true"></span>' + jobb.join('') + ures(2 - jobb.length);
     szFabFrissit();
