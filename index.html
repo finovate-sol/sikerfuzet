@@ -9827,6 +9827,32 @@
         /* Meleg természet: puha, talpas címek */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+        /* ===== nincs havi terv: zár + varázsló ===== */
+        .hv-zar { position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(240,236,230,.55);
+            -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); animation:sfOvBe .35s ease-out both; }
+        .hv-zar.ki { opacity:0; transition:opacity .25s; }
+        html.hv-zar-nyitva body { overflow:hidden; }
+        .hz-lap { width:min(440px, 100%); background:#fff; border-radius:26px; padding:28px 24px 22px; box-shadow:0 30px 70px rgba(15,23,42,.18); text-align:center; animation:sfPopBe .4s cubic-bezier(.2,.9,.3,1.04) both; }
+        .hz-lap h2 { margin:6px 0 8px; font-size:23px; color:var(--navy, #0f2f5f); letter-spacing:-.01em; }
+        .hz-lap p { margin:0 0 18px; color:#5b6474; font-size:14.5px; line-height:1.5; }
+        .hz-ik { font-size:42px; line-height:1; }
+        .hz-fo { width:100%; border:0; border-radius:16px; padding:15px; background:var(--blue, #1f5fd0); color:#fff; font:inherit; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(31,95,208,.28); }
+        .hz-fo:disabled { opacity:.4; box-shadow:none; cursor:default; }
+        .hz-masod { border:0; background:#f1f4f9; color:#334155; border-radius:16px; padding:15px 18px; font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+        .hz-gombok { display:flex; gap:10px; margin-top:6px; } .hz-gombok .hz-fo { flex:1; }
+        .hz-pontok { display:flex; justify-content:center; gap:6px; margin-bottom:12px; } .hz-pontok i { width:22px; height:5px; border-radius:3px; background:#e2e8f0; } .hz-pontok i.on { background:var(--blue, #1f5fd0); }
+        .hz-rangok { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:16px; }
+        .hz-rangok button { border:1.5px solid #e2e8f0; background:#fff; border-radius:14px; padding:16px 0; font:inherit; font-size:17px; font-weight:800; color:#334155; cursor:pointer; }
+        .hz-rangok button.on { border-color:var(--blue, #1f5fd0); background:color-mix(in srgb, var(--blue, #1f5fd0) 8%, #fff); color:var(--blue, #1f5fd0); }
+        .hz-mezo { display:flex; align-items:center; gap:8px; border:1.5px solid #e2e8f0; border-radius:16px; padding:6px 16px; margin-bottom:10px; text-align:left; }
+        .hz-mezo:focus-within { border-color:var(--blue, #1f5fd0); }
+        .hz-mezo input { flex:1; min-width:0; border:0; outline:0; font:inherit; font-size:26px; font-weight:800; padding:8px 0; background:none; color:#0f172a; }
+        .hz-mezo.kicsi input { font-size:15px; font-weight:600; }
+        .hz-mezo em { font-style:normal; font-weight:700; color:#94a3b8; }
+        .hz-keplet { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-bottom:16px; }
+        .hz-keplet label { display:flex; flex-direction:column; gap:4px; font-size:10.5px; font-weight:700; color:#64748b; }
+        .hz-keplet input { width:100%; box-sizing:border-box; border:1.5px solid #e2e8f0; border-radius:12px; padding:9px 4px; font:inherit; font-size:16px; font-weight:700; text-align:center; }
+        @media (max-width:420px){ .hz-keplet { grid-template-columns:repeat(2, minmax(0,1fr)); } }
         /* ===== csúsztatós sorműveletek ===== */
         .sf-cs-sor { position:relative; overflow:hidden; }
         .sf-cs-sor > :not(.sf-cs-akt) { transform:translateX(var(--sx, 0px)); transition:transform .26s cubic-bezier(.22,.8,.25,1); }
@@ -11546,6 +11572,7 @@ function sfLapBeusz(pg, vissza){
     if(!pg) return;
     pg.classList.remove('sf-lap-be', 'sf-lap-vissza'); void pg.offsetWidth; pg.classList.add('sf-lap-be'); if(vissza) pg.classList.add('sf-lap-vissza');
     clearTimeout(pg._sfLapBe); pg._sfLapBe = setTimeout(() => pg.classList.remove('sf-lap-be', 'sf-lap-vissza'), 700);
+    if(typeof window.sfHaviZarEllenoriz === 'function') setTimeout(window.sfHaviZarEllenoriz, 50);
 }
 // Oldal-előzmény: a menüből nyitott oldalak a böngésző előzményébe kerülnek, így a „vissza” (és telefonon a bal szélről
 // jobbra húzás) az előző oldalra lép – visszafelé animációval.
@@ -15415,6 +15442,92 @@ function renderHaviBody(){
     haviTortBetolt();
     haviEsemTolt(haviAnchor);
 }
+// ===== Nincs havi terv → teljes képernyős zár, „Havi terv beállítása” varázslóval =====
+// Csak a saját fiókra, az aktuális (OVB) hónapra és a Sikerfüzet részre vonatkozik; csak akkor zár,
+// ha sem itt, sem a felhőben nincs terv (így új eszközön sem zár le tévesen).
+const hzVanTerv = h => !!(h && (String(h.celES || '').trim() || h.rogzitve || String(h.rang || '').trim() || (Array.isArray(h.formula) && h.formula.some(v => String(v ?? '').trim()))));
+let hzOk = {}, hzFut = false, hzLep = 0, hzAdat = null;
+async function sfHaviZarEllenoriz(){
+    const cu = window.sfCurrentUser; if(!cu || !cu.uid || hzFut) return;
+    if(document.body.classList.contains('sf-privat') || (window.sfViewedUid && window.sfViewedUid !== cu.uid)) return hzLevesz();
+    const akt = document.querySelector('.page:not([hidden])'); if(!akt || akt.id === 'page-admin') return hzLevesz();
+    const ho = currentHaviWeek().monthDate, kulcs = `${cu.uid}_${ho.getFullYear()}_${ho.getMonth()}`;
+    if(hzOk[kulcs]) return hzLevesz();
+    if(hzVanTerv(store.load('sf_havi_' + kulcs, null))){ hzOk[kulcs] = 1; return hzLevesz(); }
+    if(!(window.sfIsConfigured && typeof window.sfGetHaviTerv === 'function')) return;
+    hzFut = true;
+    try { const r = await window.sfGetHaviTerv(kulcs);
+        if(hzVanTerv(r)){ store.save('sf_havi_' + kulcs, r); hzOk[kulcs] = 1; hzLevesz(); }
+        else if(!document.body.classList.contains('sf-privat')) hzMutat(ho, kulcs);
+    } catch(e){} finally { hzFut = false; }
+}
+window.sfHaviZarEllenoriz = sfHaviZarEllenoriz;
+function hzLevesz(){ const z = document.getElementById('hvZar'); if(z){ z.classList.add('ki'); setTimeout(() => z.remove(), 260); document.documentElement.classList.remove('hv-zar-nyitva'); } }
+function hzMutat(ho, kulcs){
+    let z = document.getElementById('hvZar');
+    if(!z){ z = document.createElement('div'); z.id = 'hvZar'; z.className = 'hv-zar'; document.body.appendChild(z); document.documentElement.classList.add('hv-zar-nyitva'); hzLep = 0; }
+    z.dataset.kulcs = kulcs; z.dataset.ho = `${ho.getFullYear()}-${ho.getMonth()}`;
+    hzRajz();
+}
+// a havi képlet javaslata: az elmúlt hónapok tényleges (Van) számainak aránya az ES-hez, a megadott EH-célra vetítve
+function hzKepletJavaslat(ho, es){
+    const elozo = []; for(let k = 1; k <= 12; k++){ const s = haviHoVan(new Date(ho.getFullYear(), ho.getMonth() - k, 1)); if(s && s[6] > 0) elozo.push(s); }
+    if(!elozo.length || !es){ const f = Array(8).fill(''); if(es) f[6] = String(es); return f; }
+    const atl = i => elozo.reduce((a, s) => a + s[i], 0) / elozo.length, esA = atl(6);
+    return HAVI_METRICS.map((m, i) => i === 6 ? String(es) : String(Math.max(0, Math.round(atl(i) / esA * es))));
+}
+function hzRajz(){
+    const z = document.getElementById('hvZar'); if(!z) return;
+    const [y, m] = z.dataset.ho.split('-').map(Number), ho = new Date(y, m, 1), hoNev = `${y}. ${HU_MONTHS_FULL[m].toLowerCase()}`;
+    if(!hzAdat) hzAdat = { rang: '', celES: '', celPenz: '', formula: Array(8).fill('') };
+    const pont = `<div class="hz-pontok">${[0, 1, 2, 3].map(i => `<i class="${i <= hzLep ? 'on' : ''}"></i>`).join('')}</div>`;
+    let t;
+    if(hzLep === 0) t = `<div class="hz-ik">🎯</div><h2>Még nincs havi terved</h2><p>${esc(hoNev)} – a Sikerfüzet a havi tervből számolja a heti célokat, a napi teendőket és a csapatterv számait. Állítsd be most, 1 perc.</p>
+        <button type="button" class="hz-fo" data-hz="tovabb">Havi terv beállítása</button>`;
+    else if(hzLep === 1) t = `${pont}<h2>Mi a rangod?</h2><p>A rang a havi célok alapja.</p>
+        <div class="hz-rangok">${['R1', 'R2', 'R3', 'GST'].map(r => `<button type="button" class="${hzAdat.rang === r ? 'on' : ''}" data-hzrang="${r}">${r}</button>`).join('')}</div>
+        <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="tovabb"${hzAdat.rang ? '' : ' disabled'}>Tovább</button></div>`;
+    else if(hzLep === 2) t = `${pont}<h2>Mennyi a célod ebben a hónapban?</h2><p>Egységben (EH) – ebből bontjuk le a heti célokat.</p>
+        <label class="hz-mezo"><input type="text" inputmode="decimal" data-hzf="celES" value="${esc(hzAdat.celES)}" placeholder="pl. 120" autofocus><em>EH</em></label>
+        <label class="hz-mezo kicsi"><input type="text" inputmode="numeric" data-hzf="celPenz" value="${esc(hzAdat.celPenz)}" placeholder="Célom pénzben (nem kötelező)"><em>Ft</em></label>
+        <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="tovabb"${haviNum(hzAdat.celES) > 0 ? '' : ' disabled'}>Tovább</button></div>`;
+    else t = `${pont}<h2>A havi képleted</h2><p>${hzAdat.javasolt ? 'Az elmúlt hónapjaid arányai alapján javasoltuk – írd át nyugodtan.' : 'Add meg, hány kontaktra, időpontra… van szükséged a célhoz.'} A heti célok ebből számolódnak, egyenletesen elosztva.</p>
+        <div class="hz-keplet">${HAVI_METRICS.map((mm, i) => `<label><span>${mm === 'Egység' ? 'ES' : mm}</span><input type="text" inputmode="numeric" data-hzk="${i}" value="${esc(hzAdat.formula[i])}"></label>`).join('')}</div>
+        <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="ment">Mentés és rögzítés</button></div>`;
+    z.innerHTML = `<div class="hz-lap">${t}</div>`;
+    if(hzLep === 3 && !hzAdat.formula.some(v => v)) { hzAdat.formula = hzKepletJavaslat(ho, haviNum(hzAdat.celES)); hzAdat.javasolt = hzAdat.formula.filter(v => v).length > 1; if(hzAdat.formula.some(v => v)) hzRajz(); }
+}
+document.addEventListener('input', e => {
+    const z = e.target.closest && e.target.closest('#hvZar'); if(!z || !hzAdat) return;
+    if(e.target.dataset.hzf){ hzAdat[e.target.dataset.hzf] = e.target.value; const g = z.querySelector('[data-hz="tovabb"]'); if(g && e.target.dataset.hzf === 'celES') g.disabled = !(haviNum(e.target.value) > 0); if(e.target.dataset.hzf === 'celES') hzAdat.formula = Array(8).fill(''); }
+    if(e.target.dataset.hzk !== undefined) hzAdat.formula[+e.target.dataset.hzk] = e.target.value;
+});
+document.addEventListener('click', e => {
+    const z = e.target.closest && e.target.closest('#hvZar'); if(!z) return;
+    const r = e.target.closest('[data-hzrang]'); if(r){ hzAdat.rang = r.dataset.hzrang; hzRajz(); return; }
+    const g = e.target.closest('[data-hz]'); if(!g || g.disabled) return;
+    if(g.dataset.hz === 'tovabb'){ hzLep = Math.min(3, hzLep + 1); hzRajz(); return; }
+    if(g.dataset.hz === 'vissza'){ hzLep = Math.max(0, hzLep - 1); hzRajz(); return; }
+    if(g.dataset.hz === 'ment'){
+        const [y, m] = z.dataset.ho.split('-').map(Number), ho = new Date(y, m, 1);
+        const elozoA = haviAnchor, elozoD = haviData;
+        haviAnchor = ho; haviData = loadHavi(ho);
+        haviData.rang = hzAdat.rang; haviData.celES = String(hzAdat.celES).trim(); haviData.celPenz = String(hzAdat.celPenz || '').trim();
+        haviData.formula = hzAdat.formula.map(v => String(v ?? '').trim());
+        haviCelOsztas(haviData, haviAnchor);
+        const d = new Date(); haviData.rogzitve = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        saveHavi();
+        hzOk[z.dataset.kulcs] = 1; hzAdat = null; hzLep = 0;
+        const hvLap = document.getElementById('page-havi');
+        if(hvLap && !hvLap.hidden) renderHavi(); else { haviAnchor = elozoA; haviData = elozoD; }
+        if(typeof renderPlan === 'function') renderPlan();
+        z.querySelector('.hz-lap').innerHTML = '<div class="hz-ik">✅</div><h2>Kész a havi terved!</h2><p>A heti célok kiszámolva. Jó munkát ebben a hónapban!</p>';
+        setTimeout(hzLevesz, 1300);
+    }
+});
+// ellenőrzés: belépés után, oldalváltáskor és az appba visszatérve
+(function hzIndit(n = 0){ if(!window.sfCurrentUser){ if(n < 200) setTimeout(() => hzIndit(n + 1), 500); return; } setTimeout(sfHaviZarEllenoriz, 1500); })();
+document.addEventListener('visibilitychange', () => { if(!document.hidden) sfHaviZarEllenoriz(); });
 // Bal oldali navigátor, mint az Erfolgsjournalban: negyedév-választó, alatta a
 // negyedév hónapjai a KW-hetekkel. A hét kiválasztja a hetet, a "Havi terv →" a hónapot.
 let hvNegyed = null, haviValHet = null;
