@@ -31121,9 +31121,14 @@ const SZ_FUL_IK = [[/lista|bejegyz/i, '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M
     [/telefon/i, '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>']];
 
 // az aktuális oldal fülei: { b: eredeti gomb, n: rövid név, on }
+// Gyors lapváltáskor az oldal fülei csak a betöltés után rajzolódnak ki – addig a sáv a legutóbb látott füleket
+// mutatja (nem ugrik át kapszulára, majd vissza). Csak amíg az oldal még üres / vázlatot mutat.
+const szFulTar = {};
 function szFulok(){
-    const pg = document.getElementById('page-' + szAktLap()); const c = pg && pg.querySelector(SZ_FUL_SEL); if(!c) return [];
-    return [...c.querySelectorAll('button')].map(b => { const k = b.cloneNode(true); k.querySelectorAll('em, i, small, .pz-pill-n, .pg-badge').forEach(x => x.remove());
+    const lap = szAktLap(), pg = document.getElementById('page-' + lap); const c = pg && pg.querySelector(SZ_FUL_SEL);
+    if(!c){ const tolt = pg && pg.querySelector('.page-wrap > div[id$="Body"]:empty, .sf-vaz');
+        return tolt && szFulTar[lap] ? szFulTar[lap].map(x => ({ ...x, b: null })) : []; }
+    return szFulTar[lap] = [...c.querySelectorAll('button')].map(b => { const k = b.cloneNode(true); k.querySelectorAll('em, i, small, .pz-pill-n, .pg-badge').forEach(x => x.remove());
         const n = k.textContent.replace(/\s+/g, ' ').trim(); return { b, n: SZ_FUL_ROVID[n] || n, teljes: n, on: b.classList.contains('on') || b.classList.contains('active') || b.getAttribute('aria-selected') === 'true' }; }).filter(x => x.n);
 }
 const szFulIk = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${(SZ_FUL_IK.find(([r]) => r.test(n)) || [0, '<circle cx="12" cy="12" r="3.5"/>'])[1]}</svg>`;
@@ -31265,7 +31270,7 @@ document.addEventListener('click', async e => {
     if(e.target.closest('#szFan')){ szFanNyit(false); return; }
     if(!e.target.closest('#szFulMenu, [data-szfultobb]')) szFulMenuZar();
     const fl = e.target.closest('[data-szful]');
-    if(fl){ const f = szFulok()[+fl.dataset.szful]; szFulMenuZar(); if(f){ f.b.click(); window.scrollTo(0, 0); setTimeout(szAlsoFrissit, 60); } return; }
+    if(fl){ const f = szFulok()[+fl.dataset.szful]; szFulMenuZar(); if(f && f.b){ f.b.click(); window.scrollTo(0, 0); setTimeout(szAlsoFrissit, 60); } return; }
     if(e.target.closest('[data-szfultobb]')){ if(document.getElementById('szFulMenu')) szFulMenuZar(); else szFulMenuNyit(); return; }
     const m = e.target.closest('[data-szmenj]');
     if(m){
