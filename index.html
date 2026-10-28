@@ -3014,6 +3014,35 @@
 
         /* ===== ÉVES TERV ===== */
         table.eves { border-collapse:separate; border-spacing:0; width:100%; min-width:1120px; }
+        /* üres mező halvány „–”, a negyedéves sorok finom sávval, a mostani hónap kiemelve */
+        table.eves input::placeholder { color:#cbd5e1; }
+        table.eves tr.ev-sub td { background:color-mix(in srgb, var(--blue, #1f5fd0) 5%, transparent); }
+        table.eves tr.ev-most td { background:color-mix(in srgb, var(--blue, #1f5fd0) 8%, transparent); }
+        table.eves tr.ev-most td.ev-month { box-shadow:inset 3px 0 0 var(--blue, #1f5fd0); }
+        .ev-most-c { display:inline-block; margin-left:4px; padding:1px 6px; border-radius:999px; background:#16a34a; color:#fff; font-size:9px; font-weight:800; vertical-align:middle; }
+        .ev-mob { display:none; }
+        @media (max-width:760px){
+            #evesBody table.eves { display:none; }
+            .ev-mob { display:flex; flex-direction:column; gap:10px; }
+            .ev-mob-chipek { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -2px; padding:2px; }
+            .ev-mob-chipek::-webkit-scrollbar { display:none; } .ev-mob-chipek .sb-chip { flex:none; }
+            .ev-q { padding:0; overflow:hidden; }
+            .ev-q > summary, .ev-q-ev { display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto; align-items:center; gap:6px 12px; padding:14px 16px; list-style:none; cursor:pointer; }
+            .ev-q > summary::-webkit-details-marker { display:none; }
+            .ev-q .t { display:flex; align-items:baseline; gap:8px; } .ev-q .t b { font-size:16px; color:var(--navy); } .ev-q .t em { font-style:normal; font-size:12px; color:var(--muted); }
+            .ev-q-ossz { justify-self:end; font-size:13px; color:var(--muted); } .ev-q-ossz b { font-size:16px; color:var(--text); }
+            .ev-q-sav, .ev-m-sav { grid-column:1 / -1; height:7px; border-radius:4px; background:var(--border, #e6ecf5); overflow:hidden; display:block; }
+            .ev-q-sav i, .ev-m-sav i { display:block; height:100%; width:0; border-radius:4px; transition:width .3s; }
+            .ev-m-sor { display:grid; grid-template-columns:58px 1fr 1fr 44px; grid-template-rows:auto auto; align-items:end; gap:4px 8px; padding:10px 16px; border-top:1px solid var(--border, #eef1f5); }
+            .ev-m-sor.most { background:color-mix(in srgb, var(--blue, #1f5fd0) 6%, transparent); }
+            .ev-m-sor .n { font-weight:700; font-size:13.5px; color:var(--navy); align-self:center; display:flex; flex-direction:column; } .ev-m-sor .n em { font-style:normal; font-size:10px; font-weight:800; color:#16a34a; text-transform:uppercase; }
+            .ev-m-sor label { display:flex; flex-direction:column; gap:2px; } .ev-m-sor small { font-size:10.5px; color:var(--muted); font-weight:600; }
+            .ev-m-sor input { width:100%; box-sizing:border-box; border:1px solid var(--border, #e2e8f0); border-radius:10px; padding:7px 9px; font:inherit; font-size:15px; background:#fff; }
+            .ev-m-sor input::placeholder { color:#cbd5e1; }
+            .ev-m-sav { grid-column:2 / 4; height:5px; }
+            .ev-m-pct { grid-column:4; grid-row:1; align-self:center; text-align:right; font-size:12.5px; color:var(--navy); }
+            .ev-q-ev { cursor:default; }
+        }
         table.eves th, table.eves td { border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:6px 7px; text-align:center; font-size:11px; }
         table.eves thead th { color:var(--navy); font-weight:700; }
         table.eves th.ev-grp { padding:9px 8px; border-bottom:none; }
@@ -15758,17 +15787,45 @@ function renderEvesBody(){
     const altCls = gi => gi%2 ? ' ev-alt' : '';
     let h1 = `<tr><th rowspan="2" class="ev-month">Hónap</th>` + EVES_GROUPS.map((g,gi)=>`<th colspan="2" class="ev-grp${altCls(gi)}" style="--gc:${g.color};"><span class="ev-grp-in"><span class="ev-grp-ic">${evIc(g.icon,g.color)}</span>${g.label}</span></th>`).join('') + `</tr>`;
     let h2 = `<tr>` + EVES_GROUPS.map((g,gi)=>`<th class="ev-sh ev-sh-t${altCls(gi)}" style="--gc:${g.color};">Terv</th><th class="ev-sh ev-sh-e${altCls(gi)}" style="--gc:${g.color};">Elért</th>`).join('') + `</tr>`;
-    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><input type="text" inputmode="numeric" class="ev-val" id="eve-${m}-${g}" data-em="${m}" data-eg="${g}" data-ef="e" value="${esc(evesData.months[m][g].e)}"></td>`;
+    const cell=(m,g,gi)=>`<td class="ev-td-t${altCls(gi)}"><input type="text" inputmode="numeric" data-em="${m}" data-eg="${g}" data-ef="t" placeholder="–" value="${esc(evesData.months[m][g].t)}"></td><td class="ev-td-e${altCls(gi)}"><input type="text" inputmode="numeric" class="ev-val" id="eve-${m}-${g}" data-em="${m}" data-eg="${g}" data-ef="e" placeholder="–" value="${esc(evesData.months[m][g].e)}"></td>`;
     const comp=(id,gi)=>`<td class="ev-td-t${altCls(gi)}"><span id="${id}-t"></span></td><td class="ev-td-e${altCls(gi)}"><span class="ev-val" id="${id}-e"></span></td>`;
     let rows='';
     EVES_QUARTERS.forEach((q,qi)=>{
-        q.forEach(m=>{ rows+=`<tr><td class="ev-month">${EVES_MONTHS[m]}</td>`+EVES_GROUPS.map((g,gi)=>cell(m,g.key,gi)).join('')+`</tr>`; });
+        const most = new Date(); const mostM = most.getFullYear() === evesAnchor ? most.getMonth() : -1;
+        q.forEach(m=>{ rows+=`<tr${m === mostM ? ' class="ev-most"' : ''}><td class="ev-month">${EVES_MONTHS[m]}${m === mostM ? ' <span class="ev-most-c">Most</span>' : ''}</td>`+EVES_GROUPS.map((g,gi)=>cell(m,g.key,gi)).join('')+`</tr>`; });
         rows+=`<tr class="ev-sub"><td class="ev-month">Negyedév</td>`+EVES_GROUPS.map((g,gi)=>comp(`evq-${qi}-${g.key}`,gi)).join('')+`</tr>`;
     });
     rows+=`<tr class="ev-tot"><td class="ev-month">Összesen</td>`+EVES_GROUPS.map((g,gi)=>comp(`evtot-${g.key}`,gi)).join('')+`</tr>`;
-    body.innerHTML=`<table class="eves"><thead>${h1}${h2}</thead><tbody>${rows}</tbody></table>`;
+    body.innerHTML=`<table class="eves"><thead>${h1}${h2}</thead><tbody>${rows}</tbody></table>${evesMobHtml()}`;
     recomputeEves();
 }
+// ---- Telefonon: csapat-választó chipek + negyedévenként összecsukható kártyák (havonta Terv · Elért · sáv) ----
+let evesMobCsop = store.load('sf_eves_mob', 'sajat');
+function evesMobHtml(){
+    const g = EVES_GROUPS.find(x => x.key === evesMobCsop) || EVES_GROUPS[2];
+    const most = new Date(), mostM = most.getFullYear() === evesAnchor ? most.getMonth() : -1, mostQ = mostM >= 0 ? Math.floor(mostM / 3) : 0;
+    const QN = ['jan. – márc.', 'ápr. – jún.', 'júl. – szept.', 'okt. – dec.'];
+    return `<div class="ev-mob"><div class="ev-mob-chipek">${EVES_GROUPS.map(x => `<button type="button" class="sb-chip ${x.key === g.key ? 'on' : ''}" data-evmcsop="${x.key}">${esc(x.label)}</button>`).join('')}</div>
+        ${EVES_QUARTERS.map((q, qi) => `<details class="card ev-q"${qi === mostQ ? ' open' : ''}><summary><span class="t"><b>Q${qi + 1}</b><em>${QN[qi]}</em></span>
+            <span class="ev-q-ossz"><b id="evm-q${qi}-e">–</b> / <span id="evm-q${qi}-t">–</span></span><span class="ev-q-sav"><i id="evm-q${qi}-bar"></i></span></summary>
+            ${q.map(m => `<div class="ev-m-sor${m === mostM ? ' most' : ''}"><span class="n">${EVES_MONTHS[m]}${m === mostM ? '<em>most</em>' : ''}</span>
+                <label><small>Terv</small><input type="text" inputmode="numeric" placeholder="–" data-em="${m}" data-eg="${g.key}" data-ef="t" value="${esc(evesData.months[m][g.key].t)}"></label>
+                <label><small>Elért</small><input type="text" inputmode="numeric" placeholder="–" data-em="${m}" data-eg="${g.key}" data-ef="e" value="${esc(evesData.months[m][g.key].e)}"></label>
+                <span class="ev-m-sav"><i id="evm-${m}-bar"></i></span><b class="ev-m-pct" id="evm-${m}-pct">–</b></div>`).join('')}</details>`).join('')}
+        <div class="card ev-q ev-q-ev"><span class="t"><b>${evesAnchor}</b><em>összesen</em></span><span class="ev-q-ossz"><b id="evm-tot-e">–</b> / <span id="evm-tot-t">–</span></span><span class="ev-q-sav"><i id="evm-tot-bar"></i></span></div></div>`;
+}
+function evesMobFrissit(){
+    const g = evesMobCsop, N = v => haviNum(v), szin = (t, e) => { const c = evesDiffClass(t, e); return c === 'pos' ? '#16a34a' : c === 'warn' ? '#eab308' : c === 'neg' ? '#ef4444' : '#cbd5e1'; };
+    const sav = (id, t, e) => { const el = document.getElementById(id); if(el){ el.style.width = (t > 0 ? Math.min(100, e / t * 100) : 0) + '%'; el.style.background = szin(t, e); } };
+    let tt = 0, te = 0;
+    EVES_QUARTERS.forEach((q, qi) => { let qt = 0, qe = 0;
+        q.forEach(m => { const t = N(evesData.months[m][g].t), e = N(evesData.months[m][g].e); qt += t; qe += e; sav(`evm-${m}-bar`, t, e);
+            const p = document.getElementById(`evm-${m}-pct`); if(p) p.textContent = t > 0 ? Math.round(e / t * 100) + '%' : '–'; });
+        tt += qt; te += qe;
+        const a = document.getElementById(`evm-q${qi}-e`), b = document.getElementById(`evm-q${qi}-t`); if(a) a.textContent = qe || '–'; if(b) b.textContent = qt || '–'; sav(`evm-q${qi}-bar`, qt, qe); });
+    const a = document.getElementById('evm-tot-e'), b = document.getElementById('evm-tot-t'); if(a) a.textContent = te || '–'; if(b) b.textContent = tt || '–'; sav('evm-tot-bar', tt, te);
+}
+document.getElementById('evesBody').addEventListener('click', e => { const c = e.target.closest('[data-evmcsop]'); if(c){ evesMobCsop = c.dataset.evmcsop; store.save('sf_eves_mob', evesMobCsop); renderEvesBody(); } });
 let evesCloudReqId = 0;
 function renderEves(){
     renderEvesBody();
@@ -15816,14 +15873,15 @@ function recomputeEves(){
             let qt=0, qe=0;
             q.forEach(m=>{ qt+=haviNum(evesData.months[m][g.key].t); qe+=haviNum(evesData.months[m][g.key].e); });
             totT+=qt; totE+=qe;
-            const et=document.getElementById(`evq-${qi}-${g.key}-t`); if(et) et.textContent=qt;
+            const et=document.getElementById(`evq-${qi}-${g.key}-t`); if(et) et.textContent=qt || '–';
             const ee=document.getElementById(`evq-${qi}-${g.key}-e`);
-            if(ee){ ee.textContent=qe; evesSetDiff(ee, qt, qe); }
+            if(ee){ ee.textContent=qe || '–'; evesSetDiff(ee, qt, qe); }
         });
-        const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT;
+        const tt=document.getElementById(`evtot-${g.key}-t`); if(tt) tt.textContent=totT || '–';
         const te=document.getElementById(`evtot-${g.key}-e`);
-        if(te){ te.textContent=totE; evesSetDiff(te, totT, totE); }
+        if(te){ te.textContent=totE || '–'; evesSetDiff(te, totT, totE); }
     });
+    evesMobFrissit();
 }
 document.getElementById('evesBody').addEventListener('input', e=>{
     const t=e.target;
