@@ -8699,6 +8699,20 @@
             background:linear-gradient(90deg, rgba(148,163,184,.16) 0%, rgba(148,163,184,.30) 50%, rgba(148,163,184,.16) 100%); background-size:200% 100%; animation:sfVazFeny 1.3s ease-in-out infinite; }
         .sf-vaz-k i:first-child { height:16px; }
         @keyframes sfVazFeny { from { background-position:100% 0; } to { background-position:-100% 0; } }
+        /* amíg egy oldal tartalma még nem rajzolódott ki (üres …Body), üres képernyő helyett vázlatkártyák */
+        .main .page:not([hidden]) .page-wrap > div[id$="Body"]:empty { min-height:260px; border-radius:20px;
+            background:
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 22px / 40% 16px no-repeat,
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 52px / calc(100% - 36px) 12px no-repeat,
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 76px / 70% 12px no-repeat,
+                linear-gradient(var(--card, #fff), var(--card, #fff)) 0 0 / 100% 110px no-repeat,
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 148px / 55% 16px no-repeat,
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 178px / calc(100% - 36px) 12px no-repeat,
+                linear-gradient(90deg, rgba(148,163,184,.16), rgba(148,163,184,.30), rgba(148,163,184,.16)) 18px 202px / 62% 12px no-repeat,
+                linear-gradient(var(--card, #fff), var(--card, #fff)) 0 126px / 100% 110px no-repeat;
+            animation:sfVazPulz 1.3s ease-in-out infinite; }
+        @keyframes sfVazPulz { 50% { opacity:.6; } }
+        @media (prefers-reduced-motion:reduce){ .main .page .page-wrap > div[id$="Body"]:empty { animation:none; } }
         /* ===== közös mozgáskészlet (SZEM és Sikerfüzet) ===== */
         :root { --sf-rugo:cubic-bezier(.2,.9,.3,1.04); --sf-lagy:cubic-bezier(.22,.8,.25,1); }
         /* oldalváltás: az új oldal lágyan beúszik, a kártyái kicsit lépcsőzetesen (csak átlátszóság + kis emelés; fix elemeket tartalmazó kártya nem mozdul) */
@@ -9839,6 +9853,9 @@
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
         @media (max-width:1000px){ .main .page h1.sf-dupla, .main .page h2.sf-dupla { display:none !important; } }
+        .mn-kosd { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; background:rgba(37,99,235,.04); }
+        .mn-kosd .mn-u { margin:0; }
+        .mn-kosd .mn-kosd-g { font-weight:700; color:var(--blue); }
         /* ===== Ki lesz a következő – telefonon résztvevő-kártyák ===== */
         .kov-mob { display:none; }
         @media (max-width:760px){
@@ -10391,7 +10408,7 @@ try {
                             <span class="icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
                             <h2>Feladatok</h2>
                         </div>
-                        <div class="card-body" id="railFeladatokMount"><div class="rf-empty">Betöltés…</div></div>
+                        <div class="card-body" id="railFeladatokMount"><div class="sf-vaz" role="status" aria-label="Betöltés…"><div class="sf-vaz-k"><i style="width:42%"></i><i></i><i style="width:78%"></i></div><div class="sf-vaz-k"><i style="width:56%"></i><i></i><i style="width:64%"></i></div></div></div>
                     </section>
                 </div>
 
@@ -14948,10 +14965,10 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"></div></section>';
             if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'zar');
         } else if(k === 'logok'){
-            host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"><p class="bl-megj">Betöltés…</p></div></section>';
+            host.innerHTML = '<section class="card bl-k"><div class="bl-beagy">' + window.sfVaz(2) + '</div></section>';
             if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
         } else {
-            host.innerHTML = '<div class="card bl-k"><p class="bl-megj">Betöltés…</p></div>';
+            host.innerHTML = '<div class="card bl-k">' + window.sfVaz(2) + '</div>';
             if(typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio(k, host);
         }
     }
@@ -31197,7 +31214,7 @@ function szLapNyit(ny){
 async function szLapRajz(){
     const b = document.querySelector('#szLap .szm-lap-b'); if(!b) return;
     if(szLapNezet === 'szokas'){
-        b.innerHTML = '<p class="pv-megj">Betöltés…</p>';
+        b.innerHTML = window.sfVaz(2);
         const sz = await prvBetolt('szokasok'), ma = ezMa();
         const l = szAktiv(sz).filter(h => szEsedekes(h, ma)), all = szNapiAllas(sz, ma);
         b.innerHTML = `<div class="szm-lap-fej"><button type="button" class="szm-lap-vissza" data-szlapnez="">‹</button><h5>Mai szokások <span>${all.kesz} / ${all.es}</span></h5></div>
@@ -32177,10 +32194,10 @@ function renderMaiNap(){
     const fej = `<div class="mn-fej"><span class="mn-cim"><b>Mai nap</b><small>${ma.toLocaleDateString('hu-HU', { weekday: 'long', month: 'long', day: 'numeric' })}</small></span>
         <button type="button" class="mn-frissit" data-mnfrissit title="Frissítés" aria-label="Frissítés"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button></div>
         <div class="mn-ossz">${maiEsem ? `<i>${maiEsem.length} időpont</i>` : ''}${maiFel ? `<i class="${lej ? 'p' : ''}">${maiFel.length} feladat${lej ? ` (${lej} lejárt)` : ''}</i>` : ''}<i>${hiv.length} hívandó</i>${osszCel != null ? `<i>Heti cél ${osszCel}%</i>` : ''}</div>`;
-    const esem = maiEsem === undefined ? '<p class="mn-u">Betöltés…</p>' : maiEsem === null ? '<p class="mn-u">A Google Naptár nincs összekötve.</p>'
+    const esem = maiEsem === undefined ? sfVaz(2) : maiEsem === null ? '<div class="mn-kosd"><p class="mn-u">A Google Naptár nincs összekötve – kösd össze, és itt látod a mai időpontjaidat.</p><button type="button" class="mn-tobb mn-kosd-g" data-mnnaptar>Naptár összekötése ›</button></div>'
         : !maiEsem.length ? '<p class="mn-u">Ma nincs időpontod.</p>'
         : maiEsem.map(e => `<a class="mn-e${!e.egesz && e.ig < most ? ' mult' : ''}${e === kov ? ' kov' : ''}" ${e.link ? `href="${esc(e.link)}" target="_blank" rel="noopener"` : ''}><span class="mn-ido">${e.egesz ? 'egész nap' : ido(e.tol)}</span><span><b>${esc(e.cim)}</b>${e.hely ? `<small>${esc(e.hely)}</small>` : ''}</span></a>`).join('');
-    const fel = maiFel === undefined ? '<p class="mn-u">Betöltés…</p>' : maiFel === null ? '<p class="mn-u">A feladatok nem érhetők el.</p>'
+    const fel = maiFel === undefined ? sfVaz(2) : maiFel === null ? '<div class="mn-kosd"><p class="mn-u">A Google Feladatok nincs összekötve.</p><button type="button" class="mn-tobb mn-kosd-g" data-mnlap="feladatok">Feladatok összekötése ›</button></div>'
         : !maiFel.length ? '<p class="mn-u">Nincs mára szóló vagy lejárt feladat. 🎉</p>'
         : maiFel.slice(0, 7).map(f => `<button type="button" class="mn-f${f.lejart ? ' lej' : ''}" data-mnfel="${esc(f.id)}"><i></i><span><b>${esc(f.cim)}</b><small>${f.lejart ? 'lejárt' : f.ido ? ido(f.ido) : 'ma'}${f.lista ? ' · ' + esc(f.lista) : ''}</small></span></button>`).join('')
             + (maiFel.length > 7 ? `<button type="button" class="mn-tobb" data-mnlap="feladatok">+ ${maiFel.length - 7} további</button>` : '');
@@ -32216,6 +32233,7 @@ window.sfMaiFrissit = maiFrissit;
 document.addEventListener('click', e => {
     const h = e.target.closest('#maiNap'); if(!h) return;
     if(e.target.closest('[data-mnfrissit]')){ maiFrissit(); return; }
+    if(e.target.closest('[data-mnnaptar]')){ if(window.sfNaptarOsszekot) window.sfNaptarOsszekot().then(maiFrissit); return; }
     if(e.target.closest('[data-mnbed]')){ if(window.sfBedMutat) window.sfBedMutat(); return; }
     const f = e.target.closest('[data-mnfel]'); if(f){ if(window.sfFeladatNyit) window.sfFeladatNyit(f.dataset.mnfel); return; }
     const u = e.target.closest('[data-mnugyf]'); if(u){ regSorNyit(+u.dataset.mnugyf); return; }
@@ -35337,6 +35355,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return ki;
     };
     // A mai nap eseményei (saját + bekapcsolt naptárak) a kezdőlap „Mai nap” kártyájához.
+    window.sfNaptarOsszekot = async () => {
+        try { const t = await reconnectCalendar(); if (t) initCalendar(); return !!t; }
+        catch(e){ alert("Nem sikerült összekötni a naptárat: " + (e.message || e)); return false; }
+    };
     window.sfMaiEsemenyek = async () => {
         const kezd = new Date(); kezd.setHours(0, 0, 0, 0);
         const vege = new Date(kezd); vege.setDate(vege.getDate() + 1);
@@ -37778,7 +37800,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             return;
         }
         if (!isConfigured){ renderRailFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
-        m.innerHTML = `<div class="rf-empty">Betöltés…</div>`;
+        m.innerHTML = window.sfVaz(2);
         try { await loadAllTasks(false); renderRailFeladatok(); }
         catch(e){
             renderRailFeladatokConnect((e.status === 401 || e.status === 403)
