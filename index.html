@@ -641,6 +641,10 @@
             .sz-ful-sor button.on { flex:1 0 auto; background:var(--szm-sz); color:#fff; box-shadow:0 6px 16px color-mix(in srgb, var(--szm-sz) 32%, transparent); animation:szFulBe .25s cubic-bezier(.2,.8,.2,1); }
             @keyframes szFulBe { from { transform:scale(.96); } }
             .sz-ful-sor button:active { transform:scale(.95); }
+            .sz-ful-sor { overflow-x:hidden !important; }
+            .sz-ful-sor button.rejt { display:none; }
+            .sz-ful-sor button.tobb { min-width:50px; padding:0 13px; }
+            .szm-ful-menu.fent { bottom:auto; animation:sfPopBe .18s ease-out both; }
             /* alsó sáv: a kedvencek felirattal, az aktív mögött halvány kapszula */
             .szm-also > .szm-t.fav { animation:none !important; }
             .szm-t.fav { color:#1f2937; font-weight:650; }
@@ -31215,8 +31219,20 @@ function szFulSorRajz(){
     const f = szSavSzerk ? [] : szFulok(), rejt = f.length < 2;
     if(sor.hidden !== rejt) sor.hidden = rejt;
     const html = f.map((x, i) => `<button type="button" role="tab" class="${x.on ? 'on' : ''}${szFulVanIk(x.n) ? '' : ' szoveg'}" data-szful="${i}" aria-selected="${x.on}" title="${esc(x.teljes)}">${szFulIk(x.n)}<span>${esc(x.n)}</span></button>`).join('');
-    if(sor._html !== html){ sor.innerHTML = html; sor._html = html;
-        const on = sor.querySelector('.on'); if(on && sor.scrollWidth > sor.clientWidth) sor.scrollLeft = Math.max(0, on.offsetLeft - 16); }
+    if(sor._html !== html){ sor.innerHTML = html; sor._html = html; szFulSorIllesz(sor); }
+}
+// Görgetés helyett csak annyi fül látszik, amennyi kifér; a többi a „…” gomb mögé kerül (a kiválasztott mindig látszik).
+function szFulSorIllesz(sor){
+    sor._rejtett = [];
+    if(sor.hidden || sor.scrollWidth <= sor.clientWidth + 1) return;
+    const tobb = document.createElement('button'); tobb.type = 'button'; tobb.className = 'tobb'; tobb.setAttribute('data-szfultobb', ''); tobb.setAttribute('aria-label', 'További fülek');
+    tobb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+    sor.appendChild(tobb);
+    const gombok = [...sor.querySelectorAll('button[data-szful]')];
+    for(let i = gombok.length - 1; i >= 0 && sor.scrollWidth > sor.clientWidth + 1; i--){
+        if(gombok[i].classList.contains('on')) continue;
+        gombok[i].classList.add('rejt'); sor._rejtett.unshift(+gombok[i].dataset.szful);
+    }
 }
 const szVanUj = () => { const akt = szAktLap(); return !!(akt === 'privma' || akt === 'egeszseg' || SZ_UJ[akt] || document.querySelector(`#page-${akt} .sf-also-plusz`)); };
 function szFabFrissit(){
@@ -31228,9 +31244,10 @@ function szFabFrissit(){
     if(mp && mp.hidden !== nincs) mp.hidden = nincs;
 }
 function szFulMenuNyit(){
-    szFulMenuZar(); const fulok = szFulok(); if(fulok.length < 5) return;
-    const m = document.createElement('div'); m.id = 'szFulMenu'; m.className = 'szm-ful-menu';
-    m.innerHTML = fulok.slice(3).map((f, i) => `<button type="button" class="${f.on ? 'on' : ''}" data-szful="${i + 3}">${szFulIk(f.n)}${esc(f.teljes)}</button>`).join('');
+    szFulMenuZar(); const fulok = szFulok(), sor = document.getElementById('szFulSor'), idx = (sor && sor._rejtett) || []; if(!idx.length) return;
+    const m = document.createElement('div'); m.id = 'szFulMenu'; m.className = 'szm-ful-menu fent';
+    m.innerHTML = idx.map(i => fulok[i] && `<button type="button" class="${fulok[i].on ? 'on' : ''}" data-szful="${i}">${szFulIk(fulok[i].n)}${esc(fulok[i].teljes)}</button>`).filter(Boolean).join('');
+    const r = sor.querySelector('.tobb')?.getBoundingClientRect(); if(r) m.style.top = Math.round(r.bottom + 8) + 'px';
     document.body.appendChild(m);
 }
 // ---- félkör menü: a középső gombra koppintva 4 kedvenc oldal + „Minden” ----
