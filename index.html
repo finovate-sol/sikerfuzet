@@ -31221,6 +31221,34 @@ function szFulSorRajz(){
     const html = f.map((x, i) => `<button type="button" role="tab" class="${x.on ? 'on' : ''}${szFulVanIk(x.n) ? '' : ' szoveg'}" data-szful="${i}" aria-selected="${x.on}" title="${esc(x.teljes)}">${szFulIk(x.n)}<span>${esc(x.n)}</span></button>`).join('');
     if(sor._html !== html){ sor.innerHTML = html; sor._html = html; szFulSorIllesz(sor); }
 }
+// Telefonon oldalra húzással (a tartalmon) lehet a felső fülek között lépkedni: balra húzás = következő fül.
+(function(){
+    const KIHAGY = 'input, select, textarea, [contenteditable], canvas, .sf-cs-sor, #page-feladatok .fd-row, #regViews .rc, #ketorasViews .rc, .mobile-bar, .szm-also, .modal-overlay, .gk-ov, .nlw-ov';
+    const vizszintesGorgo = el => { for(let x = el; x && x !== document.body; x = x.parentElement){
+        if(x.scrollWidth > x.clientWidth + 2){ const o = getComputedStyle(x).overflowX; if(o === 'auto' || o === 'scroll') return true; } } return false; };
+    let h = null;
+    document.addEventListener('touchstart', e => {
+        h = null; if(e.touches.length !== 1 || !matchMedia('(max-width:760px)').matches) return;
+        const sor = document.getElementById('szFulSor'); if(!sor || sor.hidden) return;
+        const x = e.touches[0].clientX; if(x < 26 || x > innerWidth - 26) return;   // a széleken a vissza-gesztus
+        const t = e.target; if(!t.closest || !t.closest('.main') || t.closest(KIHAGY) || vizszintesGorgo(t)) return;
+        if(document.querySelector('.modal-overlay, .sidebar.open, #szFulMenu, .hv-zar')) return;
+        h = { x0: x, y0: e.touches[0].clientY, t0: Date.now() };
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if(!h) return; const dx = e.touches[0].clientX - h.x0, dy = e.touches[0].clientY - h.y0;
+        if(Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) h = null;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+        if(!h) return; const t = e.changedTouches[0], dx = t.clientX - h.x0, dy = t.clientY - h.y0, ido = Date.now() - h.t0; h = null;
+        if(Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || ido > 700) return;
+        const f = szFulok(), i = f.findIndex(x => x.on), j = i + (dx < 0 ? 1 : -1);
+        if(i < 0 || j < 0 || j >= f.length || !f[j].b) return;
+        f[j].b.click(); setTimeout(szAlsoFrissit, 60);
+        const pg = document.querySelector('.main .page:not([hidden])'); if(pg && typeof sfLapBeusz === 'function') sfLapBeusz(pg, dx > 0);
+        if(navigator.vibrate) try { navigator.vibrate(6); } catch(_){}
+    }, { passive: true });
+})();
 // Görgetés helyett csak annyi fül látszik, amennyi kifér; a többi a „…” gomb mögé kerül (a kiválasztott mindig látszik).
 function szFulSorIllesz(sor){
     sor._rejtett = [];
