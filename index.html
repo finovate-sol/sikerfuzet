@@ -9759,6 +9759,16 @@
         /* Meleg természet: puha, talpas címek */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+        /* ===== összecsukódó nagy cím (telefon): görgetéskor a cím finoman összemegy, a sáv matt üveg lesz ===== */
+        @media (max-width:1000px){
+            #mbTitle { display:inline-block; transform-origin:left center; transition:transform .22s cubic-bezier(.22,.8,.25,1), opacity .2s; will-change:transform; }
+            html.sf-gorg #mbTitle { transform:scale(.74); }
+            html body .mobile-bar { transition:background-color .2s, box-shadow .2s, -webkit-backdrop-filter .2s, backdrop-filter .2s; }
+            html body .mobile-bar.gorgetve, html:is(.sf-st-termeszet, .sf-st-tiszta) body .mobile-bar.gorgetve {
+                background:color-mix(in srgb, var(--st-bg, var(--bg, #f0f3f7)) 80%, transparent) !important;
+                -webkit-backdrop-filter:blur(18px) saturate(1.5) !important; backdrop-filter:blur(18px) saturate(1.5) !important;
+                box-shadow:0 1px 0 rgba(15,23,42,.07) !important; }
+        }
         /* választó (Beállítások) */
         .bl-stilus i { position:relative; overflow:hidden; }
         .bl-stilus i b { position:absolute; left:18%; right:18%; height:26%; border-radius:4px; }
@@ -14439,9 +14449,13 @@ window.SF_TEMAK = window.SF_TEMA_LISTA;
 // A Sikerfüzet (OVB) rész témái – ugyanaz a motor, csak a body:not(.sf-privat) alatt érvényes.
 // Az ügyfélnek szóló felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az eredeti OVB-színekben maradnak.
 window.SF_OVB_TEMAK = window.SF_TEMA_LISTA;
-window.sfOvbTema = () => { try { const t = JSON.parse(localStorage.getItem('sf_ovb_tema') || '"kek"'); return window.SF_OVB_TEMAK[t] ? t : 'kek'; } catch(e){ return 'kek'; } };
+// Automatikus sötét mód: 'ki' | 'rendszer' (a telefon beállítása szerint) | 'este' (19 és 7 óra között). Ilyenkor mindkét rész az Éjszaka témát kapja.
+window.sfSotetMod = () => { try { return localStorage.getItem('sf_sotet') || 'ki'; } catch(e){ return 'ki'; } };
+window.sfSotetMost = () => { const m = window.sfSotetMod(); if(m === 'rendszer') return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    if(m === 'este'){ const h = new Date().getHours(); return h >= 19 || h < 7; } return false; };
+window.sfOvbTema = () => { if(window.sfSotetMost()) return 'ejszaka'; try { const t = JSON.parse(localStorage.getItem('sf_ovb_tema') || '"kek"'); return window.SF_OVB_TEMAK[t] ? t : 'kek'; } catch(e){ return 'kek'; } };
 window.sfOvbTemaTeteje = () => (window.SF_OVB_TEMAK[window.sfOvbTema()] || window.SF_OVB_TEMAK.kek)[2];
-window.sfTema = () => { try { const t = JSON.parse(localStorage.getItem('sf_szem_tema') || '"lila"'); return window.SF_TEMAK[t] ? t : 'lila'; } catch(e){ return 'lila'; } };
+window.sfTema = () => { if(window.sfSotetMost()) return 'ejszaka'; try { const t = JSON.parse(localStorage.getItem('sf_szem_tema') || '"lila"'); return window.SF_TEMAK[t] ? t : 'lila'; } catch(e){ return 'lila'; } };
 window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK.lila)[2];
 (function(){
     const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s2 = 0; const l = (mx + mn) / 2;
@@ -14669,6 +14683,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             host.innerHTML = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>
                 <section class="card bl-k"><h3>Téma – SZEM (privát)</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}
                 <p class="bl-megj" style="margin:12px 0 0">Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p></section>
+                <section class="card bl-k"><h3>Sötét mód</h3><p class="bl-megj">Automatikusan az Éjszaka témára vált – amíg sötét mód van, a fenti témák helyett az látszik.</p>
+                <div class="sb-chipek bl-sotet">${[['ki', 'Kikapcsolva'], ['rendszer', 'A telefon szerint'], ['este', 'Este (19–7 óra)']].map(([k, n]) => `<button type="button" class="sb-chip ${window.sfSotetMod() === k ? 'on' : ''}" data-blsotet="${k}" aria-pressed="${window.sfSotetMod() === k}">${n}</button>`).join('')}</div></section>
                 <section class="card bl-k"><h3>Stílus</h3><p class="bl-megj">A felületek anyaga – az elrendezés és a működés ugyanaz marad. Ezen az eszközön érvényes.</p>
                 <div class="zb-temak bl-temak bl-stilus">${[['termeszet', 'Meleg természet', '#efe9e1', '#fbf8f3'], ['tiszta', 'Tiszta (iOS)', '#f2f2f7', '#ffffff'], ['uveg', 'Üveg', 'linear-gradient(135deg,#c4b5fd,#f9a8d4)', 'rgba(255,255,255,.55)']].map(([k, n, bg, kt]) => {
                     const on = (localStorage.getItem('sf_stilus') || 'termeszet') === k;
@@ -14731,6 +14747,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             window.dispatchEvent(new Event('resize'));
             window.sfShowBeallitasok(); return;
         }
+        const so = e.target.closest('[data-blsotet]');
+        if(so){ try { localStorage.setItem('sf_sotet', so.dataset.blsotet); } catch(_){} window.sfSotetEllenoriz(true); window.sfShowBeallitasok(); return; }
         const hm = e.target.closest('[data-blhomok]');
         if(hm){ try { localStorage.setItem('sf_st_homok', hm.dataset.blhomok); } catch(_){} window.sfTemaKeszit(); window.sfShowBeallitasok(); return; }
         const stv = e.target.closest('[data-blstilus]');
@@ -14759,6 +14777,17 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c)); }
     };
     window.sfTemaKeszit();
+    // automatikus sötét mód: rendszerváltáskor, az appba visszatérve és percenként ellenőrizzük, kell-e váltani
+    let sotetVolt = window.sfSotetMost();
+    window.sfSotetEllenoriz = function(kenyszer){
+        const most = window.sfSotetMost(); if(!kenyszer && most === sotetVolt) return; sotetVolt = most;
+        window.sfTemaKeszit();
+        const c = document.body && document.body.classList.contains('sf-privat') ? window.sfTemaTeteje() : window.sfOvbTemaTeteje();
+        document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c));
+    };
+    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => window.sfSotetEllenoriz()); } catch(e){}
+    document.addEventListener('visibilitychange', () => { if(!document.hidden) window.sfSotetEllenoriz(); });
+    setInterval(() => window.sfSotetEllenoriz(), 60000);
 })();
 
 // ===== MOBIL MENÜ (hamburger + kicsúszó sidebar) =====
