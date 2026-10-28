@@ -41,6 +41,18 @@ export async function getAppConfig(){
     try { const snap = await getDoc(doc(db, "config", "app")); return snap.exists() ? (snap.data() || {}) : {}; }
     catch(e){ console.warn("config olvasás sikertelen:", e); return {}; }
 }
+// Közös (csapatszintű) dokumentumok a config gyűjteményben – pl. a Tudásbázis és a
+// prezentáció-sablonok: mindenki olvassa, csak az admin írja (lásd firestore.rules).
+// Hiba esetén dob – a hívó dönti el, hogy a helyi másolattal megy-e tovább.
+export async function getConfigDoc(id){
+    if(!isConfigured || !db) return null;
+    const snap = await getDoc(doc(db, "config", id));
+    return snap.exists() ? (snap.data() || null) : null;
+}
+export async function saveConfigDoc(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "config", id), data);
+}
 export async function saveInfoDates(dates){
     return saveAppConfig({ infoDates: dates });
 }

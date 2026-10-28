@@ -680,6 +680,10 @@
             #page-penzugyek .page-wrap { padding-top:0 !important; }
         }
         .pz-bl { padding:6px; margin-bottom:12px; }
+        /* közös adatok: aki nem admin, annak nem jelennek meg a módosító gombok */
+        body:not(.sf-adm) #page-tudastar :is([data-ttszerk], [data-ttuj], [data-ttimport]),
+        body:not(.sf-adm) #page-prezik :is([data-pzimentsablon], [data-pzigyari], [data-pzisablonvissza]) { display:none !important; }
+        body:not(.sf-adm) #page-tudastar .tt-cella { cursor:default; }
         .pz-bl h3 { font-size:15px; margin:10px 12px 6px; }
         .pz-bl-sor { display:flex; align-items:center; gap:12px; width:100%; border:0; background:none; padding:12px; border-radius:14px; font:inherit; text-align:left; cursor:pointer; color:inherit; }
         .pz-bl-sor + .pz-bl-sor { border-top:1px solid rgba(15,23,42,.06); border-radius:0; }
@@ -4023,6 +4027,10 @@
         .str-node.role-leader .str-dot { background:var(--navy); }
         .str-node.role-member .str-dot { background:var(--blue); }
         .str-node.role-new .str-dot { background:var(--amber); }
+        /* potenciális munkatárs: még nincs a csapatban – szaggatott keret, halványabb */
+        .str-node.role-pot .str-dot { background:transparent; border:1.5px dashed #94a3b8; }
+        .str-node.role-pot { border-style:dashed !important; opacity:.78; }
+        .str-node.strB.role-pot { background:#fff !important; color:#475569 !important; outline:1.5px dashed #94a3b8; outline-offset:-1.5px; }
         /* --- Variant B: Réteges mélység --- */
         .str-node.strB { display:flex; align-items:center; gap:10px; border-radius:999px; padding:7px 18px 7px 7px; min-width:150px; box-shadow:0 4px 12px rgba(15,47,95,.1); cursor:default; transition:transform .12s,box-shadow .12s; }
         .str-node.strB:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(15,47,95,.16); }
@@ -12855,6 +12863,7 @@ async function pziKepUrl(id){
     if(pziKepCache.has(id)) return pziKepCache.get(id);
     let u = '';
     try { const d = window.sfNlKep ? await window.sfNlKep.get(id) : null; if(d && d.data) u = `data:${d.mime || 'image/jpeg'};base64,${d.data}`; } catch(e){}
+    if(!u) try { const d = typeof window.sfGetConfigDoc === 'function' ? await window.sfGetConfigDoc('pzikep_' + id) : null; if(d && d.data){ u = `data:${d.mime || 'image/jpeg'};base64,${d.data}`; pziKozosKepek.add(id); } } catch(e){}
     if(u) pziKepCache.set(id, u);
     return u;
 }
@@ -13127,7 +13136,54 @@ let pziSzerk = null, pziDia = 0;
 async function pziAdat(){
     const d = await prvBetolt('prezik');
     if(!Array.isArray(d.lista)) d.lista = [];
+    await pziKozosBetolt(d);
     return d;
+}
+// A sablonok (a beépítettek módosításai, a saját sablonok, a törölt beépítettek) közösek: a
+// config/prezi_sablonok dokumentumban élnek, mindenki ugyanazt látja, módosítani az admin tud.
+// A sablonok képei a config/pzikep_{id} dokumentumokba másolódnak, hogy mindenki betölthesse.
+let pziKozos = null, pziKozosJson = '', pziKozosKer = null;
+const pziKozosAdat = d => ({ sablonok: d.sablonok || {}, rejtettSablonok: d.rejtettSablonok || [] });
+function pziKozosBetolt(d){
+    if(!pziKozosKer) pziKozosKer = (async () => {
+        let v = null, ok = false;
+        try { if(typeof window.sfGetConfigDoc === 'function'){ v = await window.sfGetConfigDoc('prezi_sablonok'); ok = true; } } catch(e){ console.warn('A közös sablonok nem töltődtek be:', e); }
+        if(!v){ v = store.load('sf_kozos_prezi_sablonok', null);
+            // első alkalom: az admin eddigi saját sablonjai lesznek a közösek
+            if(ok && !v && window.sfIsAdmin){ const sajat = pziKozosAdat(d); if(Object.keys(sajat.sablonok).length || sajat.rejtettSablonok.length){ v = JSON.parse(JSON.stringify(sajat)); pziKozosKiad(v); } } }
+        pziKozos = { sablonok: (v && v.sablonok) || {}, rejtettSablonok: (v && v.rejtettSablonok) || [] };
+        pziKozosJson = JSON.stringify(pziKozos); store.save('sf_kozos_prezi_sablonok', pziKozos);
+    })();
+    return pziKozosKer.then(() => {
+        // aki nem admin, és voltak saját sablonjai: azok a saját prezentációi közé kerülnek (nem vesznek el)
+        if(!window.sfIsAdmin && d.sablonok && !d._kozosAtk){ const sajat = Object.values(d.sablonok).filter(t => !PZI_SABLONOK.some(b => b.id === t.id));
+            sajat.forEach(t => { const c = JSON.parse(JSON.stringify(t)); c.id = pziId(); delete c.sablon; delete c.sajatSablon; d.lista.push(c); });
+            d._kozosAtk = 1; delete d.sablonok; delete d.rejtettSablonok; prvMent('prezik'); }
+        d.sablonok = pziKozos.sablonok; d.rejtettSablonok = pziKozos.rejtettSablonok;
+    });
+}
+// a közös sablonok kiadása (csak admin): a képek a közös helyre másolódnak
+async function pziKozosKiad(v){
+    if(!window.sfIsAdmin || typeof window.sfSaveConfigDoc !== 'function') return;
+    try {
+        const kepek = [...new Set(Object.values(v.sablonok || {}).flatMap(t => (t.diak || []).flatMap(pziDiaKepek)))];
+        for(const id of kepek){
+            if(pziKozosKepek.has(id)) continue;
+            const k = window.sfNlKep ? await window.sfNlKep.get(id).catch(() => null) : null;
+            if(k && k.data){ await window.sfSaveConfigDoc('pzikep_' + id, { mime: k.mime || 'image/jpeg', data: k.data }); pziKozosKepek.add(id); }
+        }
+        await window.sfSaveConfigDoc('prezi_sablonok', JSON.parse(JSON.stringify(v)));
+    } catch(e){ pzHibaJelzes('A közös sablonok mentése nem sikerült', e); }
+}
+const pziKozosKepek = new Set();
+// minden prezentáció-mentéskor: ha a sablonok változtak, az admin kiadja őket
+function pziKozosFigyel(){
+    const d = PRV.prezik; if(!d || !pziKozos) return;
+    d.sablonok = d.sablonok || pziKozos.sablonok; d.rejtettSablonok = d.rejtettSablonok || [];
+    const most = JSON.stringify(pziKozosAdat(d)); if(most === pziKozosJson) return;
+    pziKozos = JSON.parse(most); pziKozosJson = most; store.save('sf_kozos_prezi_sablonok', pziKozos);
+    d.sablonok = pziKozos.sablonok; d.rejtettSablonok = pziKozos.rejtettSablonok;
+    pziKozosKiad(pziKozos);
 }
 // A sablonok: a beépítettek (ha „Mentés sablonként” felülírtad, a mentett változat) + a saját sablonjaid.
 const pziSablonok = d => { const ov = (d && d.sablonok) || {};
@@ -13647,6 +13703,9 @@ document.addEventListener('click', async e => {
         if(p.sablon){ pziSzerk = JSON.parse(JSON.stringify(p)); pziSzerk._tpl = p.id; pziSzerk.diak.forEach((x, i) => { if(x.o == null && !p.sajatSablon) x.o = i; }); pziEdVissza = []; }
         else pziSzerk = p;
         pziDia = 0; renderPrezik(); return; }
+    if(!window.sfIsAdmin && (e.target.closest('[data-pzisablonvissza], [data-pzigyari], [data-pzimentsablon]')
+        || (e.target.closest('[data-pzitorol]') && (of(e.target.closest('[data-pzitorol]').dataset.pzitorol) || {}).sablon))){
+        alert('A sablonok közösek – módosítani csak az admin tudja. Másolatot (Mentés sajátként) bármikor készíthetsz.'); return; }
     if(e.target.closest('[data-pzisablonvissza]')){ d.rejtettSablonok = []; prvMent('prezik'); renderPrezik(); return; }
     const gy = e.target.closest('[data-pzigyari]');
     if(gy){ if(!confirm('Visszaállítod a sablon gyári állapotát? A sablonként mentett módosítások elvesznek (a saját prezentációid megmaradnak).')) return;
@@ -14253,7 +14312,7 @@ const ttMonogram = n => String(n || '?').trim().split(/\s+/).map(x => x[0] || ''
 // rálátsz): aki még nincs a tudástárban, magától bekerül; a meglévő (pl. régi, névvel
 // felvett) bejegyzések a név alapján párosulnak a felhasználóval.
 function ttSzinkron(d){
-    if(typeof ctrlEmberek !== 'function') return;
+    if(typeof ctrlEmberek !== 'function' || !window.sfIsAdmin) return;
     let valt = false;
     for(const e of ctrlEmberek()){
         const nev = String(e.name || '').replace(/ \(te\)$/, '').trim(); if(!e.uid || !nev) continue;
@@ -14439,6 +14498,8 @@ document.addEventListener('click', e => {
     const ch = e.target.closest('[data-ctrlhet]'); if(ch){ ctrlHet = Math.min(0, ctrlHet + +ch.dataset.ctrlhet); renderTudastar(); return; }
     const nz = e.target.closest('[data-ttnezet]'); if(nz){ ttNezet = nz.dataset.ttnezet; store.save('sf_tt_nezet', ttNezet); renderTudastar(); return; }
     const kr = e.target.closest('[data-ttkarrier]'); if(kr){ ttKarrier = kr.dataset.ttkarrier; renderTudastar(); return; }
+    // a tudástár közös: szerkeszteni csak az admin tud, a többiek ugyanazt látják
+    if(!window.sfIsAdmin && e.target.closest('[data-ttuj], [data-ttimport], [data-ttszerk], [data-ttcella]')) return;
     if(e.target.closest('[data-ttuj]')){ ttModal(null); return; }
     if(e.target.closest('[data-ttimport]')){ ttImport(); return; }
     const sz = e.target.closest('[data-ttszerk]'); if(sz){ ttModal(ttLista().find(x => x.id === sz.dataset.ttszerk)); return; }
@@ -28513,7 +28574,27 @@ function prvBetolt(k){
     if(PRV[k]) return Promise.resolve(PRV[k]);
     return prvToltes[k] || (prvToltes[k] = prvBetoltSzerverrol(k).finally(() => { delete prvToltes[k]; }));
 }
+// Közös kulcsok: nem a saját privát dokumentumban, hanem a csapat közös config/{k} dokumentumában
+// élnek – mindenki ugyanazt látja, írni csak az admin tud. Első betöltéskor az admin eddigi saját
+// példánya lesz a közös (átköltözés).
+const PRV_KOZOS = new Set(['tudastar']);
+async function prvKozosBetolt(k){
+    const kie = prvUid, kulcs = 'sf_kozos_' + k;
+    let v = null, ok = false;
+    try { v = await window.sfGetConfigDoc(k); ok = true; } catch(e){ console.warn('Közös adat betöltése sikertelen:', k, e); }
+    const ures = x => !x || (k === 'tudastar' && !(Array.isArray(x.sz) && x.sz.length));
+    if(ok && ures(v) && window.sfIsAdmin && typeof window.sfGetPrivatStrict === 'function'){
+        const r = await sfEredmeny(window.sfGetPrivatStrict(ezUid(), k));
+        if(r.ok && !ures(r.v)){ v = r.v; window.sfSaveConfigDoc(k, JSON.parse(JSON.stringify(v))).catch(e => pzHibaJelzes('A közös mentés nem sikerült', e)); }
+    }
+    if(!ok) v = store.load(kulcs, null);
+    const obj = prvUj(k, v); store.save(kulcs, obj);
+    if(kie === prvUid) PRV[k] = obj;
+    if(!ok) prvKesik.add(k); else prvKesik.delete(k);
+    return obj;
+}
 async function prvBetoltSzerverrol(k){
+    if(PRV_KOZOS.has(k) && typeof window.sfGetConfigDoc === 'function') return prvKozosBetolt(k);
     const kie = prvUid;
     let adat = store.load(prvKulcs(k), null);
     const uid = ezUid();
@@ -28576,6 +28657,22 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && prv
 // példánnyal írnánk felül azt, ami a szerveren van.
 function prvMent(k){
     const adat = PRV[k]; if(!adat) return;
+    if(k === 'prezik' && typeof pziKozosFigyel === 'function'){
+        pziKozosFigyel();
+        // a saját dokumentumba csak a saját prezentációk kerülnek – a sablonok a közös helyen vannak
+        const sajat = { ...adat }; delete sajat.sablonok; delete sajat.rejtettSablonok;
+        store.save(prvKulcs(k), sajat);
+        const uid = ezUid();
+        if(uid && !prvHiba.has(k) && !prvKesik.has(k) && typeof window.sfSavePrivat === 'function')
+            window.sfSavePrivat(uid, k, JSON.parse(JSON.stringify(sajat))).catch(e => pzHibaJelzes('A mentés a szerverre nem sikerült', e));
+        return;
+    }
+    if(PRV_KOZOS.has(k)){
+        store.save('sf_kozos_' + k, adat);
+        if(window.sfIsAdmin && !prvKesik.has(k) && typeof window.sfSaveConfigDoc === 'function')
+            window.sfSaveConfigDoc(k, JSON.parse(JSON.stringify(adat))).catch(e => pzHibaJelzes('A mentés a szerverre nem sikerült', e));
+        return;
+    }
     store.save(prvKulcs(k), adat);
     const uid = ezUid();
     if(uid && !prvHiba.has(k) && !prvKesik.has(k) && typeof window.sfSavePrivat === 'function')
@@ -32501,7 +32598,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=85";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=86";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -32531,6 +32628,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     window.sfGetEdzesStrict = getEdzesStrict;
     window.sfSaveEdzes = saveEdzes;
     window.sfGetPrivatStrict = getPrivatStrict;
+    window.sfGetConfigDoc = getConfigDoc; window.sfSaveConfigDoc = saveConfigDoc;
     window.sfGetOnismeret = getOnismeret;
     window.sfDeleteOnismeret = deleteOnismeret;
     window.sfSavePrivat = savePrivat;
@@ -32555,7 +32653,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         initCalendar();
         window.sfUserName = user.displayName || user.email || "";
         window.sfCurrentUser = { uid: user.uid, email: user.email || "", name: user.displayName || user.email || "" };
-        window.sfIsAdmin = isAdmin(user);   // már itt kell (pl. a Pénzügyek kategória-szűrője), nem csak a hozzáférés-térkép után
+        window.sfIsAdmin = isAdmin(user); document.body.classList.toggle('sf-adm', !!window.sfIsAdmin);   // már itt kell (pl. a Pénzügyek kategória-szűrője), nem csak a hozzáférés-térkép után
         getAppConfig().then(cfg => {
             currentConfig = cfg || {};
             window._admCfg = currentConfig;
@@ -36481,13 +36579,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         opts.map(o => `<option value="${escM(o)}"${o===val?' selected':''}>${escM(o)}</option>`).join('')}</select>`;
 
     function pgShell(){
-        const tab = (k, label) => `<button class="pg-tab${pgTab===k?' active':''}" data-pgtab="${k}">${label}</button>`;
-        const openCount = pgMyAkciok().filter(a => !a.done).length;
         return `
         <div class="pg-hero">
-            <div class="pg-hero-txt"><h2>Bedolgozás</h2><p>Az új munkatárs útja lépésről lépésre – a kimenete az <b>akciótervekbe</b> fut be.</p></div>
+            <div class="pg-hero-txt"><h2>Bedolgozás</h2><p>Az új munkatárs útja lépésről lépésre – a kiadott házi feladatok a <b>Feladatok</b> közé kerülnek.</p></div>
         </div>
-        <div class="pg-tabs">${tab('bed','Bedolgozás')}${tab('akcio', `Akciótervek${openCount?` <span class="pg-badge">${openCount}</span>`:''}`)}</div>
         <div id="pgMount">${sfVaz()}</div>`;
     }
 
@@ -38529,7 +38624,7 @@ Vállalkozás nyitásának átbeszélése`, '']
     window.sfShowPG = async function(){
         const body = document.getElementById("pgBody"); if(!body) return;
         const cs = document.getElementById("csendesBody"); if(cs) cs.innerHTML = '';
-        if(pgTab !== 'bed' && pgTab !== 'akcio') pgTab = 'bed';
+        pgTab = 'bed';   // az Akciótervek fül megszűnt – a házi feladatok a Feladatok között jelennek meg
         body.innerHTML = pgShell();
         document.querySelectorAll('.pg-tabs [data-pgtab]').forEach(b =>
             b.addEventListener('click', () => pgSetTab(b.dataset.pgtab)));
@@ -41910,7 +42005,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         }
     }
 
-    const STR_ROLE_LABELS = { leader:'Vezető', member:'Munkatárs', new:'Új MT' };
+    const STR_ROLE_LABELS = { leader:'Vezető', member:'Munkatárs', new:'Új MT', pot:'Potenciális MT' };
     // Struktúra-pont szerepkörönként: vezető 2, munkatárs 1, új munkatárs még 0.
     const STR_ROLE_POINTS = { leader:2, member:1, new:0 };
     // Csak az első szint számít: a struktúra tetején álló (te) nem, és a
@@ -42148,8 +42243,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                     <option value="leader"${(!existing||existing.role==='leader')?' selected':''}>Vezető</option>
                     <option value="member"${(existing&&existing.role==='member')?' selected':''}>Munkatárs</option>
                     <option value="new"${(existing&&existing.role==='new')?' selected':''}>Új MT</option>
+                    <option value="pot"${(existing&&existing.role==='pot')?' selected':''}>Potenciális MT</option>
                 </select></div>
-                <div><label>Email (Google-fiók, a bejelentkezéshez)</label><input id="strEmailInp" type="email" value="${existing ? escM(existing.email||'') : ''}" placeholder="nev@example.com"></div>
                 ${showParentSelect ? `<div><label>Vezető</label><select id="strParentInp">${parentOptions}</select></div>` : ''}
             </div>
             <div class="org-modal-foot">
@@ -42165,11 +42260,10 @@ Vállalkozás nyitásának átbeszélése`, '']
         ov.querySelector('#strSave').addEventListener('click', ()=>{
             const name = ov.querySelector('#strNameInp').value.trim();
             const role = ov.querySelector('#strRoleInp').value;
-            const email = ov.querySelector('#strEmailInp').value.trim().toLowerCase();
             const parentInp = ov.querySelector('#strParentInp');
             const newParentId = parentInp ? parentInp.value : null;
             if(existing){
-                existing.name = name; existing.role = role; existing.email = email;
+                existing.name = name; existing.role = role;
                 if(newParentId && (!currentParent || currentParent.id !== newParentId)){
                     if(currentParent) currentParent.children = currentParent.children.filter(c=>c.id!==existing.id);
                     const newParent = strFindNode(strTree, newParentId);
@@ -42177,7 +42271,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 }
             } else {
                 const parent = strFindNode(strTree, newParentId || strTree.id);
-                if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,email,children:[]}); }
+                if(parent){ if(!parent.children) parent.children=[]; parent.children.push({id:strId(),name,role,children:[]}); }
             }
             close(); renderStrukturaBody();
             saveStrTree(strTree);
