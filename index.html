@@ -9782,6 +9782,10 @@
         .bl-stilus i { position:relative; overflow:hidden; }
         @media (max-width:760px){ .bl:not(.reszlet) > .bl-fej { display:none; } }
         .ma-figy { display:flex; flex-direction:column; gap:8px; margin:0 0 14px; padding:12px 14px; border-radius:20px; background:#fff7ed; border:1px solid #fed7aa; cursor:pointer; }
+        .ma-tipp { display:flex; gap:12px; align-items:flex-start; margin:0 0 14px; padding:12px 16px; border-radius:20px; background:color-mix(in srgb, var(--blue, #1f5fd0) 7%, #fff); cursor:pointer; }
+        body.sf-privat .ma-tipp { background:color-mix(in srgb, #7c3aed 7%, #fff); }
+        .ma-tipp i { font-style:normal; font-size:20px; line-height:1.2; } .ma-tipp p { margin:0; font-size:14px; line-height:1.45; color:#1f2937; } .ma-tipp p span { color:#6b7280; }
+        .nl-tipp span { color:#6b7280; }
         .ma-figy-s { display:flex; align-items:center; gap:12px; }
         .ma-figy-s .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
         .ma-figy-s .t b { font-size:14px; color:#9a3412; } .ma-figy-s.tul .t b { color:#be123c; }
@@ -29432,6 +29436,36 @@ function nlNapLap(s){
     });
 }
 // ---- statisztika ----
+// Mi tesz jót? Az elmúlt 90 nap (a veg napig) hangulata tényezőnként: vele és nélküle (átlag és a jó/király napok aránya).
+function nlHatasok(B, sz, veg){
+    const tol = ezPlusz(veg, -89);
+    const minta = []; for(let s = tol; s <= veg; s = ezPlusz(s, 1)){ const h = nlNapH(s); if(h) minta.push(s); }
+    const napTev = s => new Set(nlNapBej(s).flatMap(b => b.tev || []));
+    const edzett = s => { const sv = typeof ezSvNap === 'function' ? ezSvNap(s) : null; if(sv && (sv.extra.length || [...sv.par.values()].some(p => p.akt.length))) return true;
+        return ezNapLista(s).some(e => e.sport !== 'pih' && (ezAll(e, s) === 'ok' || ezAll(e, s) === 'resz')); };
+    const szokArany = s => { if(!sz) return null; const a = szNapiAllas(sz, s); return a.es ? a.kesz / a.es : null; };
+    const kv = PRV.konyvek;
+    const alvas = s => { const a = nlNapAlv(s); return a ? a >= 420 : null; };
+    const vizes = s => { const v = nlNapViz(s); return v ? v >= NL_VIZ_CEL : null; };
+    const TENY = [
+        ...B.tev.map(t => [`${t.ik || ''} ${t.n}`, s => napTev(s).has(t.id)]),
+        // az egyes szokások: csak azokon a napokon számít, amikor esedékes volt
+        ...(sz ? szAktiv(sz).map(h => [`✓ ${h.n}`, s => szEsedekes(h, s) ? szKesz(sz, h, s) : null, h.n]) : []),
+        ['🏃 Edzés (Strava / napló)', edzett],
+        ['✅ Célok legalább 80%-a', s => { const a = szokArany(s); return a == null ? null : a >= 0.8; }],
+        ['📚 Olvasás', s => !!kv && kvLista(kv).some(k => (k.naplo || {})[s] > 0)],
+        ['🛏️ Legalább 7 óra alvás', alvas],
+        [`💧 Legalább ${NL_VIZ_CEL} pohár víz`, vizes],
+    ];
+    const jo = l => l.length ? l.filter(h => h >= 4).length / l.length : 0;
+    return TENY.map(([nev, f, szokas]) => { const a = [], b = []; for(const s of minta){ const v = f(s); if(v === true) a.push(nlNapH(s)); else if(v === false) b.push(nlNapH(s)); }
+        return a.length >= 3 && b.length >= 3 ? { nev, szokas, a: nlAtlag(a), b: nlAtlag(b), n: a.length, joA: jo(a), joB: jo(b) } : null; }).filter(Boolean).sort((p, q) => (q.a - q.b) - (p.a - p.b));
+}
+// „Amikor sportoltál, a napjaid 78%-a jó vagy király volt (nélküle 41%).”
+function nlHatasMondat(r){
+    const nev = r.nev.replace(/^[^\p{L}\d]+/u, '').trim();
+    return `Amikor <b>${esc(nev)}</b> ${r.szokas ? 'megvolt' : 'szerepelt a napodban'}, a napjaid <b>${Math.round(r.joA * 100)}%</b>-a jó vagy király volt <span>(nélküle ${Math.round(r.joB * 100)}%)</span>.`;
+}
 function nlStatHtml(B, sz){
     const ma = ezMa(), [y, m] = nlHo.split('-').map(Number), hossz = new Date(y, m, 0).getDate();
     const honap = Array.from({ length: hossz }, (_, i) => `${nlHo}-${String(i + 1).padStart(2, '0')}`);
@@ -29484,28 +29518,11 @@ function nlStatHtml(B, sz){
     const gyHtml = `<div class="nl-gy-hang">${[5,4,3,2,1].map(h => `<button type="button" data-nlstathang="${h}" class="${nlStatHang === h ? 'on' : ''}" style="--c:${NL_SZ[h]}">${nlArc(h, 'kicsi')}<span>${esc(NL_HANG_SZO[h])} (${db[h]}×)</span></button>`).join('')}</div>
         ${gyl.length ? `<div class="nl-tevdb">${gyl.map(([t, n]) => `<span><i>${esc(t.ik || '🏷️')}<b>${n}</b></i><em>${esc(t.n)}</em></span>`).join('')}</div>` : `<p class="pv-megj">Ilyen hangulatú bejegyzés ebben a hónapban nincs tevékenységgel.</p>`}`;
     // 7. mi tesz jót? (90 nap, a hónap végéig)
-    const veg = honap[hossz - 1] < ma ? honap[hossz - 1] : ma, tol = ezPlusz(veg, -89);
-    const minta = []; for(let s = tol; s <= veg; s = ezPlusz(s, 1)){ const h = nlNapH(s); if(h) minta.push(s); }
-    const napTev = s => new Set(nlNapBej(s).flatMap(b => b.tev || []));
-    const edzett = s => { const sv = typeof ezSvNap === 'function' ? ezSvNap(s) : null; if(sv && (sv.extra.length || [...sv.par.values()].some(p => p.akt.length))) return true;
-        return ezNapLista(s).some(e => e.sport !== 'pih' && (ezAll(e, s) === 'ok' || ezAll(e, s) === 'resz')); };
-    const szokArany = s => { if(!sz) return null; const a = szNapiAllas(sz, s); return a.es ? a.kesz / a.es : null; };
-    const kv = PRV.konyvek;
-    const alvas = s => { const a = nlNapAlv(s); return a ? a >= 420 : null; };
-    const vizes = s => { const v = nlNapViz(s); return v ? v >= NL_VIZ_CEL : null; };
-    const TENY = [
-        ...B.tev.map(t => [`${t.ik || ''} ${t.n}`, s => napTev(s).has(t.id)]),
-        ['🏃 Edzés (Strava / napló)', edzett],
-        ['✅ Célok legalább 80%-a', s => { const a = szokArany(s); return a == null ? null : a >= 0.8; }],
-        ['📚 Olvasás', s => !!kv && kvLista(kv).some(k => (k.naplo || {})[s] > 0)],
-        ['🛏️ Legalább 7 óra alvás', alvas],
-        [`💧 Legalább ${NL_VIZ_CEL} pohár víz`, vizes],
-    ];
-    const eredm = TENY.map(([nev, f]) => { const a = [], b = []; for(const s of minta){ const v = f(s); if(v === true) a.push(nlNapH(s)); else if(v === false) b.push(nlNapH(s)); }
-        return a.length >= 3 && b.length >= 3 ? { nev, a: nlAtlag(a), b: nlAtlag(b), n: a.length } : null; }).filter(Boolean).sort((p, q) => (q.a - q.b) - (p.a - p.b));
+    const veg = honap[hossz - 1] < ma ? honap[hossz - 1] : ma;
+    const eredm = nlHatasok(B, sz, veg);
     const mutat = eredm.length > 10 ? [...eredm.slice(0, 6), ...eredm.slice(-4)] : eredm;
-    const jotHtml = mutat.length ? `${eredm[0] && eredm[0].a - eredm[0].b >= 0.3 ? `<p class="nl-tipp">A legjobb napjaidon gyakran ott van: <b>${esc(eredm[0].nev.trim())}</b> – átlag ${nlSzam(eredm[0].a)} vs. ${nlSzam(eredm[0].b)} nélküle.</p>` : ''}
-        <div class="nl-teny">${mutat.map(r => { const k = r.a - r.b; return `<div class="nl-t-sor"><span class="n">${esc(r.nev.trim())}<em>${r.n} nap</em></span>
+    const jotHtml = mutat.length ? `${eredm[0] && eredm[0].a - eredm[0].b >= 0.3 ? `<p class="nl-tipp">${nlHatasMondat(eredm[0])}</p>` : ''}
+        <div class="nl-teny">${mutat.map(r => { const k = r.a - r.b; return `<div class="nl-t-sor"><span class="n">${esc(r.nev.trim())}<em>${r.n} nap · ${Math.round(r.joA * 100)}% jó nap (nélküle ${Math.round(r.joB * 100)}%)</em></span>
             <span class="nl-hatas"><i class="${k >= 0 ? 'poz' : 'neg'}" style="width:${Math.min(50, Math.abs(k) / 2 * 50)}%"></i></span><b class="${k >= 0 ? 'poz' : 'neg'}">${k >= 0 ? '+' : '−'}${nlSzam(Math.abs(k))}</b></div>`; }).join('')}</div>`
         : `<p class="pv-megj">Pár hét kitöltés után itt látod, mi emeli és mi húzza le a hangulatodat (tevékenységek, edzés, célok, olvasás, alvás). Egy tényezőhöz legalább 3–3 nap kell vele és nélküle.</p>`;
     // 8. hangulatstabilitás
@@ -30656,6 +30673,12 @@ async function renderPrivMa(){
             const kolt2 = lista.reduce((a, t) => a + (pzKi(t) && (t.k || 'Egyéb') === k.n ? (t.o || 0) : 0), 0);
             return { k, kolt: kolt2, ar: kolt2 / k.k }; })
         .filter(x => x.ar >= 1 || (x.ar >= .8 && x.ar > honapArany + .15)).sort((a, b) => b.ar - a.ar).slice(0, 3) : [];
+    // napi tipp a naplóból: mi tesz jót? (az elmúlt 90 nap alapján; a legerősebb 3 pozitív tényező naponta váltakozva)
+    let tippHtml = '';
+    if(!maEdit) try { const nlB = await nlBeall();
+        const jok = nlHatasok(nlB, sz, ezPlusz(ma, -1)).filter(r => r.a - r.b >= .3 && r.joA - r.joB >= .15 && r.n >= 5).slice(0, 3);
+        if(jok.length){ const r = jok[Math.floor(Date.now() / 864e5) % jok.length]; tippHtml = `<div class="ma-tipp" data-mamenj="enaplo" role="button" tabindex="0"><i>💡</i><p>${nlHatasMondat(r)}</p></div>`; }
+    } catch(e){}
     const figyHtml = figy.length && !maEdit ? `<div class="ma-figy" data-mamenj="penzugyek" role="button" tabindex="0">${figy.map(x => `<div class="ma-figy-s${x.ar >= 1 ? ' tul' : ''}">
             ${pzIk(x.k.ik, x.k.c)}<span class="t"><b>${esc(x.k.n)}: ${Math.round(x.ar * 100)}% elköltve</b>
             <span>${x.ar >= 1 ? `${pzFt(x.kolt - x.k.k)} Ft-tal túllépted a keretet` : `a hónap ${Math.round(honapArany * 100)}%-ánál · maradt ${pzFt(x.k.k - x.kolt)} Ft`}</span>
@@ -30668,7 +30691,7 @@ async function renderPrivMa(){
         ${maEdit ? `<div class="ma-szerk-info"><p>Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A „Látszik” gombbal elrejted / megjeleníted, a ½ · ▬ gombokkal a szélességét állítod.</p>
             <span class="gombok"><button type="button" data-maalap title="Az eredeti sorrend, szélesség és láthatóság">Visszaállítás</button><button type="button" class="kesz" data-matestre>Kész</button></span>
             <label><input type="checkbox" data-maesti${mb.esti ? ' checked' : ''}> Este 17 óra után az Esti zárás a lap tetejére kerül, ha még nem írtál aznap</label></div>` : ''}
-        ${figyHtml}<div class="ma-racs${maEdit ? ' szerk' : ''}">${racs}</div>
+        ${figyHtml}${tippHtml}<div class="ma-racs${maEdit ? ' szerk' : ''}">${racs}</div>
         ${maEdit ? '' : `<button type="button" class="ma-testre" data-matestre><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Ma oldal testreszabása</button>`}`;
     if(szGorg){ const g = host.querySelector('.ma-szok'); if(g) g.scrollLeft = szGorg; }
     nlKepTolt(host);
