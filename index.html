@@ -665,7 +665,7 @@
             #page-penzugyek #pzFej .pz-pill button.on, body .oi-fulek button.on, body .pz-seg2.ez-tabok button.on, body .pz-seg2.nl-tabok button.on, body .tt-fo button.on, body .sb-ful button.on, body #celokBody .cl-tabs button.on { background:#fff !important; color:#1f5fd0 !important; font-weight:750 !important; box-shadow:0 2px 8px rgba(60,30,120,.12) !important; }
             body.sf-privat #page-penzugyek #pzFej .pz-pill button.on, body.sf-privat .oi-fulek button.on, body.sf-privat .pz-seg2.ez-tabok button.on, body.sf-privat .pz-seg2.nl-tabok button.on, body.sf-privat .tt-fo button.on, body.sf-privat .sb-ful button.on, body.sf-privat #celokBody .cl-tabs button.on { color:#6d28d9 !important; }
             /* az oldal fülei lent, a sávon (hosszú nyomás a középső gombon) – fent nincs fülsor */
-            html body #page-penzugyek #pzFej .pz-pill, html body .oi-fulek, html body .pz-seg2.ez-tabok, html body .pz-seg2.nl-tabok, html body .tt-fo, html body .sb-ful, html body #celokBody .cl-tabs,
+            html body #page-penzugyek #pzFej .pz-pill, html body .oi-fulek, html body .pz-seg2.ez-tabok, html body .pz-seg2.nl-tabok, html body #celokBody .cl-tabs,
             html body.sf-privat #page-penzugyek #pzFej .pz-pill, html body.sf-privat #celokBody .cl-tabs, html body.sf-privat #page-enaplo .nl-tabok,
             html body.sf-privat #edzBody .ez-tabok, html body #edzBody .ez-tabok { display:none !important; }
             .szm-also { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
@@ -1177,6 +1177,10 @@
         .guide-panel.open .guide-toggle .chev { transform:rotate(180deg); }
         .guide-body { display:none; padding:18px 22px; border-top:1px solid var(--border); }
         .guide-panel.open .guide-body { display:block; }
+        .guide-panel.kicsi:not(.open) { display:flex; justify-content:flex-end; border:0; background:none; margin:-2px 0 6px; overflow:visible; }
+        .guide-panel.kicsi:not(.open) .guide-toggle { width:auto; padding:5px 12px 5px 8px; border-radius:999px; font-size:11.5px; gap:6px; }
+        .guide-panel.kicsi:not(.open) .guide-toggle .icon svg { width:15px; height:15px; }
+        .guide-panel.kicsi:not(.open) .guide-toggle .chev { display:none; }
         .guide-intro { font-size:12px; color:var(--muted); margin:0 0 14px; line-height:1.5; }
         .guide-groups { column-count:2; column-gap:32px; }
         @media (max-width:800px){ .guide-groups { column-count:1; } }
@@ -7942,8 +7946,16 @@
                lehetett nyomni), és oldalra görgette az egész oldalt. Mobilon
                ezért a cím, a kereső és az eszközök külön sorba kerülnek. */
             .reg-bar { gap:9px; padding:10px 12px; }
-            .reg-bar > h2 { flex:1 1 100%; white-space:normal; }
-            .reg-bar > #regTimerSlot, .reg-bar > #ketorasTimerSlot { flex:1 1 100%; }
+            .reg-bar > h2 { flex:1 1 auto; white-space:normal; min-width:0; }
+            /* az aktivitás-időzítő kis pirula a cím mellett; koppintásra kinyílik a teljes sáv */
+            .reg-bar > #regTimerSlot, .reg-bar > #ketorasTimerSlot { flex:0 0 auto; }
+            .reg-bar > :is(#regTimerSlot, #ketorasTimerSlot):has(.timer-card.nyitva) { flex:1 1 100%; order:1; }
+            .reg-bar .timer-card:not(.nyitva) { padding:4px 10px 4px 5px !important; border-radius:999px !important; gap:6px !important; cursor:pointer; min-height:0; }
+            .reg-bar .timer-card:not(.nyitva) .timer-ic { width:24px !important; height:24px !important; }
+            .reg-bar .timer-card:not(.nyitva) :is(.timer-lbl > span:first-child, .timer-bar, .timer-badge) { display:none !important; }
+            .reg-bar .timer-card:not(.nyitva) .timer-main { min-width:0; }
+            .reg-bar .timer-card:not(.nyitva) .timer-val { font-size:12.5px; }
+            .reg-bar .timer-card { cursor:pointer; }
             .reg-bar .reg-search { flex:1 1 100%; max-width:none; }
             .reg-tools { flex-wrap:wrap; width:100%; margin-left:0; row-gap:8px; }
             /* A 10 percesnél a tölcsér és a visszaállítás gomb is elfér mellette,
@@ -10731,6 +10743,13 @@ function guidePanelHtml(id, introText){
         </div>
     </div>`;
 }
+// Ha már van egy rendes lista (legalább 5 név), a segédlet csak egy kis „?” pirula a jobb szélen – nem foglal egész sort.
+function guideMeret(){
+    [['regGuide', '#regViews .rc, #regViews tr[data-open]'], ['ketorasGuide', '#ketorasViews .rc, #ketorasViews [data-ketpipe]']].forEach(([id, sel]) => {
+        const g = document.getElementById(id); if(g) g.classList.toggle('kicsi', document.querySelectorAll(sel).length >= 5); });
+}
+new MutationObserver(() => { clearTimeout(guideMeret._t); guideMeret._t = setTimeout(guideMeret, 60); })
+    .observe(document.body, { childList: true, subtree: true });
 document.addEventListener('click', e=>{
     const t = e.target.closest('[data-guide-toggle]');
     if(!t) return;
@@ -10891,6 +10910,7 @@ function timerCardHtml(id, label){
         <span class="timer-badge" id="${id}-badge">folyamatban</span>
     </div>`;
 }
+document.addEventListener('click', e => { const t = e.target.closest('.reg-bar .timer-card'); if(t && matchMedia('(max-width:760px)').matches) t.classList.toggle('nyitva'); });
 function fmtMinSec(totalSec){
     const m = Math.floor(totalSec/60), s = totalSec%60;
     return `${m}:${String(s).padStart(2,'0')}`;
@@ -30807,7 +30827,8 @@ async function szUjInditas(){
     if(g) g.click();
 }
 // ---- az oldal fülei a sávon (a középső gomb két oldalán) ----
-const SZ_FUL_SEL = '#pzFej .pz-pill, .oi-fulek, .pz-seg2.ez-tabok, .pz-seg2.nl-tabok, .tt-fo, .sb-ful, #celokBody .cl-tabs';
+// a Sikerfüzet oldalainak fülei (Tudásbázis, Sablonok) fent maradnak, görgethető sorban – nem kerülnek az alsó sávra
+const SZ_FUL_SEL = '#pzFej .pz-pill, .oi-fulek, .pz-seg2.ez-tabok, .pz-seg2.nl-tabok, #celokBody .cl-tabs';
 const SZ_FUL_ROVID = { 'Bejegyzések': 'Lista', 'Statisztika': 'Stat', 'Tevékenységek': 'Tevék.', 'Tranzakciók': 'Tranz.', 'Nyilvántartások': 'Nyilv.',
     'Pénztárcák': 'Tárcák', 'Előfizetések': 'Előfiz.', 'Áttekintés': 'Összkép', 'Hawkins-skála': 'Hawkins', 'Havi vállalás': 'Vállalás', 'Szabályaim': 'Szabályok',
     'Tudásbázis': 'Tudás', 'Bedolgozás': 'Bedolg.', 'Elemzések': 'Elemzés', 'Skoolposzt és komment': 'Skool', 'E-mail': 'E-mail', 'Telefonhívás-segédletek': 'Telefon' };
