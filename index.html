@@ -1461,6 +1461,13 @@
         .rc-saved svg { width:14px; height:14px; color:var(--green); }
         .rc-foot .btn.primary { margin-left:auto; background:var(--blue); color:#fff; border-color:var(--blue); }
         .rc-foot .btn.primary:hover { background:#1a52b8; }
+        /* telefonon a lábléc: a gombok egy sorban, egyforma magasan; a „mentve” felirat alattuk középen */
+        @media (max-width:760px){
+            html body .rc.open .rc-foot { flex-wrap:wrap; gap:8px; padding:12px 14px calc(12px + var(--sf-alul, 0px)); border-radius:0 0 10px 10px; }
+            html body .rc.open .rc-foot > .btn { margin:0 !important; flex:1 1 0; display:inline-flex; align-items:center; justify-content:center; text-align:center; min-width:0; min-height:44px; padding:8px 10px; font-size:13px; line-height:1.2; white-space:normal; }
+            html body .rc.open .rc-foot > .btn.primary { flex:0 0 auto; padding:8px 22px; }
+            html body .rc.open .rc-foot > .rc-saved { order:9; flex-basis:100%; justify-content:center; }
+        }
         #regFoot.card { margin-top:10px; }
 
         /* ===== NÉZETVÁLTÓ + PIPELINE / KÉTPANELES NÉZET (10 perces és 2 órás füzet) ===== */
@@ -8203,7 +8210,7 @@
         .pv-ures { padding:40px 16px; text-align:center; color:#6b7280; }
         .pv-kartya { border-radius:24px; padding:6px 0 10px; margin:0 0 12px; }
         .pv-cim { display:flex; align-items:center; gap:10px; font-size:16px; font-weight:700; color:#111827; margin:0; padding:14px 18px 6px; }
-        .pv-cim .pv-link, .pv-cim .pv-lep { margin-left:auto; }
+        .pv-cim .pv-link, .pv-cim .pv-lep { margin-left:auto; font-family:-apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif; font-size:13px; font-weight:600; letter-spacing:0; }
         .pv-szam { font-size:13px; font-weight:600; color:#6b7280; }
         .pv-link { border:0; background:none; padding:0; font:inherit; font-size:13px; font-weight:600; color:var(--blue); cursor:pointer; }
         body.sf-privat .pv-link { color:#6d28d9; }
@@ -8499,6 +8506,15 @@
         .nl-k-eg { display:flex; flex-wrap:wrap; gap:6px; }
         .nl-k-eg span { font-size:13px; color:#374151; background:#f3f4f6; border-radius:999px; padding:5px 11px; font-variant-numeric:tabular-nums; }
         .nl-k-cel { display:flex; gap:14px; align-items:flex-start; padding:12px 18px 16px; border-top:1px solid #f1f3f6; }
+        /* összecsukva csak egy sor: rakéta, felirat, darabszám; koppintásra kinyílik a lista */
+        details.nl-k-cel { display:block; padding:10px 18px; }
+        details.nl-k-cel > summary { display:flex; align-items:center; gap:10px; list-style:none; cursor:pointer; font-size:13.5px; -webkit-tap-highlight-color:transparent; }
+        details.nl-k-cel > summary::-webkit-details-marker { display:none; }
+        details.nl-k-cel > summary::after { content:'›'; margin-left:auto; color:#9ca3af; font-size:18px; line-height:1; transition:transform .2s; }
+        details.nl-k-cel[open] > summary::after { transform:rotate(90deg); }
+        details.nl-k-cel .nl-k-celik { font-size:16px; }
+        .nl-k-celdb { min-width:22px; height:22px; padding:0 7px; border-radius:999px; background:#f1f3f6; color:#4b5563; font-size:12px; font-weight:700; display:inline-grid; place-items:center; }
+        details.nl-k-cel > span.nl-k-cel-l { display:block; padding:8px 0 4px 36px; font-size:13.5px; color:#374151; line-height:1.55; } .nl-k-cel-l b { color:#cbd5e1; font-size:10px; }
         .nl-k-celik { width:48px; flex:none; text-align:center; font-size:20px; }
         .nl-k-cel > span:last-child { display:flex; flex-direction:column; gap:3px; font-size:13.5px; color:#374151; } .nl-k-cel b { color:#111827; } .nl-k-cel > span:last-child b + span b { color:#cbd5e1; font-size:10px; }
         /* szerkesztő */
@@ -29175,7 +29191,7 @@ function nlKartya(b, B, sz, napElso){
             ${(b.kep || []).length ? `<span class="nl-k-kepek">${b.kep.map(k => `<span class="nl-kep"><img data-nlkep="${esc(k)}" alt=""></span>`).join('')}</span>` : ''}
             ${b.alv || b.lep || b.e ? `<span class="nl-k-eg">${b.alv ? `<span>🛏️ ${ora(b.alv)}</span>` : ''}${b.lep ? `<span>👣 ${b.lep}</span>` : ''}${b.e ? `<span>⚡ ${b.e}/5</span>` : ''}</span>` : ''}
         </span></button>
-        ${cel.length ? `<div class="nl-k-cel"><span class="nl-k-celik">🚀</span><span><b>Teljesített célok</b><span>${cel.map(h => esc(h.n)).join(' <b>•</b> ')}</span></span></div>` : ''}</div>`;
+        ${cel.length ? `<details class="nl-k-cel"><summary><span class="nl-k-celik">🚀</span><b>Teljesített célok</b><span class="nl-k-celdb">${cel.length}</span></summary><span class="nl-k-cel-l">${cel.map(h => esc(h.n)).join(' <b>•</b> ')}</span></details>` : ''}</div>`;
 }
 // ---- fő nézet ----
 const NL_NEZET = [['bej', 'Bejegyzések', 'jegyzet'], ['stat', 'Statisztika', 'attek'], ['naptar', 'Naptár', 'naptar'], ['tev', 'Tevékenységek', 'cimke']];
