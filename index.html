@@ -9759,6 +9759,13 @@
         /* Meleg természet: puha, talpas címek */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+        /* ===== csúsztatós sorműveletek ===== */
+        .sf-cs-sor { position:relative; overflow:hidden; }
+        .sf-cs-sor > :not(.sf-cs-akt) { transform:translateX(var(--sx, 0px)); transition:transform .26s cubic-bezier(.22,.8,.25,1); }
+        .sf-cs-sor.sf-cs-huz > :not(.sf-cs-akt) { transition:none; }
+        .sf-cs-akt { position:absolute; top:0; right:0; bottom:0; width:0; display:flex; overflow:hidden; z-index:2; transition:width .26s cubic-bezier(.22,.8,.25,1); }
+        .sf-cs-sor.sf-cs-huz > .sf-cs-akt { transition:none; }
+        .sf-cs-akt button { flex:1 0 0; min-width:0; border:0; color:#fff; font:inherit; font-size:13px; font-weight:700; padding:0 4px; cursor:pointer; white-space:nowrap; overflow:hidden; }
         /* ===== összecsukódó nagy cím (telefon): görgetéskor a cím finoman összemegy, a sáv matt üveg lesz ===== */
         @media (max-width:1000px){
             #mbTitle { display:inline-block; transform-origin:left center; transition:transform .22s cubic-bezier(.22,.8,.25,1), opacity .2s; will-change:transform; }
@@ -14889,6 +14896,75 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         }
     };
     document.addEventListener('touchend', vege); document.addEventListener('touchcancel', vege);
+})();
+
+// ===== Csúsztatós sorműveletek (telefon): a sort balra húzva gombok jelennek meg =====
+// Feladatok: Kész / Törlés; 10 perces és 2 órás füzet: Hívás / Törlés. Félúton túl húzva nyitva marad, máshova koppintva bezárul.
+(function(){
+    const W = 76;
+    const ugyfelTorol = i => { const r = registry[i]; if(!r) return;
+        if(!confirm(`Biztosan törlöd${r.name ? ' „' + r.name + '”' : ' ezt a sort'}? Ez nem vonható vissza.`)) return;
+        if(r.id && typeof window.sfDeleteClient === 'function') window.sfDeleteClient(r.id);
+        registry.splice(i, 1); regExpandedIdx = null; ketorasExpandedIdx = null; store.save('sf_registry', registry);
+        renderRegistry(); if(typeof renderKetorasList === 'function') renderKetorasList(); refreshMoneyCareer(); };
+    const ugyfelGombok = i => { const r = registry[i] || {}, tel = String(r.phone || '').replace(/[^\d+]/g, '');
+        return [...(tel ? [{ t: 'Hívás', c: '#16a34a', fn: () => { location.href = 'tel:' + tel; } }] : []), { t: 'Törlés', c: '#e11d48', fn: () => ugyfelTorol(i) }]; };
+    const TIPUS = [
+        { sel: '#page-feladatok .fd-row[data-fdrow]', gombok: row => { const id = row.dataset.fdrow, m = window.sfFdMuvelet; if(!m) return [];
+            return [{ t: m.kesz_e(id) ? 'Vissza' : 'Kész', c: '#16a34a', fn: () => m.kesz(id) }, { t: 'Törlés', c: '#e11d48', fn: () => m.torol(id) }]; } },
+        { sel: '#regViews .rc[data-open]:not(.open)', gombok: row => ugyfelGombok(+row.dataset.open) },
+        { sel: '#ketorasViews .rc[data-ketopen]:not(.open)', gombok: row => ugyfelGombok(+row.dataset.ketopen) },
+    ];
+    let h = null, nyitott = null;
+    const allit = (row, dx, anim) => {
+        row.classList.toggle('sf-cs-huz', !anim);
+        row.style.setProperty('--sx', dx + 'px');
+        const a = row.querySelector(':scope > .sf-cs-akt'); if(a) a.style.width = Math.max(0, -dx) + 'px';
+    };
+    const zar = row => { if(!row) return; allit(row, 0, true); if(nyitott === row) nyitott = null;
+        setTimeout(() => { if(row !== nyitott && !(h && h.row === row)){ row.querySelector(':scope > .sf-cs-akt')?.remove(); row.classList.remove('sf-cs-sor', 'sf-cs-huz'); row.style.removeProperty('--sx'); } }, 280); };
+    document.addEventListener('touchstart', e => {
+        h = null; if(e.touches.length !== 1 || !matchMedia('(max-width:760px)').matches) return;
+        if(e.target.closest('.sf-cs-akt')) return;
+        if(nyitott && !nyitott.contains(e.target)) zar(nyitott);
+        if(e.target.closest('input, select, textarea')) return;
+        for(const t of TIPUS){ const row = e.target.closest(t.sel); if(row){ h = { row, t, x0: e.touches[0].clientX, y0: e.touches[0].clientY, alap: row === nyitott ? -W * (row._sfDb || 0) : 0, dx: 0, aktiv: false }; return; } }
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if(!h) return;
+        const dx = e.touches[0].clientX - h.x0, dy = e.touches[0].clientY - h.y0;
+        if(!h.aktiv){
+            if(Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+            if(Math.abs(dy) > Math.abs(dx) || (dx > 0 && !h.alap)){ h = null; return; }
+            const row = h.row;
+            if(!row.querySelector(':scope > .sf-cs-akt')){
+                const g = h.t.gombok(row); if(!g.length){ h = null; return; }
+                row._sfDb = g.length; row._sfGomb = g;
+                const a = document.createElement('div'); a.className = 'sf-cs-akt';
+                a.innerHTML = g.map((x, k) => `<button type="button" data-sfcs="${k}" style="background:${x.c}">${esc(x.t)}</button>`).join('');
+                row.appendChild(a); row.classList.add('sf-cs-sor');
+            }
+            h.aktiv = true;
+        }
+        e.preventDefault();
+        const max = W * h.row._sfDb; let x = h.alap + dx;
+        if(x < -max) x = -max - (-max - x) * .25; if(x > 0) x = 0;
+        h.dx = x; allit(h.row, x, false);
+    }, { passive: false });
+    const vege = () => {
+        if(!h) return; const x = h; h = null; if(!x.aktiv) return;
+        const max = W * x.row._sfDb;
+        if(x.dx < -max / 2){ allit(x.row, -max, true); nyitott = x.row; } else zar(x.row);
+        // a húzás végén ne nyíljon meg a sor (a böngésző kattintásnak venné)
+        const elnyel = ev => { ev.stopPropagation(); ev.preventDefault(); };
+        x.row.addEventListener('click', elnyel, { capture: true, once: true }); setTimeout(() => x.row.removeEventListener('click', elnyel, { capture: true }), 350);
+    };
+    document.addEventListener('touchend', vege); document.addEventListener('touchcancel', vege);
+    document.addEventListener('click', e => {
+        const b = e.target.closest('.sf-cs-akt [data-sfcs]');
+        if(b){ e.stopPropagation(); e.preventDefault(); const row = b.closest('.sf-cs-sor'), g = row && row._sfGomb && row._sfGomb[+b.dataset.sfcs]; nyitott = null; zar(row); if(g) setTimeout(g.fn, 120); return; }
+        if(nyitott && !nyitott.contains(e.target)) zar(nyitott);
+    }, true);
 })();
 
 // ===== Beragadt görgetés-zár elleni védelem =====
@@ -37422,6 +37498,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         }
         catch(e){ alert("Nem sikerült törölni: " + (e.message || e)); }
     }
+    // a csúsztatós sorműveletekhez (telefonon balra húzott feladatsor)
+    window.sfFdMuvelet = { kesz: id => { const t = taskById(id); if(t) pgToggle(id, !taskIsDone(t)); }, torol: id => pgDelete(id), kesz_e: id => { const t = taskById(id); return !!(t && taskIsDone(t)); } };
 
     // ===================== BEDOLGOZÁS (Starter PG → PG 1–4 → Lezárás) =====================
     // Az új munkatárs 1:1 bedolgozása a közvetlen vezetővel, a GST „4 hetes
