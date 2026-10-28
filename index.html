@@ -14799,7 +14799,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const nyitva = ov => ov && ov.isConnected && !ov.hidden;
     // A saját bezáró gombját nyomjuk meg (így az ablak a saját rendrakását is elvégzi); ha nincs ilyen, Esc, végül eltávolítás.
     const zar = ov => {
-        const x = ov.querySelector('.modal-x, [data-x], .modal-head [aria-label="Bezárás"], [data-nlkx], [data-tmmegse], [data-cmm]');
+        const x = ov.querySelector('.modal-x, [data-x], .modal-head [aria-label="Bezárás"], [data-nlkx], [data-tmmegse], [data-cmm], [data-nlx], [data-gkzar]');
         if(x) x.click();
         if(nyitva(ov)) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         if(nyitva(ov)) ov.remove();
@@ -14818,7 +14818,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const gorgetheto = (el, lap) => { for(let x = el; x && x !== lap.parentNode; x = x.parentElement){ if(x.scrollTop > 0) return true; if(x === lap) break; } return false; };
     document.addEventListener('touchstart', e => {
         h = null; if(!mobil() || e.touches.length !== 1) return;
-        const ov = e.target.closest && e.target.closest(OVS); if(!ov || ov.matches('.nlw-ov, .gk-ov')) return;
+        const ov = e.target.closest && e.target.closest(OVS + ', .nlw-ov, .gk-ov'); if(!ov) return;
+        // a teljes képernyős napló-rögzítő és kereső csak a felső sávjánál fogva húzható le
+        if(ov.matches('.nlw-ov, .gk-ov') && !e.target.closest('.nlw-fej, .nlw-test.l1 > h3, .gk-in, .gk-legut')) return;
         const lap = ov.firstElementChild; if(!lap || !lap.contains(e.target)) return;
         if(e.target.closest('input[type=range], textarea:focus, select, [contenteditable=true], .pzi-ed-vaszon, canvas')) return;
         if(gorgetheto(e.target, lap)) return;
