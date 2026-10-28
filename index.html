@@ -9827,6 +9827,26 @@
         /* Meleg természet: puha, talpas címek */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+        /* ===== Ki lesz a következő – telefonon résztvevő-kártyák ===== */
+        .kov-mob { display:none; }
+        @media (max-width:760px){
+            #kovBody .kov-table-wrap { display:none; }
+            .kov-mob { display:flex; flex-direction:column; gap:10px; padding:4px 0 2px; }
+            .kov-mk { border:1px solid var(--border, #e6ecf5); border-radius:16px; padding:12px; background:#fff; display:flex; flex-direction:column; gap:10px; }
+            .kov-mk-f { display:flex; align-items:center; gap:8px; } .kov-mk-n { font-weight:800; color:var(--muted); font-size:13px; }
+            .kov-mk-f input { flex:1; min-width:0; border:0; border-bottom:1.5px solid var(--border, #e2e8f0); padding:6px 2px; font:inherit; font-size:16px; font-weight:700; background:none; }
+            .kov-mk-2 { display:grid; grid-template-columns:1fr 1fr 64px; gap:8px; align-items:end; }
+            .kov-mk-2 label { display:flex; flex-direction:column; gap:3px; } .kov-mk-2 small, .kov-mk-csop small { font-size:10.5px; font-weight:700; color:var(--muted); }
+            .kov-mk-2 input { width:100%; box-sizing:border-box; border:1px solid var(--border, #e2e8f0); border-radius:10px; padding:7px 8px; font:inherit; font-size:14px; }
+            .kov-mk-db { grid-column:2 / -1; justify-self:end; align-self:center; font-size:12px; font-weight:700; color:var(--muted); }
+            .kov-mk-sav { position:relative; height:8px; border-radius:4px; background:var(--border, #e6ecf5); }
+            .kov-mk-sav i { position:absolute; inset:0 auto 0 0; border-radius:4px; background:linear-gradient(90deg, #34d399, #16a34a); }
+            .kov-mk-sav b { position:absolute; top:-3px; bottom:-3px; width:2px; background:#16a34a; border-radius:1px; }
+            .kov-mk-mk { display:flex; flex-wrap:wrap; gap:5px; }
+            .kov-mk-mk button { border:1px solid var(--border, #e2e8f0); background:#fff; border-radius:999px; padding:5px 9px; font:inherit; font-size:11.5px; font-weight:700; color:#64748b; cursor:pointer; }
+            .kov-mk-mk button.on { background:#dcfce7; border-color:#86efac; color:#15803d; } .kov-mk-mk button.sep { box-shadow:inset 0 -2px 0 #16a34a; }
+            .kov-mk-csop { display:flex; align-items:center; gap:8px; } .kov-mk-csop small { flex:0 0 96px; }
+        }
         /* ===== nincs havi terv: zár + varázsló ===== */
         .hv-zar { position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(240,236,230,.55);
             -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); animation:sfOvBe .35s ease-out both; }
@@ -21765,7 +21785,14 @@ function renderKovBody(){
             <td><button class="row-del" data-kdel="elo:${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td></tr>`;
     }).join('')
         : `<tr><td colspan="${ELO_COLS.length+6}" class="kov-empty">Még nincs résztvevő.</td></tr>`;
-    html+=`</tbody></table></div></div></section>`;
+    html+=`</tbody></table></div>`;
+    // telefonon résztvevőnként egy kártya (ugyanazok a mezők és mérföldkövek)
+    html+=`<div class="kov-mob">${kovData.elo.length ? kovData.elo.map((r,i)=>{ const eh=Number(r.eh)||0, max=ELO_COLS[ELO_COLS.length-1];
+        return `<div class="kov-mk"><div class="kov-mk-f"><span class="kov-mk-n">${i+1}.</span><input data-ke="elo" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Résztvevő neve"><button class="row-del" data-kdel="elo:${i}" title="Törlés" aria-label="Törlés">✕</button></div>
+            <div class="kov-mk-2"><label><small>Vezető</small><input data-ke="elo" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></label><label><small>MNB</small><input data-ke="elo" data-ki="${i}" data-kf="mnb" value="${esc(r.mnb)}" placeholder="Ok / dátum"></label><label class="eh"><small>EH</small><input type="text" inputmode="numeric" data-ke="elo" data-ki="${i}" data-kf="eh" value="${eh||''}" placeholder="0"></label></div>
+            <div class="kov-mk-sav"><i style="width:${Math.min(100, eh/max*100).toFixed(0)}%"></i><b style="left:${(ELO_SEP/max*100).toFixed(1)}%"></b></div>
+            <div class="kov-mk-mk">${ELO_COLS.map(c=>`<button type="button" class="${c<=eh?'on':''}${c===ELO_SEP?' sep':''}" data-ke2="elo" data-ki2="${i}" data-kc2="${c}">${c}</button>`).join('')}</div></div>`; }).join('')
+        : '<p class="kov-empty">Még nincs résztvevő.</p>'}</div></div></section>`;
 
     // --- Esélyszeminárium ---
     html+=`<section class="card kov-sec"><div class="card-head"><h2><span class="icon">${kIc('<circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5"/>')}</span>Esélyszeminárium</h2><button class="btn-edit" id="kovAddEsely">+ Résztvevő</button></div><div class="card-body" style="padding:0;">`;
@@ -21780,7 +21807,12 @@ function renderKovBody(){
         +ESELY_GROUPS.map(g=>g.cols.map(c=>{const k=g.key+'_'+c, on=!!(r.m&&r.m[k]); return `<td class="kov-eh-cell${on?' green':''}" data-ke3="esely" data-ki3="${i}" data-kc3="${k}"></td>`;}).join('')).join('')
         +`<td><button class="row-del" data-kdel="esely:${i}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></td></tr>`).join('')
         : `<tr><td colspan="${esCols+4}" class="kov-empty">Még nincs résztvevő – add hozzá az elsőt a fenti gombbal.</td></tr>`;
-    html+=`</tbody></table></div></div></section>`;
+    html+=`</tbody></table></div>`;
+    html+=`<div class="kov-mob">${kovData.esely.length ? kovData.esely.map((r,i)=>{ const db=ESELY_GROUPS.reduce((a,g)=>a+g.cols.filter(c=>r.m&&r.m[g.key+'_'+c]).length,0);
+        return `<div class="kov-mk"><div class="kov-mk-f"><span class="kov-mk-n">${i+1}.</span><input data-ke="esely" data-ki="${i}" data-kf="resztvevo" value="${esc(r.resztvevo)}" placeholder="Résztvevő neve"><button class="row-del" data-kdel="esely:${i}" title="Törlés" aria-label="Törlés">✕</button></div>
+            <div class="kov-mk-2"><label><small>Vezető</small><input data-ke="esely" data-ki="${i}" data-kf="vezeto" value="${esc(r.vezeto)}" placeholder="Vezető"></label><span class="kov-mk-db">${db} / ${esCols} kész</span></div>
+            ${ESELY_GROUPS.map(g=>`<div class="kov-mk-csop"><small>${esc(g.label)}</small><div class="kov-mk-mk">${g.cols.map(c=>{const k=g.key+'_'+c; return `<button type="button" class="${r.m&&r.m[k]?'on':''}" data-ke3="esely" data-ki3="${i}" data-kc3="${k}">${c}</button>`;}).join('')}</div></div>`).join('')}</div>`; }).join('')
+        : '<p class="kov-empty">Még nincs résztvevő – add hozzá az elsőt a fenti gombbal.</p>'}</div></div></section>`;
 
     // --- Fontos tudnivalók ---
     html+=`<div class="kov-note-box"><span class="kov-note-ic">${kIc('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}</span><div><strong>Fontos tudnivalók</strong><ul><li>A cél negyedévente <b>${ELO_TARGET} előkészítő résztvevő</b> meghívása.</li><li>Az Előkészítő táblázatban írd be a pontos EH-t az „EH" mezőbe – a mérföldkő-cellák automatikusan zöldre váltanak; egy oszlopra kattintva is gyorsan beállíthatod a kerek értéket.</li><li>Az Esélyszemináriumnál egy-egy cellára kattintva jelölheted, hogy az adott szintet a résztvevő teljesítette.</li><li>Az adatok negyedévenként külön mentődnek – felül lapozhatsz a negyedévek között.</li></ul></div></div>`;
