@@ -30312,11 +30312,9 @@ document.addEventListener('keydown', e => {
 // ===================== MA (privát kezdőlap) =====================
 // Mai szokások listaként: elöl a hátralévők, a végén (halványan) a kész ma; soronként pipa, név, sorozat.
 function maSzokSorok(sz, l, ma){
-    // gyűrűk: összesítő kör + szokásonként egy kör (4 fér el egy sorban, a többi oldalra húzható) + az elmúlt 7 nap csíkja
+    // gyűrűk: szokásonként egy kör (4 fér el egy sorban, a többi oldalra húzható) + az elmúlt 7 nap csíkja
     const all = szNapiAllas(sz, ma), db = all.kesz, es = all.es;
     const K = 2 * Math.PI * 23, kor = (a, c, h, w) => `<circle cx="27" cy="27" r="23" fill="none" stroke="${h}" stroke-width="${w}"/>${a > 0 ? `<circle cx="27" cy="27" r="23" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(K * Math.min(1, a)).toFixed(1)} ${K.toFixed(1)}" transform="rotate(-90 27 27)"/>` : ''}`;
-    const ossz = `<div class="ma-szg-o"><span class="ma-szg-n"><svg viewBox="0 0 54 54" aria-hidden="true">${kor(es ? db / es : 0, '#7c3aed', '#ede7fb', 6)}</svg><b>${es ? `${db}/${es}` : '—'}</b></span>
-        <p><b>${!es ? 'Mára nincs több' : db >= es ? 'Minden kész! 🎉' : `Még ${es - db} szokás van hátra`}</b>${l.length > 4 ? 'Húzd oldalra a többiért' : 'Koppints a körre, ha megvan'}</p></div>`;
     const korok = l.map(h => {
         const t = prvTer(h.ter), on = szKesz(sz, h, ma), n = szSorozat(sz, h);
         const al = szHeti(h) ? `${szHetDb(sz, h, ma)}/${h.het} a héten` : n >= 2 ? `🔥 ${n}` : '';
@@ -30327,7 +30325,8 @@ function maSzokSorok(sz, l, ma){
     const NAP = ['V', 'H', 'K', 'Sz', 'Cs', 'P', 'Sz'];
     const het = [6, 5, 4, 3, 2, 1, 0].map(i => { const n = ezPlusz(ma, -i), x = szNapiAllas(sz, n), a = x.es ? x.kesz / x.es : 0;
         return `<div class="${i ? '' : 'ma'}">${NAP[new Date(n + 'T12:00').getDay()]}<i><b style="width:${Math.round(a * 100)}%"></b></i></div>`; }).join('');
-    return `${ossz}<div class="ma-szg-sor">${korok}</div><div class="ma-szg-het">${het}</div>`;
+    // az összesítő gyűrű nem kell: a kártya fölötti napi körök között már ott a szokások állása
+    return `<div class="ma-szg-sor">${korok}</div><div class="ma-szg-het">${het}</div>`;
 }
 async function renderPrivMa(){
     const host = document.getElementById('privMaBody'); if(!host) return;
