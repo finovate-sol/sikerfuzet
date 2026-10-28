@@ -11703,7 +11703,6 @@ window.addEventListener('popstate', e => {
     });
     // ---- mikor zárjon ----
     window.addEventListener('sf-ter', e => {
-        if(e.detail === 'ovb' && be() && cfg.kilep !== false) zarva = true;
         frissit();
         // a kapcsoló kattintása felhasználói gesztus – a biometria azonnal kérhető
         if(e.detail === 'priv' && zarva && be() && cfg.bio) bioProba(true);
@@ -11731,7 +11730,7 @@ window.addEventListener('popstate', e => {
     // host + resz: a Beállítások oldalba ágyazva, ablak nélkül – resz: 'ikon' (SZEM app-ikon) vagy 'zar' (privát zár).
     async function beallit(host, resz){
         const vanBio = await bioVan();
-        const x = Object.assign({ perc: 1, kilep: true }, cfg || {});
+        const x = Object.assign({ perc: 1 }, cfg || {});
         const m = document.createElement('div'); m.className = host ? 'zb-beagy' : 'modal-overlay';
         const r = (uzi) => {
             const ikonResz = `${host ? '' : '<h4 class="zb-cim">App-ikon</h4>'}
@@ -11746,9 +11745,7 @@ window.addEventListener('popstate', e => {
                         ${x.pin ? '<button type="button" class="btn" data-zbpindel>Törlés</button>' : ''}
                         <div class="zb-pin" style="flex:1 1 100%"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="${x.pin ? 'új PIN' : 'PIN'}" data-zbp1 aria-label="PIN-kód"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="még egyszer" data-zbp2 aria-label="PIN-kód még egyszer"><button type="button" class="pv-kapsz" data-zbpin>Mentés</button></div></div></details>
                     <div class="zb-sor"><span class="t"><b>Automatikus zárolás</b><span>Ha az app ennyi ideig a háttérben van</span></span>
-                        <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
-                    <div class="zb-sor"><span class="t"><b>A Sikerfüzetre váltva is zároljon</b><span>Visszaváltáskor újra fel kell oldani</span></span>
-                        <input type="checkbox" data-zbkilep${x.kilep !== false ? ' checked' : ''} aria-label="Zárolás az OVB részre váltáskor"></div>`;
+                        <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`;
             const uziHtml = `<p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
             if(host){
                 m.innerHTML = (resz === 'ikon' ? ikonResz : zarResz + (be() ? '<div class="zb-sor"><span class="t"><b>Zárolás most</b><span>A privát rész azonnal lezárul</span></span><button type="button" class="btn" data-zbmost>Zárolás</button></div>' : '')) + uziHtml;
@@ -11763,11 +11760,10 @@ window.addEventListener('popstate', e => {
                 </div>
                 <div class="modal-foot">${be() ? '<button class="btn" data-zbmost>Zárolás most</button>' : ''}<button class="pv-ment" data-zbx>Kész</button></div></div>`;
         };
-        const ment = () => { cfg = { ...(cfg || {}), perc: x.perc, kilep: x.kilep, ...(x.bio ? { bio: x.bio } : {}), ...(x.pin ? { pin: x.pin } : {}) }; if(!x.bio) delete cfg.bio; if(!x.pin) delete cfg.pin; mentes(); zarva = false; };
+        const ment = () => { cfg = { ...(cfg || {}), perc: x.perc, ...(x.bio ? { bio: x.bio } : {}), ...(x.pin ? { pin: x.pin } : {}) }; if(!x.bio) delete cfg.bio; if(!x.pin) delete cfg.pin; mentes(); zarva = false; };
         r(); if(host){ host.innerHTML = ''; host.appendChild(m); } else document.body.appendChild(m);
         m.addEventListener('change', e => {
             if(e.target.matches('[data-zbperc]')){ x.perc = +e.target.value; if(be()) ment(); }
-            if(e.target.matches('[data-zbkilep]')){ x.kilep = e.target.checked; if(be()) ment(); }
         });
         m.addEventListener('click', async e => {
             if(!host && (e.target === m || e.target.closest('[data-zbx]'))){ m.remove(); return; }
