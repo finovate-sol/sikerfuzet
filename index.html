@@ -6242,6 +6242,17 @@
             .cl-m-seg:has([data-clmstat]) { grid-template-columns:repeat(2,minmax(0,1fr)); }
         }
         @keyframes sfLapFel { from { transform:translateY(100%); } to { transform:none; } }
+        /* telefonon minden ablak alsó lap: legfeljebb a képernyő 3/4-éig ér, a felső negyedre koppintva vagy lehúzva bezárul */
+        @media (max-width:760px){
+            html body .modal-overlay > .modal { max-height:75vh !important; max-height:75dvh !important; }
+            .org-modal-ov, .tt-modal, .ct-modal { align-items:flex-end !important; place-items:end stretch !important; padding:0 !important; }
+            html body :is(.org-modal-ov > .org-modal, .tt-modal > div, .ct-modal > div) { width:100% !important; max-width:none !important; max-height:75vh !important; max-height:75dvh !important; overflow-y:auto; overscroll-behavior:contain;
+                border-radius:20px 20px 0 0 !important; padding-top:26px; padding-bottom:calc(16px + var(--sf-alul, 0px)); position:relative; box-shadow:0 -12px 36px rgba(10,37,71,.28); }
+            :is(.org-modal-ov > .org-modal, .tt-modal > div, .ct-modal > div)::before { content:''; position:absolute; top:9px; left:50%; width:40px; height:4px; margin-left:-20px; border-radius:99px; background:#d5dce6; }
+            :is(.org-modal-ov > .org-modal, .tt-modal > div, .ct-modal > div).sf-be-gy { animation:sfLapBe .34s cubic-bezier(.22,.9,.25,1) both; }
+            .sf-lap-huz { transition:none !important; animation:none !important; }
+            .sf-lap-vissza { transition:transform .22s cubic-bezier(.22,.9,.25,1) !important; }
+        }
         @media (max-width:760px) and (prefers-reduced-motion:reduce){ .modal-overlay > .modal { animation:none; } }
         @media (max-width:760px){
         }
@@ -14760,6 +14771,66 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         }
         LAP.forEach(sel => { const el = document.querySelector(sel); if(el && !volt.get(sel)) be(el); volt.set(sel, !!el); });
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'], attributeOldValue: true });
+})();
+
+// ===== Telefonon az ablakok alsó lapként: koppintás a lap fölé vagy lehúzás = bezárás =====
+(function(){
+    const OVS = '.modal-overlay, .org-modal-ov, .tt-modal, .ct-modal';
+    const mobil = () => matchMedia('(max-width:760px)').matches;
+    const nyitva = ov => ov && ov.isConnected && !ov.hidden;
+    // A saját bezáró gombját nyomjuk meg (így az ablak a saját rendrakását is elvégzi); ha nincs ilyen, Esc, végül eltávolítás.
+    const zar = ov => {
+        const x = ov.querySelector('.modal-x, [data-x], .modal-head [aria-label="Bezárás"], [data-nlkx], [data-tmmegse], [data-cmm]');
+        if(x) x.click();
+        if(nyitva(ov)) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if(nyitva(ov)) ov.remove();
+    };
+    window.sfModalZar = zar;
+    // koppintás a sötét háttérre (a lap fölötti részre)
+    let lent = null;
+    document.addEventListener('pointerdown', e => { lent = mobil() && e.target.matches && e.target.matches(OVS) ? e.target : null; }, true);
+    document.addEventListener('click', e => {
+        const ov = lent; lent = null;
+        if(!ov || e.target !== ov || !nyitva(ov)) return;
+        setTimeout(() => { if(nyitva(ov)) zar(ov); }, 0);   // ha az ablak magától bezárult a kattintásra, nem csinálunk semmit
+    });
+    // lehúzás: a fogantyúnál / fejlécnél bárhol, a tartalomnál csak ha az már a tetején van
+    let h = null;
+    const gorgetheto = (el, lap) => { for(let x = el; x && x !== lap.parentNode; x = x.parentElement){ if(x.scrollTop > 0) return true; if(x === lap) break; } return false; };
+    document.addEventListener('touchstart', e => {
+        h = null; if(!mobil() || e.touches.length !== 1) return;
+        const ov = e.target.closest && e.target.closest(OVS); if(!ov || ov.matches('.nlw-ov, .gk-ov')) return;
+        const lap = ov.firstElementChild; if(!lap || !lap.contains(e.target)) return;
+        if(e.target.closest('input[type=range], textarea:focus, select, [contenteditable=true], .pzi-ed-vaszon, canvas')) return;
+        if(gorgetheto(e.target, lap)) return;
+        h = { ov, lap, y0: e.touches[0].clientY, x0: e.touches[0].clientX, t0: Date.now(), dy: 0, aktiv: false };
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if(!h) return;
+        const dy = e.touches[0].clientY - h.y0, dx = e.touches[0].clientX - h.x0;
+        if(!h.aktiv){
+            if(Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+            if(dy <= 0 || Math.abs(dx) > Math.abs(dy)){ h = null; return; }   // felfelé vagy oldalra: rendes görgetés
+            h.aktiv = true; h.lap.classList.add('sf-lap-huz'); h.lap.classList.remove('sf-lap-vissza');
+        }
+        e.preventDefault();
+        h.dy = Math.max(0, dy);
+        h.lap.style.transform = `translateY(${h.dy}px)`;
+        h.ov.style.backgroundColor = `rgba(10,37,71,${Math.max(0, .45 * (1 - h.dy / (h.lap.offsetHeight || 1)))})`;
+    }, { passive: false });
+    const vege = () => {
+        if(!h) return; const x = h; h = null; if(!x.aktiv) return;
+        const seb = x.dy / Math.max(1, Date.now() - x.t0);
+        x.lap.classList.remove('sf-lap-huz'); x.lap.classList.add('sf-lap-vissza');
+        if(x.dy > Math.min(140, x.lap.offsetHeight * .3) || (seb > .55 && x.dy > 40)){
+            x.lap.style.transform = 'translateY(100%)'; x.ov.style.transition = 'background-color .22s'; x.ov.style.backgroundColor = 'rgba(10,37,71,0)';
+            setTimeout(() => { if(nyitva(x.ov)){ zar(x.ov); if(nyitva(x.ov)){ x.lap.style.transform = ''; x.ov.style.backgroundColor = ''; } } }, 200);
+        } else {
+            x.lap.style.transform = ''; x.ov.style.backgroundColor = '';
+            setTimeout(() => x.lap.classList.remove('sf-lap-vissza'), 240);
+        }
+    };
+    document.addEventListener('touchend', vege); document.addEventListener('touchcancel', vege);
 })();
 
 // ===== Beragadt görgetés-zár elleni védelem =====
