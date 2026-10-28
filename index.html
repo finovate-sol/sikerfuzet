@@ -9838,6 +9838,7 @@
         /* Meleg természet: puha, talpas címek */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
             font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+        @media (max-width:1000px){ .main .page h1.sf-dupla, .main .page h2.sf-dupla { display:none !important; } }
         /* ===== Ki lesz a következő – telefonon résztvevő-kártyák ===== */
         .kov-mob { display:none; }
         @media (max-width:760px){
@@ -10588,6 +10589,7 @@ try {
         <!-- STRUKTÚRA -->
         <div id="page-struktura" class="page" hidden>
           <div class="page-wrap">
+            <div class="sb-fej sf-lapfej"><div><h2>Struktúra</h2><p>A csapat felépítése és a személyes karrierlétrád.</p></div></div>
             <div id="strukturaBody"></div>
             <div class="karrier-panel open" id="karrierPanel">
               <button class="karrier-toggle" id="karrierToggle" type="button">
@@ -11598,6 +11600,15 @@ if(store.load('sf_side_collapsed', false)){
 // ===== INITIAL RENDER =====
 renderMoney(); renderCareer(); renderInfo();
 
+// Telefonon a felső sáv már kiírja az oldal címét: az oldal tetején ugyanez a cím (kártyában vagy fejlécben) elrejtve, az alcím marad.
+function sfDuplaCim(){
+    if(!matchMedia('(max-width:1000px)').matches) return;
+    const pg = document.querySelector('.main .page:not([hidden])'), mb = document.getElementById('mbTitle'); if(!pg || !mb) return;
+    const n = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    const cim = n(mb.textContent); if(!cim) return;
+    [...pg.querySelectorAll('h1, h2')].slice(0, 3).forEach(h => { const t = n(h.textContent); if(t && (t === cim || t.startsWith(cim) && t.length - cim.length <= 2)) h.classList.add('sf-dupla'); });
+}
+new MutationObserver(() => { clearTimeout(sfDuplaCim._t); sfDuplaCim._t = setTimeout(sfDuplaCim, 80); }).observe(document.querySelector('.main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
 // Oldalváltáskor az új oldal rövid beúszó animációt kap (az osztály utána lekerül, így újrarajzoláskor nem ismétlődik).
 function sfLapBeusz(pg, vissza){
     if(!pg) return;
@@ -14442,7 +14453,8 @@ function ctHtml(){
         ${r.infosok.length ? `<div style="margin-top:8px">${r.infosok.map(n => `<span class="ct-chip">${esc(n)}</span>`).join(' ')}</div>` : ''}
         <div class="g"><button type="button" data-ctszerk="${esc(t.id)}">Szerkesztés</button><button type="button" data-ctnyit="${esc(t.id)}">${ny ? 'Ügyfelek elrejtése' : 'Ügyfelek'}</button></div>
         ${ny ? `<div class="ct-pipe-b" style="margin-top:8px">${ctPipe(t)}</div>` : ''}</div>`; };
-    return `<div class="ct-fej"><div class="ct-lep"><button type="button" data-ctho="-1">‹</button><span class="ho">${ctHoNev(ctHo)}</span><button type="button" data-ctho="1">›</button>
+    return `<div class="sb-fej sf-lapfej"><div><h2>Csapatterv</h2><p>A csapat havi terve – egység, létszám, INFO, és hogy ki hol tart.</p></div></div>
+        <div class="ct-fej"><div class="ct-lep"><button type="button" data-ctho="-1">‹</button><span class="ho">${ctHoNev(ctHo)}</span><button type="button" data-ctho="1">›</button>
         <button type="button" data-ctarch>Archívum</button><button type="button" class="fo" data-cttag>+ Munkatárs</button></div></div>
         <div class="ct-kpik">${kpi('#2563eb', 'Egység', o.van, egysegTerv, 'EH')}${kpi('#7c3aed', 'Csapatlétszám', lMost, lCel, 'fő')}${kpi('#16a34a', 'INFO', o.iv, infoTerv, 'db')}</div>
         ${ctRangHtml(tagok)}
