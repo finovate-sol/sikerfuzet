@@ -651,6 +651,26 @@
             .szm-t.fav.on { background:rgba(15,23,42,.07); color:#111827; }
             .szm-t.fav svg { width:23px; height:23px; }
             .szm-fab { display:none !important; }
+            /* oldalkereső: a fülsor helyén nyílik; a lapok saját keresősora telefonon nem látszik */
+            body.sz-ker-nyit #szFulSor { display:none !important; }
+            .sz-ker-sor:not([hidden]) { display:flex; align-items:center; gap:8px; padding:2px 16px 14px; animation:szKerBe .2s ease-out; }
+            @keyframes szKerBe { from { opacity:0; transform:translateY(-6px); } }
+            .sz-ker-mezo { flex:1; min-width:0; height:44px; display:flex; align-items:center; gap:8px; padding:0 14px; border-radius:999px; background:#fff; box-shadow:0 2px 10px rgba(15,23,42,.07); }
+            .sz-ker-mezo svg { width:18px; height:18px; flex:none; fill:none; stroke:#9ca3af; stroke-width:2.2; stroke-linecap:round; }
+            .sz-ker-mezo input { flex:1; min-width:0; border:0; background:none; outline:none; font:inherit; font-size:16px; color:#111827; padding:0; }
+            .sz-ker-ik, .sz-ker-x { flex:none; width:44px; height:44px; border:0; border-radius:50%; background:#fff; color:#374151; box-shadow:0 2px 10px rgba(15,23,42,.07); display:grid; place-items:center; padding:0; cursor:pointer; }
+            .sz-ker-ik svg, .sz-ker-x svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+            .sz-ker-ik.on { background:#1f5fd0; color:#fff; } body.sf-privat .sz-ker-ik.on { background:#7c3aed; }
+            .sz-ker-x { background:none; box-shadow:none; }
+            .mb-ker-g { position:relative; }
+            .mb-ker-g.jel::after { content:""; position:absolute; top:7px; right:8px; width:9px; height:9px; border-radius:50%; background:#ef4444; border:2px solid #fff; }
+            #page-penzugyek .pz-ker-fo, #page-ugyfelek .reg-search, #page-ketoras .reg-search, #page-feladatok #fdSearch,
+            #page-idd .idd-kereso, #page-gst .idd-kereso, #edzBody .ez-kereso, #page-onismeret .szb-ker { display:none !important; }
+            .sz-ker-tipp { position:fixed; z-index:50; left:50%; bottom:calc(var(--szm-le) + 80px); transform:translateX(-50%); background:#111827; color:#fff; font-size:12.5px; font-weight:650;
+                padding:8px 12px; border-radius:12px; white-space:nowrap; box-shadow:0 8px 20px rgba(0,0,0,.25); animation:sfPopBe .25s ease-out both; transition:opacity .4s; pointer-events:none; }
+            .sz-ker-tipp::after { content:""; position:absolute; left:50%; bottom:-5px; width:10px; height:10px; margin-left:-5px; background:#111827; transform:rotate(45deg); }
+            .sz-ker-tipp.ki { opacity:0; }
+            .szm-gomb { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
             /* Pénzügyek: a lap saját fejléce (aloldal neve + gombok) telefonon nem kell – a cím fent, a gombok a Beállítások fülön */
             #page-penzugyek #pzFej .pz-fej-mcim, #page-penzugyek #pzFej .pz-fej-gombok:not(:has(.pz-a-kesz)) { display:none !important; }
             #page-penzugyek #pzFej:not(:has(.pz-fej-gombok .pz-a-kesz)):not(:has(.pz-mhok)) { display:none !important; }
@@ -31284,6 +31304,89 @@ function szFulSorRajz(){
         const pg = document.querySelector('.main .page:not([hidden])'); if(pg && typeof sfLapBeusz === 'function') sfLapBeusz(pg, dx > 0);
         if(navigator.vibrate) try { navigator.vibrate(6); } catch(_){}
     }, { passive: true });
+})();
+// ===== Két kereső (telefon): fent a 🔍 az adott oldalon keres, a nagy (globális) kereső a középső gomb hosszú nyomására =====
+// oldal → a saját keresőmezője (a lap keresősora telefonon rejtve, a fenti mező írja), + a mellé tartozó gombok
+const SZ_KER = {
+    penzugyek: { inp: '#pzKer', gomb: ['#pzJelolBtn', '#pzSzGomb'] },
+    ugyfelek: { inp: '#regSearch' }, ketoras: { inp: '#ketorasSearch' }, feladatok: { inp: '#fdSearch' },
+    idd: { inp: '[data-iddbelso], [data-iddkeres]' }, gst: { inp: '[data-gstbelso], [data-gstkeres]' },
+    edzes: { inp: '[data-ezgykeres]' }, onismeret: { inp: '[data-szker]' },
+    enaplo: { nyit: '[data-nlkerg]' },
+};
+const szKerMezo = () => { const k = SZ_KER[szAktLap()]; return k && k.inp ? document.querySelector(`#page-${szAktLap()} :is(${k.inp})`) : null; };
+function szKerSorRajz(){
+    let sor = document.getElementById('szKerSor');
+    if(!sor){ const ful = document.getElementById('szFulSor'); if(!ful) return null;
+        sor = document.createElement('div'); sor.id = 'szKerSor'; sor.className = 'sz-ker-sor'; sor.hidden = true; ful.after(sor); }
+    return sor;
+}
+function szOldalKer(ny){
+    const sor = szKerSorRajz(); if(!sor) return;
+    if(!ny){ const m = szKerMezo(); if(m && m.value){ m.value = ''; m.dispatchEvent(new Event('input', { bubbles: true })); }
+        sor.hidden = true; document.body.classList.remove('sz-ker-nyit'); document.getElementById('szFulMenu')?.remove(); return; }
+    const k = SZ_KER[szAktLap()];
+    if(k && k.nyit){ document.querySelector(`#page-${szAktLap()} ${k.nyit}`)?.click(); setTimeout(() => document.querySelector(`#page-${szAktLap()} input[type="search"]`)?.focus(), 80); return; }
+    const m = szKerMezo();
+    if(!m){ if(typeof gkNyit === 'function') gkNyit(); return; }
+    const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>';
+    sor.innerHTML = `<label class="sz-ker-mezo">${ik}<input type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(m.placeholder || 'Keresés…')}" value="${esc(m.value)}"></label>
+        ${(k.gomb || []).map((g, i) => `<button type="button" class="sz-ker-ik" data-szkergomb="${i}" aria-label="${esc(document.querySelector(g)?.getAttribute('aria-label') || '')}"></button>`).join('')}
+        <button type="button" class="sz-ker-x" data-szkerzar aria-label="Keresés bezárása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
+    szKerGombFrissit();
+    sor.hidden = false; document.body.classList.add('sz-ker-nyit');
+    const inp = sor.querySelector('input'); inp.focus();
+}
+// a lap saját gombjainak (☑, szűrő) tükre a kereső mellett – ikon és bekapcsolt állapot átvéve
+function szKerGombFrissit(){
+    const sor = document.getElementById('szKerSor'), k = SZ_KER[szAktLap()]; if(!sor || sor.hidden && !document.body.classList.contains('sz-ker-nyit') || !k) return;
+    sor.querySelectorAll('[data-szkergomb]').forEach(b => { const o = document.querySelector(k.gomb[+b.dataset.szkergomb]); b.hidden = !o; if(!o) return;
+        const svg = o.querySelector('svg'); const h = svg ? svg.outerHTML : ''; if(b._h !== h){ b.innerHTML = h; b._h = h; }
+        b.classList.toggle('on', o.classList.contains('on')); });
+}
+// a 🔍 pöttyöt kap, ha az oldalon keresés vagy szűrő van érvényben (hogy lásd: nem a teljes listát nézed)
+function szKerJelzes(){
+    const g = document.getElementById('mbKerG'); if(!g) return;
+    const m = szKerMezo(), sz = szAktLap() === 'penzugyek' && /aktív/.test(document.getElementById('pzSzGomb')?.getAttribute('aria-label') || '');
+    g.classList.toggle('jel', !!(m && m.value) || sz);
+    szKerGombFrissit();
+}
+document.addEventListener('input', e => {
+    const inp = e.target.closest && e.target.closest('#szKerSor input'); if(!inp) return;
+    const m = szKerMezo(); if(!m) return; m.value = inp.value; m.dispatchEvent(new Event('input', { bubbles: true }));
+});
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.closest && e.target.closest('#szKerSor input')) e.target.blur(); });
+document.addEventListener('click', e => {
+    if(e.target.closest('#mbKerG')){ e.stopImmediatePropagation(); szOldalKer(!document.body.classList.contains('sz-ker-nyit')); return; }
+    if(e.target.closest('[data-szkerzar]')){ szOldalKer(false); return; }
+    const g = e.target.closest('[data-szkergomb]');
+    if(g){ const k = SZ_KER[szAktLap()]; document.querySelector(k && k.gomb[+g.dataset.szkergomb])?.click(); setTimeout(szKerJelzes, 60); }
+}, true);
+(function(){
+    let t = 0; new MutationObserver(() => { clearTimeout(t); t = setTimeout(szKerJelzes, 150); }).observe(document.querySelector('.main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-label', 'class'] });
+    // lapváltáskor a nyitott oldalkereső bezárul
+    let lap = ''; setInterval(() => { const a = szAktLap(); if(a !== lap){ lap = a; if(document.body.classList.contains('sz-ker-nyit')){ const s = document.getElementById('szKerSor'); if(s) s.hidden = true; document.body.classList.remove('sz-ker-nyit'); } } }, 400);
+})();
+// hosszú nyomás a középső gombon: a nagy kereső (rövid koppintás: Ma / Sikerfüzet)
+(function(){
+    let ido = 0, hosszu = false;
+    const vege = () => { clearTimeout(ido); ido = 0; };
+    document.addEventListener('pointerdown', e => {
+        if(!e.target.closest('#szGomb')) return; hosszu = false; vege();
+        ido = setTimeout(() => { hosszu = true; ido = 0; if(navigator.vibrate) try { navigator.vibrate(12); } catch(_){}
+            try { store.save('sf_ker_tipp', 9); } catch(_){} document.getElementById('szKerTipp')?.remove();
+            if(typeof gkNyit === 'function') gkNyit(); }, 450);
+    }, true);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => document.addEventListener(t, e => { if(e.target.closest && e.target.closest('#szGomb')) vege(); }, true));
+    document.addEventListener('click', e => { if(hosszu && e.target.closest('#szGomb')){ e.stopImmediatePropagation(); e.preventDefault(); hosszu = false; } }, true);
+    document.addEventListener('contextmenu', e => { if(e.target.closest('#szGomb')) e.preventDefault(); });
+    // az első néhány alkalommal egy apró súgó a gomb fölött
+    setTimeout(() => { let n = 0; try { n = +store.load('sf_ker_tipp', 0) || 0; } catch(_){}
+        if(n >= 3 || !matchMedia('(max-width:760px)').matches || !document.getElementById('szGomb')) return;
+        try { store.save('sf_ker_tipp', n + 1); } catch(_){}
+        const t = document.createElement('div'); t.id = 'szKerTipp'; t.className = 'sz-ker-tipp'; t.textContent = 'Tartsd nyomva a kereséshez';
+        document.body.appendChild(t); setTimeout(() => t.classList.add('ki'), 3600); setTimeout(() => t.remove(), 4100);
+    }, 3500);
 })();
 // Görgetés helyett csak annyi fül látszik, amennyi kifér; a többi a „…” gomb mögé kerül (a kiválasztott mindig látszik).
 function szFulSorIllesz(sor){
