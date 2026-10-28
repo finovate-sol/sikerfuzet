@@ -8629,6 +8629,8 @@
         @keyframes sfKartyaBe { from { opacity:0; transform:translateY(10px); } }
         .page.sf-lap-be { animation:sfLapUsz .24s ease-out both; }
         .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):not(:has(.drawer, .fx-reszl, .fx-fab, [style*="position:fixed"])) { animation:sfKartyaBe .38s var(--sf-lagy) both; }
+        @keyframes sfKartyaVissza { from { opacity:0; transform:translateX(-18px); } }
+        .page.sf-lap-be.sf-lap-vissza :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):not(:has(.drawer, .fx-reszl, .fx-fab, [style*="position:fixed"])) { animation-name:sfKartyaVissza; }
         .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(2) { animation-delay:.03s; }
         .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(3) { animation-delay:.06s; }
         .page.sf-lap-be :is(.card, .pg-card, .rc, .fx-ik, .pg-rec):nth-child(n+4) { animation-delay:.09s; }
@@ -11432,11 +11434,35 @@ if(store.load('sf_side_collapsed', false)){
 renderMoney(); renderCareer(); renderInfo();
 
 // Oldalváltáskor az új oldal rövid beúszó animációt kap (az osztály utána lekerül, így újrarajzoláskor nem ismétlődik).
-function sfLapBeusz(pg){
+function sfLapBeusz(pg, vissza){
     if(!pg) return;
-    pg.classList.remove('sf-lap-be'); void pg.offsetWidth; pg.classList.add('sf-lap-be');
-    clearTimeout(pg._sfLapBe); pg._sfLapBe = setTimeout(() => pg.classList.remove('sf-lap-be'), 700);
+    pg.classList.remove('sf-lap-be', 'sf-lap-vissza'); void pg.offsetWidth; pg.classList.add('sf-lap-be'); if(vissza) pg.classList.add('sf-lap-vissza');
+    clearTimeout(pg._sfLapBe); pg._sfLapBe = setTimeout(() => pg.classList.remove('sf-lap-be', 'sf-lap-vissza'), 700);
 }
+// Oldal-előzmény: a menüből nyitott oldalak a böngésző előzményébe kerülnek, így a „vissza” (és telefonon a bal szélről
+// jobbra húzás) az előző oldalra lép – visszafelé animációval.
+let sfLapMelyseg = 0;
+window.addEventListener('popstate', e => {
+    const p = e.state && e.state.sfLap; if(!p) return;
+    const a = document.querySelector(`.nav a[data-page="${p}"]`); if(!a || a.classList.contains('active')) return;
+    sfLapMelyseg = Math.max(0, sfLapMelyseg - 1);
+    window.__sfLapVissza = true; try { a.click(); } finally { window.__sfLapVissza = false; }
+});
+(function(){
+    let h = null;
+    document.addEventListener('touchstart', e => {
+        h = null; if(e.touches.length !== 1 || !sfLapMelyseg || !matchMedia('(max-width:1000px)').matches) return;
+        const x = e.touches[0].clientX; if(x > 22) return;
+        if(document.querySelector('.modal-overlay, .nlw-ov, .gk-ov, .org-modal-ov, .tt-modal, .ct-modal, body > .ef, .pzi-vetito, .sidebar.open')) return;
+        h = { x0: x, y0: e.touches[0].clientY };
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if(!h) return; const dx = e.touches[0].clientX - h.x0, dy = e.touches[0].clientY - h.y0;
+        if(Math.abs(dy) > 40 && Math.abs(dy) > dx){ h = null; return; }
+        if(dx > 70){ h = null; history.back(); }
+    }, { passive: true });
+    document.addEventListener('touchend', () => { h = null; });
+})();
 // ===== OLDAL-VÁLTÁS (menü) =====
 (function(){
     const links = Array.from(document.querySelectorAll('[data-page]'));
@@ -11454,8 +11480,11 @@ function sfLapBeusz(pg){
         if(window.sfBlockedPages && window.sfBlockedPages.has(p)) return;
         // Ha épp jegyzetet írtunk, a lapváltás előtt mentsük ki.
         if(typeof window.sfLeaveJegyzetek === 'function') window.sfLeaveJegyzetek();
+        const vissza = !!window.__sfLapVissza;
+        if(!vissza){ try { if(!history.state || !history.state.sfLap){ const elozo = document.querySelector('.page:not([hidden])'); history.replaceState({ ...(history.state || {}), sfLap: elozo ? elozo.id.replace('page-', '') : 'home' }, ''); }
+            history.pushState({ sfLap: p }, ''); sfLapMelyseg++; } catch(_){} }
         document.querySelectorAll('.page').forEach(pg => pg.hidden = (pg.id !== 'page-' + p));
-        sfLapBeusz(document.getElementById('page-' + p));
+        sfLapBeusz(document.getElementById('page-' + p), vissza);
         links.forEach(x => x.classList.remove('active'));
         a.classList.add('active');
         if(p === 'home' && typeof window.sfCalUjraMer === 'function') requestAnimationFrame(window.sfCalUjraMer);
