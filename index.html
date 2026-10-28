@@ -9781,6 +9781,13 @@
         /* választó (Beállítások) */
         .bl-stilus i { position:relative; overflow:hidden; }
         @media (max-width:760px){ .bl:not(.reszlet) > .bl-fej { display:none; } }
+        .ma-figy { display:flex; flex-direction:column; gap:8px; margin:0 0 14px; padding:12px 14px; border-radius:20px; background:#fff7ed; border:1px solid #fed7aa; cursor:pointer; }
+        .ma-figy-s { display:flex; align-items:center; gap:12px; }
+        .ma-figy-s .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .ma-figy-s .t b { font-size:14px; color:#9a3412; } .ma-figy-s.tul .t b { color:#be123c; }
+        .ma-figy-s .t > span:not(.ma-csik) { font-size:12px; color:#7c5a3c; }
+        .ma-figy:has(.tul) { background:#fff1f2; border-color:#fecdd3; }
+        html body .ma-figy .ma-csik i { background:#f59e0b !important; } html body .ma-figy .ma-csik i.tul { background:#e11d48 !important; }
         details.zb-pin-d > summary { display:flex; align-items:center; gap:10px; list-style:none; cursor:pointer; padding:12px 0; border-top:1px solid var(--border, #e6ecf5); }
         details.zb-pin-d > summary::-webkit-details-marker { display:none; }
         details.zb-pin-d > summary::after { content:'›'; margin-left:auto; color:#9ca3af; font-size:20px; transition:transform .2s; }
@@ -30643,6 +30650,16 @@ async function renderPrivMa(){
         return K[k].replace(/^\s*<section class="card pv-kartya([^"]*)">/, (_, c) =>
             `<section class="card pv-kartya${c}${teljes.has(k) ? ' ma-teljes' : ''}${maEdit && rejtett ? ' rejtett' : ''}" data-maw="${k}"${maEdit ? ' draggable="true"' : ''}>${bar}`);
     }).join('');
+    // költés-figyelmeztetés: a keretes kategóriák közül az, amelyik már 80% fölött jár, és jóval a hónap előtt halad (vagy túllépte)
+    const honapArany = dt.getDate() / hossz;
+    const figy = keret ? pzLista('ki').filter(k => (k.k || 0) > 0).map(k => {
+            const kolt2 = lista.reduce((a, t) => a + (pzKi(t) && (t.k || 'Egyéb') === k.n ? (t.o || 0) : 0), 0);
+            return { k, kolt: kolt2, ar: kolt2 / k.k }; })
+        .filter(x => x.ar >= 1 || (x.ar >= .8 && x.ar > honapArany + .15)).sort((a, b) => b.ar - a.ar).slice(0, 3) : [];
+    const figyHtml = figy.length && !maEdit ? `<div class="ma-figy" data-mamenj="penzugyek" role="button" tabindex="0">${figy.map(x => `<div class="ma-figy-s${x.ar >= 1 ? ' tul' : ''}">
+            ${pzIk(x.k.ik, x.k.c)}<span class="t"><b>${esc(x.k.n)}: ${Math.round(x.ar * 100)}% elköltve</b>
+            <span>${x.ar >= 1 ? `${pzFt(x.kolt - x.k.k)} Ft-tal túllépted a keretet` : `a hónap ${Math.round(honapArany * 100)}%-ánál · maradt ${pzFt(x.k.k - x.kolt)} Ft`}</span>
+            <span class="ma-csik kicsi"><i style="width:${Math.min(100, x.ar * 100).toFixed(0)}%" class="${x.ar >= 1 ? 'tul' : 'fig'}"></i></span></span></div>`).join('')}</div>` : '';
     const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
@@ -30651,7 +30668,7 @@ async function renderPrivMa(){
         ${maEdit ? `<div class="ma-szerk-info"><p>Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A „Látszik” gombbal elrejted / megjeleníted, a ½ · ▬ gombokkal a szélességét állítod.</p>
             <span class="gombok"><button type="button" data-maalap title="Az eredeti sorrend, szélesség és láthatóság">Visszaállítás</button><button type="button" class="kesz" data-matestre>Kész</button></span>
             <label><input type="checkbox" data-maesti${mb.esti ? ' checked' : ''}> Este 17 óra után az Esti zárás a lap tetejére kerül, ha még nem írtál aznap</label></div>` : ''}
-        <div class="ma-racs${maEdit ? ' szerk' : ''}">${racs}</div>
+        ${figyHtml}<div class="ma-racs${maEdit ? ' szerk' : ''}">${racs}</div>
         ${maEdit ? '' : `<button type="button" class="ma-testre" data-matestre><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Ma oldal testreszabása</button>`}`;
     if(szGorg){ const g = host.querySelector('.ma-szok'); if(g) g.scrollLeft = szGorg; }
     nlKepTolt(host);
