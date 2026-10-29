@@ -112,6 +112,8 @@ await T('havi terv: idegen tiltva', getDoc(doc(other,'havi_terv',`${ZSOLT}_2026_
 await T('éves terv: saját', getDoc(doc(adam,'eves_terv',`${ADAM}_2026`)), 'ok');
 await T('éves terv: beosztott nem látja a felettesét', getDoc(doc(zsolt,'eves_terv',`${ADAM}_2026`)), 'fail');
 await T('számláló: a felettes olvassa', getDoc(doc(adam,'activity_timers',`${ZSOLT}_10p_2026-09-13`)), 'ok');
+await T('számláló: csapattárs is olvassa (Control)', getDoc(doc(other,'activity_timers',`${ZSOLT}_10p_2026-09-13`)), 'ok');
+await T('számláló: kívülálló nem olvassa', getDoc(doc(out,'activity_timers',`${ZSOLT}_10p_2026-09-13`)), 'fail');
 await T('számláló: más nevében nem írható', setDoc(doc(adam,'activity_timers',`${ZSOLT}_10p_2026-09-14`),{seconds:1}), 'fail');
 await T('számláló: sajátot ír', setDoc(doc(zsolt,'activity_timers',`${ZSOLT}_10p_2026-09-14`),{seconds:1}), 'ok');
 

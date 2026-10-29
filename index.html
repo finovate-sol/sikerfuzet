@@ -14314,11 +14314,21 @@ const ttMonogram = n => String(n || '?').trim().split(/\s+/).map(x => x[0] || ''
 function ttSzinkron(d){
     if(typeof ctrlEmberek !== 'function' || !window.sfIsAdmin) return;
     let valt = false;
+    // a név szavainak sorrendje nem számít („Szécsi Márk” = „Márk Szécsi” – a Google-név gyakran fordított)
+    const kulcs = n => pzNorm(n).split(/\s+/).filter(Boolean).sort().join(' ');
+    const adatos = p => Object.keys(p.e || {}).length + (p.k ? 1 : 0) + (p.v ? 1 : 0) + (p.g ? 1 : 0);
     for(const e of ctrlEmberek()){
         const nev = String(e.name || '').replace(/ \(te\)$/, '').trim(); if(!e.uid || !nev) continue;
-        let x = d.sz.find(p => p.u === e.uid) || d.sz.find(p => !p.u && pzNorm(p.n) === pzNorm(nev));
-        if(x){ if(!x.u){ x.u = e.uid; valt = true; } continue; }
-        d.sz.push({ id: 'u' + e.uid, u: e.uid, n: nev, k: '', v: '', g: false, e: {} }); valt = true;
+        const k = kulcs(nev);
+        const talalt = d.sz.filter(p => p.u === e.uid || (!p.u && kulcs(p.n) === k));
+        if(!talalt.length){ d.sz.push({ id: 'u' + e.uid, u: e.uid, n: nev, k: '', v: '', g: false, e: {} }); valt = true; continue; }
+        // ugyanaz az ember több bejegyzéssel (korábbi duplikátum): a legtöbb adatot tartalmazó marad, a többi beleolvad
+        const fo = talalt.slice().sort((a, b) => adatos(b) - adatos(a))[0];
+        if(fo.u !== e.uid){ fo.u = e.uid; valt = true; }
+        for(const t of talalt) if(t !== fo){
+            fo.e = { ...(t.e || {}), ...(fo.e || {}) }; if(!fo.k && t.k) fo.k = t.k; if(!fo.v && t.v) fo.v = t.v; fo.g = fo.g || t.g;
+            d.sz = d.sz.filter(x => x !== t); valt = true;
+        }
     }
     if(valt) prvMent('tudastar');
 }
@@ -14376,7 +14386,7 @@ async function renderTudastar(){
 }
 window.sfShowTudastar = function(){ renderTudastar(); };
 // ---- Control: ki melyik nap hány percet töltött a 10 perces és a 2 órás füzettel, illetve az oldalon.
-// Saját magad + a beosztottaid (a hozzáférés-térkép szerint), adminnak mindenki.
+// Mindenki ugyanazt látja: a teljes csapatot (az activity_timers olvasása minden belépett munkatársnak engedett).
 let ctrlHet = 0;   // 0 = ez a hét, -1 = előző…
 const CTRL_NAPN = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 const ctrlNapK = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -14385,11 +14395,13 @@ function ctrlNapok(){
     const h = new Date(ma); h.setDate(ma.getDate() - (ma.getDay() + 6) % 7 + ctrlHet * 7);
     return Array.from({ length: 7 }, (_, i) => { const d = new Date(h); d.setDate(h.getDate() + i); return d; });
 }
-function ctrlEmberek(){
+// mind = true: az egész csapat (a Control mindenkinek ugyanazt mutatja); egyébként a rálátási kör
+function ctrlEmberek(mind){
     const cu = window.sfCurrentUser || {}, l = window.sfEmployeesList || [];
-    const mas = l.filter(e => e.uid && e.uid !== cu.uid && (window.sfIsAdmin || (window.sfVisibleUids && window.sfVisibleUids.has(e.uid))))
+    const mas = l.filter(e => e.uid && e.uid !== cu.uid && (mind || window.sfIsAdmin || (window.sfVisibleUids && window.sfVisibleUids.has(e.uid))))
         .sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), 'hu'));
-    return [{ uid: cu.uid, name: (cu.name || cu.email || 'Saját') + ' (te)', sajat: true }, ...mas.map(e => ({ uid: e.uid, name: e.name || e.email }))].filter(e => e.uid);
+    const en = l.find(e => e.uid === cu.uid);
+    return [{ uid: cu.uid, name: ((en && en.name) || cu.name || cu.email || 'Saját') + ' (te)', sajat: true }, ...mas.map(e => ({ uid: e.uid, name: e.name || e.email }))].filter(e => e.uid);
 }
 const ctrlPerc = sec => sec >= 30 ? Math.round(sec / 60) : 0;
 async function ctrlAdat(uid, napok){
@@ -14411,7 +14423,7 @@ async function renderControl(host){
     const fej = ttFoValto() + `<div class="tt-fej"><div><h2>Control</h2><p>Ki melyik nap hány percet foglalkozott a 10 perces és a 2 órás füzettel, és mennyit volt az oldalon</p></div>
         <div class="ctrl-het"><button type="button" class="tt-gomb" data-ctrlhet="-1" aria-label="Előző hét">‹</button><span>${ctrlHet === 0 ? 'Ez a hét' : ctrlHet === -1 ? 'Előző hét' : esc(cim)}</span><button type="button" class="tt-gomb" data-ctrlhet="1" aria-label="Következő hét"${ctrlHet >= 0 ? ' disabled' : ''}>›</button></div></div>`;
     if(typeof window.sfAktivitasOlvas !== 'function'){ host.innerHTML = fej + sfVaz(); return; }
-    const emb = ctrlEmberek();
+    const emb = ctrlEmberek(true);
     host.innerHTML = fej + sfVaz();
     const adat = await Promise.all(emb.map(e => ctrlAdat(e.uid, napok).catch(() => null)));
     if(ttFo !== 'control' || !host.isConnected) return;

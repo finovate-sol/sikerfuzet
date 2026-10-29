@@ -186,9 +186,10 @@ service cloud.firestore {
     match /eves_terv/{key} { allow read, write: if canAccess(ownerFromKey(key)); }
 
     // Tevékenység-számlálók ("10 perces füzet", "2 órás füzet" eltöltött idő).
-    // Az app csak ír bele; olvasni a vezető és az admin tudja.
+    // Az app csak ír bele. Olvasni minden belépett munkatárs tud: a Tudásbázis
+    // Control fülén mindenki ugyanazt, a teljes csapat idejét látja.
     match /activity_timers/{key} {
-      allow read:   if canAccess(ownerFromKey(key));
+      allow read:   if isUser();
       allow write:  if isUser() && uid() == ownerFromKey(key);
     }
 
