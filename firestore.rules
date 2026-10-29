@@ -77,6 +77,9 @@ service cloud.firestore {
     // Elérheti-e a bejelentkezett felhasználó a megadott munkatárs adatait?
     // Saját maga, a felettese (bármilyen mélyen), vagy az admin. A vezető a
     // "ránézés" (view-as) módban szerkeszt is, ezért ez írásra is ez a feltétel.
+    // Vezető: legalább egy (közvetlen) beosztottja van a hozzáférés-térképen.
+    function isLeader() { return uid() in accessMap().values(); }
+
     function canAccess(target) {
       return isUser() && (uid() == target || isAdmin() || isManagerOf(target));
     }
@@ -209,8 +212,13 @@ service cloud.firestore {
       allow delete: if canAccess(resource.data.ownerUid);
     }
 
-    // "Ki lesz a következő" – negyedéves, közös csapatoldal.
-    match /kov_quarters/{key} { allow read, write: if isUser(); }
+    // "Ki lesz a következő" – negyedéves, közös csapatoldal. Mindenki látja,
+    // de vezetni csak a vezetők (akiknek van beosztottjuk a hozzáférés-
+    // térképen) és az admin tudják.
+    match /kov_quarters/{key} {
+      allow read:  if isUser();
+      allow write: if isUser() && (isAdmin() || isLeader());
+    }
 
     // ========================================================================
     //  PG MODUL

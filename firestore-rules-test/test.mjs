@@ -126,7 +126,11 @@ await T('ügyfél: átadás a csapaton belül megy', setDoc(doc(adam,'clients','
 await T('ügyfél: kívülre nem adható át', setDoc(doc(adam,'clients','c1'),{ownerUid:OTHER},{merge:true}), 'fail');
 await T('ügyfél: idegen nevére nem hozható létre', setDoc(doc(zsolt,'clients','c9'),{ownerUid:OTHER}), 'fail');
 await T('ügyfél: sajátot létrehoz', setDoc(doc(zsolt,'clients','c9'),{ownerUid:ZSOLT}), 'ok');
-await T('Ki lesz a következő: közös', setDoc(doc(zsolt,'kov_quarters','2026_Q3'),{x:2},{merge:true}), 'ok');
+await T('Ki lesz a következő: vezető írja', setDoc(doc(zsolt,'kov_quarters','2026_Q3'),{x:2},{merge:true}), 'ok');
+await T('Ki lesz a következő: admin írja', setDoc(doc(mark,'kov_quarters','2026_Q3'),{x:3},{merge:true}), 'ok');
+await T('Ki lesz a következő: beosztott nélküli csak olvassa', getDoc(doc(other,'kov_quarters','2026_Q3')), 'ok');
+await T('Ki lesz a következő: beosztott nélküli nem írja', setDoc(doc(other,'kov_quarters','2026_Q3'),{x:4},{merge:true}), 'fail');
+await T('Ki lesz a következő: legalsó szint (junior) nem írja', setDoc(doc(junior,'kov_quarters','2026_Q3'),{x:5},{merge:true}), 'fail');
 
 // ---------- 5. PG: a jegyzet a vezetőé ----------
 await T('A MUNKATÁRS NEM OLVASHATJA A RÓLA SZÓLÓ PG-JEGYZETET', getDoc(doc(zsolt,'pg','pg1')), 'fail');
