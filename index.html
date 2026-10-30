@@ -1495,6 +1495,16 @@
         .rc-lepesek .lp.on { background:var(--blue); border-color:var(--blue); color:#fff; }
         .rc-lepesek span.lp { cursor:default; } .rc-lepesek span.lp.on { background:#16a34a; border-color:#16a34a; }
         .rc-lepesek .lp-v { width:9px; height:2px; background:#dbe2ec; flex:none; } .rc-lepesek .lp-v.on { background:var(--blue); }
+        /* telefonon: a lépéssor a listában a név alatt (csak mutatja), az adatlapon a fejléc-kártyában (pipálható) */
+        .rc-lep-m { display:none; }
+        @media (max-width:760px){
+            .rc-lep-m { display:flex; align-items:center; margin-top:5px; pointer-events:none; }
+            .rc-lep-m .lp { width:20px; height:20px; border-width:1.5px; font-size:7.5px; position:relative; border-radius:50%; border-style:solid; border-color:#dbe2ec; background:#fff; display:grid; place-items:center; font-weight:800; color:#94a3b8; }
+            .rc-lep-m .lp input { display:none; } .rc-lep-m .lp.on { background:var(--blue); border-color:var(--blue); color:#fff; } .rc-lep-m span.lp.on { background:#16a34a; border-color:#16a34a; }
+            .rc-lep-m .lp-v { width:6px; height:2px; background:#dbe2ec; flex:none; } .rc-lep-m .lp-v.on { background:var(--blue); }
+        }
+        .rcm-lep { grid-column:1 / -1; justify-content:center !important; padding:2px 0; }
+        .rcm-lep .lp { width:32px; height:32px; font-size:10.5px; position:relative; } .rcm-lep .lp-v { width:16px; }
         .rc-body { display:flex; flex-direction:column; gap:8px; }
         .rc { background:var(--card); border-radius:12px; box-shadow:var(--shadow); border:1px solid transparent; cursor:pointer; }
         .rc:hover { border-color:#c9d6e8; box-shadow:0 2px 10px rgba(15,47,95,.09); }
@@ -23393,6 +23403,7 @@ function renderRegTable(matched){
                 <div class="reg-person-meta">
                     <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
                     ${r.tervHo ? `<div class="reg-terv-sor">${regTervBadge(r)}</div>` : ''}
+                    <div class="rc-lep-m">${regLepesek(i, r, true).replace(/data-rf=/g, 'data-rfm=')}</div>
                     ${(r.tags||[]).length ? `<div class="reg-tagek">${r.tags.map(t => `<span class="reg-tag" style="--tc:${regTagSzin(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
                 </div>
             </div>
@@ -24402,6 +24413,7 @@ function rcmAdatlap(o){
             <span class="rcm-av${hasName ? '' : ' empty'}"${ac ? ` style="background:${ac.bg};color:${ac.fg};"` : ''}>${hasName ? esc(regInitials(r.name)) : '?'}</span>
             <div class="rcm-nv"><input class="rcm-nev" ${o.nevAttr} value="${esc(r.name || '')}" placeholder="Nincs név megadva" aria-label="Név"><div class="rcm-pk">${o.pirulak || ''}</div></div>
             <button type="button" class="rcm-x" id="${o.zarId}" aria-label="Bezárás">${sfIkon('x')}</button>
+            ${o.lepesek ? `<div class="rcm-lep rc-lepesek">${o.lepesek}</div>` : ''}
             <div class="rcm-ak">${ak}</div></div>
         <div class="rcm-k rcm-info">${rcmRatHtml(o.x, o.ratCim, o.tabAttr)}
             <div class="rcm-mezok">${o.mezok.map(m => `<label class="rcm-m${m.szeles ? ' szeles' : ''}">${sfIkonLap(m.ik, m.szin)}<span><small>${m.cim}</small>${m.html}</span></label>`).join('')}</div></div>
@@ -24422,7 +24434,7 @@ function regCardDetailMobil(i){
     return rcmAdatlap({ r, i, attr: 'data-regdetail', nevAttr: 'data-name="1"', zarId: 'rdClose', tabAttr: 'data-rdtab', akt: regDetailTab,
         pirulak: `<span class="rcm-p st">${regStatusSelect(i, r.status, false).replace('class="status-sel', 'class="status-sel szabad')}</span>${tervP}`,
         negyedik: `<button type="button" data-elemzes="${i}" class="${r.elemzofuzet ? 'rcm-ef' : ''}">${sfIkon('lista')}<span>${r.elemzofuzet && !r.elemzofuzet.kesz ? 'Folytatás' : 'Elemzés'}</span></button>`,
-        x: regRating(r), ratCim: 'Könnyű találkozó?',
+        x: regRating(r), ratCim: 'Könnyű találkozó?', lepesek: regLepesek(i, r, false),
         mezok: [
             { ik: 'telefon', szin: 'zold', cim: 'Telefon', html: inp('phone') },
             { ik: 'csoport', szin: 'kek', cim: 'Ajánló', html: inp('ajanlo') },
