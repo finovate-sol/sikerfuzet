@@ -749,6 +749,10 @@
                 -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
                 -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 60%); mask-image:linear-gradient(to bottom, transparent 0, #000 60%);
                 background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,.35)); }
+            /* az app stílusa minden elmosást kikapcsol, ezért a halványodás színátmenet az oldal háttérszínére */
+            html .szm-fatyol { -webkit-mask-image:none; mask-image:none; height:calc(var(--szm-le) + 62px + 40px);
+                background:linear-gradient(to bottom, color-mix(in srgb, var(--fatyol, var(--st-bg, var(--bg, #f0f3f7))) 0%, transparent) 0, color-mix(in srgb, var(--fatyol, var(--st-bg, var(--bg, #f0f3f7))) 88%, transparent) 55%, var(--fatyol, var(--st-bg, var(--bg, #f0f3f7))) 100%) !important; }
+            body:not(.sf-privat):has(#page-home:not([hidden])) { --fatyol:#fff; }
             .szm-t { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:0; border-radius:19px; background:none;
                 font-family:inherit; font-size:10.5px; font-weight:700; color:#6b7280; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s, color .15s; }
             .szm-t svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
@@ -14992,6 +14996,29 @@ document.addEventListener('click', e => {
     if(e.target.closest('[data-ctvissza]')){ e.preventDefault(); ctAdat().rejtett = []; prvMent('csapatterv'); renderCsapatterv(); }
 });
 
+// ===== Státuszsor színe: az iOS a theme-color színével rajzolja a státuszsor alatti elmosott sávot,
+// ezért ennek mindig az aktuális oldal tetejének (body::before) tényleges színét kell kapnia.
+(function(){
+    let fut = 0;
+    const igazit = () => { fut = 0;
+        let c = getComputedStyle(document.body, '::before').backgroundColor;
+        if(!c || c === 'transparent' || /rgba\(.*,\s*0\)$/.test(c)) c = getComputedStyle(document.body).backgroundColor;
+        if(!c || c === 'transparent') return;
+        const m = c.match(/\d+(\.\d+)?/g); if(m && m.length >= 3) c = '#' + m.slice(0, 3).map(x => Math.round(+x).toString(16).padStart(2, '0')).join('');
+        document.querySelectorAll('meta[name="theme-color"]').forEach(m => { if(m.getAttribute('content') !== c) m.setAttribute('content', c); });
+        if(document.documentElement.dataset.teteje !== c){ document.documentElement.dataset.teteje = c; document.documentElement.style.backgroundColor = c; }
+    };
+    const kesz = () => { if(!fut) fut = requestAnimationFrame(() => setTimeout(igazit, 30)); };
+    const indit = () => {
+        const mo = new MutationObserver(kesz);
+        mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        document.querySelectorAll('.page').forEach(pg => mo.observe(pg, { attributes: true, attributeFilter: ['hidden'] }));
+        document.querySelectorAll('meta[name="theme-color"]').forEach(m => mo.observe(m, { attributes: true, attributeFilter: ['content'] }));
+        mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+        window.addEventListener('sf-ter', kesz); window.addEventListener('resize', kesz); kesz();
+    };
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', indit); else indit();
+})();
 // ===== OLDAL-HOZZÁFÉRÉS (Admin → Hozzáférés) =====
 // A menüpontok munkatársanként ki-be kapcsolhatók. Csak a TILTOTT oldalakat
 // tároljuk (alapból minden látszik), és az adminra sosem vonatkozik –
