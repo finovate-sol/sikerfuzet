@@ -1368,6 +1368,8 @@
         .kt-feedback-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:12px; font-family:inherit; color:var(--text); resize:vertical; box-sizing:border-box; }
         .kt-save-btn { align-self:flex-end; }
 
+        .guide-mini { display:none; align-items:center; gap:6px; align-self:center; margin-left:auto; border:0; border-radius:99px; background:#e6eefc; color:#1f3b63; font:inherit; font-size:13px; font-weight:650; padding:7px 12px; cursor:pointer; white-space:nowrap; }
+        .guide-mini svg { width:16px; height:16px; color:#2563eb; } .guide-mini.on { background:#2563eb; color:#fff; } .guide-mini.on svg { color:#fff; }
         /* ===== ÚJRAFELHASZNÁLHATÓ: "Kit ismerhetek?" segédlet-panel ===== */
         .guide-panel { border:1px solid var(--border); border-radius:12px; background:var(--card); margin-bottom:10px; overflow:hidden; }
         .guide-toggle { width:100%; display:flex; align-items:center; gap:10px; padding:9px 16px; background:var(--blue-light); border:none; cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; color:var(--navy); text-align:left; }
@@ -8389,6 +8391,10 @@
             .reg-bar > h2 { flex:1 1 auto; white-space:normal; min-width:0; }
             /* az aktivitás-időzítő kis pirula a cím mellett; koppintásra kinyílik a teljes sáv */
             .reg-bar > #regTimerSlot, .reg-bar > #ketorasTimerSlot { flex:0 0 auto; }
+            /* telefonon a „Kit ismerhetek?” a számláló mellett; a panel a helyén nyílik, a saját fejléce nélkül */
+            .reg-bar > .guide-mini { display:inline-flex; }
+            #regGuide > .guide-toggle, #ketorasGuide > .guide-toggle { display:none; }
+            #regGuide:not(.open), #ketorasGuide:not(.open) { display:none; }
             .reg-bar > :is(#regTimerSlot, #ketorasTimerSlot):has(.timer-card.nyitva) { flex:1 1 100%; order:1; }
             .reg-bar .timer-card:not(.nyitva) { padding:4px 10px 4px 5px !important; border-radius:999px !important; gap:6px !important; cursor:pointer; min-height:0; }
             .reg-bar .timer-card:not(.nyitva) .timer-ic { width:24px !important; height:24px !important; }
@@ -10911,6 +10917,7 @@ try {
             <div class="card reg-bar">
               <h2 title="Potenciális ügyfelek felkutatása – az első elemzés után a kapcsolat az OVB portálon folytatódik">10 perces füzet</h2>
               <div id="regTimerSlot"></div>
+              <button type="button" class="guide-mini" data-guide-toggle="regGuide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></svg><span>Kit ismerhetek?</span></button>
               <div class="reg-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="regSearch" placeholder="Keresés..."></div>
               <div class="reg-tools">
                 <div class="viewtog" id="regViewTog">
@@ -10957,6 +10964,7 @@ try {
             <div class="card reg-bar">
               <h2 title="Heti 2 óra a karrieremért – munkatárs-jelöltek nyomon követése">2 órás füzet</h2>
               <div id="ketorasTimerSlot"></div>
+              <button type="button" class="guide-mini" data-guide-toggle="ketorasGuide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></svg><span>Kit ismerhetek?</span></button>
               <div class="reg-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="ketorasSearch" placeholder="Meglévő kapcsolat keresése és megjelölése..."></div>
               <div class="reg-tools">
                 <div class="viewtog" id="ketorasViewTog">
@@ -11301,7 +11309,10 @@ new MutationObserver(() => { clearTimeout(guideMeret._t); guideMeret._t = setTim
 document.addEventListener('click', e=>{
     const t = e.target.closest('[data-guide-toggle]');
     if(!t) return;
-    t.closest('.guide-panel').classList.toggle('open');
+    // a számláló melletti kis gomb is ugyanazt a panelt nyitja (a panel a helyén nyílik)
+    const panel = t.closest('.guide-panel') || document.getElementById(t.dataset.guideToggle); if(!panel) return;
+    panel.classList.toggle('open');
+    document.querySelectorAll(`.guide-mini[data-guide-toggle="${panel.id}"]`).forEach(b => b.classList.toggle('on', panel.classList.contains('open')));
 });
 
 // ===== MARKDOWN → HTML =====
