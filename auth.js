@@ -980,7 +980,14 @@ export async function connectCalendarList() {
 }
 
 // --- Kilépés ---
+// Belépés-jelző (localStorage): az index.html már a fejlécben ebből dönti el, hogy
+// egyáltalán kirajzolja-e az appot, vagy rögtön a belépésre küld – így kijelentkezve
+// nem villan fel a naptár / a SZEM indulóképernyője a login előtt.
+const belepJel = be => { try { be ? localStorage.setItem("sf_belepve", "1") : localStorage.removeItem("sf_belepve"); } catch (e) {} };
+// a ?app=… (Sikerfüzet / SZEM) megmarad a login és az app közti oda-vissza úton
+const appKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
 export async function logout() {
+    belepJel(false);
     tokTorol();
     if (isConfigured && auth) await signOut(auth);
     window.location.href = "login.html";
@@ -996,7 +1003,7 @@ export function requireAuth(onReady) {
         return;
     }
     onAuthStateChanged(auth, async (user) => {
-        if (!user) { window.location.replace("login.html"); return; }
+        if (!user) { belepJel(false); window.location.replace("login.html" + appKer()); return; }
         let allowed;
         try { allowed = await isEmailAllowed(user.email); }
         catch (e) {
@@ -1007,7 +1014,8 @@ export function requireAuth(onReady) {
             setTimeout(() => window.location.reload(), 2000);
             return;
         }
-        if (!allowed) { await signOut(auth); window.location.replace("login.html?denied=1"); return; }
+        if (!allowed) { belepJel(false); await signOut(auth); window.location.replace("login.html?denied=1"); return; }
+        belepJel(true);
         // Minden érvényes munkamenetnél (nemcsak a Google-popupos belépéskor)
         // – lásd ensureEmployeeProfile megjegyzését. Szándékosan nincs await
         // előtte: ne késleltesse az app betöltését, a hibáját már kezeli.
@@ -1021,7 +1029,7 @@ export function redirectIfLoggedIn() {
     if (!isConfigured || !auth) return;
     onAuthStateChanged(auth, async (user) => {
         if (!user) return;
-        try { if (await isEmailAllowed(user.email)) window.location.replace("index.html"); }
+        try { if (await isEmailAllowed(user.email)){ belepJel(true); window.location.replace("index.html" + appKer()); } }
         catch (e) {
             // Hálózati hiba – maradjon a login oldalon, a gomb újra megnyomható.
             console.warn("Hozzáférés-ellenőrzés sikertelen (hálózati hiba):", e);

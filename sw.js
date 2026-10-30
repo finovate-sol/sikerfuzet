@@ -3,7 +3,7 @@
 //   Így a frissítés ugyanúgy azonnal megjön (az index.html build-ellenőrzése is működik), de térerő nélkül is megnyílik.
 // - Statikus fájlok (js, képek, ikonok, betűk, CDN-könyvtárak): gyorsítótárból azonnal, háttérben frissítve.
 // - Firebase / Google API hívásokat nem érinti.
-const VER = 'sf-v1';
+const VER = 'sf-v2';
 const STATIKUS = /\.(?:js|css|png|jpe?g|webp|svg|gif|ico|woff2?|ttf|json)$/i;
 const CDN = /^https:\/\/(?:cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com)\//;
 
@@ -29,7 +29,8 @@ self.addEventListener('fetch', e => {
     if(req.mode === 'navigate' && sajat){
         e.respondWith((async () => {
             const kulcs = new Request(url.origin + url.pathname);
-            const halo = fetch(req).then(r => tarol(kulcs, r));
+            // cache:'no-cache' – a böngésző HTTP-gyorsítótára (GitHub Pages: 10 perc) se adja a régit
+            const halo = fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' }).then(r => r.redirected ? fetch(req) : r).then(r => tarol(kulcs, r));
             const varakozas = new Promise(ok => setTimeout(ok, 3500));
             try {
                 const r = await Promise.race([halo, varakozas.then(() => null)]);
