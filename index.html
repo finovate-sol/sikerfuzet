@@ -15031,8 +15031,10 @@ window.sfApplyPageAccess = function(map){
     // Akinek egyetlen SZEM-lapja sincs engedélyezve, annak a Privát mód kapcsoló
     // sem kell. Ha mégis privát állásban van (saját nézetben), visszaváltunk.
     const vanPriv = [...document.querySelectorAll('.nav a[data-ter="priv"][data-page]')].some(a => !a.hidden);
+    // A Hozzáférés fülön a kapcsoló külön is elrejthető (_privkapcs) – ez az adminra is vonatkozik.
+    const kapcsRejt = !!(m && (m[viewed] || []).includes('_privkapcs'));
     const terBox = document.getElementById('sfTerBox');
-    if(terBox) terBox.hidden = !vanPriv;
+    if(terBox) terBox.hidden = !vanPriv || kapcsRejt;
     if(!vanPriv && !isOther && window.sfTer === 'priv' && typeof window.sfTerValt === 'function') window.sfTerValt('ovb');
     // Ha épp egy most letiltott oldalon állunk, visszaviszünk a kezdőoldalra.
     const cur = document.querySelector('.nav a[data-page].active');
@@ -42217,7 +42219,9 @@ Vállalkozás nyitásának átbeszélése`, '']
                     title="${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`;
             const lapok = window.sfLapLista();
             const pageChips = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','SZEM']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
-                return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('');
+                return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('')
+                // nem oldal, hanem a menü Privát mód kapcsolója (rád, az adminra is vonatkozik)
+                + `<div class="adm-page-csop"><span>Menü</span><div class="adm-page-chips">${chip(['_privkapcs', 'Privát mód kapcsoló'])}</div></div>`;
             return `<div class="adm-role-row" data-uid="${emp.uid}">
                 <div class="adm-role-name">
                     <div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
