@@ -200,7 +200,7 @@
         .zb-temak { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin:6px 0 14px; }
         .zb-temak.ovb button.on { border-color:#1f5fd0; }
         .zb-temak button { display:flex; flex-direction:column; align-items:center; gap:6px; border:2px solid transparent; border-radius:14px; background:none; padding:8px 4px; cursor:pointer; font:inherit; font-size:12px; font-weight:600; color:inherit; }
-        .zb-temak button.on { border-color:#7c3aed; }
+        .zb-temak button.on { border-color:#22324a; }
         .zb-temak i { width:44px; height:44px; border-radius:12px; position:relative; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
         .zb-temak i b { position:absolute; right:6px; bottom:6px; width:16px; height:16px; border-radius:50%; }
         /* Privát módban a Sikerfüzet kezdőlapja (Naptár) sosem látszik – a bejelentkezésig
@@ -10110,8 +10110,9 @@
         details.zb-pin-d > summary::after { content:'›'; margin-left:auto; color:#9ca3af; font-size:20px; transition:transform .2s; }
         details.zb-pin-d[open] > summary::after { transform:rotate(90deg); }
         details.zb-pin-d > summary .t { display:flex; flex-direction:column; gap:2px; } details.zb-pin-d > summary .t span { font-size:12.5px; color:var(--muted); }
-        .bl-stilus i b { position:absolute; left:18%; right:18%; height:26%; border-radius:4px; }
-        .bl-stilus i b:first-child { top:22%; } .bl-stilus i b:last-child { top:54%; }
+        .bl-mod i b, .bl-stilus i b { position:absolute; left:18%; right:18%; height:26%; border-radius:4px; }
+        .bl-mod i b:first-child, .bl-stilus i b:first-child { top:22%; } .bl-mod i b:last-child, .bl-stilus i b:last-child { top:54%; }
+        .bl-mod i { position:relative; overflow:hidden; }
     </style>
 <script>
 // Szögletes elrendezés (Beállítások → Megjelenés): már a festés előtt, hogy ne ugráljon.
@@ -10119,9 +10120,9 @@
 try { localStorage.removeItem('sf_szogletes'); } catch(e){}
 // Stílus (anyag): alapból „Meleg természet” – első alkalommal a SZEM színe is zsálya lesz hozzá.
 try {
-    let st = localStorage.getItem('sf_stilus');
-    if(!st){ st = 'termeszet'; localStorage.setItem('sf_stilus', st); if(!localStorage.getItem('sf_stilus_tema')){ localStorage.setItem('sf_szem_tema', JSON.stringify('zsalya')); localStorage.setItem('sf_stilus_tema', '1'); } }
-    if(st === 'termeszet' || st === 'tiszta') document.documentElement.classList.add('sf-st-' + st);
+    // Egyetlen anyag van (a stílusválasztó megszűnt); a régi beállítás nem számít.
+    localStorage.setItem('sf_stilus', 'termeszet');
+    document.documentElement.classList.add('sf-st-termeszet');
 } catch(e){}
 </script>
 </head>
@@ -14926,12 +14927,13 @@ window.SF_TEMAK = window.SF_TEMA_LISTA;
 // Az ügyfélnek szóló felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az eredeti OVB-színekben maradnak.
 window.SF_OVB_TEMAK = window.SF_TEMA_LISTA;
 // Automatikus sötét mód: 'ki' | 'rendszer' (a telefon beállítása szerint) | 'este' (19 és 7 óra között). Ilyenkor mindkét rész az Éjszaka témát kapja.
-window.sfSotetMod = () => { try { return localStorage.getItem('sf_sotet') || 'ki'; } catch(e){ return 'ki'; } };
-window.sfSotetMost = () => { const m = window.sfSotetMod(); if(m === 'rendszer') return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-    if(m === 'este'){ const h = new Date().getHours(); return h >= 19 || h < 7; } return false; };
-window.sfOvbTema = () => { if(window.sfSotetMost()) return 'ejszaka'; try { const t = JSON.parse(localStorage.getItem('sf_ovb_tema') || '"kek"'); return window.SF_OVB_TEMAK[t] ? t : 'kek'; } catch(e){ return 'kek'; } };
+// Megjelenés: 'ki' (Világos) · 'be' (Sötét) · 'rendszer' (Automatikus, a telefon szerint). A régi „este” a Világosra áll.
+window.sfSotetMod = () => { try { const m = localStorage.getItem('sf_sotet'); return ['be', 'rendszer'].includes(m) ? m : 'ki'; } catch(e){ return 'ki'; } };
+window.sfSotetMost = () => { const m = window.sfSotetMod(); if(m === 'be') return true; if(m === 'rendszer') return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); return false; };
+// A színek fixek (az app-ikonokhoz igazítva): Sikerfüzet – kék, SZEM – grafit; sötét módban mindkettő Éjszaka.
+window.sfOvbTema = () => window.sfSotetMost() ? 'ejszaka' : 'kek';
 window.sfOvbTemaTeteje = () => (window.SF_OVB_TEMAK[window.sfOvbTema()] || window.SF_OVB_TEMAK.kek)[2];
-window.sfTema = () => { if(window.sfSotetMost()) return 'ejszaka'; try { const t = JSON.parse(localStorage.getItem('sf_szem_tema') || '"lila"'); return window.SF_TEMAK[t] ? t : 'lila'; } catch(e){ return 'lila'; } };
+window.sfTema = () => window.sfSotetMost() ? 'ejszaka' : 'grafit';
 window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK.lila)[2];
 (function(){
     const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s2 = 0; const l = (mx + mn) / 2;
@@ -14944,7 +14946,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     // téma → színátalakítás (szöveg- vagy felület-szín)
     const ATAL = {
         ejszaka(h, s2, l, tx){
-            if(s2 > .22 && lila(h)) h = 158;
+            // SZEM sötétben: a lila kiemelés acélkék lesz (az ikon színe), nem zöld
+            if(s2 > .22 && lila(h)){ h = 214; s2 = s2 * .4; }
             if(tx){ if(l < .62) l = .93 - l * .45; return [h, s2, l]; }
             if(l > .55){ l = .075 + (1 - l) * .32; if(s2 < .15){ h = 228; s2 = .38; } else s2 = Math.min(s2, .42); }
             else if(l < .32 && s2 > .15){ h = 228; s2 = .45; }
@@ -15151,23 +15154,17 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const blTemaSor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
         `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
     const blJel = k => {
-        if(k === 'megj') return esc(((window.SF_OVB_TEMAK || {})[window.sfOvbTema()] || [''])[0] + ' · ' + ((window.SF_TEMAK || {})[window.sfTema()] || [''])[0]);
+        if(k === 'megj') return ({ ki: 'Világos', be: 'Sötét', rendszer: 'Automatikus' })[window.sfSotetMod()];
         if(k === 'kapcs') return window.sfNaptarKapcs && window.sfNaptarKapcs.van() ? 'Naptár ✓' : '';
         return '';
     };
     async function blPanel(k, host){
         if(k === 'megj'){
-            const temaOvb = `<section class="card bl-k"><h3>Téma – Sikerfüzet</h3><p class="bl-megj">Az OVB rész színvilága. Az ügyfélnek mutatott felületek (elemzőfüzet, bemutató, ajánláskérő) mindig az OVB-színekben maradnak.</p>${blTemaSor(window.SF_OVB_TEMAK, window.sfOvbTema(), 'data-tmovb', true)}</section>`;
-            const temaSzem = `<section class="card bl-k"><h3>Téma – SZEM</h3><p class="bl-megj">A privát rész színvilága, külön állítható.</p>${blTemaSor(window.SF_TEMAK, window.sfTema(), 'data-tmszem', false)}</section>`;
-            host.innerHTML = (document.body.classList.contains('sf-privat') ? temaSzem + temaOvb : temaOvb + temaSzem) + `
-                <section class="card bl-k"><h3>Sötét mód</h3><p class="bl-megj">Automatikusan az Éjszaka témára vált – amíg sötét mód van, a fenti témák helyett az látszik.</p>
-                <div class="sb-chipek bl-sotet">${[['ki', 'Kikapcsolva'], ['rendszer', 'A telefon szerint'], ['este', 'Este (19–7 óra)']].map(([k, n]) => `<button type="button" class="sb-chip ${window.sfSotetMod() === k ? 'on' : ''}" data-blsotet="${k}" aria-pressed="${window.sfSotetMod() === k}">${n}</button>`).join('')}</div></section>
-                <section class="card bl-k"><h3>Stílus</h3><p class="bl-megj">A felületek anyaga – az elrendezés és a működés ugyanaz marad. Ezen az eszközön érvényes.</p>
-                <div class="zb-temak bl-temak bl-stilus">${[['termeszet', 'Meleg természet', '#efe9e1', '#fbf8f3'], ['tiszta', 'Tiszta (iOS)', '#f2f2f7', '#ffffff'], ['uveg', 'Üveg', 'linear-gradient(135deg,#c4b5fd,#f9a8d4)', 'rgba(255,255,255,.55)']].map(([k, n, bg, kt]) => {
-                    const on = (localStorage.getItem('sf_stilus') || 'termeszet') === k;
-                    return `<button type="button" data-blstilus="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div>
-</section>
-`;
+            // egyetlen beállítás: világos / sötét / automatikus (a színek fixek, a stílus egy)
+            host.innerHTML = `<section class="card bl-k"><h3>Megjelenés</h3><p class="bl-megj">Az „Automatikus” a telefon világos/sötét beállítását követi.</p>
+                <div class="zb-temak bl-temak bl-mod">${[['ki', 'Világos', '#eef1f5', '#ffffff'], ['be', 'Sötét', '#0f1724', '#22324a'], ['rendszer', 'Automatikus', 'linear-gradient(90deg,#eef1f5 50%,#0f1724 50%)', 'linear-gradient(90deg,#ffffff 50%,#22324a 50%)']].map(([k, n, bg, kt]) => {
+                    const on = window.sfSotetMod() === k;
+                    return `<button type="button" data-blsotet="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div></section>`;
         } else if(k === 'kapcs'){
             const nk = window.sfNaptarKapcs, van = nk && nk.van();
             host.innerHTML = `<section class="card bl-k"><h3>Google Naptár és Feladatok</h3><p class="bl-megj">A naptár, a Google Tasks és a naptárlista egy összekötéssel. Egyszer kell összekötni – utána minden eszközön magától csatlakozik.</p>
