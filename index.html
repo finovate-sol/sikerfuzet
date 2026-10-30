@@ -1497,11 +1497,25 @@
         .rc-lepesek .lp-v { width:9px; height:2px; background:#dbe2ec; flex:none; } .rc-lepesek .lp-v.on { background:var(--blue); }
         /* telefonon: a lépéssor a listában a név alatt (csak mutatja), az adatlapon a fejléc-kártyában (pipálható) */
         .rc-lep-m { display:none; }
+        .rc-mob { display:none; }
         @media (max-width:760px){
-            .rc-lep-m { display:flex; align-items:center; margin-top:5px; pointer-events:none; }
-            .rc-lep-m .lp { width:20px; height:20px; border-width:1.5px; font-size:7.5px; position:relative; border-radius:50%; border-style:solid; border-color:#dbe2ec; background:#fff; display:grid; place-items:center; font-weight:800; color:#94a3b8; }
+            /* összecsukott sor (B): bal szélén a státusz színe; név + terv, alatta hívás-gomb a számmal + lépések */
+            #regRows .rc:not(.open) { position:relative; overflow:hidden; border-radius:16px !important; padding:0 !important; }
+            #regRows .rc:not(.open)::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--sc, #cbd5e1); z-index:1; }
+            #regRows .rc:not(.open) > .rc-line { display:block !important; padding:10px 12px 10px 15px !important; }
+            #regRows .rc:not(.open) > .rc-line > :not(.rc-mob) { display:none !important; }
+            #regRows .rc:not(.open) > .rc-line > .rc-mob { display:block !important; }
+            .rc-mob .f { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+            .rc-mob .n { font-size:15.5px; font-weight:700; color:var(--text, #16243a); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+            .rc-mob .n.empty { color:#d97706; font-style:italic; font-weight:600; }
+            .rc-mob .t { flex:none; display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:#2563eb; white-space:nowrap; } .rc-mob .t .sf-ik { width:11px; height:11px; } .rc-mob .t.ures { color:#94a3b8; font-weight:600; }
+            .rc-mob .s { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:7px; }
+            .rc-hiv { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:650; color:#15803d; background:#e3f5e9; border-radius:99px; padding:5px 11px; text-decoration:none; white-space:nowrap; }
+            .rc-hiv .sf-ik { width:13px; height:13px; } .rc-hiv.ures { color:#94a3b8; background:#f1f3f6; font-weight:600; }
+            .rc-lep-m { display:flex; align-items:center; margin-top:0; pointer-events:none; flex:none; }
+            .rc-lep-m .lp { width:18px; height:18px; border-width:1.5px; font-size:7.5px; position:relative; border-radius:50%; border-style:solid; border-color:#dbe2ec; background:#fff; display:grid; place-items:center; font-weight:800; color:#94a3b8; }
             .rc-lep-m .lp input { display:none; } .rc-lep-m .lp.on { background:var(--blue); border-color:var(--blue); color:#fff; } .rc-lep-m span.lp.on { background:#16a34a; border-color:#16a34a; }
-            .rc-lep-m .lp-v { width:6px; height:2px; background:#dbe2ec; flex:none; } .rc-lep-m .lp-v.on { background:var(--blue); }
+            .rc-lep-m .lp-v { width:5px; height:2px; background:#dbe2ec; flex:none; } .rc-lep-m .lp-v.on { background:var(--blue); }
         }
         .rcm-lep { grid-column:1 / -1; justify-content:center !important; padding:2px 0; }
         .rcm-lep .lp { width:32px; height:32px; font-size:10.5px; position:relative; } .rcm-lep .lp-v { width:16px; }
@@ -23401,12 +23415,15 @@ function renderRegTable(matched){
         const lk = open ? '' : ' disabled';
         return `<div class="rc${open?' open':''}" data-open="${i}" style="--sc:${regStatusSzin(r.status)}">
         <div class="rc-line${open?'':' rc-locked'}">
+            <div class="rc-mob"><div class="f"><span class="n${hasName ? '' : ' empty'}">${cliDot(r)}${hasName ? esc(r.name) : 'Nincs név megadva'}</span>
+                    ${r.tervHo ? `<span class="t">${sfIkon('celkereszt')}${esc(regTervBadgeSzo(r))}</span>` : '<span class="t ures">nincs terv</span>'}</div>
+                <div class="s">${String(r.phone || '').replace(/[^\d+]/g, '') ? `<a class="rc-hiv" href="tel:${esc(String(r.phone).replace(/[^\d+]/g, ''))}">${sfIkon('telefon')}${esc(r.phone)}</a>` : '<span class="rc-hiv ures">nincs telefonszám</span>'}
+                    <span class="rc-lep-m">${regLepesek(i, r, true).replace(/data-rf=/g, 'data-rfm=')}</span></div></div>
             <div class="reg-person">
                 <span class="reg-avatar${hasName?'':' empty'}"${ac?` style="background:${ac.bg};color:${ac.fg};"`:''}>${hasName?esc(regInitials(r.name)):'?'}${r.kiertekelo && r.kiertekelo.status==='elvegezve' ? '<i class="reg-av-pipa" title="Kiértékelő telefon elvégezve">✓</i>' : ''}</span>
                 <div class="reg-person-meta">
                     <div class="reg-name-cell">${cliDot(r)}<button class="reg-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}" data-open="${i}" title="${hasName?esc(r.name):''}">${hasName?esc(r.name):'Nincs név megadva'}</button></div>
                     ${r.tervHo ? `<div class="reg-terv-sor">${regTervBadge(r)}</div>` : ''}
-                    <div class="rc-lep-m">${regLepesek(i, r, true).replace(/data-rf=/g, 'data-rfm=')}</div>
                     ${(r.tags||[]).length ? `<div class="reg-tagek">${r.tags.map(t => `<span class="reg-tag" style="--tc:${regTagSzin(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
                 </div>
             </div>
