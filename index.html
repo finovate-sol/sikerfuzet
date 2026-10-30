@@ -5050,18 +5050,20 @@
             body:has(#page-feladatok:not([hidden])) #mbTitle::after { content:""; display:inline-block; width:.42em; height:.42em; margin:0 0 .16em .3em; border-right:2.5px solid #9aa3b0; border-bottom:2.5px solid #9aa3b0; transform:rotate(45deg); }
             .fx-malc { display:inline-flex; align-items:center; gap:4px; border:0; background:none; padding:0 2px; margin:2px 0 10px; font:inherit; font-size:13.5px; color:#6b7686; cursor:pointer; }
             .fx-malc .sf-ik { width:12px; height:12px; transform:rotate(90deg); color:#9aa3b0; stroke-width:2.6; }
-            html body #page-feladatok .fx .fx-szaml { display:flex; gap:6px; overflow-x:auto; margin:0 -16px 12px; padding:1px 16px 3px; scrollbar-width:none; }
+            html body #page-feladatok .fx .fx-szaml { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:5px; overflow:visible; margin:0 0 12px; padding:1px 0 3px; }
             html body #page-feladatok .fx .fx-szaml::-webkit-scrollbar { display:none; }
-            html body #page-feladatok .fx button.fx-ik.card { flex:none; display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:99px; border:0; background:var(--card, #fff); color:var(--c); box-shadow:0 1px 2px rgba(15,23,42,.06); }
+            html body #page-feladatok .fx button.fx-ik.card { min-width:0; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:7px 4px; border-radius:99px; border:0; background:var(--card, #fff); color:var(--c); box-shadow:0 1px 2px rgba(15,23,42,.06); }
             html body #page-feladatok .fx button.fx-ik.card::before { display:none; }
             html body #page-feladatok .fx .fx-ik-ic { display:grid !important; width:auto; height:auto; background:none; color:inherit; border-radius:0; }
-            #page-feladatok .fx .fx-ik-ic svg { width:15px; height:15px; }
+            #page-feladatok .fx .fx-ik-ic svg { width:13px; height:13px; }
             #page-feladatok .fx .fx-ik > span:last-child { display:contents; }
             #page-feladatok .fx .fx-ik b { order:2; font-size:11.5px; line-height:1; font-weight:800; color:inherit; opacity:.7; }
-            #page-feladatok .fx .fx-ik > span:last-child > span { order:1; font-size:13.5px !important; font-weight:700 !important; color:inherit !important; }
+            #page-feladatok .fx .fx-ik > span:last-child > span { order:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; font-size:12.5px !important; font-weight:700 !important; color:inherit !important; }
             html body .fx.fx button.fx-ik.fx-ik.card.card.on.on { background:var(--c); color:#fff; box-shadow:none !important; }
             html body .fx.fx button.fx-ik.fx-ik.card.card.on.on b { color:#fff; opacity:.85; }
             #page-feladatok .fx .fx-ik.lej:not(.on) { background:#fdecec; }
+            .mb-szuro { position:relative; } .mb-szuro.on { background:#e6eefc !important; color:#2563eb !important; }
+            .mb-szuro.jel::after { content:""; position:absolute; top:7px; right:8px; width:8px; height:8px; border-radius:50%; background:#dc2626; border:2px solid #fff; }
             .fx-szp { flex:none; display:inline-flex; align-items:center; gap:5px; border:0; background:var(--card, #fff); border-radius:99px; padding:7px 12px; font:inherit; font-size:13.5px; font-weight:700; color:#1f3b63; cursor:pointer; box-shadow:0 1px 2px rgba(15,23,42,.06); }
             .fx-szp.on { background:#e6eefc; color:#2563eb; } .fx-szp .sf-ik { width:14px; height:14px; }
             body:has(.fx-llap) .szm-also, body:has(.fx-llap) .szm-fatyol, body:has(.fx-llap) .szm-gomb { display:none !important; }
@@ -10605,6 +10607,7 @@ try {
                 <svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg>
                 <svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
+            <button type="button" class="mb-ker-g mb-szuro" id="mbSzuro" aria-label="Szűrők" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg></button>
             <button type="button" class="mb-ker-g" id="mbKerG" data-szkeres aria-label="Keresés"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.6-4.6"/></svg></button>
             <button type="button" class="mb-plusz" id="mbPlusz" hidden aria-label="Új"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
@@ -38248,14 +38251,14 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             </div>
             <div class="fx-racs">
                 <div class="fx-kozep">
-                    <button type="button" class="fx-malc" data-fxlistlap>${escM(selList ? selList.title : fdFilter === "kesz" ? "Kész" : "Összes lista")} · ${selList ? gtTasks.filter(t => t.listId === selList.id && !taskIsDone(t)).length : db("aktiv")} feladat${fdPrio || fdTag ? " · szűrve" : ""}${sfIkon('jobbra')}</button>
+                    <button type="button" class="fx-malc" data-fxlistlap>${escM(selList ? selList.title : fdFilter === "kesz" ? "Kész" : "Összes lista")} · ${selList ? gtTasks.filter(t => t.listId === selList.id && !taskIsDone(t)).length : db("aktiv")} feladat${fdPrio || fdTag ? " · szűrve" : ""}</button>
                     ${fxListLap ? `<div class="fx-llap-h" data-fxlistlapzar></div><div class="fx-llap" role="dialog" aria-label="Lista"><div class="fx-llap-fog"></div><b>Lista</b><div class="fx-ml-k">
                         <button type="button" class="${!fdListSel && fdFilter !== "kesz" ? "on" : ""}" data-fdfilter="aktiv">${sfIkonLap('lista', 'acel')}<b>Összes</b><small>${db("aktiv") || ""}</small></button>
                         ${sorrend.map((l, j) => { const n = gtTasks.filter(t => t.listId === l.id && !taskIsDone(t)).length;
                             return `<button type="button" class="${fdListSel === l.id ? "on" : ""}" data-fdlist="${escM(l.id)}">${sfIkonLap('lista', ['kek', 'teal', 'narancs', 'cian', 'indigo', 'piros', 'borosty'][j % 7])}<b>${escM(l.title)}</b><small>${n || ""}</small></button>`; }).join("")}
                         <button type="button" class="${!fdListSel && fdFilter === "kesz" ? "on" : ""}" data-fdfilter="kesz">${sfIkonLap('pipa', 'zold')}<b>Kész</b><small></small></button>
                     </div></div>` : ""}
-                    ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="card fx-ik${fxIdo === k ? " on" : ""}${k === "lej" && v ? " lej" : ""}" data-fxido="${k}" style="--c:${FX_IDO[k][0]}" aria-pressed="${fxIdo === k}"><span class="fx-ik-ic">${FX_IDO[k][1]}</span><span><b>${v}</b><span>${n}</span></span></button>`).join("")}<button type="button" class="fx-szp${fdMobSzuro || fdPrio || fdTag ? " on" : ""}" data-fdmszuro>${sfIkon('szuro')}Szűrők${fdPrio || fdTag ? " •" : ""}</button></div>`}
+                    ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="card fx-ik${fxIdo === k ? " on" : ""}${k === "lej" && v ? " lej" : ""}" data-fxido="${k}" style="--c:${FX_IDO[k][0]}" aria-pressed="${fxIdo === k}"><span class="fx-ik-ic">${FX_IDO[k][1]}</span><span><b>${v}</b><span>${n}</span></span></button>`).join("")}</div>`}
                     ${(() => { const ak = (typeof pgMyAkciok === 'function' ? pgMyAkciok() : []).filter(a => !a.done);
                         return ak.length && fdFilter !== "kesz" ? `<section class="card pg-card fx-ak"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>Akcióterveim</h2><span class="pg-count">${ak.length} nyitott · a vezetődtől / PG-ből</span></div>
                             <div class="card-body"><div class="pg-ak-list">${ak.map(pgAkcioRowHtml).join("")}</div></div></section>` : ""; })()}
@@ -38287,6 +38290,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // görgetéskor a nagy cím helyett a felső sor közepén kicsiben (mint az iPhone-on)
     window.addEventListener("scroll", () => { const d = document.querySelector(".rm-reszlet .rm-dtb"), h = document.querySelector(".rm-reszlet .rm-fej h1");
         if (d && h) d.classList.toggle("kicsi", h.getBoundingClientRect().bottom < d.getBoundingClientRect().bottom); }, { passive:true });
+    // a fejléc szűrő gombja (kereső mellett) a Prioritás / Címke választót nyitja; aktív szűrőnél pötty
+    document.addEventListener("click", e => { if(!e.target.closest || !e.target.closest("#mbSzuro")) return; fdMobSzuro = !fdMobSzuro; renderFeladatok(); });
+    const fxSzuroGomb = () => { const g = document.getElementById("mbSzuro"); if(!g) return;
+        g.hidden = !document.querySelector("#page-feladatok:not([hidden])"); g.classList.toggle("jel", !!(fdPrio || fdTag)); g.classList.toggle("on", fdMobSzuro); };
+    setInterval(fxSzuroGomb, 400);
     // telefonon a „Feladatok” címre koppintva is a listaválasztó nyílik
     document.addEventListener("click", e => { if(!e.target.closest || !e.target.closest("#mbTitle") || !document.querySelector("#page-feladatok:not([hidden])") || !matchMedia("(max-width:760px)").matches) return;
         fxListLap = true; renderFeladatok(); });
