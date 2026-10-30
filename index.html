@@ -148,6 +148,10 @@
     window.sfVaz = function(n){ n = n || 3; var k = '';
         for(var i = 0; i < n; i++) k += '<div class="sf-vaz-k"><i style="width:' + [42, 56, 34][i % 3] + '%"></i><i></i><i style="width:' + [78, 64, 70][i % 3] + '%"></i></div>';
         return '<div class="sf-vaz" role="status" aria-label="Betöltés…">' + k + '</div>'; };
+    // Listás oldalakhoz: egy kártyában sorok (kör alakú pipa + két fénylő csík), mint a kész lista.
+    window.sfVazSor = function(n){ n = n || 6; var k = '';
+        for(var i = 0; i < n; i++) k += '<div class="sf-vaz-sor"><b></b><span><i style="width:' + [64, 48, 72, 40, 58, 52][i % 6] + '%"></i>' + (i % 3 === 1 ? '' : '<i style="width:' + [30, 0, 22][i % 3] + '%"></i>') + '</span></div>';
+        return '<div class="sf-vaz" role="status" aria-label="Betöltés…"><div class="sf-vaz-k sf-vaz-lista"><i style="width:38%"></i>' + k + '</div></div>'; };
     </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -161,7 +165,7 @@
         document.documentElement.classList.add('sf-priv-indul');
         document.documentElement.style.backgroundColor = '#ffffff';
         var tc = document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content', '#ffffff');
-    } })();
+    } else { try { if(localStorage.getItem('sf_belepve') === '1') document.documentElement.classList.add('sf-siker-indul'); } catch(e){} } })();
     </script>
     <style>
         /* ===== Szem indítókép ===== */
@@ -169,10 +173,16 @@
         @property --spl-r { syntax:'<length>'; inherits:false; initial-value:0px; }
         #sfSplash { display:none; position:fixed; inset:0; z-index:4500; overflow:hidden; background:linear-gradient(160deg, #0f1724 0%, #22324a 100%); flex-direction:column; align-items:center; justify-content:center; gap:14px;
             font-family:-apple-system, "Segoe UI", Helvetica, Arial, sans-serif; --spl-r:0px; }
-        html.sf-priv-indul #sfSplash { display:flex; }
-        html.sf-priv-indul { background:#0f1724; }
+        html.sf-priv-indul #sfSplash, html.sf-siker-indul #sfSplash { display:flex; }
+        html.sf-priv-indul, html.sf-siker-indul { background:#0f1724; }
         #sfSplash .spl-f { display:none !important; }
-        html.sf-priv-indul body { overflow:hidden; }
+        html.sf-priv-indul body, html.sf-siker-indul body { overflow:hidden; }
+        /* Sikerfüzet-változat: idézet helyett vékony acélszínű töltőcsík */
+        #sfSplash .spl-sav { display:none; position:relative; width:120px; height:3px; margin-top:8px; border-radius:2px; overflow:hidden; background:rgba(135,150,171,.22); animation:splFel .5s ease .6s both; }
+        #sfSplash .spl-sav::after { content:""; position:absolute; top:0; bottom:0; left:0; width:40%; border-radius:2px; background:#8fa3bf; animation:splSav 1.1s cubic-bezier(.4,0,.2,1) infinite; }
+        @keyframes splSav { from { transform:translateX(-100%); } to { transform:translateX(250%); } }
+        #sfSplash.siker .spl-sav { display:block; }
+        #sfSplash.siker .spl-idez { display:none; }
         #sfSplash .spl-f { position:absolute; border-radius:50%; filter:blur(48px); opacity:.75; pointer-events:none; }
         #sfSplash .spl-f1 { width:300px; height:300px; top:-80px; left:-100px; background:#3a5279; animation:splU1 6s ease-in-out infinite alternate; }
         #sfSplash .spl-f2 { width:320px; height:320px; bottom:-90px; right:-110px; background:#2b3f60; animation:splU2 7s ease-in-out infinite alternate; }
@@ -4226,6 +4236,19 @@
         .ag-dot { width:10px; height:10px; border-radius:3px; margin-top:3px; flex-shrink:0; }
         .ag-title { font-size:12px; font-weight:600; }
         .ag-empty { padding:10px 10px; text-align:center; color:var(--muted); font-size:12px; }
+        /* naptár betöltés: váz az események helyén + vékony kék töltőcsík a dátumsor alatt */
+        .cal-vaz { display:flex; flex-direction:column; gap:10px; padding:14px 12px 18px; min-height:min(60vh, 520px); box-sizing:border-box; }
+        .cal-vaz-s { display:grid; grid-template-columns:44px 1fr; gap:10px; align-items:start; }
+        .cal-vaz-s i { display:block; height:10px; border-radius:5px; background:linear-gradient(90deg, rgba(148,163,184,.16) 0%, rgba(148,163,184,.30) 50%, rgba(148,163,184,.16) 100%); background-size:200% 100%; animation:sfVazFeny 1.3s ease-in-out infinite; }
+        .cal-vaz-s > i.t { width:34px; margin-top:6px; }
+        .cal-vaz-s .b { display:flex; flex-direction:column; gap:8px; min-height:44px; padding:9px 10px; border-radius:10px; border-left:3px solid rgba(31,95,208,.28); background:rgba(31,95,208,.05); }
+        .cal-vaz-s .b i:first-child { height:12px; }
+        .card.cal-tolt .cal-toolbar, .card.cal-tolt .cal-m-nap { position:relative; }
+        .card.cal-tolt .cal-toolbar::after, .card.cal-tolt .cal-m-nap::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; z-index:2; pointer-events:none;
+            background:linear-gradient(90deg, transparent 0, var(--blue, #1f5fd0) 30%, var(--blue, #1f5fd0) 55%, transparent 85%) no-repeat; background-size:45% 100%; animation:calToltCsik 1.1s cubic-bezier(.4,0,.2,1) infinite; }
+        @keyframes calToltCsik { from { background-position:-80% 0; } to { background-position:180% 0; } }
+        @media (max-width:760px){ .card.cal-tolt .cal-toolbar::after { display:none; } }
+        @media (prefers-reduced-motion:reduce){ .cal-vaz-s i, .card.cal-tolt .cal-toolbar::after, .card.cal-tolt .cal-m-nap::after { animation:none; } }
         .ag-del { margin-left:auto; color:var(--red); cursor:pointer; opacity:.5; padding:0 6px; font-weight:800; }
         .ag-del:hover { opacity:1; }
         .seg { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-left:auto; }
@@ -8853,6 +8876,16 @@
         .sf-vaz-k i { display:block; height:12px; border-radius:6px; width:100%;
             background:linear-gradient(90deg, rgba(148,163,184,.16) 0%, rgba(148,163,184,.30) 50%, rgba(148,163,184,.16) 100%); background-size:200% 100%; animation:sfVazFeny 1.3s ease-in-out infinite; }
         .sf-vaz-k i:first-child { height:16px; }
+        .sf-vaz-lista { gap:0; padding:16px 16px 6px; }
+        .sf-vaz-lista > i { margin-bottom:8px; }
+        .sf-vaz-sor { display:flex; align-items:flex-start; gap:12px; padding:11px 0; border-bottom:1px solid rgba(148,163,184,.16); }
+        .sf-vaz-sor:last-child { border-bottom:0; }
+        .sf-vaz-sor b { flex:none; width:20px; height:20px; border-radius:50%; border:2px solid rgba(148,163,184,.35); box-sizing:border-box; }
+        .sf-vaz-sor span { flex:1; display:flex; flex-direction:column; gap:7px; padding-top:3px; }
+        .sf-vaz-k .sf-vaz-sor i { display:block; height:11px; border-radius:6px;
+            background:linear-gradient(90deg, rgba(148,163,184,.16) 0%, rgba(148,163,184,.30) 50%, rgba(148,163,184,.16) 100%); background-size:200% 100%; animation:sfVazFeny 1.3s ease-in-out infinite; }
+        .sf-vaz-k .sf-vaz-sor i + i { height:9px; opacity:.8; }
+        @media (prefers-reduced-motion:reduce){ .sf-vaz-k i, .sf-vaz-sor i { animation:none; } }
         @keyframes sfVazFeny { from { background-position:100% 0; } to { background-position:-100% 0; } }
         /* amíg egy oldal tartalma még nem rajzolódott ki (üres …Body), üres képernyő helyett vázlatkártyák */
         .main .page:not([hidden]) .page-wrap > div[id$="Body"]:empty { min-height:260px; border-radius:20px;
@@ -10127,14 +10160,22 @@ try {
 </script>
 </head>
 <body>
-<div id="sfSplash" aria-hidden="true"><span class="spl-f spl-f1"></span><span class="spl-f spl-f2"></span><span class="spl-f spl-f3"></span><img id="sfSplashIk" src="icons/monolit/icon-192.png" alt="" width="96" height="96"><b><span>S</span><span>Z</span><span>E</span><span>M</span></b><div class="spl-nap" id="sfSplashNap"></div><div class="spl-idez" id="sfSplashIdez"></div></div>
+<div id="sfSplash" aria-hidden="true"><span class="spl-f spl-f1"></span><span class="spl-f spl-f2"></span><span class="spl-f spl-f3"></span><img id="sfSplashIk" src="icons/monolit/icon-192.png" alt="" width="96" height="96"><b><span>S</span><span>Z</span><span>E</span><span>M</span></b><div class="spl-nap" id="sfSplashNap"></div><div class="spl-idez" id="sfSplashIdez"></div><div class="spl-sav"></div></div>
 <script>
 // Indítókép (csak privát állásban látszik): a választott Szem-ikonnal; eltűnik, amint a
 // privát kezdőlap elkészült (window.sfSplashLe), legkésőbb 7 mp után.
 (function(){
-    var sp = document.getElementById('sfSplash');
-    if(!document.documentElement.classList.contains('sf-priv-indul')){ sp.remove(); window.sfSplashLe = function(){}; return; }
-    try { document.getElementById('sfSplashIk').src = 'icons/' + window.sfEletIkon() + '/icon-192.png'; } catch(e){}
+    var sp = document.getElementById('sfSplash'), H = document.documentElement;
+    var siker = !H.classList.contains('sf-priv-indul') && H.classList.contains('sf-siker-indul'), OSZT = siker ? 'sf-siker-indul' : 'sf-priv-indul';
+    if(!H.classList.contains(OSZT)){ sp.remove(); window.sfSplashLe = function(){}; return; }
+    if(siker){
+        // Sikerfüzet: a választott Lépcső-ikon, a név beugró betűkkel, alatta töltőcsík
+        var sk = 'lepcso'; try { sk = JSON.parse(localStorage.getItem('sf_app_icon') || 'null') || 'lepcso'; } catch(e){}
+        if(!window.SF_ICONS || !window.SF_ICONS[sk]) sk = 'lepcso';
+        document.getElementById('sfSplashIk').src = 'icons/' + sk + '/icon-192.png';
+        sp.querySelector('b').innerHTML = 'Sikerfüzet'.split('').map(function(c, i){ return '<span style="animation-delay:' + (.3 + i * .045).toFixed(3) + 's">' + c + '</span>'; }).join('');
+        sp.classList.add('siker');
+    } else try { document.getElementById('sfSplashIk').src = 'icons/' + window.sfEletIkon() + '/icon-192.png'; } catch(e){}
     // mai dátum és napi gondolat (a nap sorszáma szerint körbe)
     var GOND = ['Amire figyelsz, az növekszik.', 'Kis lépés is lépés.', 'Ma elég a mai napot jól csinálni.', 'A szokásaid építik a jövődet.',
         'Lassan járj, tovább érsz.', 'A fegyelem a szabadság kapuja.', 'Légy jelen abban, amit csinálsz.', 'Ami mérhető, az fejleszthető.',
@@ -10146,16 +10187,17 @@ try {
     document.getElementById('sfSplashNap').textContent = NAPOK[most.getDay()] + ' · ' + HO[most.getMonth()] + ' ' + most.getDate() + '.';
     document.getElementById('sfSplashIdez').textContent = '„' + GOND[nap % GOND.length] + '”';
     // legalább ennyi ideig látszik, hogy a beugró betűk és a gondolat kiolvasható legyen
-    var t0 = Date.now(), MIN = 1800, kesz = false;
+    // a Sikerfüzet-változat rövidebb: az első naptárbetöltésig, de legfeljebb ~2,5 mp-ig
+    var t0 = Date.now(), MIN = siker ? 900 : 1800, kesz = false;
     window.sfSplashLe = function(){
         if(kesz) return; kesz = true;
         setTimeout(function(){
-            document.documentElement.classList.remove('sf-priv-indul');
+            H.classList.remove(OSZT);
             sp.style.display = 'flex'; sp.classList.add('el');
             setTimeout(function(){ sp.remove(); }, 700);
         }, Math.max(0, MIN - (Date.now() - t0)));
     };
-    setTimeout(window.sfSplashLe, 7000);
+    setTimeout(window.sfSplashLe, siker ? 2500 : 7000);
 })();
 </script>
 <div class="layout">
@@ -35921,7 +35963,27 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     }
     let calRenderSeq = 0;
 
+    // Betöltés közben a naptár kártyáján vékony kék töltőcsík fut; az első kész
+    // betöltés a Sikerfüzet indítóképét is leveszi.
     async function initCalendar(){
+        const card = document.getElementById("calGrid")?.closest(".card");
+        if (card) card.classList.add("cal-tolt");
+        const p = calRajz(), s = calRenderSeq;
+        try { await p; }
+        finally {
+            if (s === calRenderSeq){
+                if (card) card.classList.remove("cal-tolt");
+                if (document.documentElement.classList.contains("sf-siker-indul") && window.sfSplashLe) window.sfSplashLe();
+            }
+        }
+    }
+    // Vázlat az események helyére: amíg nincs adat, a nap formája már látszik.
+    function calVazHtml(){
+        const sz = [62, 44, 70, 52];
+        return `<div class="cal-vaz" role="status" aria-label="Események betöltése…">${sz.map((w, i) =>
+            `<div class="cal-vaz-s"><i class="t"></i><div class="b"${i === 1 ? ' style="min-height:64px"' : ""}><i style="width:${w}%"></i><i style="width:${w - 22}%"></i></div></div>`).join("")}</div>`;
+    }
+    async function calRajz(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
         grid.closest(".card")?.classList.toggle("cal-apple", calStyle === "apple");
@@ -35982,9 +36044,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         // már megadta), és csak utána kérjük gombnyomással.
         let token = getCalendarToken();
         if (!token && hasAutoConnect() && silentState !== false){
-            if (grid && silentState === null){
-                grid.innerHTML = `<div class="ag-empty">Csatlakozás a Google Naptárhoz…</div>`;
-            }
+            if (grid && silentState === null && !grid.querySelector(".cal-vaz")) grid.innerHTML = calVazHtml();
             token = await silentOnce();
             if (seq !== calRenderSeq) return;
         }
@@ -35992,8 +36052,13 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
         updateStats(token);
 
-        if (cols){ renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); wireAllDayClicks(cols); }
-        else currentColumns = [];
+        // Az idő-rácsot azonnal kirajzoljuk – kivéve az első betöltést, amikor a
+        // váz marad a helyén, amíg az események meg nem jönnek.
+        let shellKesz = false;
+        const shell = () => { if (shellKesz || !cols) return; shellKesz = true;
+            renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); wireAllDayClicks(cols); };
+        if (!cols) currentColumns = [];
+        else if (!grid.querySelector(".cal-vaz")) shell();
 
         try {
             // A Google Tasks NEM jön vissza a Calendar API-ból, ezért külön
@@ -36041,7 +36106,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 const d = new Date(due.ymd + "T00:00:00");
                 return d >= rangeStart && d < rangeEnd;
             });
-            if (viewMode === "day" || viewMode === "week"){ renderTimeEvents(cols, events, inRange); fitTimeGridBottom(); }
+            if (viewMode === "day" || viewMode === "week"){ shell(); renderTimeEvents(cols, events, inRange); fitTimeGridBottom(); }
             else if (viewMode === "month") renderMonth(grid, now, events, inRange);
             else if (viewMode === "clients"){
                 const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
@@ -38072,7 +38137,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             return;
         }
         if(!isConfigured){ renderFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
-        body.innerHTML = sfVaz();
+        // amit már tudunk (korábban betöltött feladatok), az azonnal látszik; különben vázsorok
+        if(gtTasks.length) renderFeladatok(); else if(!body.querySelector(".fx-lista")) body.innerHTML = sfVazSor(7);
         try {
             await loadAllTasks(false);
             await loadTaskMeta();
@@ -42487,6 +42553,21 @@ Vállalkozás nyitásának átbeszélése`, '']
     window.sfShowStruktura = function(){ loadAndRenderStruktura(); reloadKarrierLetra(); };
 
 
+    // Első festés: a naptár kerete (hónap, hét, mai nap, dátumsor) azonnal a valódi
+    // dátumokkal, az események helyén váz – a bejelentkezés és a Google-adatok
+    // megérkezéséig sem üres a kezdőlap.
+    (() => { try {
+        const grid = document.getElementById("calGrid"); if (!grid || grid.firstChild) return;
+        const seg = document.getElementById("calSeg");
+        if (seg && window.matchMedia && matchMedia("(max-width:1000px)").matches && viewMode === "week"){
+            viewMode = "day";
+            seg.querySelectorAll("button[data-view]").forEach(x => x.classList.toggle("active", x.dataset.view === "day"));
+        }
+        calMobWire(); calMobFej();
+        const dl = document.querySelector(".cal-date");
+        if (dl) dl.textContent = viewMode === "day" ? fmtDay(startOfDay(viewAnchor)) : fmtRange(startOfWeek(viewAnchor));
+        grid.innerHTML = calVazHtml(); grid.closest(".card")?.classList.add("cal-tolt");
+    } catch(_){} })();
 </script>
 <script>
 // Offline-gyorsítótár: második megnyitástól a statikus fájlok azonnal jönnek, térerő nélkül is elindul az app.
