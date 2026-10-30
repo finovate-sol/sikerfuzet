@@ -34612,6 +34612,21 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     function pushWeekFromCalendar(){
         if (typeof window.sfSetWeekOffset === "function") window.sfSetWeekOffset(weekOffsetOf(viewAnchor), "cal");
     }
+    // Az iPhone napokig a háttérben tartja az appot: visszatéréskor, ha közben új
+    // nap lett, a naptár (és vele a heti terv, statisztika) a mai napra ugrik –
+    // különben a megnyitás napja maradna "ma".
+    let calNyitNap = new Date().toDateString();
+    const calUjNap = () => {
+        if (document.hidden) return;
+        const ma = new Date().toDateString(); if (ma === calNyitNap) return;
+        calNyitNap = ma; viewAnchor = new Date();
+        if (calWired){ initCalendar(); pushWeekFromCalendar(); }
+        const pm = document.getElementById("page-privma");
+        if (pm && !pm.hidden && window.sfShowPrivMa) window.sfShowPrivMa();   // a Szem Ma oldala is az új napot mutassa
+    };
+    document.addEventListener("visibilitychange", calUjNap);
+    window.addEventListener("pageshow", calUjNap);
+    window.addEventListener("focus", calUjNap);
     // A közös hét-váltó innen mozgatja a naptárat és a statisztikát.
     window.sfSyncWeekViews = function(off, from){
         statsWeekOffset = off;
