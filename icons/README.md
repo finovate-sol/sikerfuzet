@@ -1,17 +1,18 @@
 # Ikonok
 
-Két ikonkészlet él egymás mellett; hogy melyiket viseli az app, azt az
-Admin → Ikon fülön lehet átállítani (a választás a `config/app`
-dokumentum `appIcon` mezőjében, mindenkire érvényesen).
+Két app, mindkettőnek két ikonja: egy sötét (éjkék alap, acél rajz) és egy
+fehér (fehér alap, éjkék rajz). Az alap a sötét.
 
-| mappa       | név           | motívum                                   |
-|-------------|---------------|-------------------------------------------|
-| `fuzet/`    | Nyitott füzet (alap) | zöld–kék nyitott füzet sorokkal, fekete kerettel |
-| `emelkedo/` | Emelkedő      | felfelé tartó nyíl (manifest: `manifest-emelkedo.json`) |
+| mappa            | app        | név               | manifest                       |
+|------------------|------------|-------------------|--------------------------------|
+| `lepcso/`        | Sikerfüzet | Lépcső (alap)     | `manifest.json`                |
+| `lepcso-feher/`  | Sikerfüzet | Lépcső – fehér    | `manifest-lepcso-feher.json`   |
+| `monolit/`       | SZEM       | Monolit (alap)    | `manifest-monolit.json`        |
+| `monolit-feher/` | SZEM       | Monolit – fehér   | `manifest-monolit-feher.json`  |
 
-Mindkettő fehér lapon áll, és a rajz kitölti a lapot, mint a Tükör ikonjainál.
-Az alap (Nyitott füzet) a Tükör szemével egy családba tartozik: ugyanaz a háttér,
-ugyanolyan vastag, színátmenetes fekete keret és puha árnyék.
+A Sikerfüzet ikonját az Admin → Ikon fülön lehet átállítani (mindenkire
+érvényes, `config/app` → `appIcon`), a SZEM ikonját a SZEM beállításaiban
+(eszközönként, `localStorage` → `sf_elet_icon`).
 
 ## Melyik fájl mire való
 

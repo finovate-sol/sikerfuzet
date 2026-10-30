@@ -20,24 +20,24 @@
     // tesszük ki: az iPhone Safari a kezdőképernyőhöz adáskor a nevet és a
     // kezdőcímet a betöltéskor látott manifestből veszi, a későbbi cserét nem követi.
     (function(){
-        var priv = false, ek = 'tukor-szem', sk = null;
+        var priv = false, ek = 'monolit', sk = null;
         try {
             // A Szem új alapikonja a szem: a korábbi (Életfüzet-kori) választást egyszer elengedjük.
-            if(localStorage.getItem('sf_elet_icon_v') !== '2'){ localStorage.removeItem('sf_elet_icon'); localStorage.setItem('sf_elet_icon_v', '2'); }
+            if(localStorage.getItem('sf_elet_icon_v') !== '3'){ localStorage.removeItem('sf_elet_icon'); localStorage.removeItem('sf_app_icon'); localStorage.setItem('sf_elet_icon_v', '3'); }
             var q0 = new URLSearchParams(location.search);
             // ?app=siker: a Sikerfüzet-ikon (és a Dockhoz/kezdőképernyőhöz adás) mindig a Sikerfüzetet kapja
             priv = q0.get('app') !== 'siker' && (q0.get('app') === 'elet' || q0.has('ment') || q0.has('szoveg') || JSON.parse(localStorage.getItem('sf_ter') || 'null') === 'priv');
-            var x = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); if(x === 'elet-vegtelen' || x === 'elet-lotusz') ek = x;
+            var x = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); if(x === 'monolit-feher') ek = x;
             sk = JSON.parse(localStorage.getItem('sf_app_icon') || 'null');
         } catch(e){}
-        var href = priv ? 'manifest-' + ek + '.json' : (sk === 'emelkedo' ? 'manifest-emelkedo.json' : 'manifest.json');
+        var href = priv ? 'manifest-' + ek + '.json' : (sk === 'lepcso-feher' ? 'manifest-lepcso-feher.json' : 'manifest.json');
         document.write('<link rel="manifest" href="' + href + '">');
     })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="icons/fuzet/icon.svg?v=16">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/fuzet/icon-32.png?v=16">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/fuzet/icon-16.png?v=16">
-    <link rel="apple-touch-icon" href="icons/fuzet/icon-180.png?v=16">
+    <link rel="icon" type="image/svg+xml" href="icons/lepcso/icon.svg?v=17">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/lepcso/icon-32.png?v=17">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/lepcso/icon-16.png?v=17">
+    <link rel="apple-touch-icon" href="icons/lepcso/icon-180.png?v=17">
     <script>
     // ===== APP-IKON =====
     // Kétféle ikont viselhet az app; hogy melyiket, azt az Admin → Ikon fülön
@@ -49,11 +49,11 @@
     // azonnal; a felhőből érkező érték aztán felülírja, ha közben változott.
     // A login.html ugyanezt a szkriptet viseli: ott Firestore-olvasás nincs,
     // így a helyi másolat az egyetlen forrás.
-    window.SF_ICONS = { emelkedo:'Emelkedő', fuzet:'Nyitott füzet' };
-    window.SF_ICON_DEFAULT = 'fuzet';
+    window.SF_ICONS = { 'lepcso':'Lépcső', 'lepcso-feher':'Lépcső – fehér' };
+    window.SF_ICON_DEFAULT = 'lepcso';
     window.sfApplyIconLinks = function(key){
         if(!window.SF_ICONS[key]) key = window.SF_ICON_DEFAULT;
-        var base = 'icons/' + key + '/', v = '?v=16';
+        var base = 'icons/' + key + '/', v = '?v=17';
         var set = function(sel, href){ var el = document.querySelector(sel); if(el) el.setAttribute('href', href); };
         // A manifestet nem lehet menet közben összerakni (a böngészők csak
         // valódi, azonos eredetű fájlt fogadnak el), ezért variánsonként
@@ -73,8 +73,8 @@
     // pedig ?app=elet-et kap – így ha innen adod a kezdőképernyőhöz, az ikon
     // mindig a privát részre nyílik (a ?app=elet induláskor privát módba tesz).
     // A Szem ikonja a privát beállításokban választható (eszközönként).
-    window.SF_ELET_ICONS = { 'tukor-szem': 'Szem', 'elet-lotusz': 'Aurora-lótusz', 'elet-vegtelen': 'Végtelen' };
-    window.SF_ELET_DEFAULT = 'tukor-szem';
+    window.SF_ELET_ICONS = { 'monolit': 'Monolit', 'monolit-feher': 'Monolit – fehér' };
+    window.SF_ELET_DEFAULT = 'monolit';
     window.sfEletIkon = function(){
         var k = null; try { k = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); } catch(e){}
         return window.SF_ELET_ICONS[k] ? k : window.SF_ELET_DEFAULT;
@@ -88,7 +88,7 @@
             set('meta[name="apple-mobile-web-app-title"]', 'content', 'Sikerfüzet');
             document.title = 'Sikerfüzet';
         } else {
-            var key = window.sfEletIkon(), base = 'icons/' + key + '/', v = '?v=2';
+            var key = window.sfEletIkon(), base = 'icons/' + key + '/', v = '?v=3';
             set('link[rel="manifest"]', 'href', 'manifest-' + key + '.json');
             set('link[rel="icon"][type="image/svg+xml"]', 'href', base + 'icon.svg' + v);
             set('link[rel="icon"][sizes="32x32"]', 'href', base + 'icon-32.png' + v);
@@ -10115,7 +10115,7 @@ try {
 </script>
 </head>
 <body>
-<div id="sfSplash" aria-hidden="true"><span class="spl-f spl-f1"></span><span class="spl-f spl-f2"></span><span class="spl-f spl-f3"></span><img id="sfSplashIk" src="icons/tukor-szem/icon-192.png" alt="" width="96" height="96"><b><span>S</span><span>Z</span><span>E</span><span>M</span></b><div class="spl-nap" id="sfSplashNap"></div><div class="spl-idez" id="sfSplashIdez"></div></div>
+<div id="sfSplash" aria-hidden="true"><span class="spl-f spl-f1"></span><span class="spl-f spl-f2"></span><span class="spl-f spl-f3"></span><img id="sfSplashIk" src="icons/monolit/icon-192.png" alt="" width="96" height="96"><b><span>S</span><span>Z</span><span>E</span><span>M</span></b><div class="spl-nap" id="sfSplashNap"></div><div class="spl-idez" id="sfSplashIdez"></div></div>
 <script>
 // Indítókép (csak privát állásban látszik): a választott Szem-ikonnal; eltűnik, amint a
 // privát kezdőlap elkészült (window.sfSplashLe), legkésőbb 7 mp után.
@@ -41755,8 +41755,8 @@ Vállalkozás nyitásának átbeszélése`, '']
     // ne csúszhasson szét. Csak a hivatkozásokat cseréljük – a rajzokat nem
     // generáljuk futásidőben, mindkét készlet minden mérete készen áll.
     const ICON_CHOICES = [
-        { key:"fuzet",    name:"Nyitott füzet", desc:"Nyitott füzet zöld–kék lapokkal és sorokkal, fekete kerettel, fehér háttéren – a SZEM ikonjával egy családban. Ez az alap." },
-        { key:"emelkedo", name:"Emelkedő",      desc:"Felfelé tartó nyíl. A legjobban olvasható kis méretben is – böngészőfülön, 16 képpontnál sem esik szét." },
+        { key:"lepcso",       name:"Lépcső",          desc:"Három emelkedő oszlop acél színben, éjkék alapon – a SZEM Monolit ikonjával egy családban. Ez az alap." },
+        { key:"lepcso-feher", name:"Lépcső – fehér",  desc:"Ugyanaz a három oszlop éjkék színben, fehér alapon." },
         
     ];
 
@@ -41768,10 +41768,10 @@ Vállalkozás nyitásának átbeszélése`, '']
             <div class="adm-icon-opts">${ICON_CHOICES.map(o=>`
                 <button class="adm-icon-opt${o.key===cur?' active':''}" data-appicon="${escM(o.key)}">
                     <div class="adm-icon-prev">
-                        <img src="icons/${escM(o.key)}/icon.svg?v=16" alt="" width="88" height="88" class="adm-icon-big">
+                        <img src="icons/${escM(o.key)}/icon.svg?v=17" alt="" width="88" height="88" class="adm-icon-big">
                         <div class="adm-icon-small">
-                            <img src="icons/${escM(o.key)}/icon.svg?v=16" alt="" width="32" height="32">
-                            <img src="icons/${escM(o.key)}/icon.svg?v=16" alt="" width="16" height="16">
+                            <img src="icons/${escM(o.key)}/icon.svg?v=17" alt="" width="32" height="32">
+                            <img src="icons/${escM(o.key)}/icon.svg?v=17" alt="" width="16" height="16">
                             <span>böngészőfülön</span>
                         </div>
                     </div>
