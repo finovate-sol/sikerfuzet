@@ -302,6 +302,12 @@
             transition: background .15s, color .15s;
         }
         .nav a svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .9; }
+        /* menüpont alcímmel: a név alatt kis, halvány leírás */
+        .nav a .nav-tx { display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+        .nav a .nav-al { font-size:10.5px; font-weight:400; opacity:.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+        .nav a:has(.nav-al) { padding-top:7px; padding-bottom:7px; }
+        .nav a.active .nav-al { opacity:.85; }
+        .sidebar.collapsed .nav a .nav-tx { display:none; }
         .nav a:hover { background: rgba(255,255,255,.06); color:#fff; }
         .nav a.active { background: var(--blue); color: #fff; }
         .nav .divider { height:1px; background: rgba(255,255,255,.09); margin: 10px 16px; }
@@ -10358,9 +10364,9 @@
         /* modálok, lapok */
         html:is(.sf-st-termeszet, .sf-st-tiszta) :is(.modal, .szm-lap, .fx-ujlap) { background:var(--st-kartya) !important; }
         html.sf-st-termeszet .nlw { background:var(--st-kartya); }
-        /* Meleg természet: puha, talpas címek */
+        /* Címek: ugyanaz a betűcsalád, mint a szövegé (korábban talpas volt) – egységesebb, nyugodtabb kép */
         html.sf-st-termeszet :is(#mbTitle, .pz-fej-mcim, .ma-koszon, .page h1, .page h2, .pv-cim, .card h3, .card h4, .nl-cel-fej span, .nlw-test h3, .szm-lap h5) {
-            font-family:ui-serif, "New York", "Iowan Old Style", Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em; }
+            font-weight:700 !important; letter-spacing:-.01em; }
         @media (max-width:1000px){ .main .page h1.sf-dupla, .main .page h2.sf-dupla { display:none !important; } }
         .mn-kosd { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; background:rgba(37,99,235,.04); }
         .mn-kosd .mn-u { margin:0; }
@@ -32707,6 +32713,15 @@ const EN_LEIRAS = { home: 'naptár, mai nap, heti terv', feladatok: 'teendők, h
     ugyfelek: 'ügyfelek, ajánlások', ketoras: 'karrier-jelöltek', csapatterv: 'a csapat havi terve', kovetkezo: 'utódjelöltek', struktura: 'a csapat felépítése', sablonok: 'üzenet- és e-mail-sablonok',
     prezik: 'bemutatók', tervezet: 'ajánlati tervezet PDF-ben', idd: 'vizsgafelkészítés', gst: 'vizsgafelkészítés', tudastar: 'tudásbázis, control', privma: 'a mai nap egy helyen', penzugyek: 'költések, keretek, számlák', celok: 'célok, vízió, haladás', szokasok: 'napi és heti szokások, sorozatok', onismeret: 'életkerék, szabályaim, értékek', edzes: 'edzésterv, Strava, csúcsok', egeszseg: 'testsúly, alvás, mérések',
     enaplo: 'napi bejegyzések, hangulat', konyvek: 'amit olvasol, olvasási lista', mentesek: 'elmentett cikkek, linkek', kiszemelt: 'amit szeretnél megvenni', emberek: 'születésnapok, programok', jegyzetek: 'jegyzetek, ötletek' };
+// A gépes oldalsávban is rövid alcím a menüpontok alatt (ugyanaz, mint a telefonos menü csempéin) –
+// a nav-label érintetlen marad (több helyen abból olvassuk a lap nevét), mellé kerül a közös keretbe.
+(function(){
+    document.querySelectorAll('.sidebar .nav a[data-page]').forEach(a => {
+        const l = a.querySelector(':scope > .nav-label'), al = EN_LEIRAS[a.dataset.page]; if(!l || !al || a.querySelector('.nav-al')) return;
+        const tx = document.createElement('span'); tx.className = 'nav-tx'; l.before(tx); tx.appendChild(l);
+        const sm = document.createElement('small'); sm.className = 'nav-al'; sm.textContent = al; tx.appendChild(sm);
+    });
+})();
 window.sfShowEn = function(){
     const host = document.getElementById('enBody'); if(!host) return;
     const priv = szTer() === 'priv', cim = priv ? 'Én' : 'Menü';
