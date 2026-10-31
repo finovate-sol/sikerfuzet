@@ -43296,6 +43296,12 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .bg-info > div + div { border-top-color:#FF3399; } .tvp .bg-info b { display:block; font-size:11px; color:#003366; letter-spacing:.03em; margin-bottom:4px; }
 .tvp .bg-info ul { margin:0; padding-left:14px; font-size:10.3px; line-height:1.55; color:#28364a; }
 .tvp .bg-megj { font-size:9.5px; color:#6b7280; margin:10px 0 0; line-height:1.5; }
+.tvp .bz-al { font-size:15px; font-weight:800; color:var(--bz); margin-bottom:14px; }
+.tvp .bz-cs { margin-bottom:16px; } .tvp .bz-cs > b { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#009999; margin-bottom:7px; }
+.tvp .bz-st { display:flex; flex-wrap:wrap; gap:8px; }
+.tvp .bz-st > div { flex:1 1 calc(50% - 8px); background:#f4f6f9; border-left:4px solid var(--bz); padding:9px 12px; }
+.tvp .bz-st strong { display:block; font-size:18px; font-weight:800; color:#003366; line-height:1.2; }
+.tvp .bz-st span { display:block; font-size:10.5px; color:#6b7280; margin-top:2px; line-height:1.35; }
 .tvp .kesobb { margin:12px auto 0; width:430px; text-align:left; font-size:11px; color:#6b7280; border-left:3px solid #FF3399; padding:4px 10px; }
 .tvp .et-f { border-left:5px solid #009999; padding:3px 10px; margin:4px 0 10px; }
 .tvp .et-f b { display:block; font-size:14px; color:#003366; } .tvp .et-f span { font-size:10.5px; color:#6b7280; }
@@ -43322,12 +43328,30 @@ Vállalkozás nyitásának átbeszélése`, '']
 // változtatás nélkül kerülnek a tervezetbe. A PDF a böngészőben olvasódik, nem töltődik fel sehova.
 let tvAj = [], tvHiba = '', tvFut = '';
 let tvAlap = store.load('sf_tv_alap', null) || { ugyfel: '', hely: 'Budapest', tan: { nev: '', mnb: '', tel: '', email: '' },
-    opc: { eloszo: true, kesobb: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
+    opc: { eloszo: true, kesobb: true, bizt: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
+if(tvAlap.opc.bizt == null) tvAlap.opc.bizt = true;
 const tvMent = () => store.save('sf_tv_alap', { ...tvAlap, ugyfel: '' });
 const TV_BIZT = [[/^GENERALI\b/, 'Generali'], [/^SIGNAL( IDUNA)?\b/, 'Signal Iduna'], [/^ALLIANZ\b/, 'Allianz'], [/^UNION\b/, 'Union'], [/^NN\b/, 'NN'],
     [/^GROUPAMA\b/, 'Groupama'], [/^AEGON\b/, 'Aegon'], [/^METLIFE\b/, 'MetLife'], [/^UNIQA\b/, 'UNIQA'], [/^GRAWE\b/, 'Grawe'], [/^CIG( PANN[ÓO]NIA)?\b/, 'CIG Pannónia'],
     [/^K&H\b/, 'K&H'], [/^MAGYAR POSTA\b/, 'Magyar Posta'], [/^UNIVERSAL\b/, 'Universal']];
 const TV_ELONY = ['Szüneteltetési lehetőség', 'Díjcsökkentés / díjnövelés', 'Eseti befizetési lehetőség', 'Örökösödési adó mentes'];
+// biztosítói bemutató oldalak (a Generali és a Signal adatai az eddigi tervezetből, 2024-es adatok)
+const TV_BIZT_LAP = {
+    'Generali': { szin: '#c5281c', alcim: 'Mit érdemes tudni a Generaliról?', csop: [
+        ['Nemzetközi Generali Csoport', [['95,2 mrd EUR', 'díjbevétel'], ['71 millió', 'ügyfél'], ['50 ország', 'jelenlét'], ['TOP 100', 'legfenntarthatóbb vállalat (Corporate Knights)']]],
+        ['Generali Investments CEE', [['500 mrd Ft', 'kezelt vagyon'], ['30+ év', 'szakmai tapasztalat'], ['15', 'befektetési alap'], ['40', 'eszközalap']]],
+        ['Generali Biztosító Magyarország', [['közel 200 év', 'Magyarországon'], ['1 000 000+', 'ügyfél'], ['közel 80 000', 'OVB–Generali ügyfél']]]] },
+    'Signal Iduna': { szin: '#00418a', alcim: 'Mit érdemes tudni a Signal Idunáról?', csop: [
+        ['Cégadatok', [['1906', 'alapítás, Németország'], ['Dortmund, Hamburg', 'központi székhely'], ['1993 óta', 'Magyarországon, budapesti székhellyel']]],
+        ['Statisztikák', [['13,5 millió', 'ügyfél'], ['13 ezer', 'munkatárs'], ['Év Biztosítója', 'díj, 2019'], ['7 éve dobogós', 'a magyar biztosítók szavazásán (Biztosítás.hu)']]]],
+        szoveg: 'A SIGNAL IDUNA a világ egyik legnagyobb stadionjának névadó szponzora: a 80 ezer fős SIGNAL IDUNA Park Dortmundban található, a Borussia Dortmund otthona.' },
+    'UNIQA': { szin: '#1b62a8', alcim: 'Mit érdemes tudni az UNIQA-ról?', csop: [
+        ['Cégadatok', [['1811', 'óta működő biztosítási múlt'], ['Bécs', 'központi székhely, Ausztria'], ['1990 óta', 'Magyarországon']]],
+        ['Erősségek', [['Vezető', 'biztosítócsoport Közép- és Kelet-Európában'], ['BodyGuard VIP Pro', 'magas biztosítási összegek, várakozási idő nélkül']]]] } };
+const tvBiztLap = (nev, top) => { const b = TV_BIZT_LAP[nev]; if(!b) return '';
+    return `<div class="tvp">${tvFej(top, esc(nev))}<div class="bz" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>
+        ${b.csop.map(([c, st]) => `<div class="bz-cs"><b>${esc(c)}</b><div class="bz-st">${st.map(([n, f]) => `<div><strong>${esc(n)}</strong><span>${esc(f)}</span></div>`).join('')}</div></div>`).join('')}
+        ${b.szoveg ? `<div class="kiem"><span class="chev">»</span><p>${esc(b.szoveg)}</p></div>` : ''}</div>`; };
 // UNIQA BodyGuard VIP Pro: a hivatalos csomagtábla képként, a választott csomag oszlopa keretezve
 // (az oszlophatárok a kép szélességének %-ában)
 const TV_BG = { csomagok: ['Standard', 'Optimum', 'Prémium', 'Szuperior', 'Gyermek'], dij: [20000, 30000, 45000, 72000, 9000],
@@ -43453,6 +43477,7 @@ function tvLapok(){
             ${o.kesobb && a.kesobb ? `<div class="kesobb">Ha ${a.kesobb.ho} hónappal később indítja, a lejárati összeg <b>${tvFt(a.kesobb.ft)} Ft-tal (${a.kesobb.pct}%)</b> csökken.</div>` : ''}
             <div class="kp"><div style="background-image:url('prezi/tervezet/cel-gyerek.jpg')"></div><div style="background-image:url('prezi/tervezet/cel-befektetes.jpg')"></div></div></div>
             ${tvLab(sz())}</div>` });
+        if(o.bizt && TV_BIZT_LAP[a.biztosito]) L.push({ nev: `Biztosító – ${a.biztosito}`, html: tvBiztLap(a.biztosito, `${i + 1}. A BIZTOSÍTÓ`) + `${tvLab(sz())}</div>` });
         for(let k = 0; k < a.lapok; k++){ sz(); L.push({ nev: `Kalkuláció ${k + 1}/${a.lapok}`, kalk: { aj: i, lap: k } }); }
     });
     if(o.eszp) L.push({ nev: 'Egészségpénztár', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK', 'Prémium Egészségpénztár')}
@@ -43461,6 +43486,7 @@ function tvLapok(){
         <div class="et-f"><b>Mire jó az egészségpénztári számla?</b></div>
         <div class="mire">${['Magánorvosi ellátások', 'Gyógyszer és gyógyászati segédeszközök', 'Orvostechnikai eszközök', 'Szemüveg, kontaktlencse', 'Gyógytorna, gyógymasszázs, fizioterápia', 'Kieső jövedelem pótlása', 'Csecsemőápolási termékek, pelenka, tápszerek', 'Számos más szolgáltatás'].map(x => `<div>${x}</div>`).join('')}</div>
         ${tvLab(sz())}</div>` });
+    if(o.baleset && o.bizt) L.push({ nev: 'Biztosító – UNIQA', html: tvBiztLap('UNIQA', 'EGYÉB TERMÉKEK – A BIZTOSÍTÓ') + `${tvLab(sz())}</div>` });
     if(o.baleset){ const ci = tvCsomagIdx(), dij = TV_BG.dij[ci];
         L.push({ nev: 'Balesetvédelem', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK – PÉNZÜGYI VÉDELEM', 'Balesetvédelem')}
         <div class="et-f" style="border-color:#FF3399"><b>UNIQA – BodyGuard VIP Pro · ${esc(TV_BG.csomagok[ci])}</b><span>${tvFt(dij)} Ft/év (${tvFt(Math.floor(dij / 12))} Ft/hó)</span></div>
@@ -43515,7 +43541,8 @@ function renderTervezet(){
             <label title="Saját kép feltöltése"><span class="kk">+</span>Feltöltés<input type="file" id="tvKepFajl" accept="image/*" hidden></label></div>` : ''}
         ${kap('eloszo', 'Előszó', 'a fő üzenetek kiemelve')}
         ${kap('kesobb', '„Ha később indítja”', vanKesobb ? 'a kalkulációból' : 'ez a kalkuláció nem tartalmazza', !vanKesobb)}
-        ${kap('_bizt', 'Biztosító bemutatása, portfólió és bónuszok', 'hamarosan – biztosítónként egyszer feltöltve', true)}
+        ${kap('bizt', 'Biztosító bemutatása', 'Generali, Signal Iduna, UNIQA')}
+        ${kap('_port', 'Portfólió, eszközalapok, bónuszok', 'hamarosan', true)}
         ${kap('eszp', 'Prémium Egészségpénztár')}
         ${kap('baleset', 'Balesetvédelem – UNIQA BodyGuard VIP Pro')}
         ${o.baleset ? `<div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvCsomagIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
