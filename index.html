@@ -2320,6 +2320,18 @@
         /* vetítő */
         body.pzi-vetit { overflow:hidden; }
         .pzi-vetito { position:fixed; inset:0; z-index:6000; outline:none; user-select:none; cursor:pointer; }
+        /* Telefonon csak álló nézet (Sikerfüzet és SZEM): fekvő helyzetben takaró kéri a visszafordítást.
+           Kivétel a prezentáció vetítése (az fekve jó); táblagépen, gépen nincs korlát. */
+        #sfAllo { display:none; }
+        @media (orientation:landscape) and (max-height:520px) and (pointer:coarse){
+            body:not(:has(.pzi-vetito)) #sfAllo { display:flex; position:fixed; inset:0; z-index:9000; align-items:center; justify-content:center; flex-direction:column; gap:12px;
+                background:#0f2a52; color:#fff; text-align:center; padding:24px; font-size:17px; font-weight:700; }
+            body.sf-privat:not(:has(.pzi-vetito)) #sfAllo { background:#2a1745; }
+            body:not(:has(.pzi-vetito)) { overflow:hidden; }
+            #sfAllo svg { width:54px; height:54px; animation:sfAlloFor 1.6s ease-in-out infinite; }
+            #sfAllo small { font-size:13px; font-weight:500; opacity:.75; }
+        }
+        @keyframes sfAlloFor { 0%, 30% { transform:rotate(-90deg); } 60%, 100% { transform:rotate(0); } }
         .pzi-szinpad { position:absolute; inset:0 0 56px 0; }
         .pzi-vaszon { position:absolute; left:50%; top:50%; width:1280px; height:720px; transform:translate(-50%,-50%) scale(var(--pzi-sk)); }
         .pzi-sav { position:absolute; left:0; right:0; bottom:0; height:56px; display:flex; align-items:center; gap:10px; padding:0 16px; background:rgba(0,0,0,.28); color:#fff; font-size:13px; font-weight:700; cursor:default; opacity:.55; transition:opacity .2s; }
@@ -12319,6 +12331,13 @@ window.addEventListener('popstate', e => {
     }
 })();
 
+// ===== Álló nézet telefonon =====
+(function(){
+    const d = document.createElement('div'); d.id = 'sfAllo'; d.setAttribute('role', 'alert');
+    d.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>Fordítsd vissza álló helyzetbe<small>Az app álló nézetben használható.</small>';
+    document.body.appendChild(d);
+    // (a telepített appot a manifest „portrait-primary” beállítása eleve álló helyzetben tartja – Androidon)
+})();
 // ===== SZEM APP-IKON + a Beállítások fogaskerék =====
 // (A privát rész korábbi eszközönkénti zára – PIN / arc / ujjlenyomat – megszűnt; a régi beállítást töröljük,
 // hogy egy korábban bekapcsolt zár se zárja le a privát részt.)
