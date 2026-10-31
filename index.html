@@ -13327,6 +13327,7 @@ async function pziMentKep(c, nev){
 }
 async function pziFeltolt(files){
     files = [...(files || [])]; if(!files.length) return;
+    if(!window.sfIsAdmin){ alert('Prezentációt csak az admin tölthet fel.'); return; }
     if(files.some(f => /\.(pptx?|key|odp)$/i.test(f.name))){
         alert('A PowerPoint / Keynote fájlt előbb mentsd el PDF-ként, és azt töltsd fel:\n\n• PowerPoint: Fájl → Mentés másként → PDF\n• Keynote: Fájl → Exportálás → PDF\n• Google Diák: Fájl → Letöltés → PDF-dokumentum');
         return;
@@ -13374,8 +13375,9 @@ async function pziFeltolt(files){
     }
     ov.remove();
     const d = await pziAdat();
-    const p = { id: pziId(), n: nev, tema: 'fekete', feltoltott: 1, diak };
-    d.lista.unshift(p); prvMent('prezik');
+    // a feltöltött anyag rögtön közös: mindenki ugyanazt használja (a képei a kiadáskor a közös tárba másolódnak)
+    const p = { id: 'tpl-u' + pziId(), n: nev, tema: PZI_TEMA, feltoltott: 1, diak };
+    d.sablonok = d.sablonok || {}; d.sablonok[p.id] = p; prvMent('prezik');
     pziSzerk = null; renderPrezik();
 }
 // ---- „Gondtalan nyugdíjas élet” – a Keynote-prezentáció újraépítve (1280×720) ----
@@ -13981,13 +13983,12 @@ function pziKartya(p){
     const elso = p.diak[0] || { t: 'cim', c: p.n };
     return `<div class="pzi-kartya">
         <button type="button" class="pzi-elo pzi-tema-${PZI_TEMA}" data-pziindit="${esc(p.id)}" title="Vetítés indítása"><div class="pzi-elo-bel">${pziDiaHtml(elso)}</div><span class="pzi-play">▶</span></button>
-        <div class="pzi-k-info"><b>${esc(p.n || 'Névtelen prezentáció')}</b><em>${p.diak.length} dia${p.sajatSablon ? ' · saját sablon' : p.modositott ? ' · sablon (módosított)' : p.sablon ? ' · sablon' : p.feltoltott ? ' · feltöltött' : ''}</em></div>
+        <div class="pzi-k-info"><b>${esc(p.n || 'Névtelen prezentáció')}</b><em>${p.diak.length} dia${p.feltoltott ? ' · feltöltött' : ''}${p.regi ? ' · csak te látod' : ''}</em></div>
         <div class="pzi-k-gombok">
             <button type="button" class="btn primary" data-pziindit="${esc(p.id)}">▶ Indítás</button>
+            ${window.sfIsAdmin ? `${p.regi ? `<button type="button" class="btn" data-pzikozze="${esc(p.id)}" title="Mindenki számára elérhető lesz a Prezentációk között">Közzététel</button>` : ''}
             <button type="button" class="btn" data-pziszerk="${esc(p.id)}">Szerkesztés</button>
-            <button type="button" class="btn" data-pzimasol="${esc(p.id)}" title="${p.sablon ? 'Saját példány a sablonból' : 'Másolat'}">${p.sablon ? 'Saját másolat' : 'Másolat'}</button>
-            ${p.modositott ? `<button type="button" class="btn" data-pzigyari="${esc(p.id)}" title="A sablon gyári állapotának visszaállítása">↺ Gyári</button>` : ''}
-            <button type="button" class="btn pzi-tor" data-pzitorol="${esc(p.id)}" title="${p.sablon ? 'Sablon törlése' : 'Törlés'}">✕</button>
+            <button type="button" class="btn pzi-tor" data-pzitorol="${esc(p.id)}" title="Törlés">✕</button>` : ''}
         </div></div>`;
 }
 async function renderPrezik(){
@@ -14003,16 +14004,16 @@ async function renderPrezik(){
         host.innerHTML = pziSzerkHtml();
         if(volt){ const l2 = host.querySelector('.pzi-sz-lista'); if(l2) l2.scrollTop = lPoz; if(Math.abs(window.scrollY - aPoz) > 1) window.scrollTo(0, aPoz);
             requestAnimationFrame(() => { if(Math.abs(window.scrollY - aPoz) > 1) window.scrollTo(0, aPoz); }); } pziSkala(); pziKepekBetolt(host); pziEdKeret(); return; }
+    // Egyetlen közös lista: mindenki ugyanazokat a prezentációkat használja, feltölteni / szerkeszteni csak az admin tud.
+    // (A régi saját prezentációk csak az adminnak látszanak, „Közzététel” gombbal – a többieknél rejtve maradnak.)
+    const admin = !!window.sfIsAdmin, kozos = pziSablonok(d), regi = admin ? d.lista.map(p => ({ ...p, regi: 1 })) : [];
     host.innerHTML = `<div class="sb-fej"><div><h2>Prezentációk</h2><p>Indítsd el egy kattintással teljes képernyőn – ügyféltalálkozón, bemutatón, csapatmegbeszélésen.</p></div>
-            <span class="pzi-sz-fg"><label class="btn" title="PDF vagy képek (a PowerPointot előbb mentsd PDF-ként)">⤒ Feltöltés<input type="file" accept="application/pdf,.pdf,image/*,.pptx,.ppt,.key" multiple hidden data-pzifajl></label>
-            <button type="button" class="btn primary" data-pziuj>+ Új prezentáció</button></span></div>
-        <div class="pzi-drop" data-pzidrop>Húzd ide a meglévő prezentációdat (PDF vagy képek) – vagy használd a <b>Feltöltés</b> gombot. PowerPointból: <i>Fájl → Mentés másként → PDF</i>.</div>
-        <div class="pzi-cim">Saját prezentációim</div>
-        ${d.lista.length ? `<div class="pzi-racs">${d.lista.map(pziKartya).join('')}</div>`
-            : '<p class="pzi-ures">Még nincs saját prezentációd. Kezdj egy üreset az <b>+ Új prezentáció</b> gombbal, vagy szabj testre egy sablont lent.</p>'}
-        <div class="pzi-cim">Sablonok</div>
-        <div class="pzi-racs">${pziSablonok(d).map(pziKartya).join('')}</div>
-        ${(d.rejtettSablonok || []).length ? `<p class="pzi-ures" style="margin-top:12px;"><button type="button" class="pz-link" data-pzisablonvissza>Törölt sablonok visszaállítása (${d.rejtettSablonok.length})</button></p>` : ''}`;
+            ${admin ? `<span class="pzi-sz-fg"><label class="btn" title="PDF vagy képek (a PowerPointot előbb mentsd PDF-ként)">⤒ Feltöltés<input type="file" accept="application/pdf,.pdf,image/*,.pptx,.ppt,.key" multiple hidden data-pzifajl></label>
+            <button type="button" class="btn primary" data-pziuj>+ Új prezentáció</button></span>` : ''}</div>
+        ${admin ? `<div class="pzi-drop" data-pzidrop>Húzd ide a prezentációt (PDF vagy képek) – vagy használd a <b>Feltöltés</b> gombot. Feltöltés után mindenkinél megjelenik. PowerPointból: <i>Fájl → Mentés másként → PDF</i>.</div>` : ''}
+        ${kozos.length ? `<div class="pzi-racs">${kozos.map(pziKartya).join('')}</div>` : '<p class="pzi-ures">Még nincs elérhető prezentáció.</p>'}
+        ${regi.length ? `<div class="pzi-cim">Korábbi saját prezentációid</div><p class="pzi-ures" style="margin:-4px 0 10px">Ezeket csak te látod. A <b>Közzététel</b> gombbal mindenki számára elérhetővé teheted őket.</p><div class="pzi-racs">${regi.map(pziKartya).join('')}</div>` : ''}
+        ${admin && (d.rejtettSablonok || []).length ? `<p class="pzi-ures" style="margin-top:12px;"><button type="button" class="pz-link" data-pzisablonvissza>Törölt beépített prezentációk visszaállítása (${d.rejtettSablonok.length})</button></p>` : ''}`;
     pziSkala(); pziKepekBetolt(host);
 }
 // A kis előnézetek 1280×720-as diát kicsinyítenek a dobozuk szélességére.
@@ -14026,7 +14027,7 @@ function pziSzerkHtml(){
         <span class="pzi-sz-mg"><button type="button" data-pzidupl="${i}" title="Dia duplikálása">⧉</button><button type="button" data-pzirejt="${i}" title="${y.rejt ? 'Megjelenítés vetítéskor' : 'Elrejtés – vetítéskor kimarad'}">${y.rejt ? '◌' : '◉'}</button><button type="button" data-pzidel="${i}" title="Dia törlése"${p.diak.length > 1 ? '' : ' disabled'}>✕</button></span></div>`).join('');
     const sz = x.t === 'cim' ? 'Alcím' : x.t === 'szam' ? 'Magyarázat' : x.t === 'idezet' ? 'Aláírás / kiegészítés' : x.t === 'lepesek' ? 'Lépések (soronként egy)' : 'Pontok (soronként egy)';
     const tpl = (p.forras || p._tpl) && x.o != null ? PZI_SABLONOK.find(z => z.id === (p.forras || p._tpl)) : null;
-    const vissza = tpl && tpl.diak[x.o] ? `<button type="button" class="btn" data-pzivissza title="A dia visszaállítása a sablon eredeti állapotára">↺ Eredeti</button>` : '';
+    const vissza = '';   // „gyári” dia-visszaállítás nincs: mindig az admin utoljára mentett változata az érvényes
     const ed = x.t === 'html';
     const g = ed ? (() => { const m = String(x.h || '').match(/^\s*<div[^>]*style="[^"]*background:\s*(#[0-9a-f]{3,8})/i); return m ? m[1] : '#ffffff'; })() : '';
     const szerkeszto = ed ? `
@@ -14041,10 +14042,10 @@ function pziSzerkHtml(){
                     <div class="pzi-ed-kij"></div>
                 </div>
                 <div class="pzi-sz-nagy pzi-ed-vaszon pzi-tema-${PZI_TEMA}" data-pzinagy><div class="pzi-elo-bel pzi-ed-bel"><div class="pzi-dia pzi-t-html">${x.h || ''}</div></div><div class="pzi-ed-keret"></div></div>` : '';
-    return `<div class="sb-fej"><div><h2>${esc(p.n || 'Új prezentáció')}</h2><p>${p._tpl ? '<b>Sablon szerkesztése</b> – a végén válaszd: mentés sajátként (új prezentáció) vagy sablonként (felülírja a sablont).' : 'Minden változás automatikusan mentődik.'} Kapcsos zárójelbe írt szó – pl. <b>{ügyfél neve}</b> – vetítéskor kitölthető.</p></div>
+    return `<div class="sb-fej"><div><h2>${esc(p.n || 'Új prezentáció')}</h2><p>${p._tpl ? '<b>Szerkesztés</b> – a <b>Mentés</b> után mindenkinél ez a változat jelenik meg; az <b>Elvetés</b> kilép mentés nélkül.' : 'Korábbi saját prezentáció – minden változás automatikusan mentődik (csak te látod, amíg közzé nem teszed).'} Kapcsos zárójelbe írt szó – pl. <b>{ügyfél neve}</b> – vetítéskor kitölthető.</p></div>
             <span class="pzi-sz-fg"><button type="button" class="btn" data-pzivetitvazlat>▶ Vetítés</button>
-                ${p._tpl ? `<button type="button" class="btn" data-pzielvet title="Kilépés mentés nélkül">Elvetés</button><button type="button" class="btn" data-pzimentsajat title="Új saját prezentációként menti – a sablon nem változik">Mentés sajátként</button><button type="button" class="btn primary" data-pzimentsablon title="A sablont írja felül (a gyári állapot visszaállítható)">Mentés sablonként</button>`
-                : `<button type="button" class="btn" data-pzimentsablon title="Ebből a prezentációból sablon lesz (a Sablonok közé kerül)">Mentés sablonként</button><button type="button" class="btn primary" data-pzikesz>Kész</button>`}</span></div>
+                ${p._tpl ? `<button type="button" class="btn" data-pzielvet title="Kilépés mentés nélkül">Elvetés</button><button type="button" class="btn primary" data-pzimentsablon title="Mentés – mindenkinél ez a változat jelenik meg">Mentés</button>`
+                : `<button type="button" class="btn primary" data-pzikesz>Kész</button>`}</span></div>
         <div class="pzi-sz">
             <div class="card pzi-sz-bal">
                 <label class="sb-mezo"><span>Megnevezés</span><input class="sb-in" data-pzip="n" value="${esc(p.n || '')}" maxlength="80"></label>
@@ -14509,30 +14510,28 @@ document.addEventListener('click', async e => {
     const d = await pziAdat();
     const of = id => pziMind(d).find(p => p.id === id);
     const ind = e.target.closest('[data-pziindit]'); if(ind){ const p = of(ind.dataset.pziindit); if(p) pziInditas(p); return; }
+    // létrehozás, szerkesztés, törlés, közzététel: csak az admin
+    if(!window.sfIsAdmin && e.target.closest('[data-pziuj], [data-pziszerk], [data-pzitorol], [data-pzikozze], [data-pzisablonvissza], [data-pzimentsablon]')){
+        alert('A prezentációk közösek – feltölteni és módosítani csak az admin tud.'); return; }
     if(e.target.closest('[data-pziuj]')){
-        const p = { id: pziId(), n: 'Új prezentáció', tema: PZI_TEMA, diak: [{ t: 'cim', c: 'Cím', s: 'Alcím', j: '' }] };
-        d.lista.push(p); prvMent('prezik'); pziSzerk = p; pziDia = 0; renderPrezik(); return;
+        // új prezentáció: rögtön közös, a szerkesztőben „Mentés”-sel kerül ki mindenkihez
+        const p = { id: 'tpl-u' + pziId(), sablon: 1, sajatSablon: 1, n: 'Új prezentáció', tema: PZI_TEMA, diak: [{ t: 'cim', c: 'Cím', s: 'Alcím', j: '' }] };
+        pziSzerk = JSON.parse(JSON.stringify(p)); pziSzerk._tpl = p.id; pziSzerk._uj = 1; pziEdVissza = []; pziDia = 0; renderPrezik(); return;
     }
+    const kz = e.target.closest('[data-pzikozze]');
+    if(kz){ const p = d.lista.find(z => z.id === kz.dataset.pzikozze); if(!p) return;
+        const c = JSON.parse(JSON.stringify(p)); c.id = 'tpl-u' + pziId(); delete c.forras; delete c.regi; c.tema = PZI_TEMA; c.diak.forEach(x => { delete x.o; });
+        d.sablonok = d.sablonok || {}; d.sablonok[c.id] = c; d.lista = d.lista.filter(z => z !== p); PRV.prezik.lista = d.lista; prvMent('prezik');
+        renderPrezik(); pziJelez(`„${c.n}” közzétéve – mostantól mindenkinél megjelenik.`); return; }
     const sz = e.target.closest('[data-pziszerk]');
     if(sz){ const p = of(sz.dataset.pziszerk); if(!p) return;
         // sablon: munkapéldányon szerkesztünk, csak a „Mentés sajátként / sablonként” ír el bárhová
         if(p.sablon){ pziSzerk = JSON.parse(JSON.stringify(p)); pziSzerk._tpl = p.id; pziSzerk.diak.forEach((x, i) => { if(x.o == null && !p.sajatSablon) x.o = i; }); pziEdVissza = []; }
         else pziSzerk = p;
         pziDia = 0; renderPrezik(); return; }
-    if(!window.sfIsAdmin && (e.target.closest('[data-pzisablonvissza], [data-pzigyari], [data-pzimentsablon]')
-        || (e.target.closest('[data-pzitorol]') && (of(e.target.closest('[data-pzitorol]').dataset.pzitorol) || {}).sablon))){
-        alert('A sablonok közösek – módosítani csak az admin tudja. Másolatot (Mentés sajátként) bármikor készíthetsz.'); return; }
     if(e.target.closest('[data-pzisablonvissza]')){ d.rejtettSablonok = []; prvMent('prezik'); renderPrezik(); return; }
-    const gy = e.target.closest('[data-pzigyari]');
-    if(gy){ if(!confirm('Visszaállítod a sablon gyári állapotát? A sablonként mentett módosítások elvesznek (a saját prezentációid megmaradnak).')) return;
-        const ki = d.sablonok && d.sablonok[gy.dataset.pzigyari]; if(ki){ delete d.sablonok[gy.dataset.pzigyari]; prvMent('prezik'); pziKepTakarit(ki.diak.flatMap(pziDiaKepek), d); } renderPrezik(); return; }
-    const m = e.target.closest('[data-pzimasol]');
-    if(m){ const p = of(m.dataset.pzimasol); if(!p) return;
-        const uj = JSON.parse(JSON.stringify(p)); uj.id = pziId(); delete uj.sablon; uj.n = p.sablon ? p.n : p.n + ' (másolat)';
-        if(p.sablon){ uj.forras = p.id; uj.diak.forEach((x, i) => { x.o = i; }); }
-        d.lista.push(uj); prvMent('prezik'); pziSzerk = uj; pziDia = 0; renderPrezik(); return; }
     const tr = e.target.closest('[data-pzitorol]');
-    if(tr){ const p = of(tr.dataset.pzitorol); if(!p || !confirm(`Törlöd a(z) „${p.n}” ${p.sablon ? 'sablont' : 'prezentációt'}?${p.sablon && !p.sajatSablon ? '\n\nA beépített sablon a lista alján a „Törölt sablonok visszaállítása” linkkel visszahozható.' : ''}`)) return;
+    if(tr){ const p = of(tr.dataset.pzitorol); if(!p || !confirm(`Törlöd a(z) „${p.n}” prezentációt?${p.sablon ? ' Mindenkinél eltűnik.' : ''}${p.sablon && !p.sajatSablon ? '\n\nA beépített prezentáció a lista alján a „Törölt beépített prezentációk visszaállítása” linkkel visszahozható.' : ''}`)) return;
         if(p.sablon){ const ki = d.sablonok && d.sablonok[p.id];
             if(ki){ delete d.sablonok[p.id]; pziKepTakarit(ki.diak.flatMap(pziDiaKepek), d); }
             if(!p.sajatSablon){ d.rejtettSablonok = [...new Set([...(d.rejtettSablonok || []), p.id])]; }
@@ -14542,14 +14541,11 @@ document.addEventListener('click', async e => {
     if(!pziSzerk) return;
     if(e.target.closest('[data-pzikesz]')){ prvMent('prezik'); pziSzerk = null; renderPrezik(); return; }
     if(e.target.closest('[data-pzivetitvazlat]')){ pziInditas(pziSzerk); return; }
-    if(e.target.closest('[data-pzielvet]')){ if(!confirm('Kilépsz mentés nélkül? A sablonon végzett módosítások elvesznek.')) return; pziSzerk = null; renderPrezik(); return; }
+    if(e.target.closest('[data-pzielvet]')){ if(!confirm('Kilépsz mentés nélkül? A módosítások elvesznek.')) return; pziSzerk = null; renderPrezik(); return; }
     const tisztit = p => { const c = JSON.parse(JSON.stringify(p)); delete c._tpl; delete c.sablon; delete c.modositott; delete c.sajatSablon; return c; };
-    if(e.target.closest('[data-pzimentsajat]')){
-        const uj = tisztit(pziSzerk); uj.id = pziId(); uj.forras = pziSzerk._tpl; d.lista.push(uj); prvMent('prezik');
-        pziSzerk = uj; renderPrezik(); pziJelez('Elmentve a saját prezentációid közé – innen már automatikusan mentődik.'); return; }
     if(e.target.closest('[data-pzimentsablon]')){
         d.sablonok = d.sablonok || {};
-        if(pziSzerk._tpl){ const c = tisztit(pziSzerk); c.id = pziSzerk._tpl; d.sablonok[c.id] = c; prvMent('prezik'); pziSzerk = null; renderPrezik(); pziJelez('A sablon elmentve. A gyári állapot a sablon kártyáján (↺ Gyári) visszaállítható.'); return; }
+        if(pziSzerk._tpl){ const c = tisztit(pziSzerk); c.id = pziSzerk._tpl; delete c._uj; d.sablonok[c.id] = c; prvMent('prezik'); pziSzerk = null; renderPrezik(); pziJelez('Elmentve – mindenkinél ez a változat jelenik meg.'); return; }
         const n = prompt('A sablon neve:', pziSzerk.n || 'Saját sablon'); if(!n) return;
         const c = tisztit(pziSzerk); c.id = 'tpl-u' + pziId(); c.n = n.trim().slice(0, 80); delete c.forras; c.diak.forEach(x => { delete x.o; });
         d.sablonok[c.id] = c; prvMent('prezik'); pziJelez(`„${c.n}” felkerült a Sablonok közé.`); return; }
@@ -14574,9 +14570,6 @@ document.addEventListener('click', async e => {
     const ed = e.target.closest('[data-pzied]'); if(ed){ pziEdMuvelet(ed.dataset.pzied); return; }
     if(e.target.closest('[data-pziedvissza]')){ pziEdVisszavon(); return; }
     if(e.target.closest('[data-pziatalakit]')){ pziEdElott(); l[pziDia] = { ...pziAtalakit(l[pziDia], PZI_TEMA), ...(l[pziDia].o != null ? { o: l[pziDia].o } : {}) }; pziMent(); renderPrezik(); return; }
-    if(e.target.closest('[data-pzivissza]')){ const tpl = PZI_SABLONOK.find(z => z.id === (pziSzerk.forras || pziSzerk._tpl)), x = l[pziDia];
-        if(!tpl || !tpl.diak[x.o] || !confirm('Visszaállítod ezt a diát a sablon eredeti állapotára? A rajta végzett módosítások elvesznek.')) return;
-        pziEdElott(); l[pziDia] = { ...JSON.parse(JSON.stringify(tpl.diak[x.o])), o: x.o, ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); renderPrezik(); return; }
 });
 document.addEventListener('change', e => { if(e.target.matches && e.target.matches('#page-prezik [data-pzifajl]')){ pziFeltolt(e.target.files); e.target.value = ''; } });
 document.addEventListener('change', e => {
