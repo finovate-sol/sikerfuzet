@@ -43270,6 +43270,7 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .skor.ures { background:#fff; }
 .tvp .blogo { position:absolute; right:26px; top:39px; width:96px; height:70px; background-size:contain; background-repeat:no-repeat; background-position:center; }
 .tvp .blogo.szo { display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:900; letter-spacing:.04em; }
+.tvp.kalk .sfej { min-height:0; margin-bottom:0; } .tvp .kalk-al { margin:6px 0 0; font-size:11px; color:#6b7280; }
 .tvp .sfej { width:340px; min-height:128px; margin:10px 0 18px; }
 .tvp .sfej small { display:block; font-size:11px; font-weight:700; letter-spacing:.14em; color:#009999; }
 .tvp .sfej h2 { margin:6px 0 0; font-size:27px; font-weight:800; color:#003366; line-height:1.12; letter-spacing:-.01em; } .tvp .sfej h2 b { font-weight:900; }
@@ -43474,11 +43475,12 @@ async function tvKalkOlvas(file){
     const pdf = await pdfjs.getDocument({ data: bytes.slice() }).promise;
     // a kalkulátor rejtett ékezet-mintasora („öüóúőáű…”) kimarad
     const nfc = s => String(s || '').normalize('NFKC').replace(/[\u200b\u00ad]/g, '').replace(/[öüóúőáűíéÍÉÁŰÚŐÓÜÖ]{4,}/g, '').replace(/\s+/g, ' ').trim();
-    const sorok = [];
+    const sorok = [], vagas = [];
     let tabla = [], osszX = null;
     for(let p = 1; p <= pdf.numPages; p++){
         const page = await pdf.getPage(p);
         const tc = await page.getTextContent();
+        const [vx0, vy0, vx1, vy1] = page.view;
         // előbb sorokba (közel azonos y – a darabok alapvonala néha fél ponttal eltér), azon belül balról jobbra,
         // és a közel álló darabok egy szakasszá fűzve (a nagy hézag új szakasz: felirat | érték)
         const dar = tc.items.map(i => ({ s: nfc(i.str), x: i.transform[4], y: i.transform[5], w: i.width || 0 })).filter(d => d.s && (!d.w || d.w / d.s.length >= 1.6)).sort((a, b) => b.y - a.y);   // a mikroszkopikus (rejtett) betűk nélkül
@@ -43487,6 +43489,11 @@ async function tvKalkOlvas(file){
         lapSorok.forEach(l => { l.sz = []; l.d.sort((a, b) => a.x - b.x).forEach(d => { const u = l.sz[l.sz.length - 1];
             if(u && d.x - (u.x + u.w) < 9){ u.s += (d.x - (u.x + u.w) > 1.5 ? ' ' : '') + d.s; u.w = d.x + d.w - u.x; } else l.sz.push({ ...d }); }); });
         const szak = lapSorok.flatMap(l => l.sz);
+        // a tervezetben a kalkulátor saját fejléce és lábléce helyére a tervezeté kerül: az első számozott
+        // szakaszcím („1. Alapadatok”) fölötti részt és a lábléc-sort („… OVB - Név”) levágjuk
+        const cimSor = lapSorok.find(l => /^\d\.\s*\S/.test(l.sz[0].s));
+        const labSor = lapSorok.slice().reverse().find(l => l.y - vy0 < 60 && l.sz.some(x => /\bOVB\b/.test(x.s)));
+        vagas.push({ felso: cimSor ? Math.min(vy1, cimSor.y + 18) : vy1 - 20, also: labSor ? labSor.y + 12 : vy0 + 30, bal: vx0 + 28, jobb: vx1 - 28 });
         const fej = szak.find(s => /^Összesen$/i.test(s.s)); if(fej) osszX = fej.x + fej.w / 2;
         for(const l of lapSorok){
             sorok.push(l.sz.map(s => s.s));
@@ -43521,7 +43528,7 @@ async function tvKalkOlvas(file){
     const vv = tvSzam(mezo(/^Összes foly\. VV/i)), eseti = tvSzam(mezo(/^Összes eseti VV/i));
     const kiS = szoveg.match(/kifizetés[^:\n]*:\s*([\d ]+)\s*Ft/i);
     a.kifizetes = (tabla.length ? tabla[tabla.length - 1].ossz : null) || (kiS ? tvSzam(kiS[1]) : null) || ((vv || 0) + (eseti || 0)) || null;
-    a.tabla = tabla;
+    a.tabla = tabla; a.vagas = vagas;
     const ks = szoveg.replace(/\n/g, ' ').match(/(\d+)\s*hónappal később.*?lejárati összeg\s*([\d ]+?)\s*Forinttal,\s*([\d,]+)\s*%-kal/i);
     a.kesobb = ks ? { ho: +ks[1], ft: tvSzam(ks[2]), pct: ks[3] } : null;
     const egy = szoveg.replace(/\n/g, ' ');
@@ -43553,6 +43560,13 @@ let tvSajatKep = (() => { try { return localStorage.getItem('sf_tv_kep') || ''; 
 const tvFedlap = () => tvAlap.fedlap === 'nyomtatasi' || tvAlap.fedlap === 'tipo' ? 'nyomtatasi' : 'sima';
 const tvKepUrl = () => tvAlap.cel === 'sajat' && tvSajatKep ? tvSajatKep : `prezi/tervezet/cel-${TV_CELOK.some(c => c[0] === tvAlap.cel) ? tvAlap.cel : 'megtakaritas'}.jpg`;
 const tvCelBecsles = a => /nyugd/i.test(`${a.tipus} ${a.termek}`) ? 'nyugdij' : /lak[áa]s|otthon/i.test(`${a.tipus} ${a.termek}`) ? 'otthon' : 'megtakaritas';
+// a kalkuláció eredeti oldalának (levágott) tartalma a tervezet feje alatt: hová és mekkora méretben kerül (pt, felülről mérve)
+const TV_KALK_DOBOZ = { x: 40, y: 178, w: 525, h: 842 - 178 - 52 };
+function tvKalkHely(a, k){
+    const v = (a.vagas || [])[k] || { felso: 822, also: 30, bal: 28, jobb: 567 }, cw = v.jobb - v.bal, ch = v.felso - v.also, D = TV_KALK_DOBOZ;
+    const s = Math.min(1, D.w / cw, D.h / ch);
+    return { v, s, x: D.x + (D.w - cw * s) / 2, y: D.y, w: cw * s, h: ch * s };
+}
 function tvLapok(){
     const nev = tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || 'Ügyfél', t = tvAlap.tan, o = tvAlap.opc, L = [];
     let n = 0; const sz = () => ++n;
@@ -43586,7 +43600,9 @@ function tvLapok(){
             ${tvLab(sz())}</div>` });
         if(o.bizt && TV_BIZT_LAP[a.biztosito]) L.push({ nev: `Biztosító – ${a.biztosito}`, html: tvBiztLap(a.biztosito, `${i + 1}. A BIZTOSÍTÓ`) + `${tvLab(sz())}</div>` });
         if(o.port && TV_PORT[a.biztosito]) L.push({ nev: `Portfólió – ${a.biztosito}`, html: tvPortLap(a, `${i + 1}. PORTFÓLIÓ, ESZKÖZALAPOK, BÓNUSZOK`) + `${tvLab(sz())}</div>` });
-        for(let k = 0; k < a.lapok; k++){ sz(); L.push({ nev: `Kalkuláció ${k + 1}/${a.lapok}`, kalk: { aj: i, lap: k } }); }
+        const logo = TV_BIZT_LAP[a.biztosito] && TV_BIZT_LAP[a.biztosito].logo ? `<span class="blogo" style="background-image:url('${TV_BIZT_LAP[a.biztosito].logo}')"></span>` : '';
+        for(let k = 0; k < a.lapok; k++) L.push({ nev: `Kalkuláció ${k + 1}/${a.lapok}`, kalk: { aj: i, lap: k, hely: tvKalkHely(a, k) },
+            html: `<div class="tvp kalk">${tvFej(`${i + 1}. KALKULÁCIÓ${a.lapok > 1 ? ` · ${k + 1}/${a.lapok}` : ''}`, esc(`${a.biztosito} – ${a.termek}`), logo)}<p class="kalk-al">${esc(nev)} részére · OVB kalkulátor</p>${tvLab(sz())}</div>` });
     });
     if(o.eszp) L.push({ nev: 'Egészségpénztár', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK', 'Prémium Egészségpénztár')}
         <div class="ket"><div><b>CÉGADATOK</b>Alapítás éve: 2002<br>Magyarország legnagyobb egészségpénztára<br>291 000 pénztártag<br>19 000 szolgáltatói partner<br>8 500 kártya-elfogadóhely<br>20% adókedvezmény</div>
@@ -43672,9 +43688,13 @@ function tvElonezet(){
         try { const a = tvAj[l.kalk.aj], pdfjs = await regPdfJs();
             const pdf = a._pdf || (a._pdf = await pdfjs.getDocument({ data: a.bytes.slice() }).promise);
             const page = await pdf.getPage(l.kalk.lap + 1), cel = host.querySelector(`[data-tvsk="${i}"]`); if(!cel) return;
-            const vp = page.getViewport({ scale: cel.clientWidth * 2 / page.getViewport({ scale: 1 }).width });
-            const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; cv.style.cssText = 'width:100%;height:100%;display:block';
-            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise; cel.innerHTML = ''; cel.appendChild(cv);
+            const h = l.kalk.hely, k = cel.clientWidth / 595 * 2, [, , , vy1] = page.view, vp = page.getViewport({ scale: k / h.s * h.s });
+            const teljes = document.createElement('canvas'); teljes.width = vp.width; teljes.height = vp.height;
+            await page.render({ canvasContext: teljes.getContext('2d'), viewport: vp }).promise;
+            const cv = document.createElement('canvas'); cv.width = (h.v.jobb - h.v.bal) * k; cv.height = (h.v.felso - h.v.also) * k;
+            cv.getContext('2d').drawImage(teljes, h.v.bal * k, (vy1 - h.v.felso) * k, cv.width, cv.height, 0, 0, cv.width, cv.height);
+            cv.style.cssText = `position:absolute;left:${h.x / 5.95}%;top:${h.y / 8.42}%;width:${h.w / 5.95}%;height:${h.h / 8.42}%`;
+            cel.appendChild(cv);
         } catch(e){} });
 }
 let tvPdfLibP = null;
@@ -43694,15 +43714,17 @@ async function tvLetolt(){
         const lapok = tvLapok();
         for(let i = 0; i < lapok.length; i++){
             const l = lapok[i]; ir(`PDF készül… ${i + 1} / ${lapok.length}`);
-            if(l.kalk){
-                const k = l.kalk.aj; if(!forras[k]) forras[k] = await PDFLib.PDFDocument.load(tvAj[k].bytes.slice());
-                const [p] = await doc.copyPages(forras[k], [l.kalk.lap]); doc.addPage(p); continue;
-            }
             munka.innerHTML = l.html; const el = munka.firstElementChild;
             await Promise.all([...el.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
             const cv = await h2c(el, { scale: 2.2, backgroundColor: '#ffffff', useCORS: true, logging: false });
             const kep = await doc.embedJpg(cv.toDataURL('image/jpeg', .9));
             const p = doc.addPage([595.28, 841.89]); p.drawImage(kep, { x: 0, y: 0, width: 595.28, height: 841.89 });
+            // a kalkuláció eredeti oldala (vektorosan, a saját fejléce és lábléce nélkül) a tervezet keretébe
+            if(l.kalk){
+                const k = l.kalk.aj, h = l.kalk.hely; if(!forras[k]) forras[k] = await PDFLib.PDFDocument.load(tvAj[k].bytes.slice());
+                const [emb] = await doc.embedPages([forras[k].getPage(l.kalk.lap)], [{ left: h.v.bal, bottom: h.v.also, right: h.v.jobb, top: h.v.felso }]);
+                p.drawPage(emb, { x: h.x, y: 841.89 - h.y - h.h, xScale: h.s, yScale: h.s });
+            }
         }
         munka.remove();
         const nev = (tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || 'Ugyfel').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_');
