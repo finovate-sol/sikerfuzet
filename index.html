@@ -43656,6 +43656,13 @@ Vállalkozás nyitásának átbeszélése`, '']
 <style>
 /* ===== TERVEZET-KÉSZÍTŐ (Eszközök) ===== */
 .tv-lay { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; align-items:start; }
+@media (min-width:1101px){
+    /* a bal oszlop: fent a fülek, alattuk a lépés kártyája görget magán belül */
+    .tv-lay > div:first-child { display:flex; flex-direction:column; min-height:0; }
+    .tv-lay > div:first-child > .tv-lepesek { flex:none; }
+    .tv-lay > div:first-child > .tv-kartya { flex:0 1 auto; min-height:0; overflow-y:auto; margin-bottom:0; }
+    .tv-elo { position:static; }
+}
 @media (max-width:1100px){ .tv-lay { grid-template-columns:1fr; } }
 .tv-kartya { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
 /* lenyitható kalkuláció-kártya */
@@ -44219,13 +44226,18 @@ function renderTervezet(){
       <div class="tv-gombok"><button type="button" class="btn" id="tvMegnez"${tvAj.length ? '' : ' disabled'}>Előnézet</button><button type="button" class="btn primary" id="tvLetolt"${tvAj.length ? '' : ' disabled'}>PDF letöltése</button></div><div class="tv-allapot" id="tvAllapot"></div></div></div>`;
     tvElonezet(); tvEloMeret();
 }
-// az előnézet kártyája legfeljebb az ablak aljáig ér (a lapok benne görgetnek) – görgetéskor, átméretezéskor is
+// Nagy képernyőn a Tervezet-készítő pontosan kitölti az ablakot – az oldal maga nem görget:
+// a bal oldalon a fülek fent maradnak, alattuk a lépés kártyája, jobbra az előnézet görget magán belül.
 function tvEloMeret(){
-    const el = document.querySelector('#tervezetBody .tv-elo'); if(!el || !el.offsetParent) return;
-    if(matchMedia('(max-width:1100px)').matches){ el.style.maxHeight = ''; return; }
-    el.style.maxHeight = Math.max(360, innerHeight - Math.max(el.getBoundingClientRect().top, 12) - 14) + 'px';
+    const lay = document.querySelector('#tervezetBody .tv-lay'); if(!lay || !lay.offsetParent) return;
+    const bal = lay.firstElementChild, elo = lay.querySelector('.tv-elo');
+    if(matchMedia('(max-width:1100px)').matches){ [lay, bal, elo].forEach(e => { if(e) e.style.height = e.style.maxHeight = ''; }); return; }
+    // az oldal alsó belső margója (a tervezet alatt): a szülők alsó paddingje
+    let alul = 0; for(let e = lay; e && e !== document.body; e = e.parentElement){ const cs = getComputedStyle(e); alul += (parseFloat(cs.paddingBottom) || 0) + (e === lay ? 0 : parseFloat(cs.borderBottomWidth) || 0); }
+    const h = Math.max(380, Math.floor(innerHeight - (lay.getBoundingClientRect().top + scrollY) - alul - 2));
+    lay.style.height = h + 'px'; if(bal) bal.style.maxHeight = h + 'px'; if(elo) elo.style.maxHeight = h + 'px';
 }
-addEventListener('resize', tvEloMeret); addEventListener('scroll', tvEloMeret, { passive: true });
+addEventListener('resize', tvEloMeret);
 function tvElonezet(){
     const host = document.getElementById('tvLapok'); if(!host) return;
     if(!tvAj.length){ host.innerHTML = ''; return; }
