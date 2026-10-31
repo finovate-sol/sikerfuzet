@@ -43260,6 +43260,22 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .b-star { position:absolute; left:48px; top:44px; width:104px; height:54px; background-size:100% 100%; }
 .tvp .b-lab { position:absolute; left:48px; right:42px; bottom:26px; display:flex; justify-content:space-between; align-items:flex-end; color:#cfe0f2; font-size:10px; }
 .tvp .b-lab .logo { width:54px; height:47px; display:block; background-size:100% 100%; }
+.tvp.c5 { padding:0; color:#fff; background:linear-gradient(150deg, #009999 0%, #006666 35%, #003366 75%); }
+.tvp.c5 .kor { position:absolute; right:-90px; top:60px; width:430px; height:430px; border-radius:50%; border:10px solid #FF3399; background-size:cover; background-position:center 30%; }
+.tvp.c5 .gy { position:absolute; right:250px; top:420px; width:60px; height:60px; border-radius:50%; background:#FF99CC; }
+.tvp.c5 .star { position:absolute; left:48px; top:46px; width:104px; height:54px; background-size:100% 100%; }
+.tvp.c5 .tx { position:absolute; left:48px; right:48px; top:540px; }
+.tvp.c5 .tx small { font-size:13px; letter-spacing:.26em; font-weight:700; color:#66CCCC; }
+.tvp.c5 h1 { margin:6px 0 0; font-size:48px; font-weight:900; line-height:1; letter-spacing:-.02em; color:#fff; }
+.tvp.c5 .nev { font-size:24px; font-weight:700; margin-top:14px; }
+.tvp.c5 .chev { position:absolute; right:48px; top:556px; font-size:46px; font-weight:900; color:#66CCCC; letter-spacing:-6px; }
+.tvp.c5 .ft { position:absolute; left:48px; right:44px; bottom:30px; display:flex; justify-content:space-between; align-items:flex-end; font-size:10.5px; line-height:1.5; }
+.tvp.c5 .ft .logo { width:52px; height:45px; display:block; background-size:100% 100%; }
+.tv-kepek { display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 8px; }
+.tv-kepek button, .tv-kepek label { width:84px; border:2px solid transparent; border-radius:12px; background:none; padding:3px; font:inherit; font-size:11px; font-weight:650; color:#475569; cursor:pointer; text-align:center; }
+.tv-kepek .kk { display:block; width:100%; aspect-ratio:1; border-radius:50%; background-size:cover; background-position:center; margin-bottom:4px; background-color:#eef2f9; }
+.tv-kepek .on { border-color:#2563eb; color:#2563eb; }
+.tv-kepek label .kk { display:grid; place-items:center; color:#2563eb; font-size:24px; font-weight:400; }
 .tvp.fb { padding:0; }
 .tvp.fb .csik { position:absolute; left:0; top:0; bottom:0; width:14px; background:#003366; }
 .tvp.fb .star { position:absolute; left:62px; top:52px; width:104px; height:54px; background-size:100% 100%; }
@@ -43428,6 +43444,12 @@ function tvGrafikon(a){
     return tvSvg(`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#009999" stop-opacity=".35"/><stop offset="1" stop-color="#009999" stop-opacity="0"/></linearGradient></defs>
         <path d="${ut} L${W},${H} L0,${H} Z" fill="url(#g)"/><path d="${ut}" fill="none" stroke="#009999" stroke-width="1.6"/><path d="M${p(befS)}" fill="none" stroke="#003366" stroke-width="1" stroke-dasharray="3 2"/>`, W, H);
 }
+// fedlap: sima (színes, a pénzügyi cél képével), nyomtatási (fehér) vagy a korábbi kék fotós
+const TV_CELOK = [['megtakaritas', 'Megtakarítás'], ['nyugdij', 'Nyugdíj'], ['befektetes', 'Befektetés'], ['otthon', 'Otthon, lakás'], ['gyerek', 'Gyerekek jövője'], ['utazas', 'Utazás'], ['csalad', 'Család']];
+let tvSajatKep = (() => { try { return localStorage.getItem('sf_tv_kep') || ''; } catch(e){ return ''; } })(), tvCelKezi = false;
+const tvFedlap = () => ({ tipo: 'nyomtatasi' })[tvAlap.fedlap] || tvAlap.fedlap || 'sima';
+const tvKepUrl = () => tvAlap.cel === 'sajat' && tvSajatKep ? tvSajatKep : `prezi/tervezet/cel-${TV_CELOK.some(c => c[0] === tvAlap.cel) ? tvAlap.cel : 'megtakaritas'}.jpg`;
+const tvCelBecsles = a => /nyugd/i.test(`${a.tipus} ${a.termek}`) ? 'nyugdij' : /lak[áa]s|otthon/i.test(`${a.tipus} ${a.termek}`) ? 'otthon' : 'megtakaritas';
 function tvLapok(){
     const nev = tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || 'Ügyfél', t = tvAlap.tan, o = tvAlap.opc, L = [];
     const dat = `${tvAlap.hely ? tvAlap.hely + ', ' : ''}${new Date().toLocaleDateString('hu-HU').replace(/\s/g, '')}`;
@@ -43435,13 +43457,18 @@ function tvLapok(){
     const csillag = c => tvSvg(`<path d="M30 4l7 17h18l-14 11 5 18-16-11-16 11 5-18L5 21h18z" fill="none" stroke="${c}" stroke-width="3"/><text x="58" y="26" fill="${c}" font-size="9" font-weight="800" font-family="Arial">EXCELLENT</text><text x="58" y="37" fill="${c}" font-size="9" font-weight="800" font-family="Arial">FOR YOU</text><text x="2" y="58" fill="${c}" font-size="6" font-family="Arial">OVB 2026</text>`, 115, 60);
     const forma = c => tvSvg(`<polygon points="0,10 10,0 34,0 34,24 24,34 0,34" fill="${c}"/>`, 34, 34);
     sz();
-    if(tvAlap.fedlap === 'foto') L.push({ nev: 'Borító', html: `<div class="tvp bor"><div class="b-kep" style="background-image:url('prezi/tervezet/borito.jpg')"></div>
+    const fl = tvFedlap(), kep = tvKepUrl();
+    if(fl === 'sima') L.push({ nev: 'Borító', html: `<div class="tvp c5"><div class="kor" style="background-image:url('${kep}')"></div><div class="gy"></div>
+        <span class="star" style="background-image:url('${csillag('#fff')}')"></span>
+        <div class="tx"><small>SZEMÉLYES</small><h1>Pénzügyi Tervezet</h1><div class="nev">${esc(nev)} részére</div></div><div class="chev">»»</div>
+        <div class="ft"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}<br>${esc(tvAlap.hely ? tvAlap.hely + ', ' : '')}${new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>${tvKep(tvLogo('#fff'), 'logo')}</div></div>` });
+    else if(fl === 'foto') L.push({ nev: 'Borító', html: `<div class="tvp bor"><div class="b-kep" style="background-image:url('${kep}')"></div>
         <div class="b-vag" style="background-image:url('${tvSvg('<polygon points="226,0 289,0 226,110" fill="#003366"/>', 595, 842)}')"></div>
         <div class="b-szal" style="background-image:url('${tvSvg('<polygon points="0,0 98,0 120,17 120,56 0,56" fill="#FF3399"/>', 120, 56)}')"></div>
         <span class="b-star" style="background-image:url('${csillag('#fff')}')"></span>
         <div class="b-tx"><small>SZEMÉLYES</small><h1>Pénzügyi<br>Tervezet</h1><div class="b-nev">${esc(nev)} részére</div><div class="b-dat">${esc(dat)}</div></div>
         <div class="b-lab"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}</span>${tvKep(tvLogo('#fff'), 'logo')}</div></div>` });
-    // alap: fehér, tipográfiai fedlap (nyomtatva is jól mutat, kevés tinta)
+    // nyomtatási: fehér, tipográfiai fedlap (kevés tinta)
     else L.push({ nev: 'Borító', html: `<div class="tvp fb"><div class="csik"></div><span class="star" style="background-image:url('${csillag('#003366')}')"></span>
         <div class="motivum">${['#009999', '#FF3399', '#9966CC', '#003366'].map(c => tvKep(forma(c), 'fm')).join('')}</div>
         <div class="tx"><small>SZEMÉLYES</small><h1>Pénzügyi<br>Tervezet</h1><div class="nev">${esc(nev)}<br><span>részére</span></div></div>
@@ -43519,8 +43546,12 @@ function renderTervezet(){
         <label>Tanácsadó<input data-tvtan="nev" value="${esc(t.nev)}"></label><label>MNB reg. szám<input data-tvtan="mnb" value="${esc(t.mnb)}"></label>
         <label>Telefon<input data-tvtan="tel" value="${esc(t.tel)}"></label><label>E-mail<input data-tvtan="email" value="${esc(t.email)}"></label></div></div>
       <div class="tv-kartya"><h3><i>3</i>Mi kerüljön bele?</h3>
-        <div class="tv-kap" style="cursor:default"><div><b>Fedlap</b><small>a fehér nyomtatásbarát, a fotós a korábbi kék</small></div></div>
-        <div class="tv-csomag">${[['tipo', 'Fehér, tipográfiai'], ['foto', 'Kék, fotós']].map(([k, n]) => `<button type="button" data-tvfedlap="${k}" class="${(tvAlap.fedlap || 'tipo') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        <div class="tv-kap" style="cursor:default"><div><b>Fedlap</b><small>sima (színes) vagy nyomtatási (fehér, kevés tinta)</small></div></div>
+        <div class="tv-csomag">${[['sima', 'Sima'], ['nyomtatasi', 'Nyomtatási'], ['foto', 'Kék, fotós']].map(([k, n]) => `<button type="button" data-tvfedlap="${k}" class="${tvFedlap() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        ${tvFedlap() !== 'nyomtatasi' ? `<div style="font-size:12px;font-weight:650;color:#64748b;margin-top:6px">Kép – az ügyfél pénzügyi célja szerint</div><div class="tv-kepek">
+            ${TV_CELOK.map(([k, n]) => `<button type="button" data-tvcel="${k}" class="${(tvAlap.cel || 'megtakaritas') === k ? 'on' : ''}"><span class="kk" style="background-image:url('prezi/tervezet/cel-${k}.jpg')"></span>${n}</button>`).join('')}
+            ${tvSajatKep ? `<button type="button" data-tvcel="sajat" class="${tvAlap.cel === 'sajat' ? 'on' : ''}"><span class="kk" style="background-image:url('${tvSajatKep}')"></span>Saját kép</button>` : ''}
+            <label title="Saját kép feltöltése"><span class="kk">+</span>Feltöltés<input type="file" id="tvKepFajl" accept="image/*" hidden></label></div>` : ''}
         ${kap('eloszo', 'Előszó', 'a fő üzenetek kiemelve')}
         ${kap('kesobb', '„Ha később indítja”', vanKesobb ? 'a kalkulációból' : 'ez a kalkuláció nem tartalmazza', !vanKesobb)}
         ${kap('_bizt', 'Biztosító bemutatása, portfólió és bónuszok', 'hamarosan – biztosítónként egyszer feltöltve', true)}
@@ -43594,6 +43625,7 @@ async function tvFajlok(files){
             if(a.tan.nev && !tvAlap.tan.nev) tvAlap.tan = { ...a.tan };
             else if(a.tan.nev === tvAlap.tan.nev) ['mnb', 'tel', 'email'].forEach(k => { if(!tvAlap.tan[k]) tvAlap.tan[k] = a.tan[k]; });
             if(!tvAlap.ugyfel && a.ugyfel) tvAlap.ugyfel = a.ugyfel;
+            if(!tvCelKezi && tvAj.length === 1) tvAlap.cel = tvCelBecsles(a);
             tvMent();
         } catch(e){ tvHiba = `${f.name}: ${e.message || e}`; }
     }
@@ -43602,6 +43634,13 @@ async function tvFajlok(files){
 window.sfShowTervezet = function(){ renderTervezet(); };
 document.addEventListener('change', e => {
     if(e.target.id === 'tvFajl'){ tvFajlok(e.target.files); e.target.value = ''; return; }
+    if(e.target.id === 'tvKepFajl'){ const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+        // a saját kép kicsinyítve (900 px), hogy elférjen a böngészőben és gyors legyen a PDF
+        const im = new Image(); im.onload = () => { const k = Math.min(1, 900 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+            cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+            tvSajatKep = cv.toDataURL('image/jpeg', .85); try { localStorage.setItem('sf_tv_kep', tvSajatKep); } catch(err){}
+            URL.revokeObjectURL(im.src); tvAlap.cel = 'sajat'; tvCelKezi = true; tvMent(); renderTervezet(); };
+        im.src = URL.createObjectURL(f); return; }
     if(e.target.matches && e.target.matches('[data-tvopc]')){ tvAlap.opc[e.target.dataset.tvopc] = e.target.checked; tvMent(); renderTervezet(); }
 });
 document.addEventListener('input', e => {
@@ -43619,6 +43658,7 @@ document.addEventListener('input', e => {
 document.addEventListener('click', e => {
     if(!e.target.closest || !e.target.closest('#tervezetBody')) return;
     const tr = e.target.closest('[data-tvtorol]'); if(tr){ tvAj.splice(+tr.dataset.tvtorol, 1); renderTervezet(); return; }
+    const ce = e.target.closest('[data-tvcel]'); if(ce){ tvAlap.cel = ce.dataset.tvcel; tvCelKezi = true; tvMent(); renderTervezet(); return; }
     const fl = e.target.closest('[data-tvfedlap]'); if(fl){ tvAlap.fedlap = fl.dataset.tvfedlap; tvMent(); renderTervezet(); return; }
     const cs = e.target.closest('[data-tvcsomag]'); if(cs){ tvAlap.csomag = cs.dataset.tvcsomag; tvMent(); renderTervezet(); return; }
     if(e.target.closest('#tvLetolt')) tvLetolt();
