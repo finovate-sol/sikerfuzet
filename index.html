@@ -43447,7 +43447,7 @@ function tvGrafikon(a){
 // fedlap: sima (színes, a pénzügyi cél képével), nyomtatási (fehér) vagy a korábbi kék fotós
 const TV_CELOK = [['megtakaritas', 'Megtakarítás'], ['nyugdij', 'Nyugdíj'], ['befektetes', 'Befektetés'], ['otthon', 'Otthon, lakás'], ['gyerek', 'Gyerekek jövője'], ['utazas', 'Utazás'], ['csalad', 'Család']];
 let tvSajatKep = (() => { try { return localStorage.getItem('sf_tv_kep') || ''; } catch(e){ return ''; } })(), tvCelKezi = false;
-const tvFedlap = () => ({ tipo: 'nyomtatasi' })[tvAlap.fedlap] || tvAlap.fedlap || 'sima';
+const tvFedlap = () => tvAlap.fedlap === 'nyomtatasi' || tvAlap.fedlap === 'tipo' ? 'nyomtatasi' : 'sima';
 const tvKepUrl = () => tvAlap.cel === 'sajat' && tvSajatKep ? tvSajatKep : `prezi/tervezet/cel-${TV_CELOK.some(c => c[0] === tvAlap.cel) ? tvAlap.cel : 'megtakaritas'}.jpg`;
 const tvCelBecsles = a => /nyugd/i.test(`${a.tipus} ${a.termek}`) ? 'nyugdij' : /lak[áa]s|otthon/i.test(`${a.tipus} ${a.termek}`) ? 'otthon' : 'megtakaritas';
 function tvLapok(){
@@ -43546,8 +43546,8 @@ function renderTervezet(){
         <label>Tanácsadó<input data-tvtan="nev" value="${esc(t.nev)}"></label><label>MNB reg. szám<input data-tvtan="mnb" value="${esc(t.mnb)}"></label>
         <label>Telefon<input data-tvtan="tel" value="${esc(t.tel)}"></label><label>E-mail<input data-tvtan="email" value="${esc(t.email)}"></label></div></div>
       <div class="tv-kartya"><h3><i>3</i>Mi kerüljön bele?</h3>
-        <div class="tv-kap" style="cursor:default"><div><b>Fedlap</b><small>sima (színes) vagy nyomtatási (fehér, kevés tinta)</small></div></div>
-        <div class="tv-csomag">${[['sima', 'Sima'], ['nyomtatasi', 'Nyomtatási'], ['foto', 'Kék, fotós']].map(([k, n]) => `<button type="button" data-tvfedlap="${k}" class="${tvFedlap() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        <div class="tv-kap" style="cursor:default"><div><b>Fedlap</b><small>sima: színes, a cél képével · nyomtatási: fehér, kevés tinta</small></div></div>
+        <div class="tv-csomag">${[['sima', 'Sima'], ['nyomtatasi', 'Nyomtatási']].map(([k, n]) => `<button type="button" data-tvfedlap="${k}" class="${tvFedlap() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
         ${tvFedlap() !== 'nyomtatasi' ? `<div style="font-size:12px;font-weight:650;color:#64748b;margin-top:6px">Kép – az ügyfél pénzügyi célja szerint</div><div class="tv-kepek">
             ${TV_CELOK.map(([k, n]) => `<button type="button" data-tvcel="${k}" class="${(tvAlap.cel || 'megtakaritas') === k ? 'on' : ''}"><span class="kk" style="background-image:url('prezi/tervezet/cel-${k}.jpg')"></span>${n}</button>`).join('')}
             ${tvSajatKep ? `<button type="button" data-tvcel="sajat" class="${tvAlap.cel === 'sajat' ? 'on' : ''}"><span class="kk" style="background-image:url('${tvSajatKep}')"></span>Saját kép</button>` : ''}
