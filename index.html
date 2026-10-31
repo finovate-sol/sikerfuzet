@@ -2131,6 +2131,11 @@
         .pzi-ed-vaszon .ab { cursor:move; }
         .pzi-ed-vaszon [contenteditable] { cursor:text; user-select:text; -webkit-user-select:text; outline:none; }
         .pzi-ed-keret { position:absolute; inset:0; pointer-events:none; z-index:3; }
+        /* kattintási sorrend: a „kattintásra” elemek sarkában a lépés száma (rákattintva kijelöli az elemet) */
+        .pzi-ed-sorsz { position:absolute; min-width:22px; height:22px; padding:0 6px; box-sizing:border-box; border-radius:11px; background:#e2007a; color:#fff; font-size:12px; font-weight:800; line-height:22px; text-align:center;
+            box-shadow:0 2px 6px rgba(15,23,42,.35); transform:translate(-35%, -35%); pointer-events:auto; cursor:pointer; font-variant-numeric:tabular-nums; }
+        .pzi-ed-sorsz.on { background:#2563eb; }
+        .pzi-ed-sor select { height:32px; }
         .pzi-ed-doboz { position:absolute; outline:2px solid #2563eb; outline-offset:0; }
         .pzi-ed-h { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; background:#fff; border:2px solid #2563eb; border-radius:3px; pointer-events:auto; box-sizing:border-box; }
         .pzi-ed-h.h-nw { left:0; top:0; cursor:nwse-resize; } .pzi-ed-h.h-n { left:50%; top:0; cursor:ns-resize; } .pzi-ed-h.h-ne { left:100%; top:0; cursor:nesw-resize; }
@@ -13267,7 +13272,8 @@ window.sfShowSablonok = function(){ renderSablonok(); };
 // Dia-típusok: cim (cím + alcím), lista (cím + pontok, opcionális kép), lepesek
 // (cím + egymás utáni lépések), szam (nagy szám/szöveg + magyarázat), idezet.
 const PZI_TIPUSOK = [['cim', 'Címdia'], ['lista', 'Felsorolás'], ['lepesek', 'Lépések'], ['szam', 'Kiemelt szám'], ['idezet', 'Idézet / üzenet']];
-const PZI_TEMAK = [['kek', 'Sötétkék'], ['vilagos', 'Világos'], ['sotet', 'Éjfekete'], ['zold', 'Smaragd'], ['fekete', 'Fekete (feltöltött diákhoz)']];
+// Egyetlen téma: minden prezentáció világos (a régi p.tema érték megmarad az adatban, de nem számít).
+const PZI_TEMA = 'vilagos';
 // Feltöltött (PDF / kép) diák: oldalanként egy JPEG a Firestore-ban, ugyanott, ahol a
 // jegyzetek képei vannak (note_images, a gazdájáé) – a prezentáció csak az azonosítót tárolja.
 const pziKepCache = new Map();
@@ -13735,7 +13741,7 @@ const pziHelyek = p => { const m = new Map();
 function pziKartya(p){
     const elso = p.diak[0] || { t: 'cim', c: p.n };
     return `<div class="pzi-kartya">
-        <button type="button" class="pzi-elo pzi-tema-${esc(p.tema || 'kek')}" data-pziindit="${esc(p.id)}" title="Vetítés indítása"><div class="pzi-elo-bel">${pziDiaHtml(elso)}</div><span class="pzi-play">▶</span></button>
+        <button type="button" class="pzi-elo pzi-tema-${PZI_TEMA}" data-pziindit="${esc(p.id)}" title="Vetítés indítása"><div class="pzi-elo-bel">${pziDiaHtml(elso)}</div><span class="pzi-play">▶</span></button>
         <div class="pzi-k-info"><b>${esc(p.n || 'Névtelen prezentáció')}</b><em>${p.diak.length} dia${p.sajatSablon ? ' · saját sablon' : p.modositott ? ' · sablon (módosított)' : p.sablon ? ' · sablon' : p.feltoltott ? ' · feltöltött' : ''}</em></div>
         <div class="pzi-k-gombok">
             <button type="button" class="btn primary" data-pziindit="${esc(p.id)}">▶ Indítás</button>
@@ -13752,7 +13758,7 @@ async function renderPrezik(){
     if(!prvLap('prezik')) return;
     if(pziSzerk){ pziEdSel = []; pziEdSzoveg = null;
         const x = pziSzerk.diak[pziDia];
-        if(x && x.t !== 'html'){ pziSzerk.diak[pziDia] = { ...pziAtalakit(x, pziSzerk.tema), ...(x.o != null ? { o: x.o } : {}), ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); }
+        if(x && x.t !== 'html'){ pziSzerk.diak[pziDia] = { ...pziAtalakit(x, PZI_TEMA), ...(x.o != null ? { o: x.o } : {}), ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); }
         // diaváltáskor / mentéskor ne ugorjon el se az oldal, se a dialista
         const lst = host.querySelector('.pzi-sz-lista'), lPoz = lst ? lst.scrollTop : 0, aPoz = window.scrollY, volt = !!lst;
         host.innerHTML = pziSzerkHtml();
@@ -13777,7 +13783,7 @@ addEventListener('resize', () => { if(prvLap('prezik')){ pziSkala(); pziEdKeret(
 function pziSzerkHtml(){
     const p = pziSzerk, x = p.diak[pziDia] || p.diak[0];
     const lista = p.diak.map((y, i) => `<div class="pzi-sz-li${i === pziDia ? ' on' : ''}${y.rejt ? ' rejtett' : ''}" data-pzidia="${i}" draggable="true" title="Húzd a sorrend módosításához">
-        <span class="pzi-sz-n">${i + 1}</span><div class="pzi-sz-mini pzi-tema-${esc(p.tema)}"><div class="pzi-elo-bel">${pziDiaHtml(y)}</div>${y.rejt ? '<span class="pzi-sz-rejt">elrejtve</span>' : ''}</div>
+        <span class="pzi-sz-n">${i + 1}</span><div class="pzi-sz-mini pzi-tema-${PZI_TEMA}"><div class="pzi-elo-bel">${pziDiaHtml(y)}</div>${y.rejt ? '<span class="pzi-sz-rejt">elrejtve</span>' : ''}</div>
         <span class="pzi-sz-mg"><button type="button" data-pzidupl="${i}" title="Dia duplikálása">⧉</button><button type="button" data-pzirejt="${i}" title="${y.rejt ? 'Megjelenítés vetítéskor' : 'Elrejtés – vetítéskor kimarad'}">${y.rejt ? '◌' : '◉'}</button><button type="button" data-pzidel="${i}" title="Dia törlése"${p.diak.length > 1 ? '' : ' disabled'}>✕</button></span></div>`).join('');
     const sz = x.t === 'cim' ? 'Alcím' : x.t === 'szam' ? 'Magyarázat' : x.t === 'idezet' ? 'Aláírás / kiegészítés' : x.t === 'lepesek' ? 'Lépések (soronként egy)' : 'Pontok (soronként egy)';
     const tpl = (p.forras || p._tpl) && x.o != null ? PZI_SABLONOK.find(z => z.id === (p.forras || p._tpl)) : null;
@@ -13795,7 +13801,7 @@ function pziSzerkHtml(){
                     ${vissza}
                     <div class="pzi-ed-kij"></div>
                 </div>
-                <div class="pzi-sz-nagy pzi-ed-vaszon pzi-tema-${esc(p.tema)}" data-pzinagy><div class="pzi-elo-bel pzi-ed-bel"><div class="pzi-dia pzi-t-html">${x.h || ''}</div></div><div class="pzi-ed-keret"></div></div>` : '';
+                <div class="pzi-sz-nagy pzi-ed-vaszon pzi-tema-${PZI_TEMA}" data-pzinagy><div class="pzi-elo-bel pzi-ed-bel"><div class="pzi-dia pzi-t-html">${x.h || ''}</div></div><div class="pzi-ed-keret"></div></div>` : '';
     return `<div class="sb-fej"><div><h2>${esc(p.n || 'Új prezentáció')}</h2><p>${p._tpl ? '<b>Sablon szerkesztése</b> – a végén válaszd: mentés sajátként (új prezentáció) vagy sablonként (felülírja a sablont).' : 'Minden változás automatikusan mentődik.'} Kapcsos zárójelbe írt szó – pl. <b>{ügyfél neve}</b> – vetítéskor kitölthető.</p></div>
             <span class="pzi-sz-fg"><button type="button" class="btn" data-pzivetitvazlat>▶ Vetítés</button>
                 ${p._tpl ? `<button type="button" class="btn" data-pzielvet title="Kilépés mentés nélkül">Elvetés</button><button type="button" class="btn" data-pzimentsajat title="Új saját prezentációként menti – a sablon nem változik">Mentés sajátként</button><button type="button" class="btn primary" data-pzimentsablon title="A sablont írja felül (a gyári állapot visszaállítható)">Mentés sablonként</button>`
@@ -13803,12 +13809,11 @@ function pziSzerkHtml(){
         <div class="pzi-sz">
             <div class="card pzi-sz-bal">
                 <label class="sb-mezo"><span>Megnevezés</span><input class="sb-in" data-pzip="n" value="${esc(p.n || '')}" maxlength="80"></label>
-                <label class="sb-mezo"><span>Téma</span><select class="sb-in" data-pzip="tema">${PZI_TEMAK.map(([k, n]) => `<option value="${k}"${p.tema === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
                 <div class="pzi-sz-lista">${lista}</div>
                 <span class="pzi-ujdia-g"><button type="button" class="btn primary" data-pziujgaleria>+ Új dia</button></span>
             </div>
             <div class="pzi-sz-jobb">
-                ${ed ? szerkeszto : `<div class="pzi-sz-nagy pzi-tema-${esc(p.tema)}" data-pzinagy><div class="pzi-elo-bel">${pziDiaHtml(x)}</div></div>
+                ${ed ? szerkeszto : `<div class="pzi-sz-nagy pzi-tema-${PZI_TEMA}" data-pzinagy><div class="pzi-elo-bel">${pziDiaHtml(x)}</div></div>
                 <div class="pzi-atalakit"><span>${x.t === 'kep' ? 'Feltöltött kép-dia: szöveget, képet tehetsz rá, ha szabadon szerkeszthetővé alakítod.' : 'Az elemeket (cím, pontok) szabadon mozgatnád, átméreteznéd?'}</span><button type="button" class="btn" data-pziatalakit>Szabad szerkesztés ›</button>${vissza}</div>`}
                 <div class="card pzi-sz-urlap">${x.t === 'kep' || x.t === 'html' ? `
                     <p class="pzi-sz-kepinfo">${x.t === 'html' ? 'Kattints egy elemre: húzással mozgatod, a sarkoknál átméretezed, dupla kattintással átírod. A kapcsos zárójeles mezőket – pl. {ügyfél neve} – vetítéskor töltheted ki.' : 'Feltöltött dia – a tartalma kép, itt csak az előadói jegyzet írható hozzá.'}</p>
@@ -13829,6 +13834,16 @@ function pziSzerkHtml(){
 // dia HTML-je (x.h) visszaíródik és mentődik; a {mező} helyek érintetlenek maradnak.
 const PZI_ANIM = [['', 'Nincs'], ['fel', 'Beúszik alulról'], ['le', 'Beúszik felülről'], ['bal', 'Beúszik balról'], ['jobb', 'Beúszik jobbról'], ['fade', 'Elhalványul'], ['zoom', 'Nagyítás'], ['wbal', 'Kitörlés balról']];
 let pziEdSel = [], pziEdVissza = [], pziEdSzoveg = null;
+// Kattintási sorrend: a .fr elemek data-k értéke szerinti lépések (azonos érték = egyszerre jelennek meg).
+// A data-k nélküliek a végére kerülnek, a dián elfoglalt sorrendjükben – ahogy a vetítő is mutatja.
+function pziEdLepesek(g){
+    const csop = new Map();
+    [...g.querySelectorAll('.fr')].forEach((f, n) => { const k = f.dataset.k != null && f.dataset.k !== '' && !isNaN(+f.dataset.k) ? +f.dataset.k : 1e6 + n;
+        if(!csop.has(k)) csop.set(k, []); csop.get(k).push(f); });
+    return [...csop.keys()].sort((a, b) => a - b).map(k => csop.get(k));
+}
+// a lépések újraszámozása 1, 2, 3 … -ra (a sorrend marad)
+function pziEdSorszamoz(g){ pziEdLepesek(g).forEach((l, i) => l.forEach(f => { f.dataset.k = i + 1; })); }
 const pziEdBel = () => document.querySelector('#page-prezik .pzi-ed-bel');
 const pziEdGyoker = () => { const d = document.querySelector('#page-prezik .pzi-ed-bel .pzi-dia'); return d && (d.firstElementChild || d); };
 const pziEdSk = () => { const b = pziEdBel(); return b ? (parseFloat(getComputedStyle(b).getPropertyValue('--sk')) || b.parentElement.clientWidth / 1280) : 1; };
@@ -13882,6 +13897,11 @@ function pziEdKeret(){
         k.insertAdjacentHTML('beforeend', [...vx].map(x => `<i class="pzi-ed-vonal x halk" style="left:${ox + x * sk}px"></i>`).join('') + [...vy].map(y => `<i class="pzi-ed-vonal y halk" style="top:${oy + y * sk}px"></i>`).join('')
             + `<span class="pzi-ed-poz" style="left:${r.left - vr.left}px;top:${r.bottom - vr.top + 6}px">X ${Math.round(l)} · Y ${Math.round(t)} · ${Math.round(w)}×${Math.round(h)}${vx.size || vy.size ? ' · <b>egy vonalban</b>' : ''}</span>`);
     }
+    // a kattintásra előjövő elemek sorszáma (hányadik kattintásra jelennek meg)
+    const gy = pziEdGyoker();
+    if(gy && !pziEdHuz){ const frs = [...gy.querySelectorAll('.fr')];
+        k.insertAdjacentHTML('beforeend', pziEdLepesek(gy).map((l, i) => l.map(f => { const r = f.getBoundingClientRect();
+            return `<span class="pzi-ed-sorsz${pziEdSel.includes(f) ? ' on' : ''}" data-pziedsorsz="${frs.indexOf(f)}" style="left:${Math.max(r.left - vr.left, 12)}px;top:${Math.max(r.top - vr.top, 12)}px" title="${i + 1}. kattintásra jelenik meg – kattints a kijelöléshez">${i + 1}</span>`; }).join('')).join('')); }
     pziEdSavRajz();
 }
 function pziEdSavRajz(){
@@ -13898,6 +13918,10 @@ function pziEdSavRajz(){
         ${kitolt || !szov ? `<label class="pzi-ed-szin" title="Kitöltés"><span class="tolt" style="background:${esc(getComputedStyle(kitolt || el).backgroundColor)}"></span><input type="color" data-pziedszin="tolt" value="${rgb2hex(getComputedStyle(kitolt || el).backgroundColor)}"></label>` : ''}
         <select data-pziedanim title="Megjelenés vetítéskor">${PZI_ANIM.map(([k, n]) => `<option value="${k}"${(el.dataset.a || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select>
         <label class="pzi-ed-chk" title="Csak kattintásra / → gombra jelenik meg"><input type="checkbox" data-pziedfr${el.classList.contains('fr') ? ' checked' : ''}> kattintásra</label>
+        ${pziEdSel.every(e => e.classList.contains('fr')) ? (() => { const l = pziEdLepesek(pziEdGyoker()), most = l.findIndex(c => c.includes(el)), egyedul = l[most] && l[most].every(f => pziEdSel.includes(f));
+            return `<span class="pzi-ed-cs pzi-ed-sor" title="Hányadik kattintásra jelenjen meg – azonos szám: egyszerre jönnek"><button type="button" data-pzied="sor-elore" title="Korábbra (egy kattintással előbb)"${most <= 0 && egyedul ? ' disabled' : ''}>◀</button>
+                <select data-pziedsor>${l.map((_, i) => `<option value="${i + 1}"${i === most ? ' selected' : ''}>${i + 1}. kattintás</option>`).join('')}${egyedul ? '' : '<option value="uj">Külön, utolsóként</option>'}</select>
+                <button type="button" data-pzied="sor-hatra" title="Későbbre (egy kattintással később)"${most === l.length - 1 && egyedul ? ' disabled' : ''}>▶</button></span>`; })() : ''}
         <span class="pzi-ed-cs"><button type="button" data-pzied="elore" title="Előrébb hozás">⬆︎ előre</button><button type="button" data-pzied="hatra" title="Hátrébb küldés">⬇︎ hátra</button></span>
         ${pziEdSel.length > 1 && pziEdSel.every(pziEdVanSzoveg) ? '<button type="button" data-pzied="egyesit" title="A kijelölt szövegdobozok egy dobozba (pl. betűnként szétesett felirat)">Egyesítés</button>' : ''}
         <button type="button" data-pzied="dupl" title="Duplikálás (Ctrl+D)">⧉</button><button type="button" data-pzied="torol" class="pzi-ed-tor" title="Törlés (Delete)">🗑</button>`;
@@ -13939,6 +13963,13 @@ function pziEdMuvelet(m){
     if(m === 'torol'){ pziEdSel.forEach(e => e.remove()); pziEdSel = []; }
     else if(m === 'dupl'){ pziEdSel = pziEdSel.map(e => { const c = e.cloneNode(true); c.classList.remove('pzi-ed-sel');
         c.style.left = (e.offsetLeft + 24) + 'px'; c.style.top = (e.offsetTop + 24) + 'px'; c.style.right = 'auto'; c.style.bottom = 'auto'; e.after(c); return c; }); }
+    else if(m === 'sor-elore' || m === 'sor-hatra'){
+        // önálló lépés: helyet cserél a szomszédos lépéssel; csoportban: kiválik belőle, közvetlenül elé / mögé
+        pziEdSorszamoz(g); const most = +pziEdSel[0].dataset.k;
+        const egyedul = [...g.querySelectorAll('.fr')].filter(f => +f.dataset.k === most).every(f => pziEdSel.includes(f));
+        const uj = m === 'sor-hatra' ? (egyedul ? most + 1.5 : most + .5) : (egyedul ? most - 1.5 : most - .5);
+        pziEdSel.forEach(e => { e.dataset.k = uj; }); pziEdSorszamoz(g);
+    }
     else if(m === 'elore') pziEdSel.forEach(e => { const n = e.nextElementSibling; if(n) n.after(e); });
     else if(m === 'hatra') pziEdSel.slice().reverse().forEach(e => { const p = e.previousElementSibling; if(p && !pziEdHatter(p)) p.before(e); });
     else if(m === 'egyesit'){
@@ -13993,7 +14024,7 @@ function pziAtalakit(x, tema){
     if(x.t === 'kep') return { t: 'html', j: x.j || '', kepId: x.kepId,
         h: `<div class="ce" style="background:#000"><div class="ab ce-pic" style="left:0px;top:0px;width:1280px;height:720px;"><div class="ce-in" style="overflow:hidden;"><img data-pzikep="${esc(x.kepId || '')}" alt="" style="width:100%;height:100%;object-fit:contain;"></div></div></div>` };
     const m = document.createElement('div');
-    m.className = `pzi-tema-${tema || 'kek'}`; m.style.cssText = 'position:fixed;left:-3000px;top:0;width:1280px;height:720px;';
+    m.className = `pzi-tema-${PZI_TEMA}`; m.style.cssText = 'position:fixed;left:-3000px;top:0;width:1280px;height:720px;';
     m.innerHTML = pziDiaHtml(x); document.body.appendChild(m);
     const alap = m.getBoundingClientRect(), hs = getComputedStyle(m);
     const hatter = hs.backgroundImage !== 'none' ? hs.backgroundImage : hs.backgroundColor;
@@ -14022,6 +14053,8 @@ let pziEdHuz = null;
 document.addEventListener('pointerdown', e => {
     const v = e.target.closest && e.target.closest('#page-prezik .pzi-ed-vaszon'); if(!v || e.button > 0) return;
     const g = pziEdGyoker(); if(!g) return;
+    const sorsz = e.target.closest('[data-pziedsorsz]');
+    if(sorsz){ e.preventDefault(); const f = g.querySelectorAll('.fr')[+sorsz.dataset.pziedsorsz]; if(f) pziEdValaszt(f, e.shiftKey); return; }
     const h = e.target.closest('[data-pziedh]');
     if(pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg).contains(e.target)) return;     // szövegírás közben a kurzor mozog
     let el = null;
@@ -14122,8 +14155,8 @@ function pziJelez(t){
 function pziDiaGaleria(d){
     const forrasok = [...pziSablonok(d), ...d.lista.filter(p => p !== pziSzerk && p.id !== (pziSzerk && pziSzerk.id))];
     const ov = document.createElement('div'); ov.className = 'modal-overlay';
-    const kis = (x, tema) => `<div class="pzi-gal-elo pzi-tema-${esc(tema || 'kek')}"><div class="pzi-elo-bel" style="--sk:${170 / 1280}">${pziDiaHtml(x)}</div></div>`;
-    const sotet = ['kek', 'sotet', 'zold', 'fekete'].includes(pziSzerk.tema);
+    const kis = x => `<div class="pzi-gal-elo pzi-tema-${PZI_TEMA}"><div class="pzi-elo-bel" style="--sk:${170 / 1280}">${pziDiaHtml(x)}</div></div>`;
+    const sotet = false;
     const ures = [['Üres – világos', '#ffffff'], ['Üres – sötétkék', '#0f2f5f'], ['Üres – fekete', '#0b1020']].map(([n, bg]) => ({ n, x: { t: 'html', j: '', h: `<div class="ce" style="background:${bg}"></div>` } }));
     const cimes = { n: 'Cím + szöveg', x: { t: 'html', j: '', h: `<div class="ce" style="background:${sotet ? '#0f2f5f' : '#ffffff'}"><div class="ab ce-sp" style="left:96px;top:70px;width:1000px;height:90px;"><div class="ce-tx" style="padding:4.8px 9.6px;justify-content:flex-start;"><p style="margin:0;line-height:1.15;"><span style="font-size:54px;font-weight:700;color:${sotet ? '#ffffff' : '#0f2f5f'};font-family:'Poppins',sans-serif;">Cím</span></p></div></div><div class="ab ce-sp" style="left:96px;top:190px;width:1080px;height:420px;"><div class="ce-tx" style="padding:4.8px 9.6px;justify-content:flex-start;"><p style="margin:0;line-height:1.45;"><span style="font-size:30px;font-weight:400;color:${sotet ? '#dbe7ff' : '#334155'};font-family:'Poppins',sans-serif;">Szöveg</span></p></div></div></div>` } };
     ov.innerHTML = `<div class="modal pz-modal pzi-gal-modal" style="max-width:980px;"><div class="modal-head"><h3>Új dia</h3><button class="modal-x" data-x>&times;</button></div>
@@ -14131,17 +14164,17 @@ function pziDiaGaleria(d){
             <h4 class="pzi-gal-cim">Alap</h4>
             <div class="pzi-gal-racs">${[...ures, cimes].map((u, i) => `<button type="button" class="pzi-gal-db" data-pziga="a${i}">${kis(u.x, 'vilagos')}<span>${esc(u.n)}</span></button>`).join('')}</div>
             ${forrasok.map((p, pi) => `<h4 class="pzi-gal-cim">${esc(p.n || 'Prezentáció')}<em>${p.sablon ? 'sablon' : 'saját'} · ${p.diak.length} dia</em></h4>
-                <div class="pzi-gal-racs">${p.diak.map((x, i) => `<button type="button" class="pzi-gal-db" data-pziga="${pi}:${i}">${kis(x, p.tema)}<span>${i + 1}. dia</span></button>`).join('')}</div>`).join('')}
+                <div class="pzi-gal-racs">${p.diak.map((x, i) => `<button type="button" class="pzi-gal-db" data-pziga="${pi}:${i}">${kis(x)}<span>${i + 1}. dia</span></button>`).join('')}</div>`).join('')}
         </div></div>`;
     document.body.appendChild(ov); pziKepekBetolt(ov);
     ov.addEventListener('click', e => {
         if(e.target === ov || e.target.closest('[data-x]')){ ov.remove(); return; }
         const b = e.target.closest('[data-pziga]'); if(!b) return;
-        const k = b.dataset.pziga; let x, tema = pziSzerk.tema;
+        const k = b.dataset.pziga; let x;
         if(k[0] === 'a') x = [...ures, cimes][+k.slice(1)].x;
-        else { const [pi, i] = k.split(':').map(Number); x = forrasok[pi].diak[i]; tema = forrasok[pi].tema; }
+        else { const [pi, i] = k.split(':').map(Number); x = forrasok[pi].diak[i]; }
         x = JSON.parse(JSON.stringify(x)); delete x.o; delete x.rejt;
-        if(x.t !== 'html') x = pziAtalakit(x, tema);
+        if(x.t !== 'html') x = pziAtalakit(x, PZI_TEMA);
         pziSzerk.diak.splice(pziDia + 1, 0, x); pziDia++; pziMent(); ov.remove(); renderPrezik();
     });
 }
@@ -14214,7 +14247,7 @@ document.addEventListener('click', async e => {
     const of = id => pziMind(d).find(p => p.id === id);
     const ind = e.target.closest('[data-pziindit]'); if(ind){ const p = of(ind.dataset.pziindit); if(p) pziInditas(p); return; }
     if(e.target.closest('[data-pziuj]')){
-        const p = { id: pziId(), n: 'Új prezentáció', tema: 'kek', diak: [{ t: 'cim', c: 'Cím', s: 'Alcím', j: '' }] };
+        const p = { id: pziId(), n: 'Új prezentáció', tema: PZI_TEMA, diak: [{ t: 'cim', c: 'Cím', s: 'Alcím', j: '' }] };
         d.lista.push(p); prvMent('prezik'); pziSzerk = p; pziDia = 0; renderPrezik(); return;
     }
     const sz = e.target.closest('[data-pziszerk]');
@@ -14273,11 +14306,11 @@ document.addEventListener('click', async e => {
     }
     if(di){ pziDia = +di.dataset.pzidia; renderPrezik(); return; }
     if(e.target.closest('[data-pziujdia]')){ l.splice(pziDia + 1, 0, { t: 'lista', c: 'Új dia', s: 'Első pont\nMásodik pont', j: '' }); pziDia++; pziMent(); renderPrezik(); return; }
-    if(e.target.closest('[data-pziujszabad]')){ const sotet = ['kek', 'sotet', 'zold', 'fekete'].includes(pziSzerk.tema);
+    if(e.target.closest('[data-pziujszabad]')){ const sotet = false;
         l.splice(pziDia + 1, 0, { t: 'html', j: '', h: `<div class="ce" style="background:${sotet ? '#0f2f5f' : '#ffffff'}"></div>` }); pziDia++; pziMent(); renderPrezik(); return; }
     const ed = e.target.closest('[data-pzied]'); if(ed){ pziEdMuvelet(ed.dataset.pzied); return; }
     if(e.target.closest('[data-pziedvissza]')){ pziEdVisszavon(); return; }
-    if(e.target.closest('[data-pziatalakit]')){ pziEdElott(); l[pziDia] = { ...pziAtalakit(l[pziDia], pziSzerk.tema), ...(l[pziDia].o != null ? { o: l[pziDia].o } : {}) }; pziMent(); renderPrezik(); return; }
+    if(e.target.closest('[data-pziatalakit]')){ pziEdElott(); l[pziDia] = { ...pziAtalakit(l[pziDia], PZI_TEMA), ...(l[pziDia].o != null ? { o: l[pziDia].o } : {}) }; pziMent(); renderPrezik(); return; }
     if(e.target.closest('[data-pzivissza]')){ const tpl = PZI_SABLONOK.find(z => z.id === (pziSzerk.forras || pziSzerk._tpl)), x = l[pziDia];
         if(!tpl || !tpl.diak[x.o] || !confirm('Visszaállítod ezt a diát a sablon eredeti állapotára? A rajta végzett módosítások elvesznek.')) return;
         pziEdElott(); l[pziDia] = { ...JSON.parse(JSON.stringify(tpl.diak[x.o])), o: x.o, ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); renderPrezik(); return; }
@@ -14287,6 +14320,8 @@ document.addEventListener('change', e => {
     const t = e.target; if(!t.closest || !t.closest('#page-prezik .pzi-ed-sav')) return;
     if(t.matches('[data-pziedkep]')){ const f = t.files[0]; t.value = ''; pziEdKep(f); return; }
     if(t.matches('[data-pziedanim]')){ pziEdElott(); pziEdSel.forEach(el => { if(t.value) el.dataset.a = t.value; else { delete el.dataset.a; el.classList.remove('fr'); delete el.dataset.k; } }); pziEdMentes(); pziEdKeret(); return; }
+    if(t.matches('[data-pziedsor]')){ pziEdElott(); const g = pziEdGyoker(); pziEdSorszamoz(g);
+        pziEdSel.forEach(el => { el.dataset.k = t.value === 'uj' ? 9999 : t.value; }); pziEdSorszamoz(g); pziEdMentes(); pziEdKeret(); return; }
     if(t.matches('[data-pziedfr]')){ pziEdElott(); const g = pziEdGyoker();
         const kov = Math.max(0, ...[...g.querySelectorAll('.fr[data-k]')].map(f => +f.dataset.k || 0)) + 1;
         pziEdSel.forEach(el => { if(t.checked){ el.classList.add('fr'); el.dataset.k = kov; if(!el.dataset.a) el.dataset.a = 'fel'; } else { el.classList.remove('fr'); delete el.dataset.k; } });
@@ -14358,7 +14393,7 @@ function pziVetit(p, kit, opt){
     if(p.diak.some(x => x.rejt)) p = { ...p, diak: p.diak.filter(x => !x.rejt) };
     let i = 0, lepes = 0, frs = [];
     const v = document.createElement('div');
-    v.className = `pzi-vetito pzi-tema-${p.tema || 'kek'}`; v.tabIndex = -1;
+    v.className = `pzi-vetito pzi-tema-${PZI_TEMA}`; v.tabIndex = -1;
     v.innerHTML = `<div class="pzi-szinpad"></div><div class="pzi-jegyzet" hidden><b>Jegyzet</b><span></span></div>
         <div class="pzi-sav"><button type="button" data-v="elo" title="Előző (←)">‹</button><span class="pzi-szaml"></span><button type="button" data-v="kov" title="Következő (→, szóköz)">›</button>
             <i class="pzi-hal"><i></i></i>
