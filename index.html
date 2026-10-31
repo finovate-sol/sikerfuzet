@@ -13755,7 +13755,7 @@ async function renderPrezik(){
     if(!host.firstChild) host.innerHTML = sfVaz();
     const d = await pziAdat();
     if(!prvLap('prezik')) return;
-    if(pziSzerk){ pziEdSel = []; pziEdSzoveg = null;
+    if(pziSzerk){ pziEdSel = []; pziEdSzoveg = null; pziEdTx = null;
         const x = pziSzerk.diak[pziDia];
         if(x && x.t !== 'html'){ pziSzerk.diak[pziDia] = { ...pziAtalakit(x, PZI_TEMA), ...(x.o != null ? { o: x.o } : {}), ...(x.rejt ? { rejt: 1 } : {}) }; pziMent(); }
         // diaváltáskor / mentéskor ne ugorjon el se az oldal, se a dialista
@@ -13849,6 +13849,21 @@ const pziEdSk = () => { const b = pziEdBel(); return b ? (parseFloat(getComputed
 const pziEdHatter = el => el.offsetWidth >= 1270 && el.offsetHeight >= 710 && el.offsetLeft <= 5 && el.offsetTop <= 5;
 const pziEdSzovegEl = el => el.querySelector('.ce-tx') || el;
 const pziEdVanSzoveg = el => !!(el.textContent || '').trim() && !el.querySelector('img, svg:not(.ce-g)');
+// Az elem szövegei: azok a (nem SVG-n belüli) elemek, amelyekben közvetlenül szöveg áll. Ikont, képet is tartalmazó
+// összetett elemeknél (kártya: ikon + cím + szám) is ezekre hat a betűméret / szín / vastagság.
+const pziEdSzovegLevelek = el => { const t = pziEdSzovegEl(el);
+    return [t, ...t.querySelectorAll('*')].filter(x => !x.closest('svg') && [...x.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())); };
+// melyik szöveg a dupla kattintás helyén: a kattintott pont legközelebbi, ikont/képet nem tartalmazó szöveges őse az elemen belül
+function pziEdSzovegCel(el, target){
+    if(pziEdVanSzoveg(el)) return pziEdSzovegEl(el);
+    for(let x = target; x && x !== el.parentElement; x = x.parentElement){
+        if(x.closest && x.closest('svg')) continue;
+        if((x.textContent || '').trim() && !x.querySelector('img, svg')) return x;
+        if(x === el) break; }
+    return null;
+}
+let pziEdTx = null;   // a szerkesztés alatt álló szöveg (az elem egésze vagy egy szövege)
+const pziEdTxEl = () => pziEdTx || (pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg));
 // a dia HTML-je mentésre: szerkesztő-jelölések, betöltött képadatok nélkül
 function pziEdSorosit(){
     const g = pziEdGyoker(); if(!g) return null;
@@ -13907,7 +13922,7 @@ function pziEdSavRajz(){
     const s = document.querySelector('#page-prezik .pzi-ed-kij'); if(!s) return;
     const el = pziEdSel[0];
     if(!el){ s.innerHTML = '<span class="pzi-ed-tipp">Kattints egy elemre a kijelöléshez · dupla kattintás: szöveg átírása · Shift: több elem · nyilak: finom mozgatás</span>'; return; }
-    const tx0 = pziEdSzovegEl(el), szov = pziEdSel.some(pziEdVanSzoveg), cs = getComputedStyle(tx0.querySelector('span') || tx0.querySelector('p, li, b') || el);
+    const tx0 = pziEdSzovegEl(el), szov = pziEdSel.some(e => pziEdSzovegLevelek(e).length), cs = getComputedStyle(tx0.querySelector('span') || tx0.querySelector('p, li, b') || pziEdSzovegLevelek(el)[0] || el);
     const rgb2hex = c => { const m = String(c).match(/\d+/g); return m ? '#' + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('') : '#000000'; };
     const kitolt = el.querySelector(':scope > .ce-in');
     s.innerHTML = `${szov ? `<span class="pzi-ed-cs"><button type="button" data-pzied="kis" title="Kisebb betű">A−</button><b>${Math.round(parseFloat(cs.fontSize) || 0)}</b><button type="button" data-pzied="nagy" title="Nagyobb betű">A+</button></span>
@@ -13932,23 +13947,24 @@ function pziEdValaszt(el, plusz){
     else if(!pziEdSel.includes(el)) pziEdSel = [el];
     pziEdKeret();
 }
-function pziEdSzovegKezd(el){
-    const t = pziEdSzovegEl(el); if(!pziEdVanSzoveg(el) && !t.textContent.trim()) return;
+function pziEdSzovegKezd(el, cel){
+    const t = cel || pziEdSzovegEl(el); if(!t || !t.textContent.trim()) return;
     pziEdElott();
-    pziEdSzoveg = el; pziEdSel = [el];
+    pziEdSzoveg = el; pziEdTx = t; pziEdSel = [el];
     t.setAttribute('contenteditable', 'true'); t.setAttribute('spellcheck', 'false'); t.focus();
     const r = document.createRange(); r.selectNodeContents(t); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     pziEdKeret();
 }
 function pziEdSzovegVege(){
     const el = pziEdSzoveg; if(!el) return; pziEdSzoveg = null;
-    const t = pziEdSzovegEl(el); t.removeAttribute('contenteditable'); t.removeAttribute('spellcheck');
+    const t = pziEdTx || pziEdSzovegEl(el); pziEdTx = null; t.removeAttribute('contenteditable'); t.removeAttribute('spellcheck');
     pziEdMentes(); pziEdKeret();
 }
 // betűméret / szín / vastagság: a szöveg spanjain (a PowerPointból jött diák ott tárolják)
 function pziEdStilus(fn){
     pziEdElott();
-    for(const el of pziEdSel){ const sp = [...pziEdSzovegEl(el).querySelectorAll('span, p, li, b, strong')].filter(s => s.textContent.trim()); fn(el, sp.length ? sp : [pziEdSzovegEl(el)]); }
+    for(const el of pziEdSel){ const sp = [...pziEdSzovegEl(el).querySelectorAll('span, p, li, b, strong')].filter(s => s.textContent.trim()), lv = pziEdSzovegLevelek(el);
+        fn(el, sp.length ? sp : lv.length ? lv : [pziEdSzovegEl(el)]); }
     pziEdMentes(); pziEdKeret();
 }
 function pziEdMuvelet(m){
@@ -14055,7 +14071,7 @@ document.addEventListener('pointerdown', e => {
     const sorsz = e.target.closest('[data-pziedsorsz]');
     if(sorsz){ e.preventDefault(); const f = g.querySelectorAll('.fr')[+sorsz.dataset.pziedsorsz]; if(f) pziEdValaszt(f, e.shiftKey); return; }
     const h = e.target.closest('[data-pziedh]');
-    if(pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg).contains(e.target)) return;     // szövegírás közben a kurzor mozog
+    if(pziEdSzoveg && pziEdTxEl().contains(e.target)) return;     // szövegírás közben a kurzor mozog
     let el = null;
     if(h) el = pziEdSel[0];
     else {
@@ -14106,22 +14122,30 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('pointerup', () => { const d = pziEdHuz; if(!d) return; pziEdHuz = null; if(d.mozdult){ pziEdMentes(); pziEdKeret(); } });
 document.addEventListener('dblclick', e => {
     const v = e.target.closest && e.target.closest('#page-prezik .pzi-ed-vaszon'); if(!v) return;
-    const el = pziEdSel[0]; if(el && pziEdVanSzoveg(el)) pziEdSzovegKezd(el);
+    // a dupla kattintás célja gyakran a vászon (a keret két kattintás között újrarajzolódik) – a pont alatti elemet keressük
+    const el = pziEdSel[0]; if(!el) return;
+    const alatta = document.elementsFromPoint(e.clientX, e.clientY).find(t => el.contains(t)) || el;
+    let cel = pziEdSzovegCel(el, alatta);
+    if(!cel){   // nem szövegre kattintott (pl. a kártya üres részére): a legközelebbi szöveg
+        const tav = x => { const r = x.getBoundingClientRect(); return Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom)); };
+        cel = pziEdSzovegLevelek(el).filter(x => !x.querySelector('img, svg')).sort((a, b) => tav(a) - tav(b))[0] || null; }
+    if(cel) pziEdSzovegKezd(el, cel);
 });
-document.addEventListener('focusout', e => { if(pziEdSzoveg && e.target === pziEdSzovegEl(pziEdSzoveg)) setTimeout(() => { if(pziEdSzoveg && document.activeElement !== pziEdSzovegEl(pziEdSzoveg)) pziEdSzovegVege(); }, 0); });
+document.addEventListener('focusout', e => { if(pziEdSzoveg && e.target === pziEdTxEl()) setTimeout(() => { if(pziEdSzoveg && document.activeElement !== pziEdTxEl()) pziEdSzovegVege(); }, 0); });
 // a doboz nő a szöveggel (különben a sorok kilógnának / egymásra csúsznának)
 function pziEdNo(){
     const el = pziEdSzoveg; if(!el) return;
+    if(pziEdTx && pziEdTx !== pziEdSzovegEl(el)){ pziEdKeret(); return; }   // összetett elem egy szövege: a doboz marad
     const t = pziEdSzovegEl(el), kell = Math.ceil(t.scrollHeight);
     if(kell > el.offsetHeight + 1) el.style.height = kell + 'px';
     pziEdKeret();
 }
-document.addEventListener('input', e => { if(pziEdSzoveg && pziEdSzovegEl(pziEdSzoveg).contains(e.target)) pziEdNo(); });
+document.addEventListener('input', e => { if(pziEdSzoveg && pziEdTxEl().contains(e.target)) pziEdNo(); });
 // Enter: mindig sima sortörés (<br>) az aktuális bekezdésen belül – a böngésző alapból új
 // <div>-et szúrna be, ami a rugalmas (flex) dobozokban egymás mellé, nagy hézaggal kerülne.
 document.addEventListener('keydown', e => {
     if(!pziEdSzoveg || e.key !== 'Enter' || e.isComposing) return;
-    if(!pziEdSzovegEl(pziEdSzoveg).contains(e.target)) return;
+    if(!pziEdTxEl().contains(e.target)) return;
     e.preventDefault(); e.stopPropagation();
     if(!document.execCommand('insertLineBreak')){
         const s = getSelection(); if(!s.rangeCount) return;
@@ -14131,7 +14155,7 @@ document.addEventListener('keydown', e => {
 }, true);
 document.addEventListener('keydown', e => {
     if(!pziSzerk || !document.querySelector('#page-prezik .pzi-ed-vaszon') || document.querySelector('.modal-overlay, .pzi-vetito')) return;
-    if(pziEdSzoveg){ if(e.key === 'Escape'){ e.preventDefault(); pziEdSzovegEl(pziEdSzoveg).blur(); pziEdSzovegVege(); } return; }
+    if(pziEdSzoveg){ if(e.key === 'Escape'){ e.preventDefault(); pziEdTxEl().blur(); pziEdSzovegVege(); } return; }
     if(e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     const mod = e.ctrlKey || e.metaKey;
     if(mod && e.key.toLowerCase() === 'z'){ e.preventDefault(); pziEdVisszavon(); return; }
@@ -14139,7 +14163,7 @@ document.addEventListener('keydown', e => {
     if(mod && e.key.toLowerCase() === 'd'){ e.preventDefault(); pziEdMuvelet('dupl'); return; }
     if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); pziEdMuvelet('torol'); return; }
     if(e.key === 'Escape'){ pziEdValaszt(null); return; }
-    if(e.key === 'Enter' && pziEdVanSzoveg(pziEdSel[0])){ e.preventDefault(); pziEdSzovegKezd(pziEdSel[0]); return; }
+    if(e.key === 'Enter' && pziEdSzovegLevelek(pziEdSel[0]).length){ e.preventDefault(); const lv = pziEdSzovegLevelek(pziEdSel[0]); pziEdSzovegKezd(pziEdSel[0], pziEdVanSzoveg(pziEdSel[0]) ? null : lv[0]); return; }
     const ny = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if(!ny) return;
     e.preventDefault(); const lep = e.shiftKey ? 10 : 1;
     if(!e.repeat) pziEdElott();
