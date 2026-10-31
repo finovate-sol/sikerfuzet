@@ -8454,14 +8454,8 @@
             .reg-tools > :is(.btn, .reg-sortwrap, select, label) { flex:1 1 auto; justify-content:center; }
             .reg-tools > .viewtog { flex:0 0 auto; }
         }
-        /* gépen az ügyfél / jelölt megnyitásakor a teljes adatlap felugró ablakban jelenik meg */
-        @media (min-width:761px){
-            :is(#regRows, #ketorasList) .rc.open::before { content:""; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:90; cursor:pointer; }
-            :is(#regRows, #ketorasList) .rc.open > .rc-detail { position:fixed; z-index:91; left:50%; top:4vh; transform:translateX(-50%); width:min(1100px, 94vw); max-height:92vh; overflow-y:auto;
-                background:#fff; border-radius:16px; box-shadow:0 24px 60px rgba(15,23,42,.35); margin:0; animation:rcFel .18s ease-out; }
-            @keyframes rcFel { from { opacity:0; transform:translate(-50%, 14px); } to { opacity:1; transform:translateX(-50%); } }
-            html:has(:is(#regRows, #ketorasList) .rc.open) { overflow:hidden; }
-        }
+        /* megnyitáskor a kinyitott karton (adatlap) a lista tetejére görgetődik – a ragadós fejléc alá */
+        :is(#regRows, #ketorasList) .rc.open { scroll-margin-top:84px; }
         /* gépen a kereső kitölti az első sor maradék helyét */
         @media (min-width:701px){ .reg-bar .reg-search { flex:1 1 260px; max-width:none; } }
 
@@ -11696,9 +11690,8 @@ function regTisztit(v){
     }
     return v;
 }
-// Telefonon a kinyitott adatlap a képernyő tetejére gördül, hogy az egész kijelzőt kitöltse.
+// A kinyitott adatlap (karton) a lista tetejére gördül – telefonon és gépen is, felugró ablak nélkül.
 function rcNyitFelre(hol){
-    if(!window.matchMedia || !matchMedia('(max-width:760px)').matches) return;
     requestAnimationFrame(() => { const el = document.querySelector(hol + ' .rc.open'); if(el) el.scrollIntoView({ block:'start', behavior:'smooth' }); });
 }
 function persistReg(i){
@@ -24958,7 +24951,7 @@ function openRegAddModal(){
         registry.push(r);
         // az új ügyfél kartonja rögtön nyitva, a lista tetején (legújabb elöl, első oldal)
         regExpandedIdx = registry.indexOf(r); regDetailTab = matchMedia('(max-width:760px)').matches ? '' : 'adatok';
-        store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); window.scrollTo({ top: 0, behavior: 'smooth' });
+        store.save('sf_registry', registry); renderRegistry(); refreshMoneyCareer(); rcNyitFelre('#regViews');
         if(typeof window.sfAddClient === 'function'){
             window.sfAddClient(regClientPayload(r)).then(id => {
                 if(!id) return;
@@ -25966,7 +25959,7 @@ function ketCardDetailHtml(i){
         store.save('sf_registry', registry);
         ketorasExpandedIdx = registry.indexOf(r); ketDetailTab = matchMedia('(max-width:760px)').matches ? '' : 'adatok';
         if(ketorasView !== 'lista'){ ketorasView = 'lista'; store.save('sf_ketview', ketorasView); }
-        renderKetorasList(); window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderKetorasList(); rcNyitFelre('#ketorasViews');
         if(typeof window.sfAddClient === 'function'){
             window.sfAddClient(regClientPayload(r)).then(id => {
                 if (!id) return;
