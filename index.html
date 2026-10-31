@@ -15917,7 +15917,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     };
     // [cím, pontok, melyik részhez tartozik ('ovb' / 'priv' / üres = közös), csak adminnak]
     const BL_SZEK = [
-        ['Közös', [['megj', 'Megjelenés', '#6366f1'], ['ikonok', 'App-ikonok', '#a855f7'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
+        ['Közös', [['megj', 'Megjelenés és ikonok', '#6366f1'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
         ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
             ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1],
         ['SZEM', [['ma', 'A Ma oldal elrendezése', '#f59e0b'], ['zar', 'Zár és biztonság', '#7c3aed']], 'priv']
@@ -15925,7 +15925,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     let blSzek = null;
     const blMobil = () => window.matchMedia('(max-width:760px)').matches;
     window.sfVanAdmin = () => { const a = document.getElementById('adminInfoBtn'); return !!a && !a.hidden; };
-    window.sfBeallNyit = k => { blSzek = k || null; };
+    window.sfBeallNyit = k => { blSzek = k === 'ikonok' ? 'megj' : (k || null); };   // a régi „App-ikonok” pont a Megjelenés alatt van
     const blTemaSor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
         `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
     const blJel = k => {
@@ -15940,6 +15940,10 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                 <div class="zb-temak bl-temak bl-mod">${[['ki', 'Világos', '#eef1f5', '#ffffff'], ['be', 'Sötét', '#0f1724', '#22324a'], ['rendszer', 'Automatikus', 'linear-gradient(90deg,#eef1f5 50%,#0f1724 50%)', 'linear-gradient(90deg,#ffffff 50%,#22324a 50%)']].map(([k, n, bg, kt]) => {
                     const on = window.sfSotetMod() === k;
                     return `<button type="button" data-blsotet="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div></section>`;
+            // az app-ikonok is itt (korábban külön menüpont volt)
+            host.insertAdjacentHTML('beforeend', `<section class="card bl-k"><h3>App-ikon – SZEM</h3><p class="bl-megj">A privát rész ikonja – a saját eszközeiden.</p><div class="bl-beagy bl-szemikon"></div></section>${window.sfVanAdmin() ? '<div class="bl-sfikon"></div>' : ''}`);
+            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-szemikon'), 'ikon');
+            if(window.sfVanAdmin() && typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio('ikon', host.querySelector('.bl-sfikon'));
         } else if(k === 'kapcs'){
             const nk = window.sfNaptarKapcs, van = nk && nk.van();
             host.innerHTML = `<section class="card bl-k"><h3>Google Naptár és Feladatok</h3><p class="bl-megj">A naptár, a Google Tasks és a naptárlista egy összekötéssel. Egyszer kell összekötni – utána minden eszközön magától csatlakozik.</p>
@@ -15947,11 +15951,6 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                     ${van ? '<button type="button" class="btn" data-blnle>Leválasztás</button>' : '<button type="button" class="btn primary" data-blnko>Összekötés</button>'}</div>
                 <p class="zb-uzi" role="status"></p></section>
                 <section class="card bl-k"><h3>Strava</h3><p class="bl-megj">Az edzésekhez – a SZEM részben, az <b>Edzés</b> oldalon köthető össze és választható le.</p></section>`;
-        } else if(k === 'ikonok'){
-            const adm = window.sfVanAdmin();
-            host.innerHTML = `<section class="card bl-k"><h3>SZEM</h3><p class="bl-megj">A privát rész ikonja – a saját eszközeiden.</p><div class="bl-beagy"></div></section>${adm ? '<div class="bl-sfikon"></div>' : ''}`;
-            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'ikon');
-            if(adm && typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio('ikon', host.querySelector('.bl-sfikon'));
         } else if(k === 'zar'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"></div></section>';
             if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'zar');
@@ -15972,6 +15971,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         // az épp aktív rész csoportja kerül felülre (privátban a SZEM, a Sikerfüzetben a Sikerfüzet)
         const priv = document.body.classList.contains('sf-privat'), sajat = priv ? 'priv' : 'ovb';
         const csop = BL_SZEK.filter(c => !c[3] || adm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        if(blSzek === 'ikonok') blSzek = 'megj';
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
         const ik = (k, c) => `<i style="background:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${BL_IK[k] || ''}</svg></i>`;
@@ -16031,11 +16031,15 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     // automatikus sötét mód: rendszerváltáskor, az appba visszatérve és percenként ellenőrizzük, kell-e váltani
     let sotetVolt = window.sfSotetMost();
     window.sfSotetEllenoriz = function(kenyszer){
-        const most = window.sfSotetMost(); if(!kenyszer && most === sotetVolt) return; sotetVolt = most;
+        const most = window.sfSotetMost(); if(!kenyszer && most === sotetVolt) return; const valtott = most !== sotetVolt; sotetVolt = most;
         window.sfTemaKeszit();
+        if(valtott && typeof window.sfCalUjraRajz === 'function') window.sfCalUjraRajz();
         const c = document.body && document.body.classList.contains('sf-privat') ? window.sfTemaTeteje() : window.sfOvbTemaTeteje();
         document.documentElement.style.backgroundColor = c; document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', c));
     };
+    // a lap végén lévő stílusblokkok (pl. Tervezet-készítő) az első témaépítés után olvasódnak be –
+    // a teljes betöltés után még egyszer felépítjük, hogy a sötét mód / téma rájuk is érvényes legyen
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { try { window.sfTemaKeszit(); } catch(e){} }, { once: true });
     try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => window.sfSotetEllenoriz()); } catch(e){}
     document.addEventListener('visibilitychange', () => { if(!document.hidden) window.sfSotetEllenoriz(); });
     setInterval(() => window.sfSotetEllenoriz(), 60000);
@@ -34260,8 +34264,12 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const m = (a,b) => Math.round(a + (b-a)*t).toString(16).padStart(2,"0");
         return "#" + m(r1,r2) + m(g1,g2) + m(b1,b2);
     }
-    const tintHex = hex => mixHex(hex, "#ffffff", .87);   // pasztell háttér
-    const deepHex = hex => mixHex(hex, "#12233d", .42);   // olvasható sötét szöveg
+    // Sötét módban (Beállítások → Megjelenés) az eseményeket a JS színezi, ezért itt kell sötét változat:
+    // a halvány háttér a sötét felület felé keveredik, a szöveg a világos felé.
+    const calSotet = () => !!(window.sfSotetMost && window.sfSotetMost());
+    const CAL_SOTET_ALAP = "#1a2433", CAL_SOTET_TX = "#e8edf4";
+    const tintHex = hex => calSotet() ? mixHex(hex, CAL_SOTET_ALAP, .74) : mixHex(hex, "#ffffff", .87);   // pasztell háttér
+    const deepHex = hex => calSotet() ? mixHex(hex, "#ffffff", .5) : mixHex(hex, "#12233d", .42);   // olvasható szöveg
     const gradTopHex  = hex => mixHex(hex, "#ffffff", .22);  // "Gradiens" stílus világosabb sarka
     const gradBotHex  = hex => mixHex(hex, "#12233d", .38);  // "Gradiens" stílus mélyebb sarka
     const splitDeepHex = hex => mixHex(hex, "#12233d", .40); // "Kétszínű sáv" alsó (időpont) sávja
@@ -34270,8 +34278,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     const APPLE_HEX = { "#7986cb":"#5856d6", "#33b679":"#34c759", "#8e24aa":"#af52de", "#e67c73":"#ff2d55", "#f6bf26":"#ffcc00",
         "#f4511e":"#ff9500", "#039be5":"#007aff", "#616161":"#8e8e93", "#3f51b5":"#5856d6", "#0b8043":"#30b158", "#d50000":"#ff3b30", "#1f5fd0":"#007aff" };
     const appleHex = hex => APPLE_HEX[String(hex).toLowerCase()] || hex;
-    const appleBg = hex => mixHex(appleHex(hex), "#ffffff", .8);
-    const appleTx = hex => mixHex(appleHex(hex), "#1d1d1f", .5);
+    const appleBg = hex => calSotet() ? mixHex(appleHex(hex), CAL_SOTET_ALAP, .68) : mixHex(appleHex(hex), "#ffffff", .8);
+    const appleTx = hex => calSotet() ? mixHex(appleHex(hex), "#ffffff", .55) : mixHex(appleHex(hex), "#1d1d1f", .5);
 
     // Naptár esemény-blokkok stílusa (Admin → Naptár): "solid" = telt szín,
     // "light" = halvány háttér színes bal szegéllyel. Megosztott beállítás.
@@ -34548,6 +34556,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (calMertRejtve || calMertTop === null || Math.abs(top - calMertTop) > 4) initCalendar();
     }
     window.sfCalUjraMer = calUjraMer;
+    // világos / sötét váltáskor az események színe (JS-ből jön) újraszámolódik
+    window.sfCalUjraRajz = () => { try { if (currentColumns.length || document.querySelector('#calGrid .mn-grid, #calGrid .wk-grid')) initCalendar(); } catch(e){} };
     document.addEventListener("visibilitychange", () => { if (!document.hidden) requestAnimationFrame(calUjraMer); });
     function fitTimeGridBottom(){
         const wk = document.querySelector("#calGrid .wk-grid");
@@ -34969,8 +34979,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             div.className = "wk-ev" + modeClass;
             div.draggable = true;
             if (mode === "task"){
-                div.style.background = "#ffffff";
-                div.style.color = "#1c2b45";
+                div.style.background = calSotet() ? "#202b3b" : "#ffffff";
+                div.style.color = calSotet() ? CAL_SOTET_TX : "#1c2b45";
                 div.style.borderLeft = "4px solid " + t.hex;
             } else if (mode === "apple"){
                 div.style.background = appleBg(t.hex);
@@ -34992,10 +35002,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 div.style.color = mode === "split" ? "#ffffff" : contrastTextColor(t.hex);
             }
             // Az átfedésben felül lévő blokk fehér kerettel válik el az alatta lévőtől.
-            const ring = t.depth > 0 ? "0 0 0 2px #fff, " : "";
+            const kor = calSotet() ? "#111a26" : "#fff";
+            const ring = t.depth > 0 ? `0 0 0 2px ${kor}, ` : "";
             div.style.boxShadow =
-                mode === "apple" ? "0 0 0 1px #fff"
-                : mode === "task" ? ring + "inset 0 0 0 1px #dbe3ee" + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
+                mode === "apple" ? `0 0 0 1px ${kor}`
+                : mode === "task" ? ring + (calSotet() ? "inset 0 0 0 1px #33435a" : "inset 0 0 0 1px #dbe3ee") + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : ", 0 1px 3px rgba(15,35,70,.10)")
                 : mode === "light" ? ring + `inset 0 0 0 1px ${hexToRgba(t.hex, .3)}` + (t.depth > 0 ? ", 0 3px 10px rgba(15,35,70,.18)" : "")
                 : mode === "outline" ? ring + (t.depth > 0 ? "0 3px 10px rgba(15,47,95,.16)" : "0 1px 3px rgba(15,47,95,.08)")
                 : mode === "gradient" ? ring + (t.depth > 0 ? `0 5px 16px ${hexToRgba(t.hex, .55)}` : `0 4px 12px ${hexToRgba(t.hex, .45)}`)
