@@ -43267,6 +43267,9 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-kepek label .kk { display:grid; place-items:center; color:#2563eb; font-size:24px; font-weight:400; }
 .tvp .sav { position:absolute; left:0; top:0; bottom:0; width:16px; background:linear-gradient(180deg, #009999, #003366); }
 .tvp .skor { position:absolute; right:-80px; top:-80px; width:250px; height:250px; border-radius:50%; border:8px solid #FF3399; background-size:cover; background-position:center; }
+.tvp .skor.ures { background:#fff; }
+.tvp .blogo { position:absolute; right:34px; top:30px; width:110px; height:82px; background-size:contain; background-repeat:no-repeat; background-position:center; }
+.tvp .blogo.szo { display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:900; letter-spacing:.04em; }
 .tvp .sfej { width:340px; min-height:128px; margin:10px 0 18px; }
 .tvp .sfej small { display:block; font-size:11px; font-weight:700; letter-spacing:.14em; color:#009999; }
 .tvp .sfej h2 { margin:6px 0 0; font-size:27px; font-weight:800; color:#003366; line-height:1.12; letter-spacing:-.01em; } .tvp .sfej h2 b { font-weight:900; }
@@ -43337,11 +43340,11 @@ const TV_BIZT = [[/^GENERALI\b/, 'Generali'], [/^SIGNAL( IDUNA)?\b/, 'Signal Idu
 const TV_ELONY = ['Szüneteltetési lehetőség', 'Díjcsökkentés / díjnövelés', 'Eseti befizetési lehetőség', 'Örökösödési adó mentes'];
 // biztosítói bemutató oldalak (a Generali és a Signal adatai az eddigi tervezetből, 2024-es adatok)
 const TV_BIZT_LAP = {
-    'Generali': { szin: '#c5281c', alcim: 'Mit érdemes tudni a Generaliról?', csop: [
+    'Generali': { logo: 'prezi/tervezet/logo-generali.png', szin: '#c5281c', alcim: 'Mit érdemes tudni a Generaliról?', csop: [
         ['Nemzetközi Generali Csoport', [['95,2 mrd EUR', 'díjbevétel'], ['71 millió', 'ügyfél'], ['50 ország', 'jelenlét'], ['TOP 100', 'legfenntarthatóbb vállalat (Corporate Knights)']]],
         ['Generali Investments CEE', [['500 mrd Ft', 'kezelt vagyon'], ['30+ év', 'szakmai tapasztalat'], ['15', 'befektetési alap'], ['40', 'eszközalap']]],
         ['Generali Biztosító Magyarország', [['közel 200 év', 'Magyarországon'], ['1 000 000+', 'ügyfél'], ['közel 80 000', 'OVB–Generali ügyfél']]]] },
-    'Signal Iduna': { szin: '#00418a', alcim: 'Mit érdemes tudni a Signal Idunáról?', csop: [
+    'Signal Iduna': { logo: 'prezi/tervezet/logo-signal.png', szin: '#00418a', alcim: 'Mit érdemes tudni a Signal Idunáról?', csop: [
         ['Cégadatok', [['1906', 'alapítás, Németország'], ['Dortmund, Hamburg', 'központi székhely'], ['1993 óta', 'Magyarországon, budapesti székhellyel']]],
         ['Statisztikák', [['13,5 millió', 'ügyfél'], ['13 ezer', 'munkatárs'], ['Év Biztosítója', 'díj, 2019'], ['7 éve dobogós', 'a magyar biztosítók szavazásán (Biztosítás.hu)']]]],
         szoveg: 'A SIGNAL IDUNA a világ egyik legnagyobb stadionjának névadó szponzora: a 80 ezer fős SIGNAL IDUNA Park Dortmundban található, a Borussia Dortmund otthona.' },
@@ -43349,7 +43352,9 @@ const TV_BIZT_LAP = {
         ['Cégadatok', [['1811', 'óta működő biztosítási múlt'], ['Bécs', 'központi székhely, Ausztria'], ['1990 óta', 'Magyarországon']]],
         ['Erősségek', [['Vezető', 'biztosítócsoport Közép- és Kelet-Európában'], ['BodyGuard VIP Pro', 'magas biztosítási összegek, várakozási idő nélkül']]]] } };
 const tvBiztLap = (nev, top) => { const b = TV_BIZT_LAP[nev]; if(!b) return '';
-    return `<div class="tvp">${tvFej(top, esc(nev))}<div class="bz" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>
+    // a biztosító logója a jobb felső körben (a UNIQA-nál, amíg nincs logófájl, a név a márkaszínnel)
+    const logo = b.logo ? `<span class="blogo" style="background-image:url('${b.logo}')"></span>` : `<span class="blogo szo" style="color:${b.szin}">${esc(nev)}</span>`;
+    return `<div class="tvp">${tvFej(top, esc(nev), logo)}<div class="bz" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>
         ${b.csop.map(([c, st]) => `<div class="bz-cs"><b>${esc(c)}</b><div class="bz-st">${st.map(([n, f]) => `<div><strong>${esc(n)}</strong><span>${esc(f)}</span></div>`).join('')}</div></div>`).join('')}
         ${b.szoveg ? `<div class="kiem"><span class="chev">»</span><p>${esc(b.szoveg)}</p></div>` : ''}</div>`; };
 // UNIQA BodyGuard VIP Pro: a hivatalos csomagtábla képként, a választott csomag oszlopa keretezve
@@ -43439,7 +43444,7 @@ const tvDat = () => { const d = new Date(); return `${String(d.getDate()).padSta
 const tvKep = (src, cls, st) => `<span class="${cls}" style="background-image:url('${src}');${st || ''}"></span>`;
 const tvLab = n => `<div class="lab"><span>${n}&nbsp;&nbsp;&nbsp;${tvDat()}</span>${tvKep(tvLogo('#003366'), 'logo')}</div>`;
 // minden belső oldal közös feje (a fedlap stílusában): bal szélen átmenetes csík, jobb felső sarokban a célfotó körben, alatta a cím
-const tvFej = (top, cim) => `<div class="sav"></div><div class="skor" style="background-image:url('${tvKepUrl()}')"></div><div class="sfej"><small>${esc(top)}</small><h2>${cim}</h2><div class="v"></div></div>`;
+const tvFej = (top, cim, logo) => `<div class="sav"></div>${logo ? `<div class="skor ures"></div>${logo}` : `<div class="skor" style="background-image:url('${tvKepUrl()}')"></div>`}<div class="sfej"><small>${esc(top)}</small><h2>${cim}</h2><div class="v"></div></div>`;
 // fedlap: sima (színes, a pénzügyi cél képével), nyomtatási (fehér) vagy a korábbi kék fotós
 const TV_CELOK = [['megtakaritas', 'Megtakarítás'], ['nyugdij', 'Nyugdíj'], ['befektetes', 'Befektetés'], ['otthon', 'Otthon, lakás'], ['gyerek', 'Gyerekek jövője'], ['utazas', 'Utazás'], ['csalad', 'Család']];
 let tvSajatKep = (() => { try { return localStorage.getItem('sf_tv_kep') || ''; } catch(e){ return ''; } })(), tvCelKezi = false;
