@@ -383,24 +383,6 @@
         .sf-zar-g.on { background:#7c3aed; color:#fff; }
         body:not(.sf-privat) .sf-zar-g { color:#cdd8ea; } body:not(.sf-privat) .sf-zar-g.on { background:rgba(255,255,255,.1); color:#cdd8ea; }
         .sidebar.collapsed .sf-zar-g { display:none !important; }
-        /* Privát zár: a teljes képernyőt takarja, amíg fel nem oldod. */
-        #sfZar { position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:24px;
-                 background:linear-gradient(160deg, #2a1745 0%, #3b1d66 55%, #4c1d95 100%); color:#fff; }
-        #sfZar[hidden] { display:none; }
-        body.sf-zarva { overflow:hidden; }
-        .sf-zar-k { width:100%; max-width:340px; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
-        .sf-zar-ik { width:72px; height:72px; border-radius:24px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; }
-        .sf-zar-ik svg { width:34px; height:34px; }
-        .sf-zar-k h2 { margin:0; font-size:22px; font-weight:800; }
-        .sf-zar-k p { margin:0; font-size:14px; color:#d8ccf2; line-height:1.45; }
-        .sf-zar-fo { width:100%; height:52px; border:0; border-radius:999px; background:#fff; color:#3b1466; font:inherit; font-size:16px; font-weight:800; cursor:pointer; }
-        .sf-zar-pin { width:100%; display:flex; gap:8px; }
-        .sf-zar-pin input { flex:1; min-width:0; height:52px; border:0; border-radius:999px; background:rgba(255,255,255,.14); color:#fff; padding:0 20px; font:inherit; font-size:20px; letter-spacing:.3em; text-align:center; }
-        .sf-zar-pin input::placeholder { color:#bba9dd; letter-spacing:normal; font-size:15px; }
-        .sf-zar-pin button { height:52px; padding:0 18px; border:0; border-radius:999px; background:#a78bfa; color:#1e0b3d; font:inherit; font-weight:800; cursor:pointer; }
-        .sf-zar-hiba { min-height:18px; font-size:13px; color:#fecaca; }
-        .sf-zar-tipp { margin-top:-8px; font-size:12.5px; color:#bba9dd; }
-        .sf-zar-mas { border:0; background:none; color:#d8ccf2; font:inherit; font-size:14px; text-decoration:underline; cursor:pointer; padding:6px; }
         .zb-sor { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f2f4; }
         .zb-sor:last-of-type { border-bottom:0; }
         .zb-sor .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
@@ -12337,201 +12319,31 @@ window.addEventListener('popstate', e => {
     }
 })();
 
-// ===== PRIVÁT ZÁR =====
-// Eszközönkénti zár a privát részre: arcfelismerés / ujjlenyomat (WebAuthn, a telefon
-// saját feloldása) és/vagy tartalék PIN-kód (csak a sózott PBKDF2-lenyomata van tárolva).
-// A beállítás ezen az eszközön él (localStorage). A zár a képernyőt takarja: aki
-// odaadott telefonon belenézne, nem látja a naplót és a pénzügyeket – az adat
-// titkosítását nem helyettesíti.
+// ===== SZEM APP-IKON + a Beállítások fogaskerék =====
+// (A privát rész korábbi eszközönkénti zára – PIN / arc / ujjlenyomat – megszűnt; a régi beállítást töröljük,
+// hogy egy korábban bekapcsolt zár se zárja le a privát részt.)
 (function(){
-    const K = 'sf_zar';
-    let cfg = store.load(K, null);
-    const be = () => !!(cfg && (cfg.bio || cfg.pin));
-    let zarva = be(), rejtve = 0, folyamat = false;
-    const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
-    async function pinLenyomat(pin, so){
-        const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
-        return b64(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unb64(so), iterations: 150000 }, k, 256));
-    }
-    const mentes = () => { if(be()) store.save(K, cfg); else { try { localStorage.removeItem(K); } catch(e){} cfg = null; } gomb(); };
-    const bioVan = async () => { try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch(e){ return false; } };
-    async function bioRegisztral(){
-        const cred = await navigator.credentials.create({ publicKey: {
-            challenge: crypto.getRandomValues(new Uint8Array(32)),
-            rp: { name: 'Sikerfüzet' },
-            user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'privat-zar', displayName: 'Sikerfüzet – privát zár' },
-            pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-            authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
-            timeout: 60000, attestation: 'none' } });
-        return b64(cred.rawId);
-    }
-    async function bioEllenoriz(signal){
-        const a = await navigator.credentials.get({ signal, publicKey: {
-            challenge: crypto.getRandomValues(new Uint8Array(32)),
-            allowCredentials: [{ type: 'public-key', id: unb64(cfg.bio), transports: ['internal', 'hybrid'] }],
-            userVerification: 'required', timeout: 60000 } });
-        // a hitelesítő adat 33. bájtjának UV-bitje: a felhasználót tényleg azonosította (arc / ujj / kód)
-        const ad = new Uint8Array(a.response.authenticatorData);
-        return b64(a.rawId) === cfg.bio && !!(ad[32] & 0x04);
-    }
-    // ---- a zárolt képernyő ----
-    const ov = document.createElement('div'); ov.id = 'sfZar'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Privát rész zárolva');
-    document.body.appendChild(ov);
-    const LAKAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-    function rajz(hiba){
-        ov.innerHTML = `<div class="sf-zar-k"><span class="sf-zar-ik">${LAKAT}</span><h2>Privát rész zárolva</h2>
-            <p>A napló, a pénzügyek és a többi saját adatod feloldás után látszik.</p>
-            ${cfg && cfg.bio ? '<button type="button" class="sf-zar-fo" data-zbio>Feloldás arccal / ujjlenyomattal</button>' : ''}
-            ${cfg && cfg.pin ? `<form class="sf-zar-pin" data-zpinf><input type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN-kód" aria-label="PIN-kód" data-zpin><button type="submit">Feloldás</button></form>` : ''}
-            <span class="sf-zar-hiba" role="alert">${esc(hiba || '')}</span>
-            ${cfg && cfg.bio ? '<span class="sf-zar-tipp">vagy koppints bárhova a képernyőn</span>' : ''}
-            <button type="button" class="sf-zar-mas" data-zovb>Vissza az OVB részre</button>
-            <button type="button" class="sf-zar-mas" data-zfelejt>Nem sikerül feloldani?</button></div>`;
-    }
-    function frissit(){
-        const kell = zarva && be() && window.sfTer === 'priv';
-        if(kell && ov.hidden){ rajz(); ov.hidden = false; }
-        if(!kell) ov.hidden = true;
-        document.body.classList.toggle('sf-zarva', kell);
-    }
-    function felold(){ zarva = false; frissit(); window.dispatchEvent(new CustomEvent('sf-zar', { detail: false })); }
-    window.sfZarol = () => { if(!be()) return; zarva = true; frissit(); };
-    window.sfZarva = () => zarva && be() && window.sfTer === 'priv';
-    // gesztus = a felhasználó koppintott. Ha egy korábbi (gesztus nélküli, pl. visszatéréskor
-    // indított) kérés még függ – egyes telefonokon sosem fejeződik be –, azt megszakítjuk és
-    // újrakérjük, különben a feloldó gomb "nem reagálna".
-    let bioAbort = null;
-    async function bioProba(gesztus){
-        if(!cfg || !cfg.bio) return;
-        if(folyamat){ if(!gesztus || !bioAbort) return; bioAbort.abort(); }
-        folyamat = true;
-        const ac = bioAbort = typeof AbortController === 'function' ? new AbortController() : null;
-        try { if(await bioEllenoriz(ac ? ac.signal : undefined)) felold(); else rajz('Az azonosítás nem sikerült.'); }
-        catch(e){ if(!(ac && ac.signal.aborted) && !ov.hidden) rajz(e && e.name === 'NotAllowedError' ? '' : 'Az azonosítás nem sikerült.'); }
-        finally { if(bioAbort === ac){ folyamat = false; bioAbort = null; } }
-    }
-    ov.addEventListener('click', e => {
-        if(e.target.closest('[data-zbio]')){ bioProba(true); return; }
-        if(e.target.closest('[data-zovb]')){ if(window.sfTerValt) window.sfTerValt('ovb'); return; }
-        if(e.target.closest('[data-zfelejt]')){
-            rajz('Ha nem megy a feloldás: jelentkezz ki, és lépj be újra a Google-fiókoddal – az újbóli belépés ezen az eszközön kikapcsolja a zárat.');
-            const f = ov.querySelector('[data-zfelejt]'); if(f){ f.textContent = 'Kijelentkezés'; f.removeAttribute('data-zfelejt'); f.setAttribute('data-zki', ''); }
-            return;
-        }
-        if(e.target.closest('[data-zki]')){ store.save('sf_zar_kilepett', 1); const lb = document.getElementById('logoutBtn'); if(lb) lb.click(); return; }
-        // A képernyő bármely pontja feloldó gomb (ahol a rendszer koppintást kér az arcfelismeréshez).
-        if(!e.target.closest('form, button, input, a')) bioProba(true);
-    });
-    ov.addEventListener('submit', async e => {
-        e.preventDefault();
-        const i = ov.querySelector('[data-zpin]'), pin = (i.value || '').trim(); if(!pin) return;
-        if(await pinLenyomat(pin, cfg.pin.s) === cfg.pin.h){ cfg.pin.hibak = 0; store.save(K, cfg); felold(); return; }
-        cfg.pin.hibak = (cfg.pin.hibak || 0) + 1; store.save(K, cfg);
-        rajz(cfg.pin.hibak >= 5 ? 'Túl sok hibás próbálkozás – várj 30 másodpercet.' : 'Hibás PIN-kód.');
-        if(cfg.pin.hibak >= 5){ const b = ov.querySelector('.sf-zar-pin button'); if(b){ b.disabled = true; setTimeout(() => { b.disabled = false; }, 30000); } }
-        const ni = ov.querySelector('[data-zpin]'); if(ni) ni.focus();
-    });
-    // ---- mikor zárjon ----
-    window.addEventListener('sf-ter', e => {
-        frissit();
-        // a kapcsoló kattintása felhasználói gesztus – a biometria azonnal kérhető
-        if(e.detail === 'priv' && zarva && be() && cfg.bio) bioProba(true);
-    });
-    document.addEventListener('visibilitychange', () => {
-        if(document.hidden){
-            rejtve = Date.now();
-            // "azonnal": már elrejtéskor zárunk, így az appváltó képén sem látszik a tartalom
-            if(be() && (cfg.perc ?? 1) === 0){ zarva = true; frissit(); }
-            return;
-        }
-        if(be() && rejtve && Date.now() - rejtve >= (cfg.perc ?? 1) * 60000){ zarva = true; frissit(); }
-        rejtve = 0;
-        // visszatéréskor rögtön kérjük az arcot / ujjat (ahol a rendszer engedi gesztus nélkül is)
-        if(!ov.hidden && cfg && cfg.bio) setTimeout(() => bioProba(), 300);
-    });
-    // Kijelentkezés után (a "Nem sikerül feloldani?" úton) az újbóli belépés kikapcsolja a zárat.
-    (function figyel(){
-        if(!window.sfCurrentUser){ setTimeout(figyel, 400); return; }
-        if(store.load('sf_zar_kilepett', 0)){ try { localStorage.removeItem('sf_zar_kilepett'); localStorage.removeItem(K); } catch(e){} cfg = null; zarva = false; gomb(); frissit(); }
-    })();
-    // ---- beállítás ----
+    try { localStorage.removeItem('sf_zar'); localStorage.removeItem('sf_zar_kilepett'); } catch(e){}
     const zbtn = document.getElementById('sfZarBtn');
-    function gomb(){ if(zbtn){ zbtn.classList.toggle('on', be()); zbtn.title = 'Beállítások · privát zár: ' + (be() ? 'be' : 'ki'); } }
-    // host + resz: a Beállítások oldalba ágyazva, ablak nélkül – resz: 'ikon' (SZEM app-ikon) vagy 'zar' (privát zár).
+    // host: a Beállítások → Megjelenés és ikonok alá ágyazva (resz = 'ikon')
     async function beallit(host, resz){
-        const vanBio = await bioVan();
-        const x = Object.assign({ perc: 1 }, cfg || {});
-        const m = document.createElement('div'); m.className = host ? 'zb-beagy' : 'modal-overlay';
-        const r = (uzi) => {
-            const ikonResz = `${host ? '' : '<h4 class="zb-cim">App-ikon</h4>'}
-                    <div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
-                    <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>`;
-            const zarResz = `<h4 class="zb-cim">Privát zár</h4>
-                    <p class="pv-megj zb-bev">A privát rész (Ma, napló, pénzügyek, szokások…) csak feloldás után látszik ezen az eszközön.</p>
-                    <div class="zb-sor"><span class="t"><b>Arc / ujjlenyomat</b><span>${vanBio ? (x.bio ? 'Bekapcsolva ezen az eszközön' : 'Face ID, Touch ID, ujjlenyomat vagy a telefon kódja') : 'Ez az eszköz vagy böngésző nem támogatja'}</span></span>
-                        ${vanBio ? `<button type="button" class="${x.bio ? 'btn' : 'pv-kapsz'}" data-zbbio>${x.bio ? 'Kikapcsolás' : 'Bekapcsolás'}</button>` : ''}</div>
-                    <details class="zb-pin-d"${vanBio && x.bio ? '' : ' open'}><summary><span class="t"><b>${vanBio ? 'Tartalék PIN-kód' : 'PIN-kód'}</b><span>${x.pin ? 'Beállítva' : vanBio ? 'Ha az arc / ujj épp nem megy' : '4–8 számjegy'}</span></span></summary>
-                    <div class="zb-sor" style="flex-wrap:wrap;border-top:0;padding-top:0">
-                        ${x.pin ? '<button type="button" class="btn" data-zbpindel>Törlés</button>' : ''}
-                        <div class="zb-pin" style="flex:1 1 100%"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="${x.pin ? 'új PIN' : 'PIN'}" data-zbp1 aria-label="PIN-kód"><input type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="még egyszer" data-zbp2 aria-label="PIN-kód még egyszer"><button type="button" class="pv-kapsz" data-zbpin>Mentés</button></div></div></details>
-                    <div class="zb-sor"><span class="t"><b>Automatikus zárolás</b><span>Ha az app ennyi ideig a háttérben van</span></span>
-                        <select data-zbperc aria-label="Zárolás ideje">${[[0, 'azonnal'], [1, '1 perc'], [5, '5 perc'], [15, '15 perc'], [60, '1 óra']].map(([v, n]) => `<option value="${v}"${(x.perc ?? 1) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`;
-            const uziHtml = `<p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
-            if(host){
-                m.innerHTML = (resz === 'ikon' ? ikonResz : zarResz + (be() ? '<div class="zb-sor"><span class="t"><b>Zárolás most</b><span>A privát rész azonnal lezárul</span></span><button type="button" class="btn" data-zbmost>Zárolás</button></div>' : '')) + uziHtml;
-                return;
-            }
-            m.innerHTML = `<div class="modal pv-modal"><div class="modal-head"><h3>Privát beállítások</h3><button class="modal-x" data-zbx aria-label="Bezárás">&times;</button></div>
-                <div class="modal-body">
-                    <h4 class="zb-cim">Tranzakciók ikonjai</h4>
-                    <div class="zb-sor"><span class="t"><b>Logók a pénzügyi tételekhez</b><span>Szabályok (pl. „M12” → OTP Bank) és szolgáltatónkénti logók egy helyen</span></span>
-                        <button type="button" class="btn" data-zbikonok>Megnyitás</button></div>
-                    ${ikonResz}${zarResz}${uziHtml}
-                </div>
-                <div class="modal-foot">${be() ? '<button class="btn" data-zbmost>Zárolás most</button>' : ''}<button class="pv-ment" data-zbx>Kész</button></div></div>`;
+        if(!host || resz !== 'ikon') return;
+        const m = document.createElement('div'); m.className = 'zb-beagy';
+        const r = uzi => {
+            m.innerHTML = `<div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
+                <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
+                <p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
         };
-        const ment = () => { cfg = { ...(cfg || {}), perc: x.perc, ...(x.bio ? { bio: x.bio } : {}), ...(x.pin ? { pin: x.pin } : {}) }; if(!x.bio) delete cfg.bio; if(!x.pin) delete cfg.pin; mentes(); zarva = false; };
-        r(); if(host){ host.innerHTML = ''; host.appendChild(m); } else document.body.appendChild(m);
-        m.addEventListener('change', e => {
-            if(e.target.matches('[data-zbperc]')){ x.perc = +e.target.value; if(be()) ment(); }
-        });
-        m.addEventListener('click', async e => {
-            if(!host && (e.target === m || e.target.closest('[data-zbx]'))){ m.remove(); return; }
-            const tm = e.target.closest('[data-zbtema]');
-            if(tm){ window.sfTemaBeallit(tm.dataset.zbtema); r('SZEM téma: ' + (window.SF_TEMAK[tm.dataset.zbtema] || [''])[0] + '.'); return; }
-            const to = e.target.closest('[data-zbovb]');
-            if(to){ window.sfOvbTemaBeallit(to.dataset.zbovb); r('Sikerfüzet téma: ' + (window.SF_OVB_TEMAK[to.dataset.zbovb] || [''])[0] + '.'); return; }
-            if(e.target.closest('[data-zbikonok]')){ m.remove(); if(typeof pzIkonModal === 'function') pzIkonModal(); return; }
-            const ik = e.target.closest('[data-zbikon]');
-            if(ik){ try { localStorage.setItem('sf_elet_icon', JSON.stringify(ik.dataset.zbikon)); } catch(_){}
-                if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A SZEM ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.'); return; }
-            if(e.target.closest('[data-zbbio]')){
-                if(x.bio){ delete x.bio; ment(); r(be() ? '' : 'A zár kikapcsolva.'); return; }
-                try { x.bio = await bioRegisztral(); ment(); r('Kész – a privát rész mostantól arccal / ujjlenyomattal nyílik.'); }
-                catch(err){ r(err && err.name === 'NotAllowedError' ? 'A beállítás megszakadt.' : 'A beállítás nem sikerült: ' + (err.message || err)); }
-                return;
-            }
-            if(e.target.closest('[data-zbpindel]')){ delete x.pin; ment(); r(be() ? 'A PIN-kód törölve.' : 'A zár kikapcsolva.'); return; }
-            if(e.target.closest('[data-zbpin]')){
-                const p1 = m.querySelector('[data-zbp1]').value.trim(), p2 = m.querySelector('[data-zbp2]').value.trim();
-                if(!/^\d{4,8}$/.test(p1)){ r('A PIN 4–8 számjegy legyen.'); return; }
-                if(p1 !== p2){ r('A két PIN nem egyezik.'); return; }
-                const so = b64(crypto.getRandomValues(new Uint8Array(16)));
-                x.pin = { s: so, h: await pinLenyomat(p1, so) }; ment(); r('A PIN-kód elmentve.'); return;
-            }
-            if(e.target.closest('[data-zbmost]')){ if(!host) m.remove(); window.sfZarol(); }
+        r(); host.innerHTML = ''; host.appendChild(m);
+        m.addEventListener('click', e => {
+            const ik = e.target.closest('[data-zbikon]'); if(!ik) return;
+            try { localStorage.setItem('sf_elet_icon', JSON.stringify(ik.dataset.zbikon)); } catch(_){}
+            if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A SZEM ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.');
         });
     }
-    // OVB részben az általános beállítások (téma), privátban a SZEM beállításai (téma, ikonok, zár)
-    // a fogaskerék a Beállítások oldalt nyitja (témák, privát beállítások, admin); a SZEM-beállítások ablaka onnan nyílik
     window.sfSzemBeallit = beallit;
+    // a fogaskerék a Beállítások oldalt nyitja
     if(zbtn) zbtn.addEventListener('click', () => { const pg = document.getElementById('page-admin'); if(window.sfBeallNyit) window.sfBeallNyit(null); if(pg && !pg.hidden){ window.sfShowBeallitasok && window.sfShowBeallitasok(); return; } document.getElementById('adminInfoBtn')?.click(); });
-    window.sfZarBeallit = beallit;
-    gomb(); frissit();
-    // Indításkor (privát állásban) rögtön kérjük az arcot / ujjat – ahol a böngésző gesztus nélkül nem engedi, ott a gomb marad.
-    if(!ov.hidden && cfg && cfg.bio) setTimeout(() => bioProba(), 400);
-    else if(!ov.hidden && cfg && cfg.pin && (() => { try { return matchMedia('(pointer:fine)').matches; } catch(e){ return false; } })()){ const i = ov.querySelector('[data-zpin]'); if(i) i.focus(); }
 })();
 
 // ===================== ÖNISMERET: Életkerék + Szabályaim + Hawkins-skála + Havi vállalás =====================
@@ -15949,8 +15761,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const BL_SZEK = [
         ['Közös', [['megj', 'Megjelenés és ikonok', '#6366f1'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
         ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
-            ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1],
-        ['SZEM', [['ma', 'A Ma oldal elrendezése', '#f59e0b'], ['zar', 'Zár és biztonság', '#7c3aed']], 'priv']
+            ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1]
     ];
     let blSzek = null;
     const blMobil = () => window.matchMedia('(max-width:760px)').matches;
@@ -15979,11 +15790,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             host.innerHTML = `<section class="card bl-k"><h3>Google Naptár és Feladatok</h3><p class="bl-megj">A naptár, a Google Tasks és a naptárlista egy összekötéssel. Egyszer kell összekötni – utána minden eszközön magától csatlakozik.</p>
                 <div class="zb-sor"><span class="t"><b>${van ? 'Összekötve' : 'Nincs összekötve'}</b><span>${van ? 'A naptár és a feladatok elérhetők.' : 'Kösd össze, hogy a naptár és a feladatok megjelenjenek.'}</span></span>
                     ${van ? '<button type="button" class="btn" data-blnle>Leválasztás</button>' : '<button type="button" class="btn primary" data-blnko>Összekötés</button>'}</div>
-                <p class="zb-uzi" role="status"></p></section>
-                <section class="card bl-k"><h3>Strava</h3><p class="bl-megj">Az edzésekhez – a SZEM részben, az <b>Edzés</b> oldalon köthető össze és választható le.</p></section>`;
-        } else if(k === 'zar'){
-            host.innerHTML = '<section class="card bl-k"><div class="bl-beagy"></div></section>';
-            if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-beagy'), 'zar');
+                <p class="zb-uzi" role="status"></p></section>`;
         } else if(k === 'logok'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy">' + window.sfVaz(2) + '</div></section>';
             if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
@@ -16017,7 +15824,6 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     document.addEventListener('click', async e => {
         if(!e.target.closest || !e.target.closest('#beallBody')) return;
         // „A Ma oldal elrendezése”: a Ma oldalra visz, szerkesztő módban (ott húzhatók, rejthetők a kártyák)
-        if(e.target.closest('[data-blszek="ma"]')){ blSzek = null; if(window.sfTerValt) window.sfTerValt('priv'); prvMenj('privma', () => { maEdit = true; renderPrivMa(); }); return; }
         const sz = e.target.closest('[data-blszek]'); if(sz){ blSzek = sz.dataset.blszek; window.sfShowBeallitasok(); window.scrollTo(0, 0); return; }
         if(e.target.closest('[data-blvissza]')){ blSzek = null; window.sfShowBeallitasok(); return; }
         const dz = e.target.closest('[data-bldoboz]');
