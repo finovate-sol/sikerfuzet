@@ -43697,6 +43697,11 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-lapok .tv-lk { scroll-snap-align:start; }
 .tv-gombok { display:flex; gap:8px; margin-top:12px; } .tv-gombok .btn { flex:1; justify-content:center; }
 .tv-lk { position:relative; }
+.tv-lk-ki { position:absolute; top:8px; right:8px; z-index:2; border:1px solid #d6dde8; background:rgba(255,255,255,.94); color:#b42318; font:inherit; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; cursor:pointer; box-shadow:0 2px 6px rgba(0,20,50,.12); opacity:.85; }
+.tv-lk-ki:hover, .tv-lk.ki .tv-lk-ki { opacity:1; }
+.tv-lk.ki .tv-lk-ki { color:#1f5fd0; }
+.tv-lk.ki .tv-sk { opacity:.35; filter:grayscale(1); }
+.tv-lk.ki span { color:#b42318; }
 .tv-sk { width:100%; aspect-ratio:595/842; overflow:hidden; border-radius:3px; box-shadow:0 2px 8px rgba(0,20,50,.18); background:#fff; position:relative; }
 .tv-sk > .tvp { position:absolute; left:0; top:0; transform-origin:0 0; }
 .tv-lk span { display:block; font-size:11px; color:#64748b; margin-top:4px; text-align:center; }
@@ -43832,6 +43837,8 @@ Vállalkozás nyitásának átbeszélése`, '']
 // kiolvassa az adatokat, és ebből állít össze egy tervezetet az OVB-sablon elemeivel. A kalkuláció oldalai
 // változtatás nélkül kerülnek a tervezetbe. A PDF a böngészőben olvasódik, nem töltődik fel sehova.
 let tvAj = [], tvHiba = '', tvFut = '';
+// a PDF-ből kihagyott oldalak (az oldal kulcsa szerint) – új kalkuláció betöltésekor nem nullázódik, a kulcs a tartalmat követi
+const tvKihagy = new Set();
 let tvAlap = store.load('sf_tv_alap', null) || { ugyfel: '', hely: 'Budapest', tan: { nev: '', mnb: '', tel: '', email: '' },
     opc: { eloszo: true, kesobb: true, bizt: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
 if(tvAlap.opc.bizt == null) tvAlap.opc.bizt = true;
@@ -44066,7 +44073,8 @@ function tvKalkCsop(a){
 }
 function tvLapok(){
     const nev = tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || 'Ügyfél', t = tvAlap.tan, o = tvAlap.opc, L = [];
-    let n = 0; const sz = () => ++n;
+    // az oldalszám a végén kerül a helyére: a kihagyott oldalakat a számozás átugorja
+    const sz = () => '%%LAPSZAM%%';
     const csillag = c => tvSvg(`<path d="M30 4l7 17h18l-14 11 5 18-16-11-16 11 5-18L5 21h18z" fill="none" stroke="${c}" stroke-width="3"/><text x="58" y="26" fill="${c}" font-size="9" font-weight="800" font-family="Arial">EXCELLENT</text><text x="58" y="37" fill="${c}" font-size="9" font-weight="800" font-family="Arial">FOR YOU</text><text x="2" y="58" fill="${c}" font-size="6" font-family="Arial">OVB 2026</text>`, 115, 60);
     sz();
     const fl = tvFedlap(), kep = tvKepUrl();
@@ -44099,7 +44107,7 @@ function tvLapok(){
         if(o.port && TV_PORT[a.biztosito]) L.push({ nev: `Portfólió – ${a.biztosito}`, html: tvPortLap(a, `${i + 1}. PORTFÓLIÓ, ESZKÖZALAPOK, BÓNUSZOK`) + `${tvLab(sz())}</div>` });
         const logo = TV_BIZT_LAP[a.biztosito] && TV_BIZT_LAP[a.biztosito].logo ? `<span class="blogo" data-kep="${TV_BIZT_LAP[a.biztosito].logo}" style="background-image:url('${TV_BIZT_LAP[a.biztosito].logo}')"></span>` : '';
         const csop = tvKalkCsop(a);
-        csop.forEach((lapok, k) => L.push({ nev: `Kalkuláció ${k + 1}/${csop.length}`, kalk: { aj: i, reszek: tvKalkHely(a, lapok) },
+        csop.forEach((lapok, k) => L.push({ nev: `Kalkuláció – ${a.biztosito}${csop.length > 1 ? ` ${k + 1}/${csop.length}` : ''}`, kalk: { aj: i, reszek: tvKalkHely(a, lapok) },
             html: `<div class="tvp kalk">${tvFej(`${i + 1}. KALKULÁCIÓ${csop.length > 1 ? ` · ${k + 1}/${csop.length}` : ''}`, esc(`${a.biztosito} – ${a.termek}`), logo)}<p class="kalk-al">${esc(nev)} részére · OVB kalkulátor</p>${tvLab(sz())}</div>` }));
     });
     if(o.eszp) L.push({ nev: 'Egészségpénztár', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK', 'Prémium Egészségpénztár')}
@@ -44126,6 +44134,10 @@ function tvLapok(){
         <p>Az Ön elvárásai velem szemben már körvonalazódtak abban a kiértékelésben, amit jelenleg a kezében tart. Az én elvárásom Ön felé mindössze már csak a <b>döntés</b> lenne, ami innentől fogva csak Önön múlik.</p></div>
         ${t.nev ? `<div class="nevj"><div class="av">${esc(t.nev.split(' ').map(x => x[0]).join('').slice(0, 2))}</div><div><b>${esc(t.nev)}</b><span>pénzügyi tanácsadó${t.mnb ? ' · MNB ' + esc(t.mnb) : ''}</span><span>${esc([t.tel, t.email].filter(Boolean).join(' · '))}</span></div></div>` : ''}
         ${tvLab(sz())}</div>` });
+    // oldalkulcs (ismétlődő név esetén sorszámmal), kihagyás jelölése, oldalszámok
+    const db = {}; let n = 0;
+    L.forEach(l => { db[l.nev] = (db[l.nev] || 0) + 1; l.kulcs = db[l.nev] > 1 ? `${l.nev} #${db[l.nev]}` : l.nev; l.ki = tvKihagy.has(l.kulcs);
+        l.html = l.html.split('%%LAPSZAM%%').join(l.ki ? '' : String(++n)); });
     return L;
 }
 
@@ -44184,7 +44196,10 @@ function renderTervezet(){
 function tvElonezet(){
     const host = document.getElementById('tvLapok'); if(!host) return;
     if(!tvAj.length){ host.innerHTML = ''; return; }
-    host.innerHTML = tvLapok().map((l, i) => `<div class="tv-lk"><div class="tv-sk" data-tvsk="${i}">${l.html || ''}</div><span>${i + 1}. ${esc(l.nev)}</span></div>`).join('');
+    let n = 0;
+    host.innerHTML = tvLapok().map((l, i) => `<div class="tv-lk${l.ki ? ' ki' : ''}"><div class="tv-sk" data-tvsk="${i}">${l.html || ''}</div>
+        <button type="button" class="tv-lk-ki" data-tvkihagy="${esc(l.kulcs)}" title="${l.ki ? 'Visszakerül a PDF-be' : 'Ez az oldal nem kerül a PDF-be'}">${l.ki ? '↺ Visszarakás' : '✕ Kihagyás'}</button>
+        <span>${l.ki ? '<s>' + esc(l.nev) + '</s> · kihagyva' : `${++n}. ${esc(l.nev)}`}</span></div>`).join('');
     const sk = host.querySelector('.tv-sk'); const sc = sk ? sk.clientWidth / 595 : .25;
     host.querySelectorAll('.tv-sk > .tvp').forEach(p => p.style.transform = `scale(${sc})`);
     // a kalkuláció oldalai: a PDF-ből kirajzolva
@@ -44237,7 +44252,8 @@ async function tvLetolt(megnez){
         const doc = await PDFLib.PDFDocument.create(), forras = {}, kepTar = {};
         const munka = document.createElement('div'); munka.style.cssText = 'position:fixed;left:-10000px;top:0;width:595px;z-index:-1';
         document.body.appendChild(munka);
-        const lapok = tvLapok();
+        const lapok = tvLapok().filter(l => !l.ki);
+        if(!lapok.length) throw new Error('Minden oldal ki van hagyva – legalább egy oldalt rakj vissza.');
         for(let i = 0; i < lapok.length; i++){
             const l = lapok[i]; ir(`PDF készül… ${i + 1} / ${lapok.length}`);
             munka.innerHTML = l.html; const el = munka.firstElementChild;
@@ -44312,6 +44328,8 @@ document.addEventListener('input', e => {
 document.addEventListener('click', e => {
     if(!e.target.closest || !e.target.closest('#tervezetBody')) return;
     const tr = e.target.closest('[data-tvtorol]'); if(tr){ tvAj.splice(+tr.dataset.tvtorol, 1); renderTervezet(); return; }
+    const kh = e.target.closest('[data-tvkihagy]'); if(kh){ const k = kh.dataset.tvkihagy; if(tvKihagy.has(k)) tvKihagy.delete(k); else tvKihagy.add(k);
+        const lp = document.getElementById('tvLapok'), poz = lp ? lp.scrollTop : 0; tvElonezet(); if(lp) lp.scrollTop = poz; return; }
     const ce = e.target.closest('[data-tvcel]'); if(ce){ tvAlap.cel = ce.dataset.tvcel; tvCelKezi = true; tvMent(); renderTervezet(); return; }
     const ea = e.target.closest('[data-tvelalap]'); if(ea){ const a = tvAj[+ea.dataset.tvelalap], regi = TV_ELONY_ALAP[tvTipusK(a)];
         a.tipus = ea.dataset.k === 'nyugd' ? 'Nyugdíj' : 'Megtakarítás'; a.elony = [...TV_ELONY_ALAP[ea.dataset.k], ...a.elony.filter(x => !regi.includes(x) && !TV_ELONY_ALAP[ea.dataset.k].includes(x))]; renderTervezet(); return; }
