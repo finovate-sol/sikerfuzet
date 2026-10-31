@@ -1604,6 +1604,15 @@
         .adm-role-pages-lbl { font-size:9.5px; font-weight:800; color:var(--muted);
                               text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
         .adm-page-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        details.adm-pzi { display:block; }
+        details.adm-pzi > summary { display:flex; gap:10px; align-items:center; cursor:pointer; list-style:none; padding:4px 0; }
+        details.adm-pzi > summary::-webkit-details-marker { display:none; }
+        details.adm-pzi > summary > span { font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); flex:none; min-width:78px; }
+        details.adm-pzi > summary > b { font-size:12px; font-weight:600; color:var(--blue); }
+        details.adm-pzi > summary > b::after { content:" ›"; }
+        details.adm-pzi[open] > summary > b::after { content:" ˅"; }
+        details.adm-pzi > .adm-page-chips { margin:6px 0 2px 86px; }
+        @media (max-width:600px){ details.adm-pzi > .adm-page-chips { margin-left:0; } }
         .adm-page-csop { display:grid; grid-template-columns:78px minmax(0,1fr); gap:8px; align-items:start; margin:0 0 6px; }
         .adm-page-csop > span { font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); padding-top:6px; }
         @media (max-width:600px){ .adm-page-csop { grid-template-columns:1fr; gap:4px; } .adm-page-csop > span { padding-top:0; } }
@@ -13938,7 +13947,11 @@ function pziKozosFigyel(){
     pziKozosKiad(pziKozos);
 }
 // A sablonok: a beépítettek (ha „Mentés sablonként” felülírtad, a mentett változat) + a saját sablonjaid.
-const pziSablonok = d => { const ov = (d && d.sablonok) || {};
+// Sablon-hozzáférés (Admin → Hozzáférés → Prezentációk): a letiltott sablon „pzi:<id>” kulccsal
+// a munkatárs tiltott-listájában (pageAccess) áll – nála nem látszik, nem vetíthető, nem szerkeszthető.
+const pziTiltott = id => !!(window.sfBlockedPages && window.sfBlockedPages.has('pzi:' + id));
+const pziSablonok = d => pziSablonokMind(d).filter(t => !pziTiltott(t.id));
+const pziSablonokMind = d => { const ov = (d && d.sablonok) || {};
     const rejt = new Set((d && d.rejtettSablonok) || []);
     return [...PZI_SABLONOK.filter(t => !rejt.has(t.id)).map(t => ov[t.id] ? { ...t, ...ov[t.id], id: t.id, sablon: 1, modositott: 1 } : t),
         ...Object.values(ov).filter(t => !PZI_SABLONOK.some(b => b.id === t.id) && !PZI_MEGSZUNT.includes(t.id)).map(t => ({ ...t, sablon: 1, sajatSablon: 1 }))]; };
@@ -15664,6 +15677,9 @@ window.sfApplyPageAccess = function(map){
     const terBox = document.getElementById('sfTerBox');
     if(terBox) terBox.hidden = !vanPriv || kapcsRejt;
     if(!vanPriv && !isOther && window.sfTer === 'priv' && typeof window.sfTerValt === 'function') window.sfTerValt('ovb');
+    // A Prezentációk oldal kövesse a sablon-tiltásokat (ha épp nyitva van, és nem szerkesztünk).
+    try { const pg = document.getElementById('page-prezik');
+        if(pg && !pg.hidden && !pziSzerk && typeof renderPrezik === 'function') renderPrezik(); } catch(_){}
     // Ha épp egy most letiltott oldalon állunk, visszaviszünk a kezdőoldalra.
     const cur = document.querySelector('.nav a[data-page].active');
     if(cur && blocked.has(cur.dataset.page)){
@@ -42980,19 +42996,32 @@ Vállalkozás nyitásának átbeszélése`, '']
         // Oldal-hozzáférés: csak a TILTOTT oldalakat tároljuk, így egy új oldal
         // alapból mindenkinek látszik, és a régi beállítások sem avulnak el.
         const pageAccess = (currentConfig && currentConfig.pageAccess) || {};
+        // a prezentáció-sablonok (beépítettek + közös saját sablonok) – munkatársanként kapcsolhatók
+        let pziLista = [];
+        // (csak olvasás: a közös sablonok a config/prezi_sablonok dokumentumból, vagy a már betöltött példány)
+        try { if(typeof pziSablonokMind === 'function'){
+            let k = (typeof pziKozos !== 'undefined' && pziKozos) || null;
+            if(!k){ try { k = typeof window.sfGetConfigDoc === 'function' ? await window.sfGetConfigDoc('prezi_sablonok') : null; } catch(_){}
+                if(!k) k = store.load('sf_kozos_prezi_sablonok', null); }
+            pziLista = pziSablonokMind({ sablonok: (k && k.sablonok) || {}, rejtettSablonok: (k && k.rejtettSablonok) || [] })
+                .map(t => ['pzi:' + t.id, String(t.n || 'Névtelen').split(' – ')[0], t.n || '']); } } catch(e){ console.warn('Sablonlista:', e); }
         const rowsHtml = employees.map(emp=>{
             const mgrUid = accessMap[emp.uid] || '';
             const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid)
                 .map(e2 => `<option value="${e2.uid}"${e2.uid===mgrUid?' selected':''}>${escM(e2.name||e2.email)}</option>`).join('');
             const blocked = new Set(pageAccess[emp.uid] || []);
-            const chip = ([key,label]) =>
+            const chip = ([key,label,teljes]) =>
                 `<button type="button" class="adm-page-chip${blocked.has(key)?'':' on'}" data-pguid="${emp.uid}" data-pgkey="${key}"
-                    title="${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`;
+                    title="${teljes ? escM(teljes) + ' – ' : ''}${blocked.has(key)?'Letiltva – kattints az engedélyezéshez':'Engedélyezve – kattints a letiltáshoz'}">${escM(label)}</button>`;
+            const pziLathato = pziLista.filter(([k]) => !blocked.has(k)).length;
             const lapok = window.sfLapLista();
             const pageChips = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','SZEM']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
                 return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('')
                 // nem oldal, hanem a menü Privát mód kapcsolója (rád, az adminra is vonatkozik)
-                + `<div class="adm-page-csop"><span>Menü</span><div class="adm-page-chips">${chip(['_privkapcs', 'Privát mód kapcsoló'])}</div></div>`;
+                + `<div class="adm-page-csop"><span>Menü</span><div class="adm-page-chips">${chip(['_privkapcs', 'Privát mód kapcsoló'])}</div></div>`
+                // prezentáció-sablonok: lenyitható, hogy a sor ne nőjön meg feleslegesen
+                + (pziLista.length ? `<details class="adm-page-csop adm-pzi"><summary><span>Prezentációk</span><b data-pzidb>${pziLathato} / ${pziLista.length} látható</b></summary>
+                    <div class="adm-page-chips">${pziLista.map(chip).join('')}</div></details>` : '');
             return `<div class="adm-role-row" data-uid="${emp.uid}">
                 <div class="adm-role-name">
                     <div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
@@ -43074,6 +43103,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                 window._admCfg = currentConfig;
                 chip.classList.toggle('on', !willBlock);
                 chip.title = willBlock ? 'Letiltva – kattints az engedélyezéshez' : 'Engedélyezve – kattints a letiltáshoz';
+                const pd = chip.closest('.adm-pzi'); if(pd){ const db = pd.querySelector('[data-pzidb]'), l = pd.querySelectorAll('[data-pgkey]');
+                    if(db) db.textContent = `${[...l].filter(x => x.classList.contains('on')).length} / ${l.length} látható`; }
                 // Ha épp magamról van szó, a menü azonnal kövesse.
                 if (typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess(next);
             }
