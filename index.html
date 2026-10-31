@@ -43289,6 +43289,13 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp.eb .harom > div { flex:1; border:1px solid #d9e2ec; border-top:3px solid #009999; padding:11px 10px; }
 .tvp.eb .chk2 { display:block; width:20px; height:20px; background-size:100% 100%; margin-bottom:6px; }
 .tvp.eb .harom b { display:block; color:#003366; font-size:12.5px; } .tvp.eb .harom span { font-size:10px; color:#6b7280; line-height:1.4; display:block; margin-top:3px; }
+.tvp .bgt { position:relative; margin-top:6px; } .tvp .bgt img { width:100%; display:block; }
+.tvp .bgk { position:absolute; top:-4px; bottom:-4px; border:3px solid #FF3399; border-radius:6px; box-shadow:0 0 0 3px rgba(255,51,153,.18); }
+.tvp .bg-be { font-size:11.5px; line-height:1.6; color:#28364a; margin:0 0 10px; }
+.tvp .bg-info { display:flex; gap:10px; margin-top:14px; } .tvp .bg-info > div { flex:1; background:#f2f2f2; border-top:3px solid #009999; padding:9px 11px; }
+.tvp .bg-info > div + div { border-top-color:#FF3399; } .tvp .bg-info b { display:block; font-size:11px; color:#003366; letter-spacing:.03em; margin-bottom:4px; }
+.tvp .bg-info ul { margin:0; padding-left:14px; font-size:10.3px; line-height:1.55; color:#28364a; }
+.tvp .bg-megj { font-size:9.5px; color:#6b7280; margin:10px 0 0; line-height:1.5; }
 .tvp .kesobb { margin:12px auto 0; width:430px; text-align:left; font-size:11px; color:#6b7280; border-left:3px solid #FF3399; padding:4px 10px; }
 .tvp .et-f { border-left:5px solid #009999; padding:3px 10px; margin:4px 0 10px; }
 .tvp .et-f b { display:block; font-size:14px; color:#003366; } .tvp .et-f span { font-size:10.5px; color:#6b7280; }
@@ -43321,12 +43328,11 @@ const TV_BIZT = [[/^GENERALI\b/, 'Generali'], [/^SIGNAL( IDUNA)?\b/, 'Signal Idu
     [/^GROUPAMA\b/, 'Groupama'], [/^AEGON\b/, 'Aegon'], [/^METLIFE\b/, 'MetLife'], [/^UNIQA\b/, 'UNIQA'], [/^GRAWE\b/, 'Grawe'], [/^CIG( PANN[ÓO]NIA)?\b/, 'CIG Pannónia'],
     [/^K&H\b/, 'K&H'], [/^MAGYAR POSTA\b/, 'Magyar Posta'], [/^UNIVERSAL\b/, 'Universal']];
 const TV_ELONY = ['Szüneteltetési lehetőség', 'Díjcsökkentés / díjnövelés', 'Eseti befizetési lehetőség', 'Örökösödési adó mentes'];
-const TV_BG = { csomagok: ['Standard', 'Optimum', 'Premium', 'Superior', 'Gyerek'], dij: [20000, 30000, 45000, 72000, 9000],
-    sorok: [['Baleseti haláleset', 12e6, 15e6, 20e6, 30e6, 1e6], ['67–100% közötti rokkantság', 24e6, 40e6, 60e6, 90e6, 40e6], ['36–66% közötti rokkantság', 12e6, 20e6, 30e6, 45e6, 15e6],
-        ['10–35% közötti rokkantság', 8e6, 12e6, 18e6, 18e6, 6e6], ['Rehabilitációs támogatás', 0, 2e6, 5e6, 7.5e6, 2e6], ['Kórházi napi térítés', 8000, 10000, 10000, 20000, 5000],
-        ['Műtéti térítés', 5e5, 1e6, 1e6, 2e6, 1e5], ['Baleseti sérülés miatti plasztikai műtét', 75e4, 15e5, 2e6, 2e6, 125e4], ['Égési sérülés', 5e5, 75e4, 75e4, 1e6, 0],
-        ['Csonttörés, súlyos csonttörés', 15e4, 15e4, 2e5, 4e5, 6e4], ['Keresőképtelenség egyszeri térítés (28 napot meghaladó)', 1e5, 15e4, 2e5, 0, 0], ['Gyógyulási támogatás', 0, 0, 0, 4e5, 0],
-        ['Kullancs okozta bénulás', 1e6, 2e6, 25e5, 25e5, 2e6], ['Képalkotó vizsgálatok', 0, 0, 15e4, 25e4, 0]] };
+// UNIQA BodyGuard VIP Pro: a hivatalos csomagtábla képként, a választott csomag oszlopa keretezve
+// (az oszlophatárok a kép szélességének %-ában)
+const TV_BG = { csomagok: ['Standard', 'Optimum', 'Prémium', 'Szuperior', 'Gyermek'], dij: [20000, 30000, 45000, 72000, 9000],
+    oszlop: [[28.75, 13.5], [42.25, 13.5], [55.75, 13.6], [69.35, 15.0], [84.35, 15.4]] };
+const tvCsomagIdx = () => { const regi = { Premium: 'Prémium', Superior: 'Szuperior', Gyerek: 'Gyermek' }; return Math.max(0, TV_BG.csomagok.indexOf(regi[tvAlap.csomag] || tvAlap.csomag)); };
 const tvFt = n => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('hu-HU').replace(/\u00a0/g, ' ');
 const tvSzam = s => { const m = String(s || '').replace(/\u00a0/g, ' ').match(/-?\d[\d ]*(?:[.,]\d+)?/); return m ? parseFloat(m[0].replace(/ /g, '').replace(',', '.')) : null; };
 const tvCim = s => String(s || '').toLowerCase().replace(/(^|[\s\-–(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
@@ -43455,12 +43461,14 @@ function tvLapok(){
         <div class="et-f"><b>Mire jó az egészségpénztári számla?</b></div>
         <div class="mire">${['Magánorvosi ellátások', 'Gyógyszer és gyógyászati segédeszközök', 'Orvostechnikai eszközök', 'Szemüveg, kontaktlencse', 'Gyógytorna, gyógymasszázs, fizioterápia', 'Kieső jövedelem pótlása', 'Csecsemőápolási termékek, pelenka, tápszerek', 'Számos más szolgáltatás'].map(x => `<div>${x}</div>`).join('')}</div>
         ${tvLab(sz())}</div>` });
-    if(o.baleset){ const ci = Math.max(0, TV_BG.csomagok.indexOf(tvAlap.csomag)), dij = TV_BG.dij[ci];
+    if(o.baleset){ const ci = tvCsomagIdx(), dij = TV_BG.dij[ci];
         L.push({ nev: 'Balesetvédelem', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK – PÉNZÜGYI VÉDELEM', 'Balesetvédelem')}
         <div class="et-f" style="border-color:#FF3399"><b>UNIQA – BodyGuard VIP Pro · ${esc(TV_BG.csomagok[ci])}</b><span>${tvFt(dij)} Ft/év (${tvFt(Math.floor(dij / 12))} Ft/hó)</span></div>
-        <table><col class="c1"><tr><th>Szolgáltatások (Ft)</th>${TV_BG.csomagok.map((c, j) => `<th class="${j === ci ? 'on' : ''}">${c}</th>`).join('')}</tr>
-        ${TV_BG.sorok.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map((v, j) => `<td class="${j === ci ? 'on' : ''}">${v ? tvFt(v) : '—'}</td>`).join('')}</tr>`).join('')}
-        <tr class="dij"><td>Csomag díja Ft/év</td>${TV_BG.dij.map((v, j) => `<td class="${j === ci ? 'on' : ''}">${tvFt(v)}</td>`).join('')}</tr></table>
+        <p class="bg-be">Egy baleset váratlan és kiszámíthatatlan – egy valami biztos: az anyagi teher, amivel jár. A BodyGuard VIP Pro magas biztosítási összegekkel segít, hogy a váratlan kiadások miatt ne kelljen aggódni.</p>
+        <div class="bgt"><img src="prezi/tervezet/bodyguard.png" alt=""><span class="bgk" style="left:${TV_BG.oszlop[ci][0]}%;width:${TV_BG.oszlop[ci][1]}%"></span></div>
+        <div class="bg-info"><div><b>Fontos tudnivalók</b><ul><li>Belépési életkor: 1–69 év (Gyermek csomag: 1–17 év)</li><li>Lejárati kor: 75 év</li><li>Várakozási idő: nincs</li><li>Területi hatály: az egész világ (képalkotó vizsgálatok: Magyarország)</li></ul></div>
+        <div><b>Újdonságok 2026.10.29-től</b><ul><li>Új fedezet: lágyrészek sérülése</li><li>Csonttörésnél a térítés 50%-ra emelkedett (a súlyos csonttörés továbbra is 100%)</li><li>Magasabb biztosítási összegek: Optimum, Prémium, Gyermek</li></ul></div></div>
+        <p class="bg-megj">Egyes fedezetek (pl. műtéti térítés, csonttörés, égési sérülés) a sérülés súlyosságának megfelelő %-ot térítik, a napi térítés az önrész letelte után indul – részletek a feltételekben.</p>
         ${tvLab(sz())}</div>` }); }
     if(o.zarszo) L.push({ nev: 'Zárszó', html: `<div class="tvp">${tvFej('ZÁRSZÓ', 'Köszönöm a bizalmát!')}<div class="szov">
         <p>Feltételezzük, hogy korábban nem volt része hasonló tanácsadásban. Mint ahogyan az orvosi szakmában, úgy a mi szakmánkban is rendkívül fontos az egymás iránti bizalom és lojalitás.</p>
@@ -43510,7 +43518,7 @@ function renderTervezet(){
         ${kap('_bizt', 'Biztosító bemutatása, portfólió és bónuszok', 'hamarosan – biztosítónként egyszer feltöltve', true)}
         ${kap('eszp', 'Prémium Egészségpénztár')}
         ${kap('baleset', 'Balesetvédelem – UNIQA BodyGuard VIP Pro')}
-        ${o.baleset ? `<div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvAlap.csomag === c ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
+        ${o.baleset ? `<div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvCsomagIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
         ${kap('zarszo', 'Zárszó', 'a neveddel és az elérhetőségeddel')}</div>
     </div>
     <div class="tv-elo"><h3>Előnézet</h3><p>${tvAj.length ? 'A kalkuláció oldalai változtatás nélkül kerülnek bele.' : 'Tölts fel egy kalkulációt.'}</p>
