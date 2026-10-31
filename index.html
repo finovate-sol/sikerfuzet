@@ -2686,6 +2686,15 @@
         .rc.open .rd-rating .rc-rating.nagy { width:46px; height:46px; } .rc.open .rd-rating .rc-rating.nagy b { font-size:12px; }
         .rc.open .rd-rating .rd-rating-sz { margin-top:0; }
         .rd-doboz { background:#f5f8ff; border-left:4px solid var(--blue); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+        /* adatlap: felül az alapadatok, a többi a lenyitható „Részletek” alatt */
+        details.rd-reszl, details.na-reszl { border:1px solid var(--border); border-radius:12px; padding:0 12px; margin:12px 0 4px; background:var(--card, #fff); }
+        details.rd-reszl > summary, details.na-reszl > summary { cursor:pointer; list-style:none; padding:11px 0; font-weight:700; font-size:13.5px; color:var(--navy); display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+        details.rd-reszl > summary::-webkit-details-marker, details.na-reszl > summary::-webkit-details-marker { display:none; }
+        details.rd-reszl > summary::before, details.na-reszl > summary::before { content:"›"; display:inline-block; transition:transform .15s; color:var(--muted); font-size:16px; }
+        details.rd-reszl[open] > summary::before, details.na-reszl[open] > summary::before { transform:rotate(90deg); }
+        details.rd-reszl > summary small, details.na-reszl > summary small { font-weight:500; font-size:11.5px; color:var(--muted); }
+        details.rd-reszl[open], details.na-reszl[open] { padding-bottom:12px; }
+        details.na-reszl > div, details.na-reszl > label { margin-bottom:10px; }
         .rd-doboz > .rd-sec:first-child { margin-top:0; }
         .rd-doboz .rd-sec { margin:10px 0 6px; }
         .rd-doboz-c { font-size:12.5px; font-weight:800; color:var(--navy); margin-bottom:8px; }
@@ -10377,6 +10386,13 @@
             .kov-mk-csop { display:flex; align-items:center; gap:8px; } .kov-mk-csop small { flex:0 0 96px; }
         }
         /* ===== nincs havi terv: zár + varázsló ===== */
+        /* „Még nincs havi terved” sáv a kezdőlap tetején (a beállító csak rákattintva nyílik) */
+        .hv-sav { display:flex; align-items:center; gap:14px; width:100%; text-align:left; border:1px solid #c9dafb; border-left:4px solid #1f5fd0; background:#eef4ff; padding:12px 16px; margin:0 0 12px; font:inherit; color:inherit; cursor:pointer; border-radius:14px; }
+        .hv-sav > i { font-style:normal; width:38px; height:38px; border-radius:12px; background:#1f5fd0; color:#fff; display:grid; place-items:center; flex:none; } .hv-sav > i svg { width:20px; height:20px; }
+        .hv-sav > span { flex:1; min-width:0; display:flex; flex-direction:column; } .hv-sav b { font-size:14.5px; color:#0f2a52; } .hv-sav small { font-size:12.5px; color:#5b6b80; }
+        .hv-sav > em { font-style:normal; font-weight:700; font-size:13.5px; color:#1f5fd0; white-space:nowrap; }
+        @media (max-width:600px){ .hv-sav { padding:10px 12px; gap:10px; } .hv-sav small { display:none; } }
+        .hz-kesobb { margin-top:8px; width:100%; }
         .hv-zar { position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(240,236,230,.55);
             -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); animation:sfOvBe .35s ease-out both; }
         .hv-zar.ki { opacity:0; transition:opacity .25s; }
@@ -16361,20 +16377,33 @@ async function sfHaviZarEllenoriz(){
     const cu = window.sfCurrentUser; if(!cu || !cu.uid || hzFut) return;
     if(document.body.classList.contains('sf-privat') || window.sfTer === 'priv' || (window.sfViewedUid && window.sfViewedUid !== cu.uid)) return hzLevesz();
     // akinek a Havi terv nincs engedélyezve (pl. új munkatárs a bedolgozás elején), annak nem kérjük
-    if(window.sfBlockedPages && window.sfBlockedPages.has('havi')) return hzLevesz();
+    if(window.sfBlockedPages && window.sfBlockedPages.has('havi')){ hzSavLe(); return hzLevesz(); }
     const akt = document.querySelector('.page:not([hidden])'); if(!akt || akt.id === 'page-admin') return hzLevesz();
     const ho = currentHaviWeek().monthDate, kulcs = `${cu.uid}_${ho.getFullYear()}_${ho.getMonth()}`;
-    if(hzOk[kulcs]) return hzLevesz();
-    if(hzVanTerv(store.load('sf_havi_' + kulcs, null))){ hzOk[kulcs] = 1; return hzLevesz(); }
+    if(hzOk[kulcs]){ hzSavLe(); return hzLevesz(); }
+    if(hzVanTerv(store.load('sf_havi_' + kulcs, null))){ hzOk[kulcs] = 1; hzSavLe(); return hzLevesz(); }
     if(!(window.sfIsConfigured && typeof window.sfGetHaviTerv === 'function')) return;
     hzFut = true;
     try { const r = await window.sfGetHaviTerv(kulcs);
-        if(hzVanTerv(r)){ store.save('sf_havi_' + kulcs, r); hzOk[kulcs] = 1; hzLevesz(); }
-        else if(!document.body.classList.contains('sf-privat')) hzMutat(ho, kulcs);
+        if(hzVanTerv(r)){ store.save('sf_havi_' + kulcs, r); hzOk[kulcs] = 1; hzLevesz(); hzSavLe(); }
+        // nem ugrik fel magától: a kezdőlap tetején egy sáv kínálja fel (nem állja el az utat)
+        else hzSav(ho, kulcs);
     } catch(e){} finally { hzFut = false; }
 }
 window.sfHaviZarEllenoriz = sfHaviZarEllenoriz;
 function hzLevesz(){ const z = document.getElementById('hvZar'); if(z){ z.classList.add('ki'); setTimeout(() => z.remove(), 260); document.documentElement.classList.remove('hv-zar-nyitva'); } }
+// a kezdőlap tetején: „Még nincs havi terved … Beállítás ›” – rákattintva nyílik a beállító
+function hzSav(ho, kulcs){
+    const h = document.getElementById('page-home'); if(!h) return;
+    let sv = document.getElementById('hvSav');
+    if(!sv){ sv = document.createElement('button'); sv.type = 'button'; sv.id = 'hvSav'; sv.className = 'card hv-sav';
+        const nh = document.getElementById('sfNincsHozz'); if(nh && nh.parentElement === h) nh.after(sv); else h.prepend(sv); }
+    sv.dataset.kulcs = kulcs; sv.dataset.ho = `${ho.getFullYear()}-${ho.getMonth()}`;
+    sv.innerHTML = `<i>${sfIkon('celkereszt')}</i><span><b>Még nincs havi terved</b><small>${esc(`${ho.getFullYear()}. ${HU_MONTHS_FULL[ho.getMonth()].toLowerCase()}`)} – 1 perc, és a Sikerfüzet ebből számolja a heti célokat és a napi teendőket.</small></span><em>Beállítás ›</em>`;
+}
+function hzSavLe(){ const sv = document.getElementById('hvSav'); if(sv) sv.remove(); }
+document.addEventListener('click', e => { const sv = e.target.closest && e.target.closest('#hvSav'); if(!sv) return;
+    const [y, m] = sv.dataset.ho.split('-').map(Number); hzMutat(new Date(y, m, 1), sv.dataset.kulcs); });
 function hzMutat(ho, kulcs){
     let z = document.getElementById('hvZar');
     if(!z){ z = document.createElement('div'); z.id = 'hvZar'; z.className = 'hv-zar'; document.body.appendChild(z); document.documentElement.classList.add('hv-zar-nyitva'); hzLep = 0; }
@@ -16395,7 +16424,7 @@ function hzRajz(){
     const pont = `<div class="hz-pontok">${[0, 1, 2, 3].map(i => `<i class="${i <= hzLep ? 'on' : ''}"></i>`).join('')}</div>`;
     let t;
     if(hzLep === 0) t = `<div class="hz-ik">${sfIkon('celkereszt')}</div><h2>Még nincs havi terved</h2><p>${esc(hoNev)} – a Sikerfüzet a havi tervből számolja a heti célokat, a napi teendőket és a csapatterv számait. Állítsd be most, 1 perc.</p>
-        <button type="button" class="hz-fo" data-hz="tovabb">Havi terv beállítása</button>`;
+        <button type="button" class="hz-fo" data-hz="tovabb">Havi terv beállítása</button><button type="button" class="hz-masod hz-kesobb" data-hz="kesobb">Később</button>`;
     else if(hzLep === 1) t = `${pont}<h2>Mi a rangod?</h2><p>A rang a havi célok alapja.</p>
         <div class="hz-rangok">${['R1', 'R2', 'R3', 'GST'].map(r => `<button type="button" class="${hzAdat.rang === r ? 'on' : ''}" data-hzrang="${r}">${r}</button>`).join('')}</div>
         <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="tovabb"${hzAdat.rang ? '' : ' disabled'}>Tovább</button></div>`;
@@ -16418,6 +16447,7 @@ document.addEventListener('click', e => {
     const z = e.target.closest && e.target.closest('#hvZar'); if(!z) return;
     const r = e.target.closest('[data-hzrang]'); if(r){ hzAdat.rang = r.dataset.hzrang; hzRajz(); return; }
     const g = e.target.closest('[data-hz]'); if(!g || g.disabled) return;
+    if(g.dataset.hz === 'kesobb'){ hzLevesz(); hzLep = 0; return; }
     if(g.dataset.hz === 'tovabb'){ hzLep = Math.min(3, hzLep + 1); hzRajz(); return; }
     if(g.dataset.hz === 'vissza'){ hzLep = Math.max(0, hzLep - 1); hzRajz(); return; }
     if(g.dataset.hz === 'ment'){
@@ -16429,7 +16459,7 @@ document.addEventListener('click', e => {
         haviCelOsztas(haviData, haviAnchor);
         const d = new Date(); haviData.rogzitve = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         saveHavi();
-        hzOk[z.dataset.kulcs] = 1; hzAdat = null; hzLep = 0;
+        hzOk[z.dataset.kulcs] = 1; hzAdat = null; hzLep = 0; hzSavLe();
         const hvLap = document.getElementById('page-havi');
         if(hvLap && !hvLap.hidden) renderHavi(); else { haviAnchor = elozoA; haviData = elozoD; }
         if(typeof renderPlan === 'function') renderPlan();
@@ -23550,6 +23580,12 @@ function regRatingHtml(r, x){
     if(x.pct == null) return `<span class="rc-rating ures" title="Rating: még nincs adat\n${esc(tip)}">–</span>`;
     return `<span class="rc-rating" style="--p:${x.pct};--c:${regRatingSzin(x.pct)}" title="Rating: ${x.pct}% (${x.pont}/${x.max} pont, ${x.n}/${ossz} adat)\n${esc(tip)}"><b>${x.pct}%</b>${hiany ? '<i>!</i>' : ''}</span>`;
 }
+// Az adatlapon felül csak az alapadatok; a többi a lenyitható „Részletek” alatt. Alapból akkor nyitott,
+// ha már van benne kitöltött adat; a kézi nyitás / csukás rekordonként megmarad az újrarajzolások között.
+const rdReszlAllapot = new Map();
+const rdReszlKulcs = r => r.id || r._localKey || r.name || '';
+const rdReszlNyitva = (r, van) => { const k = rdReszlKulcs(r); return rdReszlAllapot.has(k) ? rdReszlAllapot.get(k) : van; };
+document.addEventListener('toggle', e => { const d = e.target; if(d && d.matches && d.matches('details[data-rdreszl]')) rdReszlAllapot.set(d.dataset.rdreszl, d.open); }, true);
 function rdRatingDoboz(r, x, cim){
     x = x || regRating(r);
     const ossz = x.reszek.length;
@@ -23569,7 +23605,17 @@ function rdAdatokFields(r, i){
             + options.map(o=>`<option value="${esc(o)}"${val===o?' selected':''}>${esc(o)}</option>`).join('');
         return `<div class="rd-field"><label>${label}</label><select data-d="${key}">${opts}</select></div>`;
     };
-    return `${regTagSzerkHtml(r, i)}<div class="rd-terv${r.tervHo ? ' van' : ''}">
+    const d0 = r.details || {};
+    const vanReszlet = !!(r.tervHo || r.lakhely || r.ajanlasok || ['eletkor', 'miert', 'lakhelyzet', 'lakas', 'kapcsolat', 'honnan', 'foglalkozas', 'vagyon', 'gyerekek', 'legkisebb', 'megjegyzes'].some(k => String(d0[k] || '').trim()));
+    return `${regTagSzerkHtml(r, i)}
+        <div class="rd-doboz"><div class="rd-doboz-c">Alapadatok</div>
+        <div class="rd-grid">
+            <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
+            <div class="rd-field"><label>Telefonszám</label><input data-ri="${i}" data-rf="phone" value="${esc(r.phone||'')}" inputmode="tel"></div>
+            <div class="rd-field"><label>Ajánló személy</label><input data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo||'')}"></div>
+        </div></div>
+        <details class="rd-reszl" data-rdreszl="${esc(rdReszlKulcs(r))}"${rdReszlNyitva(r, vanReszlet) ? ' open' : ''}><summary>Részletek <small>rating, tervezett hónap, személyes adatok, megjegyzés</small></summary>
+        <div class="rd-terv${r.tervHo ? ' van' : ''}">
             <span class="rd-terv-ik">${RD_TARGET_IC}</span>
             <label><b>Tervezett hónap és egység</b><span>${r.tervHo ? 'Ebben a hónapban, ennyi egységgel számol a Csapatterv' : 'Állítsd be, hogy a Csapattervben megjelenjen'}</span></label>
             <select data-ri="${i}" data-rf="tervHo" aria-label="Tervezett hónap">${regTervHoOpts(r.tervHo)}</select>
@@ -23578,7 +23624,6 @@ function rdAdatokFields(r, i){
         ${rdRatingDoboz(r)}
         <div class="rd-doboz"><div class="rd-doboz-c">Személyes adatok</div>
         <div class="rd-grid">
-            <div class="rd-field"><label>Név</label><input data-name="1" value="${esc(r.name||'')}"></div>
             <div class="rd-field"><label>Életkor (év) <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><input data-d="eletkor" type="number" min="0" max="120" inputmode="numeric" value="${esc(String(r.details.eletkor||'').replace(/[^\d]/g,''))}"></div>
             <div class="rd-field"><label>Település</label><input data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely||'')}" placeholder="település"></div>
             ${f('miert','Miért gondolt rá')}
@@ -23592,7 +23637,7 @@ function rdAdatokFields(r, i){
             ${fPont('legkisebb','Legkisebb gyerek életkora ★', RD_LEGKISEBB_OPTS)}
             <div class="rd-field"><label>Tőle kapott ajánlások száma</label><input type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}"></div>
         </div>
-        <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div></div>`;
+        <div class="rd-field rd-full"><label>Megjegyzés</label><textarea data-d="megjegyzes" rows="2">${esc(r.details.megjegyzes||'')}</textarea></div></div></details>`;
 }
 function rdCelokFields(r){
     return `<div class="rd-grid rd-grid-3">
@@ -25159,11 +25204,10 @@ function openRegAddModal(){
                     <div><label for="naName">Név <span class="req">*</span></label><input id="naName" type="text" autocomplete="off" placeholder="Kovács János"></div>
                     <div><label for="naPhone">Telefonszám</label><input id="naPhone" type="text" autocomplete="off" placeholder="06 20 123 4567"></div>
                 </div>
-                <div class="na-two">
-                    <div><label for="naCity">Település</label><input id="naCity" type="text" autocomplete="off"></div>
-                    <div><label for="naRef">Ajánló személy</label><input id="naRef" type="text" autocomplete="off"></div>
-                </div>
-
+                <div><label for="naRef">Ajánló személy</label><input id="naRef" type="text" autocomplete="off"></div>
+                <!-- felvételkor elég a név, a telefon és az ajánló – a többi lenyitható -->
+                <details class="na-reszl"><summary>Részletek <small>település, amit az ajánláskor megtudunk, kezelés – nem kötelező</small></summary>
+                <div><label for="naCity">Település</label><input id="naCity" type="text" autocomplete="off"></div>
                 <div class="na-sec sep">Amit az ajánláskor megtudunk</div>
                 <div class="na-two">
                     <div><label for="naAge">Életkor</label><input id="naAge" type="text" autocomplete="off"></div>
@@ -25182,6 +25226,7 @@ function openRegAddModal(){
                     <div><label for="naStatus">Státusz</label><select id="naStatus">${statusOpts}</select></div>
                 </div>
                 <label class="na-check"><input type="checkbox" id="naTp"><span>TP – felhívandó</span></label>
+                </details>
                 <label class="na-check na-again"><input type="checkbox" id="naAgain"><span>Felvitel után jöhet a következő – az űrlap nyitva marad</span></label>
             </div>
             <div class="modal-foot">
@@ -25747,7 +25792,18 @@ const tobLogRows = (arr, kind) => (arr||[]).map((row,ri)=>`<tr>
 function ketAdatokFields(r, tob){
     r.details = r.details || {};
     const sel = (attr, key, val, label, opts) => `<div class="rd-field"><label>${label} <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><select ${attr}="${key}"><option value=""${val?'':' selected'}>—</option>${(val && !opts.some(o => o[0] === val)) ? `<option selected>${esc(val)}</option>` : ''}${opts.map(o => `<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[0])}</option>`).join('')}</select></div>`;
-    return `${rdRatingDoboz(r, ketRating(r), 'Rating – mennyire jó munkatárs-jelölt')}
+    const vanReszlet = !!(r.lakhely || tob.minoseg || tob.modja || tob.megjegyzes || tob.munka || tob.motivacio || tob.fellepes || r.details.eletkor || r.details.kapcsolat);
+    return `<div class="rd-sec">Elérhetőség</div>
+        <div class="rd-grid">
+            <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
+            <div class="rd-field"><label>Telefonszám</label><input data-tobphone value="${esc(r.phone)}" inputmode="tel"></div>
+            <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
+        </div>
+        <div class="rd-sec">Hol tart a folyamat</div>
+        <div class="tob-status-picker">${KET_PIPE_COLS.map(c =>
+            `<button type="button" class="tob-status-btn${(tob.status||'')===c.key?' on':''}" data-tobstatus="${esc(c.key)}" style="--sc:${c.color};">${esc(c.nev)}</button>`).join('')}</div>
+        <details class="rd-reszl" data-rdreszl="${esc(rdReszlKulcs(r))}"${rdReszlNyitva(r, vanReszlet) ? ' open' : ''}><summary>Részletek <small>rating, település, kapcsolat minősége, megjegyzés</small></summary>
+        ${rdRatingDoboz(r, ketRating(r), 'Rating – mennyire jó munkatárs-jelölt')}
         <div class="rd-grid ket-rating-mezok">
             <div class="rd-field"><label>Életkor (év) <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><input data-tobd="eletkor" type="number" min="0" max="120" inputmode="numeric" value="${esc(String(r.details.eletkor||'').replace(/[^\d]/g,''))}"></div>
             ${sel('data-tobd', 'kapcsolat', r.details.kapcsolat || '', 'Mennyire közeli', RD_KAPCSOLAT_OPTS)}
@@ -25755,16 +25811,7 @@ function ketAdatokFields(r, tob){
             ${sel('data-tobm', 'motivacio', tob.motivacio || '', 'Motiváció', KET_MOTIV_OPTS)}
             ${sel('data-tobm', 'fellepes', tob.fellepes || '', 'Kommunikáció / fellépés', KET_FELLEP_OPTS)}
         </div>
-        <div class="rd-sec">Elérhetőség</div>
-        <div class="rd-grid">
-            <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
-            <div class="rd-field"><label>Telefonszám</label><input data-tobphone value="${esc(r.phone)}"></div>
-            <div class="rd-field"><label>Település</label><input data-toblakhely value="${esc(r.lakhely)}"></div>
-            <div class="rd-field"><label>Ajánló személy</label><input data-tobajanlo value="${esc(r.ajanlo)}"></div>
-        </div>
-        <div class="rd-sec">Hol tart a folyamat</div>
-        <div class="tob-status-picker">${KET_PIPE_COLS.map(c =>
-            `<button type="button" class="tob-status-btn${(tob.status||'')===c.key?' on':''}" data-tobstatus="${esc(c.key)}" style="--sc:${c.color};">${esc(c.nev)}</button>`).join('')}</div>
+        <div class="rd-grid"><div class="rd-field"><label>Település</label><input data-toblakhely value="${esc(r.lakhely)}"></div></div>
         <div class="rd-sec">Kapcsolat minősége</div>
         <div class="tob-quality-picker">
             <label><input type="radio" name="tobq" value="A" ${tob.minoseg==='A'?'checked':''}><span>A – Vezető</span></label>
@@ -25772,7 +25819,7 @@ function ketAdatokFields(r, tob){
             <label><input type="radio" name="tobq" value="C" ${tob.minoseg==='C'?'checked':''}><span>C – Ügyfél</span></label>
         </div>
         <div class="rd-field" style="margin-top:10px;"><label>Kapcsolat létrehozásának módja</label><input data-tobmodja value="${esc(tob.modja)}"></div>
-        <div class="rd-field"><label>Megjegyzés</label><textarea data-tobmegj rows="2">${esc(tob.megjegyzes)}</textarea></div>`;
+        <div class="rd-field"><label>Megjegyzés</label><textarea data-tobmegj rows="2">${esc(tob.megjegyzes)}</textarea></div></details>`;
 }
 function ketLogFields(tob, kind){
     const isCall = kind === 'hivasok';
