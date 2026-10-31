@@ -43437,7 +43437,7 @@ const tvPortUniqa = (a, top, p, logo) => { const hd = a.gyak === 'hó' ? (a.dij 
             return `<tr class="${on ? 'on' : ''}"><td>${ig === Infinity ? `${tvFt(t)} Ft-tól` : t ? `${tvFt(t)} – ${tvFt(ig - 1)} Ft` : `${tvFt(ig)} Ft alatt`}${on ? ' <em>← Ön</em>' : ''}</td><td>${m}</td></tr>`; }).join('')}<tr><td>25 év után</td><td>1,5%</td></tr></table></div>
         <div class="pt-e">${p.egyeb.map(([c, x]) => `<div><b>${c}</b><span>${x}</span></div>`).join('')}</div></div></div>`; };
 const tvPortLap = (a, top) => { const p = TV_PORT[a.biztosito], b = TV_BIZT_LAP[a.biztosito]; if(!p) return '';
-    const ev = (a.dij || 0) * (a.gyakSzor || 12), logo = b && b.logo ? `<span class="blogo" style="background-image:url('${b.logo}')"></span>` : '';
+    const ev = (a.dij || 0) * (a.gyakSzor || 12), logo = b && b.logo ? `<span class="blogo" data-kep="${b.logo}" style="background-image:url('${b.logo}')"></span>` : '';
     if(p.portf) return tvPortSignal(a, top, p, logo);
     if(p.uniqa) return tvPortUniqa(a, top, p, logo);
     // a hozamok állnak a középpontban: eszközalaponként 12 hó / 3 év / 5 év, az 5 éves sávval; a 3 legjobb 5 éves kiemelve
@@ -43454,7 +43454,7 @@ const tvPortLap = (a, top) => { const p = TV_PORT[a.biztosito], b = TV_BIZT_LAP[
         <div class="pt-e">${p.egyeb.map(([c, x]) => `<div><b>${c}</b><span>${x}</span></div>`).join('')}</div></div></div>`; };
 const tvBiztLap = (nev, top) => { const b = TV_BIZT_LAP[nev]; if(!b) return '';
     // a biztosító logója a jobb felső körben (a UNIQA-nál, amíg nincs logófájl, a név a márkaszínnel)
-    const logo = b.logo ? `<span class="blogo" style="background-image:url('${b.logo}')"></span>` : `<span class="blogo szo" style="color:${b.szin}">${esc(nev)}</span>`;
+    const logo = b.logo ? `<span class="blogo" data-kep="${b.logo}" style="background-image:url('${b.logo}')"></span>` : `<span class="blogo szo" style="color:${b.szin}">${esc(nev)}</span>`;
     return `<div class="tvp">${tvFej(top, esc(nev), logo)}<div class="bz" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>${b.bevezeto ? `<p class="bz-be">${esc(b.bevezeto)}</p>` : ''}
         ${b.csop.map(([c, st]) => `<div class="bz-cs"><b>${esc(c)}</b><div class="bz-st">${st.map(([n, f]) => `<div><strong>${esc(n)}</strong><span>${esc(f)}</span></div>`).join('')}</div></div>`).join('')}
         ${b.szoveg ? `<div class="kiem"><span class="chev">»</span><p>${esc(b.szoveg)}</p></div>` : ''}</div>`; };
@@ -43555,7 +43555,9 @@ const TV_CHK = tvSvg('<circle cx="12" cy="12" r="10" fill="none" stroke="#009999
 const tvDat = () => { const d = new Date(); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getFullYear()).slice(2)}`; };
 // a html2canvas az SVG-<img>-et nem rajzolja ki, a háttérképet igen – ezért minden SVG háttérként
 const tvKep = (src, cls, st) => `<span class="${cls}" style="background-image:url('${src}');${st || ''}"></span>`;
-const tvLab = n => `<div class="lab"><span>${n}&nbsp;&nbsp;&nbsp;${tvDat()}</span>${tvKep(tvLogo('#003366'), 'logo')}</div>`;
+// az OVB-logó a PDF-ben vektorosan kerül a helyére (a képernyőn és az előnézetben SVG-háttér)
+const tvOvb = c => `<span class="logo" data-ovb="${c}" style="background-image:url('${tvLogo(c)}')"></span>`;
+const tvLab = n => `<div class="lab"><span>${n}&nbsp;&nbsp;&nbsp;${tvDat()}</span>${tvOvb('#003366')}</div>`;
 // minden belső oldal közös feje (a fedlap stílusában): bal szélen átmenetes csík, jobb felső sarokban a célfotó körben, alatta a cím
 const tvFej = (top, cim, logo) => `<div class="sav"></div>${logo ? `<div class="skor ures"></div>${logo}` : `<div class="skor" style="background-image:url('${tvKepUrl()}')"></div>`}<div class="sfej"><small>${esc(top)}</small><h2>${cim}</h2><div class="v"></div></div>`;
 // fedlap: sima (színes, a pénzügyi cél képével), nyomtatási (fehér) vagy a korábbi kék fotós
@@ -43582,7 +43584,7 @@ function tvLapok(){
     L.push({ nev: 'Borító', html: `<div class="tvp c5${ny ? ' nyo' : ''}"><div class="kor" style="background-image:url('${kep}')"></div><div class="gy"></div>
         <span class="star" style="background-image:url('${csillag(ny ? '#003366' : '#fff')}')"></span>
         <div class="tx">${o.egyedi ? '<span class="egyedi">EGYEDI AJÁNLAT</span>' : ''}<small>SZEMÉLYES</small><h1>Pénzügyi Tervezet</h1><div class="nev">${esc(nev)} részére</div></div><div class="chev">»»</div>
-        <div class="ft"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}<br>${esc(tvAlap.hely ? tvAlap.hely + ', ' : '')}${new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>${tvKep(tvLogo(ny ? '#003366' : '#fff'), 'logo')}</div></div>` });
+        <div class="ft"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}<br>${esc(tvAlap.hely ? tvAlap.hely + ', ' : '')}${new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>${tvOvb(ny ? '#003366' : '#fff')}</div></div>` });
     const kiem = x => `<b class="km">${x}</b>`;
     if(o.eloszo) L.push({ nev: 'Előszó', html: `<div class="tvp eb">${tvFej('BEVEZETŐ', `Tisztelt <b>${esc(nev)}</b>!`)}<div class="szov">
         <p>Nagy örömömre szolgál, hogy az előzetes felmérés során felvett adatok alapján átnyújthatom Önnek a kiértékelésünk eredményét, személyes pénzügyi tervezetét.</p>
@@ -43604,7 +43606,7 @@ function tvLapok(){
             ${tvLab(sz())}</div>` });
         if(o.bizt && TV_BIZT_LAP[a.biztosito]) L.push({ nev: `Biztosító – ${a.biztosito}`, html: tvBiztLap(a.biztosito, `${i + 1}. A BIZTOSÍTÓ`) + `${tvLab(sz())}</div>` });
         if(o.port && TV_PORT[a.biztosito]) L.push({ nev: `Portfólió – ${a.biztosito}`, html: tvPortLap(a, `${i + 1}. PORTFÓLIÓ, ESZKÖZALAPOK, BÓNUSZOK`) + `${tvLab(sz())}</div>` });
-        const logo = TV_BIZT_LAP[a.biztosito] && TV_BIZT_LAP[a.biztosito].logo ? `<span class="blogo" style="background-image:url('${TV_BIZT_LAP[a.biztosito].logo}')"></span>` : '';
+        const logo = TV_BIZT_LAP[a.biztosito] && TV_BIZT_LAP[a.biztosito].logo ? `<span class="blogo" data-kep="${TV_BIZT_LAP[a.biztosito].logo}" style="background-image:url('${TV_BIZT_LAP[a.biztosito].logo}')"></span>` : '';
         for(let k = 0; k < a.lapok; k++) L.push({ nev: `Kalkuláció ${k + 1}/${a.lapok}`, kalk: { aj: i, lap: k, hely: tvKalkHely(a, k) },
             html: `<div class="tvp kalk">${tvFej(`${i + 1}. KALKULÁCIÓ${a.lapok > 1 ? ` · ${k + 1}/${a.lapok}` : ''}`, esc(`${a.biztosito} – ${a.termek}`), logo)}<p class="kalk-al">${esc(nev)} részére · OVB kalkulátor</p>${tvLab(sz())}</div>` });
     });
@@ -43706,6 +43708,23 @@ let tvPdfLibP = null;
 const tvPdfLib = () => window.PDFLib ? Promise.resolve(window.PDFLib) : (tvPdfLibP || (tvPdfLibP = new Promise((ok, hiba) => {
     const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
     s.onload = () => ok(window.PDFLib); s.onerror = () => { tvPdfLibP = null; hiba(new Error('A PDF-készítő nem töltődött be (nincs internet?).')); }; document.head.appendChild(s); })));
+// OVB-logó vektorosan (a tvLogo SVG-jével azonos rajz: három oszlop + „OVB” felirat), a megadott dobozba
+let tvBetuT = null;
+async function tvOvbRajz(PDFLib, doc, p, o){
+    const sz = o.w / 60, H = 841.89, x0 = o.x, y0 = H - o.y, c = PDFLib.rgb(...[1, 3, 5].map(i => parseInt((o.c.length === 4 ? o.c.replace(/(\w)/g, '$1$1') : o.c).slice(i, i + 2), 16) / 255));
+    p.drawSvgPath('M14 14l9-3v16h-9zM26 10l9-3v20h-9zM38 6l12-5v26H38z', { x: x0, y: y0, scale: sz, color: c, borderWidth: 0 });
+    if(!tvBetuT || tvBetuT.doc !== doc) tvBetuT = { doc, f: await doc.embedFont(PDFLib.StandardFonts.TimesRoman) };
+    const meret = 17 * sz, w = tvBetuT.f.widthOfTextAtSize('OVB', meret);
+    p.drawText('OVB', { x: x0 + 30 * sz - w / 2 - 0.4 * sz, y: y0 - 49 * sz, size: meret, font: tvBetuT.f, color: c, characterSpacing: 1 * sz });
+}
+// képes logó (biztosító) az eredeti felbontásában, „contain” illesztéssel a dobozba
+async function tvKepRajz(doc, p, k, tar){
+    try {
+        if(!tar[k.src]){ const b = await (await fetch(k.src)).arrayBuffer(); tar[k.src] = /\.png$/i.test(k.src) ? await doc.embedPng(b) : await doc.embedJpg(b); }
+        const im = tar[k.src], ar = im.width / im.height, w = Math.min(k.w, k.h * ar), h = w / ar;
+        p.drawImage(im, { x: k.x + (k.w - w) / 2, y: 841.89 - k.y - (k.h + h) / 2, width: w, height: h });
+    } catch(e){}
+}
 async function tvLetolt(){
     const all = document.getElementById('tvAllapot'), gomb = document.getElementById('tvLetolt');
     const ir = s => { if(all) all.textContent = s; };
@@ -43713,7 +43732,7 @@ async function tvLetolt(){
         gomb.disabled = true; ir('PDF készül…');
         const [PDFLib, h2c] = await Promise.all([tvPdfLib(), window.sfH2C()]);
         try { await document.fonts.ready; } catch(e){}
-        const doc = await PDFLib.PDFDocument.create(), forras = {};
+        const doc = await PDFLib.PDFDocument.create(), forras = {}, kepTar = {};
         const munka = document.createElement('div'); munka.style.cssText = 'position:fixed;left:-10000px;top:0;width:595px;z-index:-1';
         document.body.appendChild(munka);
         const lapok = tvLapok();
@@ -43721,9 +43740,16 @@ async function tvLetolt(){
             const l = lapok[i]; ir(`PDF készül… ${i + 1} / ${lapok.length}`);
             munka.innerHTML = l.html; const el = munka.firstElementChild;
             await Promise.all([...el.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
-            const cv = await h2c(el, { scale: 2.2, backgroundColor: '#ffffff', useCORS: true, logging: false });
-            const kep = await doc.embedJpg(cv.toDataURL('image/jpeg', .9));
+            // a logók élesen, külön rajzolva kerülnek a PDF-be: a képből kihagyjuk, a helyüket megjegyezzük
+            const pr = el.getBoundingClientRect(), hely = e => { const r = e.getBoundingClientRect(); return { x: r.left - pr.left, y: r.top - pr.top, w: r.width, h: r.height }; };
+            const ovbk = [...el.querySelectorAll('[data-ovb]')].map(e => ({ c: e.dataset.ovb, ...hely(e) }));
+            const kepek = [...el.querySelectorAll('[data-kep]')].map(e => ({ src: e.dataset.kep, ...hely(e) }));
+            el.querySelectorAll('[data-ovb], [data-kep]').forEach(e => e.style.visibility = 'hidden');
+            const cv = await h2c(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+            const kep = await doc.embedJpg(cv.toDataURL('image/jpeg', .95));
             const p = doc.addPage([595.28, 841.89]); p.drawImage(kep, { x: 0, y: 0, width: 595.28, height: 841.89 });
+            for(const o of ovbk) await tvOvbRajz(PDFLib, doc, p, o);
+            for(const k of kepek) await tvKepRajz(doc, p, k, kepTar);
             // a kalkuláció eredeti oldala (vektorosan, a saját fejléce és lábléce nélkül) a tervezet keretébe
             if(l.kalk){
                 const k = l.kalk.aj, h = l.kalk.hely; if(!forras[k]) forras[k] = await PDFLib.PDFDocument.load(tvAj[k].bytes.slice());
