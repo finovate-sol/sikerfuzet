@@ -43493,7 +43493,9 @@ async function tvKalkOlvas(file){
         // szakaszcím („1. Alapadatok”) fölötti részt és a lábléc-sort („… OVB - Név”) levágjuk
         const cimSor = lapSorok.find(l => /^\d\.\s*\S/.test(l.sz[0].s));
         const labSor = lapSorok.slice().reverse().find(l => l.y - vy0 < 60 && l.sz.some(x => /\bOVB\b/.test(x.s)));
-        vagas.push({ felso: cimSor ? Math.min(vy1, cimSor.y + 18) : vy1 - 20, also: labSor ? labSor.y + 12 : vy0 + 30, bal: vx0 + 28, jobb: vx1 - 28 });
+        // alul a legalsó tartalomsorig vágunk (a lábléc fölött), így az üres rész nem kicsinyíti a kalkulációt
+        const tart = lapSorok.filter(l => !labSor || l.y > labSor.y + 6), legalso = tart.length ? Math.min(...tart.map(l => l.y)) : null;
+        vagas.push({ felso: cimSor ? Math.min(vy1, cimSor.y + 18) : vy1 - 20, also: legalso != null ? Math.max(vy0, legalso - 10) : (labSor ? labSor.y + 12 : vy0 + 30), bal: vx0 + 34, jobb: vx1 - 34 });
         const fej = szak.find(s => /^Összesen$/i.test(s.s)); if(fej) osszX = fej.x + fej.w / 2;
         for(const l of lapSorok){
             sorok.push(l.sz.map(s => s.s));
@@ -43561,10 +43563,10 @@ const tvFedlap = () => tvAlap.fedlap === 'nyomtatasi' || tvAlap.fedlap === 'tipo
 const tvKepUrl = () => tvAlap.cel === 'sajat' && tvSajatKep ? tvSajatKep : `prezi/tervezet/cel-${TV_CELOK.some(c => c[0] === tvAlap.cel) ? tvAlap.cel : 'megtakaritas'}.jpg`;
 const tvCelBecsles = a => /nyugd/i.test(`${a.tipus} ${a.termek}`) ? 'nyugdij' : /lak[áa]s|otthon/i.test(`${a.tipus} ${a.termek}`) ? 'otthon' : 'megtakaritas';
 // a kalkuláció eredeti oldalának (levágott) tartalma a tervezet feje alatt: hová és mekkora méretben kerül (pt, felülről mérve)
-const TV_KALK_DOBOZ = { x: 40, y: 178, w: 525, h: 842 - 178 - 52 };
+const TV_KALK_DOBOZ = { x: 28, y: 152, w: 551, h: 842 - 152 - 54 };
 function tvKalkHely(a, k){
     const v = (a.vagas || [])[k] || { felso: 822, also: 30, bal: 28, jobb: 567 }, cw = v.jobb - v.bal, ch = v.felso - v.also, D = TV_KALK_DOBOZ;
-    const s = Math.min(1, D.w / cw, D.h / ch);
+    const s = Math.min(1.08, D.w / cw, D.h / ch);
     return { v, s, x: D.x + (D.w - cw * s) / 2, y: D.y, w: cw * s, h: ch * s };
 }
 function tvLapok(){
