@@ -8454,8 +8454,9 @@
             .reg-tools > :is(.btn, .reg-sortwrap, select, label) { flex:1 1 auto; justify-content:center; }
             .reg-tools > .viewtog { flex:0 0 auto; }
         }
-        /* megnyitáskor a kinyitott karton (adatlap) a lista tetejére görgetődik – a ragadós fejléc alá */
-        :is(#regRows, #ketorasList) .rc.open { scroll-margin-top:84px; }
+        /* a 10 perces és a 2 órás füzet felső sávja (kereső, szűrők, nézetek) görgetéskor fent marad */
+        :is(#page-ugyfelek, #page-ketoras) .reg-bar { position:sticky; top:0; z-index:30; box-shadow:0 6px 16px rgba(15,47,95,.08); }
+        @media (max-width:760px){ :is(#page-ugyfelek, #page-ketoras) .reg-bar { top:var(--mb-h, 58px); } }
         /* gépen a kereső kitölti az első sor maradék helyét */
         @media (min-width:701px){ .reg-bar .reg-search { flex:1 1 260px; max-width:none; } }
 
@@ -11691,8 +11692,15 @@ function regTisztit(v){
     return v;
 }
 // A kinyitott adatlap (karton) a lista tetejére gördül – telefonon és gépen is, felugró ablak nélkül.
+// A rögzített (sticky) felső sáv alá igazítunk, hogy a karton feje ne bújjon alá.
 function rcNyitFelre(hol){
-    requestAnimationFrame(() => { const el = document.querySelector(hol + ' .rc.open'); if(el) el.scrollIntoView({ block:'start', behavior:'smooth' }); });
+    requestAnimationFrame(() => {
+        const el = document.querySelector(hol + ' .rc.open'); if(!el) return;
+        const bar = el.closest('.page-wrap') && el.closest('.page-wrap').querySelector('.reg-bar');
+        let felul = 8;
+        if(bar && getComputedStyle(bar).position === 'sticky') felul += (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight;
+        window.scrollTo({ top: Math.max(0, scrollY + el.getBoundingClientRect().top - felul), behavior:'smooth' });
+    });
 }
 function persistReg(i){
     const r = registry[i];
