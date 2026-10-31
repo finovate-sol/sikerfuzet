@@ -13842,8 +13842,9 @@ const BED_DIAK = Array.from({ length: 46 }, (_, x) => { for(const [k, l] of Obje
     return { t: 'html', j: BED_JEGYZET[x + 1] || '', h: bedDiaHtml(x + 1) }; });
 // fejezetenként külön prezentáció is (a teljes anyag mellett)
 const BED_FEJEZET = [['felveteli', 'Felvételi', 2, 14], ['starter', 'Starter PG', 15, 21], ['relikvia', 'Relikvia', 22, 25], ['pg1', 'PG 1', 26, 27], ['pg2', 'PG 2 – Karrierbeszélgetés', 28, 36], ['pg3', 'PG 3', 37, 42], ['pg4', 'PG 4', 43, 46]];
+// megszűnt beépített sablonok: egy korábbi módosításuk se jelenjen meg saját sablonként
+const PZI_MEGSZUNT = ['tpl-bedolgozas'];
 const PZI_SABLONOK = [
-    { id: 'tpl-bedolgozas', sablon: 1, n: 'Bedolgozás 2026 – új munkatárs bedolgozási program', tema: 'vilagos', diak: BED_DIAK },
     ...BED_FEJEZET.map(([id, n, a, b], i) => ({ id: 'tpl-bed-' + id, sablon: 1, n: `Bedolgozás 2026 · ${i + 1}. ${n}`, tema: 'vilagos', diak: BED_DIAK.slice(a - 1, b) })),
     { id: 'tpl-cegbemutato', sablon: 1, n: 'Cégbemutató 2024 – OVB (elemzés előtt és után)', tema: 'vilagos', diak: CEG_DIAK },
     { id: 'tpl-gondtalan-nyugdij', sablon: 1, n: 'Gondtalan nyugdíjas élet – nyugdíj-előtakarékosság', tema: 'kek', diak: NYD_DIAK },
@@ -13940,7 +13941,7 @@ function pziKozosFigyel(){
 const pziSablonok = d => { const ov = (d && d.sablonok) || {};
     const rejt = new Set((d && d.rejtettSablonok) || []);
     return [...PZI_SABLONOK.filter(t => !rejt.has(t.id)).map(t => ov[t.id] ? { ...t, ...ov[t.id], id: t.id, sablon: 1, modositott: 1 } : t),
-        ...Object.values(ov).filter(t => !PZI_SABLONOK.some(b => b.id === t.id)).map(t => ({ ...t, sablon: 1, sajatSablon: 1 }))]; };
+        ...Object.values(ov).filter(t => !PZI_SABLONOK.some(b => b.id === t.id) && !PZI_MEGSZUNT.includes(t.id)).map(t => ({ ...t, sablon: 1, sajatSablon: 1 }))]; };
 const pziMind = d => [...pziSablonok(d), ...d.lista];
 const pziDiaKepek = x => [x.kepId, ...[...String(x.h || '').matchAll(/data-pzikep="([^"]+)"/g)].map(m => m[1])].filter(Boolean);
 const pziId = () => 'pz' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -39534,8 +39535,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         return ki; };
     function bedPrezi(l){
         const d = bedDiakLista(l); if(!d.length) return;
-        const p = PZI_SABLONOK.find(x => x.id === 'tpl-bedolgozas');
-        pziVetit(Object.assign({}, p, { n: `Bedolgozás – ${l.n}`, diak: d.map(i => BED_DIAK[i - 1]) }), {}, {});
+        pziVetit({ id: 'bed-lepes', sablon: 1, tema: 'vilagos', n: `Bedolgozás – ${l.n}`, diak: d.map(i => BED_DIAK[i - 1]) }, {}, {});
     }
     const bedUjId = () => 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     // Soronként egy pont, „- ” kezdetű sor = alpont. A már meglévő pontok id-ja
