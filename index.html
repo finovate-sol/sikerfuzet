@@ -1208,6 +1208,8 @@
         .reg-subrow .guide-panel { margin-bottom:0; }
         .reg-fcount { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--blue); color:#fff; font-size:10px; font-weight:700; }
         .reg-chips-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .ket-info-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0 0 12px; }
+        .ket-info-c { font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--muted); margin-right:4px; }
         .reg-actions { display:flex; gap:6px; justify-content:flex-end; }
         .reg-ico { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--muted); cursor:pointer; }
         .reg-ico svg { width:15px; height:15px; }
@@ -11123,6 +11125,7 @@ try {
             </div>
             <div id="ketorasGuideSlot"></div>
             <div class="reg-chips-row" id="ketorasSearchResults" hidden></div>
+            <div class="chips ket-info-chips" id="ketInfoChips" hidden></div>
             <div id="ketorasViews">
               <div id="ketorasListCard">
                 <div class="rc-wrap"><div class="rc-rows" id="ketorasList"></div></div>
@@ -25941,7 +25944,59 @@ async function regPdfImport(file, mod){
 // Ugyanabból a `registry` tömbből dolgozik, mint a 10 perces füzet – egy kapcsolat
 // egyszerre lehet ügyfél-jelölt (tp) és munkatárs-jelölt (mt) is, egy adatbázisban.
 // a frissen felvitt jelöltek elöl (mint a 10 percesben): létrehozás szerint csökkenő, a régi (dátum nélküli) sorok a végén
-function ketorasCandidates(){ return registry.map((r,i)=>({r,i})).filter(({r})=>r.mt && (ketShowArchived || ketStatus(r) !== 'Archív'))
+// ===== 2 órás füzet: tervezett INFO (melyik INFO-ra hozza) – a 10 perces „Tervezett hónap” mintájára =====
+// tob.infoTerv = 'ÉÉÉÉ-HH-NN' (az admin által megadott INFO időpontok közül)
+const KET_NAP = ['V', 'H', 'K', 'Sze', 'Cs', 'P', 'Szo'];
+const ketInfoOk = v => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const ketMaYmd = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function ketInfoNev(v, rovid){
+    if(!ketInfoOk(v)) return '';
+    const d = new Date(v + 'T12:00:00'), ev = d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '. ' : '';
+    return `${ev}${REG_HO_ROV[d.getMonth()]} ${d.getDate()}.${rovid ? '' : ' (' + KET_NAP[d.getDay()] + ')'}`;
+}
+function ketInfoDatumok(){
+    return [...new Set((window.sfInfoDatumok || []).map(x => String(x).slice(0, 10)).filter(ketInfoOk))].sort();
+}
+function ketInfoOpts(v){
+    const ma = ketMaYmd(), l = ketInfoDatumok().filter(d => d >= ma);
+    if(ketInfoOk(v) && !l.includes(v)) l.unshift(v);
+    return `<option value=""${v ? '' : ' selected'}>—</option>` + l.map(k => `<option value="${k}"${k === v ? ' selected' : ''}>${ketInfoNev(k)}</option>`).join('');
+}
+function ketInfoBadge(r){
+    const v = r && r.toborzas && r.toborzas.infoTerv; if(!ketInfoOk(v)) return '';
+    const ma = ketMaYmd(), kov = ketInfoDatumok().find(d => d >= ma);
+    const cls = v < ma ? 'mult' : v === kov ? 'most' : '';
+    return `<span class="reg-terv-badge ${cls}" title="Tervezett INFO: ${esc(ketInfoNev(v))}">${sfIkon('csoport')}INFO ${esc(ketInfoNev(v, true))}</span>`;
+}
+function ketInfoTervHtml(r){
+    const v = (r.toborzas || {}).infoTerv || '';
+    return `<div class="rd-terv${v ? ' van' : ''}">
+            <span class="rd-terv-ik">${RD_TARGET_IC}</span>
+            <label><b>Tervezett INFO</b><span>${v ? 'Erre az INFO-ra hozza' : (ketInfoDatumok().some(d => d >= ketMaYmd()) ? 'Válaszd ki, melyik INFO-ra hozza' : 'Még nincs következő INFO időpont megadva')}</span></label>
+            <select data-tobinfo aria-label="Tervezett INFO">${ketInfoOpts(v)}</select>
+        </div>`;
+}
+// szűrő a lista fölött: INFO-nként, darabszámmal + „Nincs tervezve”
+let ketInfoSzuro = '';
+function ketInfoChipsRajz(){
+    const host = document.getElementById('ketInfoChips'); if(!host) return;
+    const db = new Map(); let nincs = 0;
+    registry.forEach(r => { if(!r.mt || ['Archív', 'Belépett', 'Elutasítva'].includes(ketStatus(r))) return; const v = (r.toborzas || {}).infoTerv;
+        if(ketInfoOk(v)) db.set(v, (db.get(v) || 0) + 1); else nincs++; });
+    if(ketInfoSzuro && ketInfoSzuro !== 'nincs' && !db.has(ketInfoSzuro)) ketInfoSzuro = '';
+    if(!db.size){ host.hidden = true; host.innerHTML = ''; ketInfoSzuro = ''; return; }
+    const ma = ketMaYmd(), kov = ketInfoDatumok().find(d => d >= ma);
+    host.hidden = false;
+    host.innerHTML = `<span class="ket-info-c">INFO</span>` + [...db.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([v, n]) =>
+        `<button type="button" class="fbtn${ketInfoSzuro === v ? ' on' : ''}${v === kov ? ' reg-fho-most' : ''}" data-ketinfoszur="${v}">${esc(ketInfoNev(v))} <span class="fdb">${n}</span></button>`).join('')
+        + `<button type="button" class="fbtn${ketInfoSzuro === 'nincs' ? ' on' : ''}" data-ketinfoszur="nincs">Nincs tervezve <span class="fdb">${nincs}</span></button>`;
+}
+document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ketinfoszur]'); if(!b) return;
+    ketInfoSzuro = ketInfoSzuro === b.dataset.ketinfoszur ? '' : b.dataset.ketinfoszur; renderKetorasList();
+});
+const ketInfoIlleszkedik = r => !ketInfoSzuro || (ketInfoSzuro === 'nincs' ? !ketInfoOk((r.toborzas || {}).infoTerv) : (r.toborzas || {}).infoTerv === ketInfoSzuro);
+function ketorasCandidates(){ return registry.map((r,i)=>({r,i})).filter(({r})=>r.mt && (ketShowArchived || ketStatus(r) !== 'Archív') && ketInfoIlleszkedik(r))
     .sort((a, b) => String(b.r.created || '').localeCompare(String(a.r.created || '')) || b.i - a.i); }
 function ketorasQualityLabel(q){ return q==='A'?'Vezető':(q==='B'?'Munkatárs':(q==='C'?'Ügyfél':'')); }
 let ketorasExpandedIdx = null;   // a helyben kinyitott (accordion) jelölt sor indexe
@@ -25957,7 +26012,7 @@ const tobLogRows = (arr, kind) => (arr||[]).map((row,ri)=>`<tr>
 function ketAdatokFields(r, tob){
     r.details = r.details || {};
     const sel = (attr, key, val, label, opts) => `<div class="rd-field"><label>${label} <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><select ${attr}="${key}"><option value=""${val?'':' selected'}>—</option>${(val && !opts.some(o => o[0] === val)) ? `<option selected>${esc(val)}</option>` : ''}${opts.map(o => `<option value="${esc(o[0])}"${val===o[0]?' selected':''}>${esc(o[0])}</option>`).join('')}</select></div>`;
-    const vanReszlet = !!(r.lakhely || tob.minoseg || tob.modja || tob.megjegyzes || tob.munka || tob.motivacio || tob.fellepes || r.details.eletkor || r.details.kapcsolat);
+    const vanReszlet = !!(tob.infoTerv || r.lakhely || tob.minoseg || tob.modja || tob.megjegyzes || tob.munka || tob.motivacio || tob.fellepes || r.details.eletkor || r.details.kapcsolat);
     return `<div class="rd-sec">Elérhetőség</div>
         <div class="rd-grid">
             <div class="rd-field"><label>Név</label><input data-tobname value="${esc(r.name)}"></div>
@@ -25967,7 +26022,8 @@ function ketAdatokFields(r, tob){
         <div class="rd-sec">Hol tart a folyamat</div>
         <div class="tob-status-picker">${KET_PIPE_COLS.map(c =>
             `<button type="button" class="tob-status-btn${(tob.status||'')===c.key?' on':''}" data-tobstatus="${esc(c.key)}" style="--sc:${c.color};">${esc(c.nev)}</button>`).join('')}</div>
-        <details class="rd-reszl" data-rdreszl="${esc(rdReszlKulcs(r))}"${rdReszlNyitva(r, vanReszlet) ? ' open' : ''}><summary>Részletek <small>rating, település, kapcsolat minősége, megjegyzés</small></summary>
+        <details class="rd-reszl" data-rdreszl="${esc(rdReszlKulcs(r))}"${rdReszlNyitva(r, vanReszlet) ? ' open' : ''}><summary>Részletek <small>tervezett INFO, rating, település, kapcsolat minősége, megjegyzés</small></summary>
+        ${ketInfoTervHtml(r)}
         ${rdRatingDoboz(r, ketRating(r), 'Rating – mennyire jó munkatárs-jelölt')}
         <div class="rd-grid ket-rating-mezok">
             <div class="rd-field"><label>Életkor (év) <i class="rd-pt" title="Beleszámít a ratingbe">★</i></label><input data-tobd="eletkor" type="number" min="0" max="120" inputmode="numeric" value="${esc(String(r.details.eletkor||'').replace(/[^\d]/g,''))}"></div>
@@ -26051,6 +26107,7 @@ function ketLastCallTxt(r){
 // Melyik nézet aktív – a lista/pipeline konténerek ki-be kapcsolása.
 function renderKetorasList(){
     if(window.sfKetArchFel) window.sfKetArchFel();
+    ketInfoChipsRajz();
     const list = ketorasCandidates();
     const card = document.getElementById('ketorasListCard');
     const pipe = document.getElementById('ketorasPipeline');
@@ -26086,6 +26143,7 @@ function renderKetorasPipeline(list){
                 <div class="pipe-foot">
                     <span class="pipe-chip${r.karrierTp?' tp':''}">TP</span>
                     ${ketMinoseg(r) ? `<span class="pipe-chip on" title="Kapcsolat minősége: ${esc(ketorasQualityLabel(ketMinoseg(r)))}">${esc(ketMinoseg(r))}</span>` : ''}
+                    ${ketInfoBadge(r)}
                 </div>
             </div>`;
         }).join('') || '<div class="pipe-empty">Húzz ide kártyát</div>'}</div>
@@ -26145,6 +26203,7 @@ function renderKetorasRows(list){
                     <div class="reg-person-meta">
                         <div class="ket-name${hasName?'':' empty'}${cliHasUnread(r)?' unread':''}">${cliDot(r)}${hasName?esc(r.name):'Nincs név megadva'}</div>
                         <div class="ket-sub">${esc(tob.modja||'nincs megadva, hogyan ismeri')}</div>
+                        ${ketInfoOk(tob.infoTerv) ? `<div class="reg-terv-sor">${ketInfoBadge(r)}</div>` : ''}
                     </div>
                 </div>
                 <div class="rc-mezo"><small>Telefon</small><div class="kc-txt">${esc(r.phone||'—')}</div></div>
@@ -26192,6 +26251,7 @@ function ketCardDetailMobil(i){
             { ik: 'csoport', szin: 'kek', cim: 'Ajánló', html: `<input data-tobajanlo value="${esc(r.ajanlo || '')}" placeholder="—">` },
             { ik: 'hely', szin: 'narancs', cim: 'Település', html: `<input data-toblakhely value="${esc(r.lakhely || '')}" placeholder="—">` },
             { ik: 'ora', szin: 'acel', cim: 'Utolsó hívás', html: `<b class="rcm-ert">${utolso ? esc(utolso.datum) : 'még nem hívta'}</b>` },
+            { ik: 'csoport', szin: 'kek', cim: 'Tervezett INFO', szeles: true, html: `<span class="rcm-terv"><select data-tobinfo aria-label="Tervezett INFO">${ketInfoOpts(tob.infoTerv || '')}</select></span>` },
         ],
         reszek: [
             { k: 'adatok', ik: 'ember', szin: 'teal', cim: 'Jelölt adatai', al: tob.minoseg ? tob.minoseg + ' – ' + ketorasQualityLabel(tob.minoseg) : '', pane: () => ketAdatokFields(r, tob) },
@@ -26288,6 +26348,14 @@ function ketCardDetailHtml(i){
             const idx = +t.dataset.ri;
             registry[idx].karrierTp = t.checked;
             store.save('sf_registry', registry); persistReg(idx); refreshMoneyCareer();
+            return;
+        }
+        // Tervezett INFO (adatlap)
+        if(t.dataset.tobinfo!==undefined){
+            const det = t.closest('[data-tobdetail]'), idx = det ? +det.dataset.tobdetail : ketorasExpandedIdx; if(idx == null || !registry[idx]) return;
+            const r = registry[idx]; r.toborzas = r.toborzas || { minoseg:'', modja:'', megjegyzes:'', hivasok:[], idopontok:[] };
+            r.toborzas.infoTerv = t.value;
+            store.save('sf_registry', registry); persistReg(idx); renderKetorasList();
             return;
         }
         // Státusz a soron (kártyás nézet).
@@ -34187,7 +34255,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     }
 
     function updateInfoCard(infoDates){
-        currentInfoDates = infoDates || [];
+        currentInfoDates = infoDates || []; window.sfInfoDatumok = currentInfoDates.slice();
+        if(typeof ketInfoChipsRajz === 'function') try { ketInfoChipsRajz(); } catch(_){}
         const num=document.getElementById("niBigNum"), txt=document.getElementById("niBigText"),
               dateEl=document.getElementById("niBigDate"), hero=document.getElementById("niHero"),
               phaseEl=document.getElementById("niPhase");
