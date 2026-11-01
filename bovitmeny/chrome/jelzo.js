@@ -8,5 +8,8 @@ window.addEventListener('message', e => {
   if (e.source !== window || !e.data || !e.data.sfejMent) return;
   const o = { sfejAdat: e.data.sfejMent, sfejIdo: Date.now() };
   if (e.data.ut) o.sfejAuto = { ut: e.data.ut, ido: Date.now() };
+  // Erfolgsjournal belépés (Sikerfüzet → Beállítások → Kapcsolatok); ha ott törölték, itt is töröljük
+  if (e.data.belep && e.data.belep.email && e.data.belep.jelszo) o.sfejBelep = { email: e.data.belep.email, jelszo: e.data.belep.jelszo };
+  else if ('belep' in e.data) { try { chrome.storage.local.remove('sfejBelep'); } catch (_) {} }
   try { chrome.storage.local.set(o); } catch (_) {}
 });

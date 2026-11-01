@@ -1208,6 +1208,10 @@
         .reg-subrow .guide-panel { margin-bottom:0; }
         .reg-fcount { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--blue); color:#fff; font-size:10px; font-weight:700; }
         .reg-chips-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .bl-ej-m { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0; } .bl-ej-m label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:700; color:var(--muted); }
+        .bl-ej-m input { padding:9px 11px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:14px; background:var(--card); color:var(--text); }
+        @media (max-width:760px){ .bl-ej-m { grid-template-columns:1fr; } }
+        .bl-ej-g { display:flex; gap:8px; align-items:center; flex-wrap:wrap; } .bl-ej-uzi { font-size:12.5px; color:var(--muted); font-weight:600; }
         .ket-info-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0 0 12px; }
         .ket-info-c { font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--muted); margin-right:4px; }
         .reg-actions { display:flex; gap:6px; justify-content:flex-end; }
@@ -15853,6 +15857,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const blTemaSor = (lista, akt, attr, ovb) => `<div class="zb-temak bl-temak${ovb ? ' ovb' : ''}">${Object.entries(lista).map(([k, [n, a, h]]) =>
         `<button type="button" ${attr}="${k}" class="${akt === k ? 'on' : ''}" aria-pressed="${akt === k}"><i style="background:${h}"><b style="background:${a}"></b></i><span>${n}</span></button>`).join('')}</div>`;
     const blJel = k => {
+        if(k === 'kapcs' && window.sfEjBelep && window.sfEjBelep.olvas()) return (window.sfNaptarKapcs && window.sfNaptarKapcs.van() ? 'Naptár ✓ · ' : '') + 'EJ ✓';
         if(k === 'megj') return ({ ki: 'Világos', be: 'Sötét', rendszer: 'Automatikus' })[window.sfSotetMod()];
         if(k === 'kapcs') return window.sfNaptarKapcs && window.sfNaptarKapcs.van() ? 'Naptár ✓' : '';
         return '';
@@ -15874,6 +15879,12 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                 <div class="zb-sor"><span class="t"><b>${van ? 'Összekötve' : 'Nincs összekötve'}</b><span>${van ? 'A naptár és a feladatok elérhetők.' : 'Kösd össze, hogy a naptár és a feladatok megjelenjenek.'}</span></span>
                     ${van ? '<button type="button" class="btn" data-blnle>Leválasztás</button>' : '<button type="button" class="btn primary" data-blnko>Összekötés</button>'}</div>
                 <p class="zb-uzi" role="status"></p></section>`;
+            const ej = window.sfEjBelep ? window.sfEjBelep.olvas() : null;
+            host.insertAdjacentHTML('beforeend', `<section class="card bl-k bl-ej"><h3>Erfolgsjournal belépés</h3>
+                <p class="bl-megj">Ha megadod, a Chrome-bővítmény a kitöltéskor magától belép az Erfolgsjournalba. Csak ezen az eszközön tárolódik (a Sikerfüzet szerverére nem kerül fel).</p>
+                <div class="bl-ej-m"><label>E-mail<input type="email" id="blEjEmail" autocomplete="off" value="${esc(ej ? ej.email : '')}" placeholder="pl. nev@ovb.hu"></label>
+                <label>Jelszó<input type="password" id="blEjJelszo" autocomplete="new-password" value="${esc(ej ? ej.jelszo : '')}" placeholder="••••••••"></label></div>
+                <div class="bl-ej-g"><button type="button" class="btn primary" data-blejment>Mentés</button>${ej ? '<button type="button" class="btn" data-blejtorol>Törlés</button>' : ''}<span class="bl-ej-uzi" role="status">${ej ? 'Megadva ✓' : ''}</span></div></section>`);
         } else if(k === 'logok'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy">' + window.sfVaz(2) + '</div></section>';
             if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
@@ -15932,6 +15943,11 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         const o = e.target.closest('[data-tmovb]'); if(o){ window.sfOvbTemaBeallit(o.dataset.tmovb); window.sfShowBeallitasok(); return; }
         const t = e.target.closest('[data-tmszem]'); if(t){ window.sfTemaBeallit(t.dataset.tmszem); window.sfShowBeallitasok(); return; }
         const uzi = m => { const u = document.querySelector('#beallBody .zb-uzi'); if(u) u.textContent = m; };
+        if(e.target.closest('[data-blejment]')){
+            const em = (document.getElementById('blEjEmail').value || '').trim(), js = document.getElementById('blEjJelszo').value || '', u = document.querySelector('#beallBody .bl-ej-uzi');
+            if(!em || !js){ if(u) u.textContent = 'Add meg az e-mailt és a jelszót.'; return; }
+            window.sfEjBelep.ment(em, js); window.sfShowBeallitasok(); return; }
+        if(e.target.closest('[data-blejtorol]')){ window.sfEjBelep.ment('', ''); window.sfShowBeallitasok(); return; }
         if(e.target.closest('[data-blnko]')){ try { await window.sfNaptarKapcs.osszekot(); window.sfShowBeallitasok(); } catch(err){ uzi('Az összekötés nem sikerült: ' + (err.message || err)); } return; }
         if(e.target.closest('[data-blnle]')){
             if(!confirm('Leválasztod a Google Naptárat? A tárolt kapcsolat a szerverről és a Google-fiókodból is törlődik; újra az Összekötés gombbal kötheted össze.')) return;
@@ -23060,12 +23076,18 @@ function ejAdat(){
 // A számok a cím # utáni részében mennek (base64); a Chrome-bővítmény betöltéskor elmenti, kiveszi a címből,
 // és az „auto” jelzés miatt magától végigmegy a hónapon (képlet + minden hét Cél / Van).
 function ejHash(){ try { return '#sfej=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(ejAdat(), { auto: 1 }, ejEsem ? { esem: ejEsem } : {}))))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch(_){ return ''; } }
+// Erfolgsjournal belépés (Beállítások → Kapcsolatok): felhasználónként, CSAK ezen az eszközön (localStorage)
+window.sfEjBelep = {
+    kulcs(){ const u = window.sfCurrentUser && window.sfCurrentUser.uid; return u ? 'sf_ej_belep_' + u : null; },
+    olvas(){ const k = this.kulcs(); if(!k) return null; const v = store.load(k, null); return v && v.email && v.jelszo ? v : null; },
+    ment(email, jelszo){ const k = this.kulcs(); if(!k) return; if(email && jelszo) store.save(k, { email, jelszo }); else { try { localStorage.removeItem(k); } catch(_){} } ejBovnekAd(); }
+};
 // a bővítménynek (a Sikerfüzet lapján futó része) közvetlenül is átadjuk a számokat
 // az ügyfél-időpontokat (Google Naptár) a háttérben kérjük le, és amint megvannak, újra átadjuk
 let ejEsem = null, ejEsemFut = false;
 function ejBovnekAd(ut){
     if(!ejBovVerzio()) return;
-    const kuld = u => { try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '' }, location.origin); } catch(_){} };
+    const kuld = u => { try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} };
     kuld(ut);
     if(ejEsemFut || typeof window.sfUgyfelIdopontok !== 'function' || (window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid)) return;
     ejEsemFut = true;
@@ -23083,9 +23105,9 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.5.0';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
+var EJ_BOV_KELL = '1.6.0';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.5.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.6.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';

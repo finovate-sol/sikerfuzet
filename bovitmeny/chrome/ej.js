@@ -133,6 +133,33 @@
     await chrome.storage.local.set({ sfejKesz });
     return { db, hiba };
   }
+  // ---- automatikus belépés (e-mail + jelszó a Sikerfüzet beállításaiból) ----
+  const belepoMezok = () => { const js = [...document.querySelectorAll('input[type="password"]')].find(lat); if (!js) return null;
+    const gy = js.closest('form') || js.parentElement.closest('div,section,main') || document.body;
+    let em = [...gy.querySelectorAll('input')].find(i => lat(i) && i !== js && (i.type === 'email' || /mail|user|felhaszn|login/i.test(i.name + i.id + i.placeholder + i.autocomplete)));
+    if (!em) for (let p = js.parentElement; p && p !== document.body && !em; p = p.parentElement) em = [...p.querySelectorAll('input')].find(i => lat(i) && i !== js && ['email', 'text'].includes(i.type));
+    const gombok = [...(js.closest('form') || document).querySelectorAll('button,[type="submit"],[role="button"]')].filter(b => lat(b) && !b.closest('#sfejPanel'));
+    const gomb = gombok.find(b => b.type === 'submit') || gombok.find(b => /belép|bejelentkez|login|log in|sign in|anmeld|einlogg/i.test(b.innerText || b.value || ''));
+    return em ? { em, js, gomb } : null; };
+  let belepFolyik = false;
+  async function belepes(m) {
+    if (belepFolyik) return true; belepFolyik = true;
+    try {
+      const { sfejBelep: b, sfejBelepProba: pr, sfejBelepRossz: rossz } = await chrome.storage.local.get(['sfejBelep', 'sfejBelepProba', 'sfejBelepRossz']);
+      // hibás adatokkal nem próbálkozunk újra (nehogy zárolják a fiókot) – csak ha a Sikerfüzetben megváltoztak
+      if (b && rossz && rossz === b.email + '\n' + b.jelszo) { rajz('A belépés nem sikerült.\nEllenőrizd az e-mailt és a jelszót a Sikerfüzetben (Beállítások → Kapcsolatok), vagy lépj be kézzel.'); return true; }
+      if (!b) { rajz('Az Erfolgsjournalba be kell lépni.\nHa a Sikerfüzet Beállítások → Kapcsolatok részében megadod az e-mailt és a jelszót, legközelebb magától belépek.'); return true; }
+      if (pr && Date.now() - pr < 45000) { rajz('A belépés nem sikerült.\nEllenőrizd az e-mailt és a jelszót a Sikerfüzetben (Beállítások → Kapcsolatok), vagy lépj be kézzel.'); return true; }
+      await chrome.storage.local.set({ sfejBelepProba: Date.now() });
+      rajz('Belépés az Erfolgsjournalba…');
+      ir(m.em, b.email); await var_(150); ir(m.js, b.jelszo); await var_(300);
+      if (m.gomb) m.gomb.click(); else { const f = m.js.closest('form'); if (f && f.requestSubmit) f.requestSubmit(); else m.js.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
+      // siker esetén eltűnik a jelszómező (vagy új oldal tölt be)
+      if (await varjRa(() => !belepoMezok(), 10000)) { await chrome.storage.local.remove(['sfejBelepProba', 'sfejBelepRossz']); panel.remove(); utolso = ''; }
+      else await chrome.storage.local.set({ sfejBelepRossz: b.email + '\n' + b.jelszo });
+      return true;
+    } finally { belepFolyik = false; }
+  }
   let futFolyik = false;
   async function honapInditas(ev, ho) {
     const h = adat.honapok && adat.honapok[`${ev}-${+ho}`]; if (!h) return;
@@ -181,6 +208,12 @@
   let utolso = '', kesz = new Set(), bezart = '';
   async function vizsgal() {
     if (futFolyik) return;
+    // belépőoldal → belépünk; utána (ha a kitöltés még vár) a kért hónapra lépünk
+    const bm = belepoMezok(); if (bm) { await belepes(bm); return; }
+    try { const { sfejAuto } = await chrome.storage.local.get('sfejAuto');
+      if (sfejAuto && Date.now() - sfejAuto.ido < 30 * 60 * 1000 && location.pathname !== sfejAuto.ut && !/^\/(month|week)\//.test(location.pathname)) {
+        const { sfejFeladat } = await chrome.storage.local.get('sfejFeladat');
+        if (!sfejFeladat && !sfejAuto.at) { await chrome.storage.local.set({ sfejAuto: { ...sfejAuto, at: 1 } }); location.href = sfejAuto.ut; return; } } } catch (_) {}
     try { const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (f) { if (!adat) adat = await adatKer(); if (adat && kartya('CÉL / VAN') || adat && kartya('Havi képlet')) { folytat(); return; } } } catch (_) {}
     const hoM = location.pathname.match(/month\/(\d{4})\/(\d{1,2})/);
     const kulcs = location.pathname;

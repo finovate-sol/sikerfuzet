@@ -8,6 +8,8 @@ A `chrome/` mappa egy Chrome / Edge bővítmény (Manifest V3). Az Erfolgsjourna
   végigmegy a hónap hetein, és mindegyikbe beírja a Cél / Van (és Szerviz) számokat; a végén visszaáll a havi oldalra.
 - A heti oldalak *Heti tervezés* naptárába az ügyfél-időpontokat (címben `(E)`, `(TA)`, `(SZ)`) is beírja az *Új időpont*
   ablakon át; az átvitteket megjegyzi (`sfejKesz`), így nem duplikál.
+- Belépőoldalon magától belép a Sikerfüzet *Beállítások → Kapcsolatok* részében megadott e-maillel és jelszóval
+  (a Sikerfüzet csak az adott eszközön tárolja; a bővítmény a `sfejBelep` kulcson). Hibás adatokkal nem próbálkozik újra.
 - A panel jobb felül látszik; a heti oldalon egy kiválasztott hét kézzel is kitölthető.
 
 A mezőket a feliratuk alapján keresi, nem az Erfolgsjournal belső kódja alapján.
