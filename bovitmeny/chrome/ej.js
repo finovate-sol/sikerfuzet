@@ -199,7 +199,7 @@
         panel.querySelector('[data-ujra]').onclick = () => { const r = honapKitolt(hoM[1], hoM[2]); panel.querySelector('[data-all]').textContent = r.uzi; }; return; } } catch (_) {}
       // a Sikerfüzet gombjával nyitva → magától végigmegy az egész hónapon
       try { const { sfejAuto } = await chrome.storage.local.get('sfejAuto');
-        if (sfejAuto && sfejAuto.ut === kulcs && Date.now() - sfejAuto.ido < 10 * 60 * 1000) { await chrome.storage.local.remove('sfejAuto');
+        if (sfejAuto && sfejAuto.ut === kulcs && Date.now() - sfejAuto.ido < 30 * 60 * 1000) { await chrome.storage.local.remove('sfejAuto');
           kesz.add('ho:' + kulcs); honapKitolt(hoM[1], hoM[2]); honapInditas(hoM[1], hoM[2]); return; } } catch (_) {}
       const k = 'ho:' + kulcs;
       const eredm = kesz.has(k) ? null : honapKitolt(hoM[1], hoM[2]); kesz.add(k);
