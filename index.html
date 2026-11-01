@@ -16833,7 +16833,7 @@ document.getElementById('haviBody').addEventListener('click', e=>{
         return;
     }
     const ejB=e.target.closest('[data-ejnyit]');
-    if(ejB){ ejAblak(haviAnchor); try { navigator.clipboard.writeText('SFEJ1:' + JSON.stringify(ejAdat())).catch(() => {}); } catch(_){} return; }
+    if(ejB){ try { navigator.clipboard.writeText('SFEJ1:' + JSON.stringify(ejAdat())).catch(() => {}); } catch(_){} ejAblak(haviAnchor); return; }
     const ejM=e.target.closest('[data-ejmasol]');
     if(ejM){ ejMasol(ejM); return; }
     const formToggle=e.target.closest('[data-hform-toggle]');
@@ -23022,11 +23022,12 @@ function ejKonyvjelzo(){ return 'javascript:' + encodeURIComponent(ejKjKod()); }
 // RENDES böngészőlapon (nem felugró ablakban), mert csak ott látszik a könyvjelzősáv a
 // „Sikerfüzet → EJ” könyvjelzővel. Ugyanazt a lapot használjuk újra; a lap a Sikerfüzetet
 // „ismeri” (opener), így a könyvjelző közvetlenül tőle kérheti el a számokat.
+// Telepített appból (Dock / kezdőképernyő) a window.open az appon BELÜL nyitna, könyvjelzősáv nélkül –
+// egy sima, új lapra mutató link viszont a rendes böngészőben (Chrome / Safari) nyílik meg.
 function ejAblak(ho){
     const url = `https://erfolgsjournal.app/month/${ho.getFullYear()}/${ho.getMonth() + 1}`;
-    const ab = window.open(url, 'erfolgsjournal');
-    if(ab) try { ab.focus(); } catch(_){}
-    else window.open(url, '_blank');
+    const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
 }
 
 // Dashboard "Havi egység" kártya – az aktuális havi terv Egység sorából
