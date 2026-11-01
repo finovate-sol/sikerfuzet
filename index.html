@@ -3355,7 +3355,7 @@
         .ej-info-m { position:relative; background:var(--card, #fff); color:var(--text, #0f172a); border-radius:16px; max-width:460px; width:100%; max-height:90vh; overflow:auto; padding:22px 22px 18px; font-size:14px; line-height:1.5; box-shadow:0 20px 50px rgba(0,0,0,.25); }
         .ej-info-m h3 { margin:0 0 10px; font-size:18px; } .ej-info-m h4 { margin:14px 0 4px; font-size:14px; } .ej-info-m p { margin:6px 0; } .ej-info-m ol { margin:6px 0; padding-left:20px; }
         .ej-info-x { position:absolute; right:12px; top:10px; border:0; background:none; font-size:24px; cursor:pointer; color:var(--muted); }
-        .ej-info-fig { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:9px 12px; margin-bottom:8px; }
+        .ej-info-gomb { margin-top:14px; display:flex; justify-content:flex-end; } .ej-folyamat li { margin:5px 0; }
         .ej-kj-d { margin-top:10px; font-size:12.5px; color:var(--muted); } .ej-kj-d summary { cursor:pointer; font-weight:700; color:var(--blue); }
         .ej-kj { display:inline-flex; margin:10px 0 6px; padding:7px 14px; border-radius:999px; background:#0f2a52; color:#fff !important; font-weight:700; font-size:13px; text-decoration:none; cursor:grab; }
         .ej-kj-d ol { margin:6px 0; padding-left:18px; } .ej-kj-d li { margin:3px 0; } .ej-kj-d p { margin:6px 0 0; }
@@ -16198,6 +16198,7 @@ let haviSaveTimer = null;
 function saveHavi(){
     const key = haviKey(haviAnchor);
     store.save(key, haviData);
+    ejBovnekAd();
     if(window.sfIsConfigured && typeof window.sfSaveHaviTerv === 'function'){
         clearTimeout(haviSaveTimer);
         const cloudKey = key.replace(/^sf_havi_/, '');
@@ -16385,6 +16386,7 @@ function renderHaviBody(){
     // egy oldalsáv jobbra: navigátor, alatta az Erfolgsjournal és az aktuális teljesítmény
     body.innerHTML = `<div class="havi-layout hv-lay"><div class="hl-left">${celok}${tabla}${tort}</div><div class="hv-oldal"><aside class="card hv-nav">${haviNavHtml()}</aside>${right}</div></div>`;
     recomputeHavi();
+    ejBovnekAd();
     recomputeHaviClients();
     haviTortBetolt();
     haviEsemTolt(haviAnchor);
@@ -23026,31 +23028,64 @@ function ejAdat(){
 // A számok a cím # utáni részében mennek (base64); a Chrome-bővítmény betöltéskor elmenti, kiveszi a címből,
 // és az „auto” jelzés miatt magától végigmegy a hónapon (képlet + minden hét Cél / Van).
 function ejHash(){ try { return '#sfej=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(ejAdat(), { auto: 1 }))))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch(_){ return ''; } }
+// a bővítménynek (a Sikerfüzet lapján futó része) közvetlenül is átadjuk a számokat
+function ejBovnekAd(ut){ try { if(ejBovVerzio()) window.postMessage({ sfejMent: ejAdat(), ut: ut || '' }, location.origin); } catch(_){} }
 function ejAblak(ho){
+    ejBovnekAd(`/month/${ho.getFullYear()}/${ho.getMonth() + 1}`);
     const url = `https://erfolgsjournal.app/month/${ho.getFullYear()}/${ho.getMonth() + 1}` + ejHash();
     const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
     document.body.appendChild(a); a.click(); a.remove();
 }
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
-function ejIndit(ho){ if(ejChrome()) ejAblak(ho); else ejInfo(true); }
-function ejInfo(nemChrome){
+// a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
+const EJ_BOV_KELL = '1.4.0';
+const ejBovVerzio = () => document.documentElement.dataset.sfejBov || '';
+const ejVerzioRegi = v => { const a = v.split('.').map(Number), b = EJ_BOV_KELL.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; };
+function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
-    ov.innerHTML = `<div class="ej-info-m" role="dialog" aria-label="Erfolgsjournal kitöltés"><button type="button" class="ej-info-x" data-ejinfox aria-label="Bezárás">×</button>
-        <h3>Erfolgsjournal kitöltése</h3>
-        ${nemChrome ? `<div class="ej-info-fig">Ez gépen, <b>Chrome</b>-ban (vagy Edge-ben) működik. Nyisd meg a Sikerfüzetet Chrome-ban, és onnan nyomd meg a gombot.</div>` : ''}
-        <p>A <b>Kitöltés az Erfolgsjournalban</b> gomb megnyitja a hónapot az Erfolgsjournalban, és a Sikerfüzet Chrome-bővítménye <b>magától beírja</b> a havi célokat, a Havi képletet és sorban <b>minden hét Cél / Van</b> számait. A végén visszaáll a havi oldalra – nézd át, és véglegesítsd, ahogy eddig.</p>
-        <p>Havonta egyszer a kezdőlapon (Sikerfüzet) emlékeztető jelzi, hogy át kell vinni az előző hónapot.</p>
-        <h4>Bővítmény telepítése (egyszer)</h4>
-        <a class="ej-kj" href="bovitmeny/sikerfuzet-ej.zip" download>⤓ Bővítmény letöltése</a>
-        <ol><li>Csomagold ki a letöltött ZIP-et egy mappába (ahol meg is marad).</li>
-            <li>Chrome-ban nyisd meg: <b>chrome://extensions</b>, és jobb fent kapcsold be a <b>Fejlesztői módot</b>.</li>
-            <li><b>Kicsomagolt bővítmény betöltése</b> → válaszd ki a mappát.</li></ol>
-        <h4>Frissítés</h4>
-        <p>Töltsd le újra, csomagold ki ugyanabba a mappába (felülírva), majd a chrome://extensions oldalon nyomd meg a bővítmény ↻ gombját.</p></div>`;
+    ov.innerHTML = `<div class="ej-info-m" role="dialog" aria-label="Erfolgsjournal kitöltés"><button type="button" class="ej-info-x" data-ejinfox aria-label="Bezárás">×</button>${belso}</div>`;
     ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-ejinfox]')) ov.remove(); });
-    document.body.appendChild(ov);
+    document.body.appendChild(ov); return ov;
+}
+// Kitöltés gomb: Chrome + bővítmény → megnyitja az Erfolgsjournalt és indul a kitöltés;
+// Chrome, de nincs (vagy régi) bővítmény → letölti a bővítményt, és megmutatja a telepítés 3 lépését;
+// más böngésző → a Chrome-ot innen nem lehet elindítani: a link másolható, hogy Chrome-ban nyissa meg.
+function ejIndit(ho){
+    if(!ejChrome()){
+        const ov = ejModal(`<h3>Nyisd meg Chrome-ban</h3>
+            <p>A kitöltés gépen, <b>Chrome</b>-ban működik (a bővítmény miatt). Ebből a böngészőből a Chrome nem indítható el – másold ki a Sikerfüzet linkjét, illeszd be a Chrome címsorába, és ott nyomd meg újra a <b>Kitöltés az Erfolgsjournalban</b> gombot.</p>
+            <p style="font-size:12.5px;color:var(--muted)">Tipp: ha a Chrome az alapértelmezett böngésződ, vagy a Sikerfüzetet Chrome-ból telepíted appként, mindig ott nyílik.</p>
+            <div class="ej-info-gomb"><button type="button" class="btn primary" data-ejlink>Link másolása</button></div>`);
+        ov.querySelector('[data-ejlink]').onclick = async e => { const u = location.origin + location.pathname;
+            try { await navigator.clipboard.writeText(u); e.target.textContent = 'Kimásolva ✓'; } catch(_){ prompt('Másold ki:', u); } };
+        return;
+    }
+    const v = ejBovVerzio();
+    if(v && !ejVerzioRegi(v)){ ejAblak(ho); return; }
+    // letöltés indul
+    const a = document.createElement('a'); a.href = 'bovitmeny/sikerfuzet-ej.zip'; a.download = 'sikerfuzet-ej.zip'; document.body.appendChild(a); a.click(); a.remove();
+    const ov = ejModal(v ? `<h3>Frissítsd a bővítményt</h3>
+        <p>Letöltöttem az új verziót (<b>sikerfuzet-ej.zip</b>, a Letöltések mappában).</p>
+        <ol><li>Csomagold ki <b>ugyanabba a mappába</b>, ahol a régi van (felülírva).</li>
+            <li>Nyisd meg: <b>chrome://extensions</b> → a Sikerfüzet bővítménynél <b>↻</b>.</li></ol>
+        <div class="ej-info-gomb"><button type="button" class="btn primary" data-ejmehet>Frissítettem – indulhat ›</button></div>`
+      : `<h3>Egyszeri telepítés</h3>
+        <p>Letöltöttem a Sikerfüzet bővítményt (<b>sikerfuzet-ej.zip</b>, a Letöltések mappában). Telepítsd egyszer:</p>
+        <ol><li>Csomagold ki egy mappába, ahol meg is marad.</li>
+            <li>Nyisd meg: <b>chrome://extensions</b>, és jobb fent kapcsold be a <b>Fejlesztői módot</b>.</li>
+            <li><b>Kicsomagolt bővítmény betöltése</b> → válaszd ki a kicsomagolt mappát.</li></ol>
+        <div class="ej-info-gomb"><button type="button" class="btn primary" data-ejmehet>Telepítettem – indulhat ›</button></div>`);
+    ov.querySelector('[data-ejmehet]').onclick = () => { ov.remove(); ejAblak(ho); };
+}
+function ejInfo(){
+    ejModal(`<h3>Hogyan működik?</h3>
+        <ol class="ej-folyamat"><li>A <b>Kitöltés az Erfolgsjournalban</b> gombbal megnyílik a hónap az Erfolgsjournalban (Chrome-ban).</li>
+            <li>A Sikerfüzet bővítménye <b>magától beírja</b> a havi célokat és a Havi képletet.</li>
+            <li>Utána sorban végigmegy a hónap hetein, és mindegyikbe beírja a <b>Cél / Van</b> számokat.</li>
+            <li>A végén visszaáll a havi oldalra – nézd át, és véglegesítsd, ahogy eddig.</li></ol>
+        <p style="font-size:12.5px;color:var(--muted)">Havonta egyszer a kezdőlapon emlékeztető jelzi, hogy át kell vinni az előző hónapot.</p>`);
 }
 
 // Dashboard "Havi egység" kártya – az aktuális havi terv Egység sorából

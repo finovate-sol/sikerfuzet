@@ -12,7 +12,8 @@ A mezőket a feliratuk alapján keresi, nem az Erfolgsjournal belső kódja alap
 
 ## Terjesztés
 A GitHub Pages kiadás (`.github/workflows/deploy-pages.yml`) minden alkalommal `bovitmeny/sikerfuzet-ej.zip`-be
-csomagolja a `chrome/` mappát; a Havi terv Erfolgsjournal-kártyájáról tölthető le.
+csomagolja a `chrome/` mappát. A Havi terv „Kitöltés az Erfolgsjournalban” gombja magától letölti, ha a bővítmény
+nincs telepítve vagy régi (a `jelzo.js` a Sikerfüzet lapján jelzi a verziót, és ott veszi át a számokat is).
 
 ## Telepítés
 1. ZIP kicsomagolása egy maradandó mappába.

@@ -22,7 +22,7 @@
   async function adatKer() {
     // 1) a Sikerfüzet által a címben átadott, a bővítmény tárhelyére mentett számok (24 órán belüli)
     try { const t = await chrome.storage.local.get(['sfejAdat', 'sfejIdo']);
-      if (t && t.sfejAdat && Date.now() - (t.sfejIdo || 0) < 24 * 3600 * 1000) return t.sfejAdat; } catch (_) {}
+      if (t && t.sfejAdat && Date.now() - (t.sfejIdo || 0) < 45 * 24 * 3600 * 1000) return t.sfejAdat; } catch (_) {}
     return null;
   }
 
@@ -122,7 +122,7 @@
     if (bezart === kulcs || (utolso === kulcs && panel.isConnected)) return;
     utolso = kulcs;
     if (!adat) { rajz('Számok betöltése…'); adat = await adatKer(); }
-    if (!adat) { rajz('Nincs átvehető adat.\nIndítsd a Sikerfüzet Havi tervéből a „Kitöltés az Erfolgsjournalban” gombbal – a számokat az viszi át.',
+    if (!adat) { rajz('Még nincs átvehető adat.\nNyisd meg Chrome-ban a Sikerfüzet Havi tervét (vagy nyomd meg ott a „Kitöltés az Erfolgsjournalban” gombot) – a számok onnan magától átjönnek.',
         `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Újrapróbálom</button>`);
       panel.querySelector('[data-ujra]').onclick = async () => { adat = await adatKer(); utolso = ''; vizsgal(); }; return; }
     if (havi) {
@@ -150,6 +150,10 @@
       panel.querySelector('[data-kit]').onclick = () => { const kw = +panel.querySelector('[data-het]').value; panel.querySelector('[data-all]').textContent = hetKitolt(kw); };
     }
   }
+  // ha a Sikerfüzet közben átadja (vagy frissíti) a számokat, magától újrarajzolunk – nem kell gombot nyomni
+  try { chrome.storage.onChanged.addListener((v, hol) => { if (hol !== 'local' || futFolyik) return;
+    if (v.sfejAdat && v.sfejAdat.newValue) { adat = v.sfejAdat.newValue; utolso = ''; kesz.clear(); bezart = ''; vizsgal(); }
+    else if (v.sfejAuto && v.sfejAuto.newValue) { utolso = ''; vizsgal(); } }); } catch (_) {}
   // az app tartalma késve rajzolódik ki, és lapváltáskor cserélődik – figyeljük
   setInterval(vizsgal, 1000); vizsgal();
 })();
