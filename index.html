@@ -3142,6 +3142,7 @@
         .hv-osz-alap { stroke:var(--border); stroke-width:1; }
         .hv-osz-ert { font-size:9px; font-weight:700; fill:var(--text); text-anchor:middle; }
         .hv-osz-ho { font-size:8.5px; fill:var(--muted); text-anchor:middle; }
+        .ctl-alak { padding:18px 20px; margin:0 0 16px; } .ctl-alak .hv-alak { margin-top:0; padding-top:0; border-top:0; }
         .hv-grafikon { max-height:170px; }
         .hv-tabla-w { overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
         .hv-tabla { width:100%; border-collapse:collapse; min-width:860px; font-size:12px; }
@@ -15123,12 +15124,13 @@ async function renderControl(host){
         <div class="ctrl-het"><button type="button" class="tt-gomb" data-ctrlhet="-1" aria-label="Előző hét">‹</button><span>${ctrlHet === 0 ? 'Ez a hét' : ctrlHet === -1 ? 'Előző hét' : esc(cim)}</span><button type="button" class="tt-gomb" data-ctrlhet="1" aria-label="Következő hét"${ctrlHet >= 0 ? ' disabled' : ''}>›</button></div></div>`;
     if(typeof window.sfAktivitasOlvas !== 'function'){ host.innerHTML = fej + sfVaz(); return; }
     const emb = ctrlEmberek(true);
-    host.innerHTML = fej + sfVaz();
+    host.innerHTML = fej + ctrlAlakKartya() + sfVaz();
+    haviAlakBetolt();
     const adat = await Promise.all(emb.map(e => ctrlAdat(e.uid, napok).catch(() => null)));
     if(ttFo !== 'control' || !host.isConnected) return;
     const sor = (nev, k, l, cel) => `<tr><th>${nev}</th>${l.map((x, i) => { const p = ctrlPerc(x[k]), nk = ctrlNapK(napok[i]);
         return `<td class="${nk === ma ? 'ma' : ''}${cel && p >= cel ? ' ok' : ''}${p ? '' : ' nulla'}">${p ? p + '′' : '–'}</td>`; }).join('')}<td class="ossz">${ctrlPerc(l.reduce((a, x) => a + x[k], 0)) || '–'}${l.some(x => x[k] >= 30) ? '′' : ''}</td></tr>`;
-    host.innerHTML = fej + `<p class="ctrl-megj">Percben. Csak a Sikerfüzetben aktívan töltött idő számít (látható fül, az elmúlt 5 percben volt mozgás); a privát rész nem. A 10 perces füzetnél zöld, ha megvan a napi 10 perc.</p>
+    host.innerHTML = fej + ctrlAlakKartya() + `<p class="ctrl-megj">Percben. Csak a Sikerfüzetben aktívan töltött idő számít (látható fül, az elmúlt 5 percben volt mozgás); a privát rész nem. A 10 perces füzetnél zöld, ha megvan a napi 10 perc.</p>
         <div class="ctrl-racs">${emb.map((e, i) => { const l = adat[i];
             if(!l) return `<div class="card ctrl-k"><div class="ctrl-nev"><span class="tt-av">${esc(initialsTt(e.name))}</span><b>${esc(e.name)}</b></div><p class="ctrl-hiba">Nem sikerült betölteni.</p></div>`;
             const o = k => ctrlPerc(l.reduce((a, x) => a + x[k], 0));
@@ -15137,6 +15139,26 @@ async function renderControl(host){
                 <div class="ctrl-tabla-k"><table class="ctrl-tabla"><thead><tr><th></th>${napok.map(d => `<th class="${ctrlNapK(d) === ma ? 'ma' : ''}">${CTRL_NAPN[(d.getDay() + 6) % 7]}<small>${d.getDate()}</small></th>`).join('')}<th>Össz.</th></tr></thead>
                 <tbody>${sor('10 perces', 'p10', l, 10)}${sor('2 órás', 'p2', l, 0)}${sor('Oldalon', 'ossz', l, 0)}</tbody></table></div></div>`; }).join('')}</div>`;
 }
+// a saját havi tervek Van számai, utolsó 12 hónap (a Havi tervből áthozva)
+function ctrlAlakKartya(){ return `<section class="card hv-k ctl-alak" id="ctlAlak">${haviAlakHtml(new Date())}</section>`; }
+// a korábbi hónapok lehet, hogy csak a felhőben vannak meg
+const haviAlakKert = new Set();
+async function haviAlakBetolt(){
+    if(!(window.sfIsConfigured && typeof window.sfGetHaviTerv === 'function')) return;
+    const ma = new Date(), kerek = [];
+    for(let k = 0; k <= 11; k++){
+        const key = haviKey(new Date(ma.getFullYear(), ma.getMonth() - k, 1));
+        if(store.load(key, null) || haviAlakKert.has(key)) continue;
+        haviAlakKert.add(key);
+        kerek.push(window.sfGetHaviTerv(key.replace(/^sf_havi_/, '')).then(r => { if(r){ store.save(key, r); return true; } return false; }).catch(() => false));
+    }
+    if(!kerek.length) return;
+    if((await Promise.all(kerek)).some(Boolean)){ const el = document.getElementById('ctlAlak'); if(el) el.innerHTML = haviAlakHtml(new Date()); }
+}
+document.addEventListener('click', e => {
+    const tm = e.target.closest('#ctlAlak [data-hvtm]'); if(!tm) return;
+    haviTortMetr = +tm.dataset.hvtm; const el = document.getElementById('ctlAlak'); if(el) el.innerHTML = haviAlakHtml(new Date());
+});
 const initialsTt = n => String(n || '?').replace(/\(te\)$/, '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 function ttModal(p){
     const uj = !p; p = p || { id: 'm' + Date.now().toString(36), n: '', k: 'R0', v: '', g: false, e: {} };
@@ -16555,15 +16577,10 @@ function haviHoVan(d){
 // Történelmi teljesítményképlet: az előző (legfeljebb 12) hónap tényleges
 // számainak átlaga, csak azokból a hónapokból, ahol van rögzített érték.
 let haviTortMetr = 6;
-function haviTortHtml(){
-    const y = haviAnchor.getFullYear(), m = haviAnchor.getMonth();
-    const elozo = [];
-    for(let k = 1; k <= 12; k++){ const s = haviHoVan(new Date(y, m - k, 1)); if(s) elozo.push(s); }
+// Alakulás · utolsó 12 hónap – a Tudásbázis és Control → Control fülön (a mostani hónapig)
+function haviAlakHtml(anc){
+    const y = anc.getFullYear(), m = anc.getMonth();
     const nev = i => HAVI_METRICS[i] === 'Egység' ? 'ES' : HAVI_METRICS[i];
-    const tort = elozo.length
-        ? `<div class="hv-keplet hv-tort">${HAVI_METRICS.map((x, i) => `<div class="hv-kb"><span>${nev(i)}</span><b>${Math.round(elozo.reduce((a, s) => a + s[i], 0) / elozo.length)}</b></div>`).join('')}</div>
-           <p class="hv-megj">Az elmúlt ${elozo.length} hónap tényleges (Van) számainak átlaga.</p>`
-        : '<p class="hv-ures-sz">Még nincsenek korábbi adatok. Rögzíts értékeket a korábbi heteknél.</p>';
     const ho = [];
     for(let k = 11; k >= 0; k--){ const d = new Date(y, m - k, 1), s = haviHoVan(d); ho.push({ d, v: s ? s[haviTortMetr] : 0, van: !!s }); }
     const max = Math.max(0, ...ho.map(x => x.v));
@@ -16582,9 +16599,20 @@ function haviTortHtml(){
         }).join('');
         grafikon = `<svg class="hv-grafikon" viewBox="0 0 ${W} ${H}" role="img" aria-label="${nev(haviTortMetr)} havonta, utolsó 12 hónap"><line x1="0" x2="${W}" y1="${alja}" y2="${alja}" class="hv-osz-alap"/>${oszl}</svg>`;
     }
-    return `<div class="hv-k-fej"><h3>Történelmi teljesítményképlet</h3></div>${tort}
-        <div class="hv-k-fej hv-alak"><h3>Alakulás · utolsó 12 hónap</h3><span class="hv-megj">VAN havonta</span></div>
+    return `<div class="hv-k-fej hv-alak"><h3>Alakulás · utolsó 12 hónap</h3><span class="hv-megj">VAN havonta</span></div>
         <div class="chips hv-tm">${chips}</div>${grafikon}`;
+}
+// Történelmi teljesítményképlet – a Havi terven (a megnyitott hónap előtti 12 hónap átlaga)
+function haviTortHtml(){
+    const y = haviAnchor.getFullYear(), m = haviAnchor.getMonth();
+    const elozo = [];
+    for(let k = 1; k <= 12; k++){ const s = haviHoVan(new Date(y, m - k, 1)); if(s) elozo.push(s); }
+    const nev = i => HAVI_METRICS[i] === 'Egység' ? 'ES' : HAVI_METRICS[i];
+    const tort = elozo.length
+        ? `<div class="hv-keplet hv-tort">${HAVI_METRICS.map((x, i) => `<div class="hv-kb"><span>${nev(i)}</span><b>${Math.round(elozo.reduce((a, s) => a + s[i], 0) / elozo.length)}</b></div>`).join('')}</div>
+           <p class="hv-megj">Az elmúlt ${elozo.length} hónap tényleges (Van) számainak átlaga.</p>`
+        : '<p class="hv-ures-sz">Még nincsenek korábbi adatok. Rögzíts értékeket a korábbi heteknél.</p>';
+    return `<div class="hv-k-fej"><h3>Történelmi teljesítményképlet</h3></div>${tort}`;
 }
 // A korábbi hónapok adata lehet, hogy csak a felhőben van meg – egyszer lekérjük, és ha jött valami, újrarajzoljuk.
 const haviTortKert = new Set();
@@ -16841,7 +16869,7 @@ document.getElementById('haviBody').addEventListener('click', e=>{
     if(au){ e.stopPropagation(); haviAutoBeir(+au.dataset.hvauto); haviTablaFrissit(); return; }
     if(e.target.closest('[data-hvszerk]')){ haviData.rogzitve=''; saveHavi(); renderHaviBody(); return; }
     const tm=e.target.closest('[data-hvtm]');
-    if(tm){ haviTortMetr=+tm.dataset.hvtm; const el=document.getElementById('haviTort'); if(el) el.innerHTML=haviTortHtml(); return; }
+
     const ho=e.target.closest('[data-hvho]');
     if(ho){ const [y, m]=ho.dataset.hvho.split('-').map(Number); haviAnchor=new Date(y, m, 1); haviValHet=null; haviNezet='ho'; renderHavi(); window.scrollTo({ top:0, behavior:'smooth' }); return; }
     const het=e.target.closest('[data-hvhet]');
