@@ -3348,6 +3348,10 @@
         .ej-kartya p { margin:0 0 10px; font-size:12.5px; color:var(--muted); }
         .ej-kartya .btn { width:100%; justify-content:center; }
         .ej-kartya .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+        .ej-kartya .btn + .btn { margin-top:6px; }
+        .ej-kj-d { margin-top:10px; font-size:12.5px; color:var(--muted); } .ej-kj-d summary { cursor:pointer; font-weight:700; color:var(--blue); }
+        .ej-kj { display:inline-flex; margin:10px 0 6px; padding:7px 14px; border-radius:999px; background:#0f2a52; color:#fff !important; font-weight:700; font-size:13px; text-decoration:none; cursor:grab; }
+        .ej-kj-d ol { margin:6px 0; padding-left:18px; } .ej-kj-d li { margin:3px 0; } .ej-kj-d p { margin:6px 0 0; }
         .ej-kartya .btn.primary:hover { background:#1a52b8; }
         table.havi tr.hdiffrow td { background:#f4f7fb; padding-top:7px; padding-bottom:7px; }
         table.havi.hsum { background:#f5f7fa; }
@@ -16357,8 +16361,16 @@ function renderHaviBody(){
     const actRows=HAVI_METRICS.map((m,i)=>`<div class="hact-row"><span class="hact-lbl">${m}</span><span class="hact-frac" id="hact-frac-${i}">0 / 0</span><div class="hact-bar"><span id="hact-bar-${i}"></span></div><span class="hact-pct" id="hact-pct-${i}">0%</span></div>`).join('');
     const right=`
         <div class="card havi-side-card ej-kartya"><div class="hcard-title2">Erfolgsjournal</div>
-            <p>A Havi terv számait írd át az Erfolgsjournalba – külön ablakban nyílik, a Sikerfüzet mellett.</p>
-            <button type="button" class="btn primary" data-ejnyit="1">Erfolgsjournal megnyitása ↗</button></div>
+            <p>A Havi terv számai egy kattintással átkerülnek: nyisd meg innen az Erfolgsjournalt, és ott kattints a <b>Sikerfüzet → EJ</b> könyvjelzőre.</p>
+            <button type="button" class="btn primary" data-ejnyit="1">Erfolgsjournal megnyitása ↗</button>
+            <button type="button" class="btn" data-ejmasol="1" title="Ha nem innen nyitottad meg az Erfolgsjournalt: a könyvjelző a vágólapról veszi a számokat">Számok másolása</button>
+            <details class="ej-kj-d"><summary>Könyvjelző beállítása (egyszer kell)</summary>
+                <a class="ej-kj" href="${esc(ejKonyvjelzo())}" title="Húzd a böngésző könyvjelzősávjára" onclick="event.preventDefault(); alert('Ezt a gombot ne kattintsd meg – húzd fel a böngésző könyvjelzősávjára (Ctrl+Shift+B / Cmd+Shift+B megjeleníti), és az Erfolgsjournal oldalán kattints rá.');">⇢ Sikerfüzet → EJ</a>
+                <ol><li>Húzd a fenti gombot a böngésző <b>könyvjelzősávjára</b> (ha nem látszik: Ctrl+Shift+B, Macen Cmd+Shift+B).</li>
+                    <li>Nyisd meg innen az Erfolgsjournalt.</li>
+                    <li><b>Havi terv</b> oldalon kattints a könyvjelzőre: beírja a Célom pénzben / ES-ben értékeket és a <b>Havi képletet</b>.</li>
+                    <li><b>Aktuális hét</b> oldalon kattints rá: beírja a hét <b>Cél</b> és <b>Van</b> számait (és a Szervizt).</li></ol>
+                <p>Kitöltés után nézd át, és mentsd/véglegesítsd az Erfolgsjournalban, ahogy eddig.</p></details></div>
         <div class="card havi-side-card"><div class="hcard-title2">Aktuális teljesítmény</div>${actRows}</div>`;
 
     // egy oldalsáv jobbra: navigátor, alatta az Erfolgsjournal és az aktuális teljesítmény
@@ -16807,6 +16819,8 @@ document.getElementById('haviBody').addEventListener('click', e=>{
     }
     const ejB=e.target.closest('[data-ejnyit]');
     if(ejB){ ejAblak(haviAnchor); return; }
+    const ejM=e.target.closest('[data-ejmasol]');
+    if(ejM){ ejMasol(ejM); return; }
     const formToggle=e.target.closest('[data-hform-toggle]');
     if(formToggle){ formToggle.closest('.havi-formcard').classList.toggle('collapsed'); return; }
     const wkToggle=e.target.closest('[data-wk-toggle]');
@@ -22959,6 +22973,36 @@ async function renderKov(){
 })();
 
 // ===== ERFOLGSJOURNAL =====
+// Átvitel a Sikerfüzetből: a „Sikerfüzet → Erfolgsjournal” könyvjelző az Erfolgsjournal oldalán fut, és a mezőket
+// a feliratuk alapján tölti ki (Havi célok, Havi képlet; az Aktuális héten a CÉL / VAN párok és a Szerviz).
+// Az adatot a Sikerfüzet-ablaktól kéri (ha a Sikerfüzet nyitotta meg az Erfolgsjournalt), különben a vágólapról
+// („Számok másolása”), végső esetben beillesztéssel.
+const EJ_ORIGIN = 'https://erfolgsjournal.app';
+const ejSzam = v => String(v ?? '').replace(/\s+/g, '').replace(',', '.');
+function ejAdat(){
+    const honapok = {}, akt = currentHaviWeek(), alap = [haviAnchor, akt.monthDate];
+    const lista = [];
+    alap.forEach(a => [-1, 0, 1].forEach(k => { const ho = new Date(a.getFullYear(), a.getMonth() + k, 1); if(!lista.some(x => +x === +ho)) lista.push(ho); }));
+    lista.forEach(ho => {
+        const d = loadHavi(ho), n = haviWeekRanges(ho).length;
+        honapok[`${ho.getFullYear()}-${ho.getMonth() + 1}`] = { celPenz: ejSzam(d.celPenz), celES: ejSzam(d.celES), formula: d.formula.map(ejSzam),
+            hetek: Array.from({ length: n }, (_, w) => ({ kw: haviWeekKW(ho, w), cel: d.weeks[w].cel.map(ejSzam), van: d.weeks[w].van.map(ejSzam), szv: ejSzam(d.weeks[w].szv) })) };
+    });
+    return { v: 1, akt: haviWeekKW(akt.monthDate, akt.weekIdx), honapok };
+}
+// a könyvjelző kérésére (csak az Erfolgsjournal oldaláról) visszaküldjük a számokat
+window.addEventListener('message', e => {
+    if(e.origin !== EJ_ORIGIN || !e.data || e.data.sfej !== 'kerem' || !e.source) return;
+    try { e.source.postMessage({ sfej: 'adat', adat: ejAdat() }, EJ_ORIGIN); } catch(_){}
+});
+async function ejMasol(gomb){
+    const t = 'SFEJ1:' + JSON.stringify(ejAdat());
+    try { await navigator.clipboard.writeText(t); if(gomb){ const r = gomb.textContent; gomb.textContent = 'Kimásolva ✓'; setTimeout(() => { gomb.textContent = r; }, 2200); } }
+    catch(_){ prompt('Másold ki ezt a szöveget (Ctrl+C), és az Erfolgsjournalban a könyvjelző kérésére illeszd be:', t); }
+}
+// függvényként (nem const), hogy a Havi terv első kirajzolásakor is elérhető legyen
+function ejKjKod(){ return "(async () => {\n  const UZ = t => { let d = document.getElementById('sfejUzi'); if(!d){ d = document.createElement('div'); d.id = 'sfejUzi';\n      d.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483647;max-width:360px;background:#0f2a52;color:#fff;font:600 14px/1.45 system-ui,sans-serif;padding:14px 18px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.3);white-space:pre-line';\n      document.body.appendChild(d); } d.textContent = t; clearTimeout(d._t); d._t = setTimeout(() => d.remove(), 9000); };\n  let adat = null;\n  if(window.opener){\n    adat = await new Promise(ok => { const f = e => { if(e.data && e.data.sfej === 'adat'){ removeEventListener('message', f); ok(e.data.adat); } };\n      addEventListener('message', f); try { window.opener.postMessage({ sfej: 'kerem' }, '*'); } catch(_){} setTimeout(() => ok(null), 1200); });\n  }\n  if(!adat){ try { const t = await navigator.clipboard.readText(); if(t && t.startsWith('SFEJ1:')) adat = JSON.parse(t.slice(6)); } catch(_){} }\n  if(!adat){ const t = prompt('Illeszd be a Sikerfüzetből másolt számokat\\n(Sikerfüzet → Havi terv → Számok másolása):'); if(t && t.trim().startsWith('SFEJ1:')) adat = JSON.parse(t.trim().slice(6)); }\n  if(!adat){ UZ('Sikerfüzet: nincs átvehető adat.\\nNyisd meg az Erfolgsjournalt a Sikerfüzet Havi tervéből, vagy ott nyomd meg a „Számok másolása” gombot.'); return; }\n  const M = ['Kontaktus', 'EL időpont', 'Elemzés', 'TA időpont', 'Tanácsadás', 'Lezárt ÜF', 'ES', 'Ajánlások'];\n  const lat = e => !!(e.offsetParent || e.getClientRects().length);\n  const kis = s => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();\n  const felirat = (gyoker, szoveg) => [...gyoker.querySelectorAll('*')].filter(e => lat(e) && !e.closest('input,select,textarea,button') && [...e.childNodes].some(n => n.nodeType === 3 && kis(n.textContent) === kis(szoveg)));\n  const mezok = (el, n) => { for(let p = el; p && p !== document.body; p = p.parentElement){ const l = [...p.querySelectorAll('input')].filter(i => lat(i) && !['hidden', 'checkbox', 'radio'].includes(i.type)); if(l.length >= n) return l.slice(0, n); } return []; };\n  const kartya = cim => { const h = [...document.querySelectorAll('body *')].find(e => lat(e) && !e.closest('nav,aside') && [...e.childNodes].some(n => n.nodeType === 3 && kis(n.textContent).startsWith(kis(cim))));\n      if(!h) return null; let p = h; for(let i = 0; i < 10 && p.parentElement; i++){ p = p.parentElement; if(p.querySelectorAll('input').length >= 8) return p; } return null; };\n  const ir = (el, v) => { if(!el || v === '' || v == null) return 0;\n      const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); el.focus(); d.set.call(el, String(v));\n      el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); return 1; };\n  let db = 0; const hiany = [];\n  const hoM = location.pathname.match(/month\\/(\\d{4})\\/(\\d{1,2})/);\n  const hetiK = kartya('CÉL / VAN');\n  if(hoM){\n    const kulcs = `${hoM[1]}-${+hoM[2]}`, h = adat.honapok && adat.honapok[kulcs];\n    if(!h){ UZ(`Sikerfüzet: a ${hoM[1]}. ${hoM[2]}. hónaphoz nincs havi terv a Sikerfüzetben.`); return; }\n    for(const [cim, v] of [['Célom pénzben', h.celPenz], ['Célom ES-ben', h.celES]]){ const f = felirat(document, cim)[0]; if(f) db += ir(mezok(f, 1)[0], v); else hiany.push(cim); }\n    const kk = kartya('Havi képlet');\n    if(kk) M.forEach((m, i) => { const f = felirat(kk, m)[0]; if(f) db += ir(mezok(f, 1)[0], h.formula[i]); else hiany.push(m); });\n    else hiany.push('Havi képlet');\n    UZ(`Sikerfüzet → Erfolgsjournal\\n${kulcs}: ${db} mező kitöltve.${hiany.length ? '\\nNem találtam: ' + hiany.join(', ') : ''}\\nNézd át, majd a heti számokhoz nyisd meg az Aktuális hetet, és kattints újra a könyvjelzőre.`);\n    return;\n  }\n  if(hetiK){\n    // a hét: az URL-ből, különben a Sikerfüzet aktuális hete – rákérdezünk, és másik is megadható\n    const m1 = location.pathname.match(/week\\/(\\d{4})\\/(\\d{1,2})/);\n    const kwk = Object.values(adat.honapok || {}).flatMap(h => h.hetek || []);\n    let het = kwk.find(x => x.kw === (m1 ? +m1[2] : adat.akt));\n    if(!het || !confirm(`A Sikerfüzet ${het.kw}. heti számait írom be (Cél és Van).\\n\\nOK = mehet · Mégse = másik hét`)){\n      const v = prompt('Hányadik hét (KW) számait írjam be? (pl. 45)', het ? String(het.kw) : ''); if(!v) return; het = kwk.find(x => x.kw === +v); }\n    if(!het){ UZ('Sikerfüzet: ehhez a héthez nincs adat a Sikerfüzetben.'); return; }\n    M.forEach((m, i) => { const f = felirat(hetiK, m)[0]; if(!f){ hiany.push(m); return; } const [cel, van] = mezok(f, 2); db += ir(cel, het.cel[i]) + ir(van, het.van[i]); });\n    const sz = felirat(hetiK, 'Szerviz')[0]; if(sz){ const l = mezok(sz, 2); db += ir(l[1] || l[0], het.szv); }\n    UZ(`Sikerfüzet → Erfolgsjournal\\n${het.kw}. hét: ${db} mező kitöltve.${hiany.length ? '\\nNem találtam: ' + hiany.join(', ') : ''}`);\n    return;\n  }\n  UZ('Sikerfüzet: ezen az oldalon nem találok kitölthető részt.\\nA Havi terv (Havi képlet) vagy az Aktuális hét (CÉL / VAN · Heti célok) oldalon kattints rá.');\n})();\n"; }
+function ejKonyvjelzo(){ return 'javascript:' + encodeURIComponent(ejKjKod()); }
 // A kötelező Erfolgsjournal más oldalba nem ágyazható, ezért a Havi tervből
 // közvetlenül nyitjuk: gépen a képernyő bal kétharmadán, külön ablakban (hogy a
 // Sikerfüzet mellette látszódjon; ugyanazt az ablakot használjuk újra), telefonon új lapon.
