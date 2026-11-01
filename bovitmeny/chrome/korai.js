@@ -10,7 +10,9 @@
     const o = { sfejAdat: adat, sfejIdo: Date.now() };
     // „auto”: a Sikerfüzet gombja indította → a havi oldalon magától indul az egész hónap kitöltése
     if (adat && adat.auto) o.sfejAuto = { ut: location.pathname, ido: Date.now() };
-    chrome.storage.local.set(o);
+    // ha a címben nincsenek ügyfél-időpontok, de a Sikerfüzet már közvetlenül átadta őket, azokat megtartjuk
+    chrome.storage.local.get('sfejAdat').then(r => { const reg = r && r.sfejAdat;
+      if (adat && !adat.esem && reg && reg.esem) adat.esem = reg.esem; chrome.storage.local.set(o); }, () => chrome.storage.local.set(o));
   } catch (e) {}
   try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) {}
 })();

@@ -23027,9 +23027,21 @@ function ejAdat(){
 // Az Erfolgsjournal más oldalba nem ágyazható → rendes böngészőlapon nyitjuk (telepített appból is a böngészőben nyílik).
 // A számok a cím # utáni részében mennek (base64); a Chrome-bővítmény betöltéskor elmenti, kiveszi a címből,
 // és az „auto” jelzés miatt magától végigmegy a hónapon (képlet + minden hét Cél / Van).
-function ejHash(){ try { return '#sfej=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(ejAdat(), { auto: 1 }))))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch(_){ return ''; } }
+function ejHash(){ try { return '#sfej=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(ejAdat(), { auto: 1 }, ejEsem ? { esem: ejEsem } : {}))))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch(_){ return ''; } }
 // a bővítménynek (a Sikerfüzet lapján futó része) közvetlenül is átadjuk a számokat
-function ejBovnekAd(ut){ try { if(ejBovVerzio()) window.postMessage({ sfejMent: ejAdat(), ut: ut || '' }, location.origin); } catch(_){} }
+// az ügyfél-időpontokat (Google Naptár) a háttérben kérjük le, és amint megvannak, újra átadjuk
+let ejEsem = null, ejEsemFut = false;
+function ejBovnekAd(ut){
+    if(!ejBovVerzio()) return;
+    const kuld = u => { try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '' }, location.origin); } catch(_){} };
+    kuld(ut);
+    if(ejEsemFut || typeof window.sfUgyfelIdopontok !== 'function' || (window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid)) return;
+    ejEsemFut = true;
+    const kk = Object.keys(ejAdat().honapok).map(k => k.split('-').map(Number)).map(([y, m]) => new Date(y, m - 1, 1)).sort((a, b) => a - b);
+    const tol = new Date(kk[0].getFullYear(), kk[0].getMonth(), -7), ig = new Date(kk[kk.length - 1].getFullYear(), kk[kk.length - 1].getMonth() + 1, 8);
+    let jo = false;
+    window.sfUgyfelIdopontok(tol, ig).then(l => { if(l){ jo = true; ejEsem = l; kuld(''); } }).catch(() => {}).finally(() => { setTimeout(() => { ejEsemFut = false; }, jo ? 60000 : 5000); });
+}
 function ejAblak(ho){
     ejBovnekAd(`/month/${ho.getFullYear()}/${ho.getMonth() + 1}`);
     const url = `https://erfolgsjournal.app/month/${ho.getFullYear()}/${ho.getMonth() + 1}` + ejHash();
@@ -23039,7 +23051,7 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-const EJ_BOV_KELL = '1.4.0';
+const EJ_BOV_KELL = '1.5.0';
 const ejBovVerzio = () => document.documentElement.dataset.sfejBov || '';
 const ejVerzioRegi = v => { const a = v.split('.').map(Number), b = EJ_BOV_KELL.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; };
 function ejModal(belso){
@@ -23083,7 +23095,7 @@ function ejInfo(){
     ejModal(`<h3>Hogyan működik?</h3>
         <ol class="ej-folyamat"><li>A <b>Kitöltés az Erfolgsjournalban</b> gombbal megnyílik a hónap az Erfolgsjournalban (Chrome-ban).</li>
             <li>A Sikerfüzet bővítménye <b>magától beírja</b> a havi célokat és a Havi képletet.</li>
-            <li>Utána sorban végigmegy a hónap hetein, és mindegyikbe beírja a <b>Cél / Van</b> számokat.</li>
+            <li>Utána sorban végigmegy a hónap hetein, és mindegyikbe beírja a <b>Cél / Van</b> számokat, a <b>Heti tervezés</b> naptárba pedig az ügyfél-időpontokat (Elemzés, Tanácsadás, Szerviz – a Google Naptárból). Amit egyszer már átvitt, azt nem írja be újra.</li>
             <li>A végén visszaáll a havi oldalra – nézd át, és véglegesítsd, ahogy eddig.</li></ol>
         <p style="font-size:12.5px;color:var(--muted)">Havonta egyszer a kezdőlapon emlékeztető jelzi, hogy át kell vinni az előző hónapot.</p>`);
 }
@@ -36908,6 +36920,23 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // látható naptárakból. Az átlátszó ("szabad"), a lemondott és az elutasított
     // eseményt, valamint a Sikerfüzet saját edzés-eseményeit nem számoljuk foglaltnak.
     // Eredmény: [{ d: 'YYYY-MM-DD', tol: perc, ig: perc, egesz: bool, cim }]
+    // Az Erfolgsjournal-bővítménynek: a saját naptár ügyfél-időpontjai (E / TA / SZ kód a címben) a [tol, ig) időszakban.
+    // Eredmény: [{ id, tip: 'Elemzés' | 'Tanácsadás' | 'Szerviz', cim, d: 'YYYY-MM-DD', k: 'HH:MM', v: 'HH:MM', hol }]
+    window.sfUgyfelIdopontok = async (tol, ig) => {
+        let token = getCalendarToken() || await silentOnce();
+        if (!token) return null;
+        let items;
+        try { items = await fetchEvents(token, tol, ig, "primary"); }
+        catch(e){ if (e.status !== 401) return null; const friss = await silentOnce(true); if (!friss) return null; items = await fetchEvents(friss, tol, ig, "primary"); }
+        const TIP = { E: "Elemzés", TA: "Tanácsadás", SZ: "Szerviz" }, p2 = n => String(n).padStart(2, "0");
+        return items.filter(ev => ev.status !== "cancelled" && ev.start && ev.start.dateTime).map(ev => {
+            const m = (ev.summary || "").match(/\((E|TA|SZ)\)/); if (!m) return null;
+            const k = new Date(ev.start.dateTime), v = new Date(ev.end && ev.end.dateTime || ev.start.dateTime);
+            const nev = (ev.summary || "").replace(/\((E|TA|SZ)\)/, " ").replace(/\s+/g, " ").trim();
+            return { id: ev.id, tip: TIP[m[1]], cim: (TIP[m[1]] + " " + nev).trim(), d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
+                k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "" };
+        }).filter(Boolean);
+    };
     window.sfCalFoglalt = async (tol, ig, kiveve) => {
         let token = getCalendarToken() || await silentOnce();
         if (!token){ const e = new Error("Nincs Google Naptár kapcsolat."); e.kod = "token"; throw e; }

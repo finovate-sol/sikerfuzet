@@ -3,6 +3,7 @@
 // „Erfolgsjournal megnyitása” gombbal nyitott lap), különben a vágólapról (a megnyitás oda is kiteszi).
 // - Havi terv oldal (…/month/ÉÉÉÉ/H): magától beírja a Célom pénzben / ES-ben értékeket és a Havi képletet.
 // - Aktuális hét oldal (CÉL / VAN · Heti célok): a panelen választott hét Cél és Van számait egy kattintással.
+// - Heti tervezés naptár: a Sikerfüzet ügyfél-időpontjait (E / TA / SZ) az „Új időpont” ablakon át beírja (egyszer).
 // A mezőket a feliratuk alapján keresi (nem az oldal belső kódja alapján).
 (() => {
   if (window.__sfejBetoltve) return; window.__sfejBetoltve = true;
@@ -68,6 +69,70 @@
     // a legbelső találat (amiben nincs másik), abból a kattintható link / gomb
     const belso = l.find(e => !l.some(x => x !== e && e.contains(x))); if (!belso) return null;
     return belso.closest('a,button,[role="button"]') || belso.querySelector('a,button,[role="button"]') || belso; };
+  // ---- ügyfél-időpontok a „Heti tervezés” naptárba (Új időpont ablak) ----
+  const HO_ROV = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.', 'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
+  const gombSzoveg = (gy, t) => [...gy.querySelectorAll('button,[role="button"],a')].filter(e => lat(e) && !e.closest('#sfejPanel') && kis(e.innerText) === kis(t));
+  // a heti naptár oszlopai: a fejléc „11. 14., Szo” cellái → { md: '11-14', el }
+  const napOszlopok = () => { const l = [];
+    for (const e of document.querySelectorAll('th,[role="columnheader"],div,span')) {
+      if (!lat(e) || e.closest('#sfejPanel') || e.children.length > 2) continue;
+      const m = kis(e.innerText).match(/^(\d{1,2})\.\s*(\d{1,2})\.,?\s*(h|k|sze|cs|p|szo|v)$/);
+      if (m) { const md = `${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; if (!l.some(x => x.md === md)) l.push({ md, el: e }); } }
+    return l; };
+  // a bal oldali óra-felirat („8”) a naptár rácsában
+  const oraCimke = (h, balSzel) => [...document.querySelectorAll('td,th,div,span')].filter(e => lat(e) && e.children.length === 0 && kis(e.innerText) === String(h) && e.getBoundingClientRect().right <= balSzel + 4)
+    .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).pop();
+  const egerrel = (x, y) => { const t = document.elementFromPoint(x, y); if (!t) return false;
+    const o = { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0, buttons: 1, view: window };
+    t.dispatchEvent(new PointerEvent('pointerdown', { ...o, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mousedown', o));
+    t.dispatchEvent(new PointerEvent('pointerup', { ...o, buttons: 0, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
+    t.dispatchEvent(new MouseEvent('click', { ...o, buttons: 0 })); return true; };
+  const ablak = () => { const c = [...document.querySelectorAll('*')].find(e => lat(e) && e.children.length === 0 && kis(e.innerText) === 'új időpont'); if (!c) return null;
+    for (let p = c; p && p !== document.body; p = p.parentElement) if (gombSzoveg(p, 'Mentés').length) return p; return null; };
+  const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
+  // a megnyitott hét naptárába beírja az ide eső, még át nem vitt ügyfél-időpontokat
+  async function idopontokKitolt() {
+    const lista = (adat && adat.esem) || []; if (!lista.length) return { db: 0, hiba: [] };
+    // a „Heti tervezés” fül, „Hét” nézet
+    const ful = gombSzoveg(document, 'Heti tervezés')[0] || felirat(document, 'Heti tervezés')[0]; if (ful) { ful.click(); await var_(700); }
+    const het = gombSzoveg(document, 'Hét')[0]; if (het) { het.click(); await var_(500); }
+    const osz = await varjRa(() => { const l = napOszlopok(); return l.length >= 5 ? l : null; }, 6000); if (!osz) return { db: 0, hiba: ['a heti naptár nem található'] };
+    const { sfejKesz = {} } = await chrome.storage.local.get('sfejKesz');
+    const ide = lista.filter(e => osz.some(o => o.md === e.d.slice(5)) && !sfejKesz[e.id]);
+    let db = 0; const hiba = [];
+    for (const e of ide) {
+      // már ott van (pl. kézzel felvitték)? – azonos cím a naptárban
+      if ([...document.querySelectorAll('*')].some(x => lat(x) && x.children.length === 0 && !x.closest('#sfejPanel') && kis(x.innerText) === kis(e.cim))) { sfejKesz[e.id] = 1; continue; }
+      const o = napOszlopok().find(x => x.md === e.d.slice(5)); if (!o) { hiba.push(e.cim); continue; }
+      const [hh, mm] = e.k.split(':').map(Number);
+      let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(300); c = oraCimke(hh, o.el.getBoundingClientRect().left); }
+      const r = o.el.getBoundingClientRect(), x = r.left + r.width / 2;
+      let y; if (c) { const c2 = oraCimke(hh + 1, r.left), cr = c.getBoundingClientRect(), mag = c2 ? c2.getBoundingClientRect().top - cr.top : 60;
+        y = cr.top + Math.min(mag - 4, Math.max(4, mag * mm / 60 + 4)); } else y = r.bottom + 40;
+      egerrel(x, y);
+      const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim); continue; }
+      // a dátum: az ablak a kattintott napot mutatja – ellenőrizzük
+      const [, mo, nap] = e.d.split('-').map(Number), datSz = `${HO_ROV[mo - 1]} ${nap}.`;
+      const datIn = [...ab.querySelectorAll('input[type="date"]')][0];
+      if (datIn) ir(datIn, e.d);
+      else if (!kis(ab.innerText).includes(kis(datSz))) { const m = gombSzoveg(ab, 'Mégse')[0]; if (m) m.click(); await var_(400); hiba.push(e.cim + ' (dátum)'); continue; }
+      const inp = [...ab.querySelectorAll('input,textarea')].filter(lat);
+      const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text');
+      ir(cimIn, e.cim);
+      const tg = gombSzoveg(ab, e.tip)[0]; if (tg) { tg.click(); await var_(150); }
+      const idok = [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}:\d{2}$/.test(i.value)));
+      if (idok[0]) idoIr(idok[0], e.k); await var_(100); if (idok[1]) idoIr(idok[1], e.v);
+      const holIn = inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) ir(holIn, e.hol);
+      await var_(250);
+      const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) { hiba.push(e.cim); continue; }
+      ment.click();
+      if (await varjRa(() => !ablak(), 4000)) { db++; sfejKesz[e.id] = 1; await chrome.storage.local.set({ sfejKesz }); }
+      else { hiba.push(e.cim); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); }
+      await var_(500);
+    }
+    await chrome.storage.local.set({ sfejKesz });
+    return { db, hiba };
+  }
   let futFolyik = false;
   async function honapInditas(ev, ho) {
     const h = adat.honapok && adat.honapok[`${ev}-${+ho}`]; if (!h) return;
@@ -80,7 +145,7 @@
       while (true) {
         const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (!f) return;
         if (f.i >= f.hetek.length) {
-          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
+          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} ügyfél-időpont beírva` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
           await chrome.storage.local.remove('sfejFeladat'); await chrome.storage.local.set({ sfejVege: vege });
           rajz(vege);
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
@@ -102,6 +167,8 @@
             await var_(500);
             const uzi = hetKitolt(kw), m = uzi.match(/(\d+) mező/); f.db += m ? +m[1] : 0; ok = !!m;
             await var_(1800);   // az Erfolgsjournal automatikus mentésének ideje
+            if (adat.esem && adat.esem.length) { rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – ügyfél-időpontok`);
+              try { const r = await idopontokKitolt(); f.idp = (f.idp || 0) + r.db; if (r.hiba.length) f.hiba.push(...r.hiba.map(x => `${kw}. hét: ${x}`)); } catch (_) {} }
           }
         }
         if (!ok) f.hiba.push(kw + '. hét');
@@ -148,10 +215,13 @@
         `<div style="display:flex;gap:6px;margin-top:8px"><select data-het style="flex:1;border-radius:9px;border:0;padding:6px 8px;font:600 13px system-ui,sans-serif">${hetOpciok()}</select>
          <button data-kit style="${gomb};background:#22c55e;color:#06260f">Kitöltés</button></div>`);
       panel.querySelector('[data-kit]').onclick = () => { const kw = +panel.querySelector('[data-het]').value; panel.querySelector('[data-all]').textContent = hetKitolt(kw); };
+      if (adat.esem && adat.esem.length) { const b = document.createElement('button'); b.style.cssText = gomb + ';margin-top:6px;width:100%;background:#fff;color:#0f2a52'; b.textContent = 'Ügyfél-időpontok beírása erre a hétre';
+        panel.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = 'Beírás…'; const r = await idopontokKitolt();
+          b.textContent = `${r.db} időpont beírva ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n'); }; }
     }
   }
   // ha a Sikerfüzet közben átadja (vagy frissíti) a számokat, magától újrarajzolunk – nem kell gombot nyomni
-  try { chrome.storage.onChanged.addListener((v, hol) => { if (hol !== 'local' || futFolyik) return;
+  try { chrome.storage.onChanged.addListener((v, hol) => { if (hol !== 'local') return; if (v.sfejAdat && v.sfejAdat.newValue) adat = v.sfejAdat.newValue; if (futFolyik) return;
     if (v.sfejAdat && v.sfejAdat.newValue) { adat = v.sfejAdat.newValue; utolso = ''; kesz.clear(); bezart = ''; vizsgal(); }
     else if (v.sfejAuto && v.sfejAuto.newValue) { utolso = ''; vizsgal(); } }); } catch (_) {}
   // az app tartalma késve rajzolódik ki, és lapváltáskor cserélődik – figyeljük

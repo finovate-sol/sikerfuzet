@@ -6,6 +6,8 @@ A `chrome/` mappa egy Chrome / Edge bővítmény (Manifest V3). Az Erfolgsjourna
   részében adja át (a `korai.js` elmenti a bővítmény tárhelyére és kiveszi a címből).
 - A havi oldalon a bővítmény magától beírja a *Célom pénzben*, *Célom ES-ben* értékeket és a *Havi képletet*, majd sorban
   végigmegy a hónap hetein, és mindegyikbe beírja a Cél / Van (és Szerviz) számokat; a végén visszaáll a havi oldalra.
+- A heti oldalak *Heti tervezés* naptárába az ügyfél-időpontokat (címben `(E)`, `(TA)`, `(SZ)`) is beírja az *Új időpont*
+  ablakon át; az átvitteket megjegyzi (`sfejKesz`), így nem duplikál.
 - A panel jobb felül látszik; a heti oldalon egy kiválasztott hét kézzel is kitölthető.
 
 A mezőket a feliratuk alapján keresi, nem az Erfolgsjournal belső kódja alapján.
