@@ -1,0 +1,93 @@
+// Sikerfüzet → Erfolgsjournal (Chrome-bővítmény, tartalom-szkript)
+// Az Erfolgsjournal oldalán fut. A számokat a megnyitó Sikerfüzet-laptól kéri el (a Sikerfüzet Havi tervéből
+// „Erfolgsjournal megnyitása” gombbal nyitott lap), különben a vágólapról (a megnyitás oda is kiteszi).
+// - Havi terv oldal (…/month/ÉÉÉÉ/H): magától beírja a Célom pénzben / ES-ben értékeket és a Havi képletet.
+// - Aktuális hét oldal (CÉL / VAN · Heti célok): a panelen választott hét Cél és Van számait egy kattintással.
+// A mezőket a feliratuk alapján keresi (nem az oldal belső kódja alapján).
+(() => {
+  if (window.__sfejBetoltve) return; window.__sfejBetoltve = true;
+  const M = ['Kontaktus', 'EL időpont', 'Elemzés', 'TA időpont', 'Tanácsadás', 'Lezárt ÜF', 'ES', 'Ajánlások'];
+  const lat = e => !!(e && (e.offsetParent || e.getClientRects().length));
+  const kis = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const felirat = (gyoker, szoveg) => [...gyoker.querySelectorAll('*')].filter(e => lat(e) && !e.closest('input,select,textarea,button,#sfejPanel') && [...e.childNodes].some(n => n.nodeType === 3 && kis(n.textContent) === kis(szoveg)));
+  const mezok = (el, n) => { for (let p = el; p && p !== document.body; p = p.parentElement) { const l = [...p.querySelectorAll('input')].filter(i => lat(i) && !['hidden', 'checkbox', 'radio'].includes(i.type) && !i.closest('#sfejPanel')); if (l.length >= n) return l.slice(0, n); } return []; };
+  const kartya = cim => { const h = [...document.querySelectorAll('body *')].find(e => lat(e) && !e.closest('nav,aside,#sfejPanel') && [...e.childNodes].some(n => n.nodeType === 3 && kis(n.textContent).startsWith(kis(cim))));
+    if (!h) return null; let p = h; for (let i = 0; i < 10 && p.parentElement; i++) { p = p.parentElement; if (p.querySelectorAll('input').length >= 8) return p; } return null; };
+  const ir = (el, v) => { if (!el || v === '' || v == null) return 0;
+    const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); el.focus(); d.set.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); return 1; };
+
+  // ---- adat: a megnyitó Sikerfüzettől, különben a vágólapról ----
+  let adat = null;
+  async function adatKer() {
+    if (window.opener) {
+      const a = await new Promise(ok => { const f = e => { if (e.data && e.data.sfej === 'adat') { removeEventListener('message', f); ok(e.data.adat); } };
+        addEventListener('message', f); try { window.opener.postMessage({ sfej: 'kerem' }, '*'); } catch (_) {} setTimeout(() => { removeEventListener('message', f); ok(null); }, 1500); });
+      if (a) return a;
+    }
+    try { const t = await navigator.clipboard.readText(); if (t && t.startsWith('SFEJ1:')) return JSON.parse(t.slice(6)); } catch (_) {}
+    return null;
+  }
+
+  // ---- panel ----
+  const panel = document.createElement('div'); panel.id = 'sfejPanel';
+  panel.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483647;width:270px;background:#0f2a52;color:#fff;font:500 13px/1.45 system-ui,-apple-system,sans-serif;padding:12px 14px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.3)';
+  const gomb = 'border:0;border-radius:9px;padding:7px 12px;font:700 13px system-ui,sans-serif;cursor:pointer';
+  function rajz(allapot, extra) {
+    panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:14px">Sikerfüzet</b><span style="margin-left:auto;cursor:pointer;opacity:.7" data-x title="Elrejtés">✕</span></div>
+      <div data-all style="white-space:pre-line;opacity:.92">${allapot}</div>${extra || ''}`;
+    panel.querySelector('[data-x]').onclick = () => { bezart = location.pathname; panel.remove(); };
+    if (!panel.isConnected) document.body.appendChild(panel);
+  }
+  const hetOpciok = () => { const kwk = Object.values(adat.honapok || {}).flatMap(h => h.hetek || []).sort((a, b) => a.kw - b.kw);
+    return kwk.map(h => `<option value="${h.kw}"${h.kw === adat.akt ? ' selected' : ''}>${h.kw}. hét${h.kw === adat.akt ? ' (most)' : ''}</option>`).join(''); };
+
+  function honapKitolt(ev, ho) {
+    const kulcs = `${ev}-${+ho}`, h = adat.honapok && adat.honapok[kulcs];
+    if (!h) return { db: 0, uzi: `A ${ev}. ${ho}. hónaphoz nincs havi terv a Sikerfüzetben.` };
+    let db = 0; const hiany = [];
+    for (const [cim, v] of [['Célom pénzben', h.celPenz], ['Célom ES-ben', h.celES]]) { const f = felirat(document, cim)[0]; if (f) db += ir(mezok(f, 1)[0], v); else hiany.push(cim); }
+    const kk = kartya('Havi képlet');
+    if (kk) M.forEach((m, i) => { const f = felirat(kk, m)[0]; if (f) db += ir(mezok(f, 1)[0], h.formula[i]); else hiany.push(m); }); else hiany.push('Havi képlet');
+    return { db, uzi: `${kulcs}: ${db} mező kitöltve ✓${hiany.length ? '\nNem találtam: ' + hiany.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.` };
+  }
+  function hetKitolt(kw) {
+    const het = Object.values(adat.honapok || {}).flatMap(h => h.hetek || []).find(x => x.kw === kw);
+    if (!het) return `A ${kw}. héthez nincs adat a Sikerfüzetben.`;
+    const card = kartya('CÉL / VAN'); if (!card) return 'Nem találom a „CÉL / VAN · Heti célok” részt.';
+    let db = 0; const hiany = [];
+    M.forEach((m, i) => { const f = felirat(card, m)[0]; if (!f) { hiany.push(m); return; } const [cel, van] = mezok(f, 2); db += ir(cel, het.cel[i]) + ir(van, het.van[i]); });
+    const sz = felirat(card, 'Szerviz')[0]; if (sz) { const l = mezok(sz, 2); db += ir(l[1] || l[0], het.szv); }
+    return `${kw}. hét: ${db} mező kitöltve ✓${hiany.length ? '\nNem találtam: ' + hiany.join(', ') : ''}`;
+  }
+
+  // ---- az oldal felismerése (az Erfolgsjournal egyoldalas app: a cím váltásakor újra) ----
+  let utolso = '', kesz = new Set(), bezart = '';
+  async function vizsgal() {
+    const hoM = location.pathname.match(/month\/(\d{4})\/(\d{1,2})/);
+    const kulcs = location.pathname;
+    const havi = hoM && kartya('Havi képlet'), heti = !havi && kartya('CÉL / VAN');
+    if (!havi && !heti) { if (utolso !== kulcs) { utolso = kulcs; panel.remove(); } return; }
+    if (bezart === kulcs || (utolso === kulcs && panel.isConnected)) return;
+    utolso = kulcs;
+    if (!adat) { rajz('Számok betöltése…'); adat = await adatKer(); }
+    if (!adat) { rajz('Nincs átvehető adat.\nNyisd meg az Erfolgsjournalt a Sikerfüzet Havi tervéből („Erfolgsjournal megnyitása”).',
+        `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Újrapróbálom</button>`);
+      panel.querySelector('[data-ujra]').onclick = async () => { adat = await adatKer(); utolso = ''; vizsgal(); }; return; }
+    if (havi) {
+      // a hónap a címben van → biztonságosan, magától (laponként egyszer)
+      const k = 'ho:' + kulcs;
+      const eredm = kesz.has(k) ? null : honapKitolt(hoM[1], hoM[2]); kesz.add(k);
+      rajz(eredm ? eredm.uzi : 'Ez a hónap már ki van töltve.', `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Újra kitöltöm</button>`);
+      panel.querySelector('[data-ujra]').onclick = () => { const r = honapKitolt(hoM[1], hoM[2]); panel.querySelector('[data-all]').textContent = r.uzi; };
+    } else {
+      // heti oldal: a hetet a felhasználó erősíti meg (nehogy rossz hétre kerüljön)
+      rajz('Melyik hét számait írjam be (Cél és Van)?',
+        `<div style="display:flex;gap:6px;margin-top:8px"><select data-het style="flex:1;border-radius:9px;border:0;padding:6px 8px;font:600 13px system-ui,sans-serif">${hetOpciok()}</select>
+         <button data-kit style="${gomb};background:#22c55e;color:#06260f">Kitöltés</button></div>`);
+      panel.querySelector('[data-kit]').onclick = () => { const kw = +panel.querySelector('[data-het]').value; panel.querySelector('[data-all]').textContent = hetKitolt(kw); };
+    }
+  }
+  // az app tartalma késve rajzolódik ki, és lapváltáskor cserélődik – figyeljük
+  setInterval(vizsgal, 1000); vizsgal();
+})();
