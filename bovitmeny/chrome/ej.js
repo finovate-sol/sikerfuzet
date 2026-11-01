@@ -23,13 +23,6 @@
     // 1) a Sikerfüzet által a címben átadott, a bővítmény tárhelyére mentett számok (24 órán belüli)
     try { const t = await chrome.storage.local.get(['sfejAdat', 'sfejIdo']);
       if (t && t.sfejAdat && Date.now() - (t.sfejIdo || 0) < 24 * 3600 * 1000) return t.sfejAdat; } catch (_) {}
-    // 2) a megnyitó Sikerfüzet-lap, 3) a vágólap
-    if (window.opener) {
-      const a = await new Promise(ok => { const f = e => { if (e.data && e.data.sfej === 'adat') { removeEventListener('message', f); ok(e.data.adat); } };
-        addEventListener('message', f); try { window.opener.postMessage({ sfej: 'kerem' }, '*'); } catch (_) {} setTimeout(() => { removeEventListener('message', f); ok(null); }, 1500); });
-      if (a) return a;
-    }
-    try { const t = await navigator.clipboard.readText(); if (t && t.startsWith('SFEJ1:')) return JSON.parse(t.slice(6)); } catch (_) {}
     return null;
   }
 
@@ -129,7 +122,7 @@
     if (bezart === kulcs || (utolso === kulcs && panel.isConnected)) return;
     utolso = kulcs;
     if (!adat) { rajz('Számok betöltése…'); adat = await adatKer(); }
-    if (!adat) { rajz('Nincs átvehető adat.\nNyisd meg (újra) az Erfolgsjournalt a Sikerfüzet Havi tervéből az „Erfolgsjournal megnyitása” gombbal – a számokat az viszi át.',
+    if (!adat) { rajz('Nincs átvehető adat.\nIndítsd a Sikerfüzet Havi tervéből a „Kitöltés az Erfolgsjournalban” gombbal – a számokat az viszi át.',
         `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Újrapróbálom</button>`);
       panel.querySelector('[data-ujra]').onclick = async () => { adat = await adatKer(); utolso = ''; vizsgal(); }; return; }
     if (havi) {
@@ -137,6 +130,10 @@
       try { const { sfejVege } = await chrome.storage.local.get('sfejVege'); if (sfejVege) { await chrome.storage.local.remove('sfejVege'); kesz.add('ho:' + kulcs);
         rajz(sfejVege, `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Csak a képlet újra</button>`);
         panel.querySelector('[data-ujra]').onclick = () => { const r = honapKitolt(hoM[1], hoM[2]); panel.querySelector('[data-all]').textContent = r.uzi; }; return; } } catch (_) {}
+      // a Sikerfüzet gombjával nyitva → magától végigmegy az egész hónapon
+      try { const { sfejAuto } = await chrome.storage.local.get('sfejAuto');
+        if (sfejAuto && sfejAuto.ut === kulcs && Date.now() - sfejAuto.ido < 10 * 60 * 1000) { await chrome.storage.local.remove('sfejAuto');
+          kesz.add('ho:' + kulcs); honapKitolt(hoM[1], hoM[2]); honapInditas(hoM[1], hoM[2]); return; } } catch (_) {}
       const k = 'ho:' + kulcs;
       const eredm = kesz.has(k) ? null : honapKitolt(hoM[1], hoM[2]); kesz.add(k);
       const hh = adat.honapok && adat.honapok[`${hoM[1]}-${+hoM[2]}`], n = hh ? hh.hetek.length : 0;

@@ -7,7 +7,10 @@
   try {
     const b = m[1].replace(/-/g, '+').replace(/_/g, '/'), pad = '='.repeat((4 - b.length % 4) % 4);
     const adat = JSON.parse(decodeURIComponent(escape(atob(b + pad))));
-    chrome.storage.local.set({ sfejAdat: adat, sfejIdo: Date.now() });
+    const o = { sfejAdat: adat, sfejIdo: Date.now() };
+    // „auto”: a Sikerfüzet gombja indította → a havi oldalon magától indul az egész hónap kitöltése
+    if (adat && adat.auto) o.sfejAuto = { ut: location.pathname, ido: Date.now() };
+    chrome.storage.local.set(o);
   } catch (e) {}
   try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) {}
 })();

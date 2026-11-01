@@ -2,11 +2,13 @@
 
 A `chrome/` mappa egy Chrome / Edge bővítmény (Manifest V3). Az Erfolgsjournal oldalán fut:
 
-- **Havi terv oldal** (`/month/ÉÉÉÉ/H`): magától beírja a *Célom pénzben*, *Célom ES-ben* értékeket és a *Havi képletet*.
-- **Aktuális hét oldal** (*CÉL / VAN · Heti célok*): a jobb alsó panelen kiválasztott hét Cél és Van számait egy kattintással.
+- A Sikerfüzet Havi tervének **„Kitöltés az Erfolgsjournalban”** gombja megnyitja a hónapot, a számokat a cím `#sfej=…`
+  részében adja át (a `korai.js` elmenti a bővítmény tárhelyére és kiveszi a címből).
+- A havi oldalon a bővítmény magától beírja a *Célom pénzben*, *Célom ES-ben* értékeket és a *Havi képletet*, majd sorban
+  végigmegy a hónap hetein, és mindegyikbe beírja a Cél / Van (és Szerviz) számokat; a végén visszaáll a havi oldalra.
+- A panel jobb felül látszik; a heti oldalon egy kiválasztott hét kézzel is kitölthető.
 
-A számokat a megnyitó Sikerfüzet-laptól kéri el (Havi terv → „Erfolgsjournal megnyitása”), különben a vágólapról
-(a megnyitás oda is kiteszi). A mezőket a feliratuk alapján keresi, nem az Erfolgsjournal belső kódja alapján.
+A mezőket a feliratuk alapján keresi, nem az Erfolgsjournal belső kódja alapján.
 
 ## Terjesztés
 A GitHub Pages kiadás (`.github/workflows/deploy-pages.yml`) minden alkalommal `bovitmeny/sikerfuzet-ej.zip`-be
