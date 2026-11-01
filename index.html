@@ -4406,6 +4406,11 @@
         .cal-add-btn { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:700; }
         .cal-add-btn:hover { background:#1a52b8; }
         .cal-date { font-weight:700; font-size:14px; color:var(--navy); }
+        /* Ügyfelek nézet: időszak-választó (Hét / Hónap / Negyedév / Egyéni tól–ig) */
+        .cal-ugyido { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .cal-ugyido[hidden], .cal-ugyido-e[hidden] { display:none !important; }
+        .cal-ugyido select, .cal-ugyido input { height:34px; border:1px solid var(--border); border-radius:9px; padding:0 9px; font:inherit; font-size:13px; background:var(--card, #fff); color:inherit; }
+        .cal-ugyido-e { display:inline-flex; align-items:center; gap:5px; } .cal-ugyido-e span { color:var(--muted); }
         /* "Ugrás dátumra" – a natív date-inputot láthatatlanul az ikon-gomb fölé
            tesszük, így kattintásra a böngésző saját dátumválasztója nyílik meg. */
         .cal-jump-btn { position:relative; overflow:hidden; }
@@ -10792,6 +10797,10 @@ try {
                             <button data-view="month">Hónap</button>
                             <button data-view="clients">Ügyfelek</button>
                         </div>
+                        <span class="cal-ugyido" id="calUgyIdo" hidden title="Az Ügyfelek nézet időszaka">
+                            <select id="calUgyIdoSel" aria-label="Időszak"><option value="het">Hét</option><option value="ho">Hónap</option><option value="negyedev">Negyedév</option><option value="egyeni">Egyéni…</option></select>
+                            <span class="cal-ugyido-e" id="calUgyIdoE" hidden><input type="date" id="calUgyTol" aria-label="Kezdete"><span>–</span><input type="date" id="calUgyIg" aria-label="Vége"></span>
+                        </span>
                         <div class="cal-search" id="calSearchBox">
                             <button class="btn icon-btn" id="calSearchToggle" title="Esemény keresése" aria-label="Esemény keresése"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
                             <div class="cal-search-pop" id="calSearchPop" hidden>
@@ -34652,10 +34661,16 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             + "?singleEvents=true&orderBy=startTime&maxResults=250"
             + "&timeMin=" + encodeURIComponent(start.toISOString())
             + "&timeMax=" + encodeURIComponent(end.toISOString());
-        const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-        if (!res.ok){ const err = new Error("Naptár lekérési hiba: " + res.status); err.status = res.status; throw err; }
-        const data = await res.json();
-        return data.items || [];
+        // lapozás: hosszabb időszaknál (pl. az Ügyfelek nézet negyedéve) 250-nél több esemény is lehet
+        const items = []; let lapTok = "";
+        for (let lap = 0; lap < 12; lap++){
+            const res = await fetch(url + (lapTok ? "&pageToken=" + encodeURIComponent(lapTok) : ""), { headers: { Authorization: "Bearer " + token } });
+            if (!res.ok){ const err = new Error("Naptár lekérési hiba: " + res.status); err.status = res.status; throw err; }
+            const data = await res.json();
+            items.push(...(data.items || []));
+            if (!data.nextPageToken) break; lapTok = data.nextPageToken;
+        }
+        return items;
     }
 
     // Esemény-keresés (cím/leírás/helyszín) a naptár-eszköztár keresőjéhez.
@@ -35418,6 +35433,12 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             initCalendar();
         });
 
+        // Ügyfelek nézet: időszak választása
+        const uSel = document.getElementById("calUgyIdoSel"), uTol = document.getElementById("calUgyTol"), uIg = document.getElementById("calUgyIg");
+        if (uSel) uSel.addEventListener("change", () => { ugyIdo = Object.assign({}, ugyIdo, { tip: uSel.value }); ugyIdoMent(); initCalendar(); });
+        [uTol, uIg].forEach(inp => inp && inp.addEventListener("change", () => {
+            if (!inp.value) return; ugyIdo = Object.assign({}, ugyIdo, inp === uTol ? { tol: inp.value } : { ig: inp.value }); ugyIdoMent(); initCalendar(); }));
+
         // "Ugrás dátumra" – a natív date-input mögé rejtve (lásd CSS), a
         // választás után ugyanúgy vált nézetet, mint a Ma/‹/› gombok.
         const jumpDate = document.getElementById("calJumpDate");
@@ -35592,7 +35613,39 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             racs.addEventListener("touchcancel", () => { if (bx !== null && irany) mozgat(0, true); bx = null; }, { passive:true });
         }
     }
+    // Ügyfelek nézet időszaka: hét / hónap / negyedév / egyéni (tól–ig) – eszközönként megjegyezve
+    let ugyIdo = (() => { try { const v = JSON.parse(localStorage.getItem("sf_cal_ugyido") || "null"); return v && v.tip ? v : { tip: "het" }; } catch(e){ return { tip: "het" }; } })();
+    const ugyIdoMent = () => { try { localStorage.setItem("sf_cal_ugyido", JSON.stringify(ugyIdo)); } catch(e){} };
+    const ugyYmd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const ugyYmdBol = s => { const d = new Date(String(s || "") + "T00:00:00"); return isNaN(d) ? null : d; };
+    function ugyTartomany(){
+        const a = viewAnchor;
+        if (ugyIdo.tip === "ho"){ const s = new Date(a.getFullYear(), a.getMonth(), 1); return { s, e: new Date(a.getFullYear(), a.getMonth() + 1, 1), cim: fmtMonth(a) }; }
+        if (ugyIdo.tip === "negyedev"){ const q = Math.floor(a.getMonth() / 3), s = new Date(a.getFullYear(), q * 3, 1);
+            return { s, e: new Date(a.getFullYear(), q * 3 + 3, 1), cim: `${a.getFullYear()}. ${q + 1}. negyedév` }; }
+        if (ugyIdo.tip === "egyeni"){
+            let s = ugyYmdBol(ugyIdo.tol), e = ugyYmdBol(ugyIdo.ig);
+            if (!s || !e){ s = startOfWeek(a); e = addDays(s, 6); ugyIdo.tol = ugyYmd(s); ugyIdo.ig = ugyYmd(e); ugyIdoMent(); }
+            if (e < s){ const t = s; s = e; e = t; }
+            const f = d => `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}.`;
+            return { s, e: addDays(e, 1), cim: `${f(s)} – ${f(e)}` };
+        }
+        const s = startOfWeek(a); return { s, e: addDays(s, 7), cim: fmtRange(s) };
+    }
+    function ugyIdoUI(){
+        const box = document.getElementById("calUgyIdo"); if (!box) return;
+        box.hidden = viewMode !== "clients";
+        const sel = document.getElementById("calUgyIdoSel"); if (sel) sel.value = ugyIdo.tip;
+        const eg = document.getElementById("calUgyIdoE"); if (eg) eg.hidden = ugyIdo.tip !== "egyeni";
+        const t = document.getElementById("calUgyTol"), i = document.getElementById("calUgyIg");
+        if (t && ugyIdo.tol) t.value = ugyIdo.tol; if (i && ugyIdo.ig) i.value = ugyIdo.ig;
+    }
     function shiftAnchor(dir){
+        if (viewMode === "clients" && ugyIdo.tip !== "het"){
+            if (ugyIdo.tip === "egyeni"){ const r = ugyTartomany(), nap = Math.round((r.e - r.s) / 86400000);
+                ugyIdo.tol = ugyYmd(addDays(r.s, dir * nap)); ugyIdo.ig = ugyYmd(addDays(r.e, dir * nap - 1)); ugyIdoMent(); return; }
+            const d = new Date(viewAnchor); d.setDate(1); d.setMonth(d.getMonth() + dir * (ugyIdo.tip === "ho" ? 1 : 3)); viewAnchor = d; return;
+        }
         if (viewMode === "day") viewAnchor = addDays(viewAnchor, dir);
         else if (viewMode === "month"){ const d = new Date(viewAnchor); d.setDate(1); d.setMonth(d.getMonth() + dir); viewAnchor = d; }
         else viewAnchor = addDays(viewAnchor, dir * 7);   // week & agenda
@@ -37039,7 +37092,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const f = new Date(viewAnchor.getFullYear(), viewAnchor.getMonth(), 1);
             rangeStart = startOfWeek(f); rangeEnd = addDays(rangeStart, 42);
             if (dateLabel) dateLabel.textContent = fmtMonth(viewAnchor);
-        } else if (viewMode === "agenda" || viewMode === "clients"){
+        } else if (viewMode === "clients"){
+            const r = ugyTartomany(); rangeStart = r.s; rangeEnd = r.e;
+            if (dateLabel) dateLabel.textContent = r.cim;
+        } else if (viewMode === "agenda"){
             rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         } else {   // week
@@ -37047,7 +37103,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             cols = []; for (let i=0;i<7;i++) cols.push(addDays(rangeStart, i));
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         }
-        calMobFej();
+        calMobFej(); ugyIdoUI();
 
         // Nincs token → előbb NÉMÁN próbálunk szerezni egyet (ha a fiók a jogot
         // már megadta), és csak utána kérjük gombnyomással.
