@@ -10401,6 +10401,8 @@
         .hv-sav > span { flex:1; min-width:0; display:flex; flex-direction:column; } .hv-sav b { font-size:14.5px; color:#0f2a52; } .hv-sav small { font-size:12.5px; color:#5b6b80; }
         .hv-sav > em { font-style:normal; font-weight:700; font-size:13.5px; color:#1f5fd0; white-space:nowrap; }
         @media (max-width:600px){ .hv-sav { padding:10px 12px; gap:10px; } .hv-sav small { display:none; } }
+        .ej-sav { cursor:default; border-color:#bbf7d0; border-left-color:#16a34a; background:#effbf3; } .ej-sav > i { background:#16a34a; }
+        .ej-sav .btn { flex:none; } @media (max-width:600px){ .ej-sav { flex-wrap:wrap; } }
         .hz-kesobb { margin-top:8px; width:100%; }
         .hv-zar { position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(240,236,230,.55);
             -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); animation:sfOvBe .35s ease-out both; }
@@ -16400,7 +16402,31 @@ function renderHaviBody(){
 // ha sem itt, sem a felhőben nincs terv (így új eszközön sem zár le tévesen).
 const hzVanTerv = h => !!(h && (String(h.celES || '').trim() || h.rogzitve || String(h.rang || '').trim() || (Array.isArray(h.formula) && h.formula.some(v => String(v ?? '').trim()))));
 let hzOk = {}, hzFut = false, hzLep = 0, hzAdat = null;
+// Havonta egyszer: az előző hónap számait át kell vinni az Erfolgsjournalba – sáv a kezdőlapon, amíg „Kész”-re nem nyomod
+// (a jelölés eszközönként, a böngészőben marad meg).
+function ejSavEllenoriz(){
+    const cu = window.sfCurrentUser, h = document.getElementById('page-home');
+    const le = () => { const x = document.getElementById('ejSav'); if(x) x.remove(); };
+    if(!cu || !cu.uid || !h || document.body.classList.contains('sf-privat') || (window.sfBlockedPages && window.sfBlockedPages.has('havi')) || (window.sfViewedUid && window.sfViewedUid !== cu.uid)) return le();
+    const akt = currentHaviWeek().monthDate, ho = new Date(akt.getFullYear(), akt.getMonth() - 1, 1);
+    const kulcs = `sf_ej_kesz_${cu.uid}_${ho.getFullYear()}_${ho.getMonth()}`;
+    if(store.load(kulcs, 0) || !hzVanTerv(loadHavi(ho))) return le();
+    let sv = document.getElementById('ejSav');
+    if(!sv){ sv = document.createElement('div'); sv.id = 'ejSav'; sv.className = 'card hv-sav ej-sav';
+        const elo = document.getElementById('hvSav') || document.getElementById('sfNincsHozz'); if(elo && elo.parentElement === h) elo.after(sv); else h.prepend(sv); }
+    const hoNev = HU_MONTHS_FULL[ho.getMonth()].toLowerCase();
+    sv.dataset.ho = `${ho.getFullYear()}-${ho.getMonth()}`; sv.dataset.kulcs = kulcs;
+    sv.innerHTML = `<i>${sfIkon('trend')}</i><span><b>Vidd át a ${esc(hoNev)}i számokat az Erfolgsjournalba</b><small>Megnyitás után a bővítmény „Egész hónap kitöltése” gombja egyben beírja a képletet és a hetek Cél / Van számait.</small></span>
+        <button type="button" class="btn primary" data-ejsavnyit>Megnyitás ›</button><button type="button" class="btn" data-ejsavkesz title="Átvittem – a sáv eltűnik">Kész ✓</button>`;
+}
+document.addEventListener('click', e => {
+    const sv = e.target.closest && e.target.closest('#ejSav'); if(!sv) return;
+    if(e.target.closest('[data-ejsavnyit]')){ const [y, m] = sv.dataset.ho.split('-').map(Number), ho = new Date(y, m, 1);
+        try { navigator.clipboard.writeText('SFEJ1:' + JSON.stringify(ejAdat())).catch(() => {}); } catch(_){} ejAblak(ho); return; }
+    if(e.target.closest('[data-ejsavkesz]')){ store.save(sv.dataset.kulcs, 1); sv.remove(); }
+});
 async function sfHaviZarEllenoriz(){
+    try { ejSavEllenoriz(); } catch(e){}
     const cu = window.sfCurrentUser; if(!cu || !cu.uid || hzFut) return;
     if(document.body.classList.contains('sf-privat') || window.sfTer === 'priv' || (window.sfViewedUid && window.sfViewedUid !== cu.uid)) return hzLevesz();
     // akinek a Havi terv nincs engedélyezve (pl. új munkatárs a bedolgozás elején), annak nem kérjük
