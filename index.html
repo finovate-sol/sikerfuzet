@@ -23024,8 +23024,11 @@ function ejKonyvjelzo(){ return 'javascript:' + encodeURIComponent(ejKjKod()); }
 // „ismeri” (opener), így a könyvjelző közvetlenül tőle kérheti el a számokat.
 // Telepített appból (Dock / kezdőképernyő) a window.open az appon BELÜL nyitna, könyvjelzősáv nélkül –
 // egy sima, új lapra mutató link viszont a rendes böngészőben (Chrome / Safari) nyílik meg.
+// A számok a cím # utáni részében is mennek (base64): a Chrome-bővítmény betöltéskor elmenti és eltávolítja –
+// így nem kell hozzá vágólap-engedély (a bővítmény tartalom-szkriptje a vágólapot nem olvashatja kérés nélkül).
+function ejHash(){ try { return '#sfej=' + btoa(unescape(encodeURIComponent(JSON.stringify(ejAdat())))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch(_){ return ''; } }
 function ejAblak(ho){
-    const url = `https://erfolgsjournal.app/month/${ho.getFullYear()}/${ho.getMonth() + 1}`;
+    const url = `https://erfolgsjournal.app/month/${ho.getFullYear()}/${ho.getMonth() + 1}` + ejHash();
     const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
     document.body.appendChild(a); a.click(); a.remove();
 }

@@ -20,6 +20,10 @@
   // ---- adat: a megnyitó Sikerfüzettől, különben a vágólapról ----
   let adat = null;
   async function adatKer() {
+    // 1) a Sikerfüzet által a címben átadott, a bővítmény tárhelyére mentett számok (24 órán belüli)
+    try { const t = await chrome.storage.local.get(['sfejAdat', 'sfejIdo']);
+      if (t && t.sfejAdat && Date.now() - (t.sfejIdo || 0) < 24 * 3600 * 1000) return t.sfejAdat; } catch (_) {}
+    // 2) a megnyitó Sikerfüzet-lap, 3) a vágólap
     if (window.opener) {
       const a = await new Promise(ok => { const f = e => { if (e.data && e.data.sfej === 'adat') { removeEventListener('message', f); ok(e.data.adat); } };
         addEventListener('message', f); try { window.opener.postMessage({ sfej: 'kerem' }, '*'); } catch (_) {} setTimeout(() => { removeEventListener('message', f); ok(null); }, 1500); });
@@ -71,7 +75,7 @@
     if (bezart === kulcs || (utolso === kulcs && panel.isConnected)) return;
     utolso = kulcs;
     if (!adat) { rajz('Számok betöltése…'); adat = await adatKer(); }
-    if (!adat) { rajz('Nincs átvehető adat.\nNyisd meg az Erfolgsjournalt a Sikerfüzet Havi tervéből („Erfolgsjournal megnyitása”).',
+    if (!adat) { rajz('Nincs átvehető adat.\nNyisd meg (újra) az Erfolgsjournalt a Sikerfüzet Havi tervéből az „Erfolgsjournal megnyitása” gombbal – a számokat az viszi át.',
         `<button data-ujra style="${gomb};margin-top:8px;background:#fff;color:#0f2a52">Újrapróbálom</button>`);
       panel.querySelector('[data-ujra]').onclick = async () => { adat = await adatKer(); utolso = ''; vizsgal(); }; return; }
     if (havi) {
