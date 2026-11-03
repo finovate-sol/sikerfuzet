@@ -23197,9 +23197,9 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.6.0';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
+var EJ_BOV_KELL = '1.7.0';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.6.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
@@ -37131,7 +37131,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         catch(e){ if (e.status !== 401) return null; const friss = await silentOnce(true); if (!friss) return null; items = await fetchEvents(friss, tol, ig, "primary"); }
         const p2 = n => String(n).padStart(2, "0"), tipusa = t => EVENT_TYPES.find(x => x.label === t);
         return items.filter(ev => ev.status !== "cancelled" && ev.start && ev.start.dateTime).map(ev => {
-            const { clean } = parseValidation(ev.summary || "");
+            const { clean, status } = parseValidation(ev.summary || "");
             const sp = splitEventTitle(clean), low = clean.toLowerCase();
             // a cím kódja / kulcsszava; plusz néhány gyakori írásmód, amit a naptár-színezés nem ismer
             let t = sp.type || (/mt\s*nyerő|mag-?nap/.test(low) ? tipusa("Munkatársnyerő") : /pg\b/.test(low) ? tipusa("PG") : null);
@@ -37141,7 +37141,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 : t.suffix ? (t.label + " " + alap).trim() : alap || t.label;
             const k = new Date(ev.start.dateTime), v = new Date(ev.end && ev.end.dateTime || ev.start.dateTime);
             return { id: ev.id, tip, cim, d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
-                k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "" };
+                k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "",
+                all: status || "" };   // "yes" = megtörtént, "no" = elmaradt, "" = még nincs
         }).filter(Boolean);
     };
     window.sfUgyfelIdopontok = window.sfOvbIdopontok;   // régi név (korábbi hívók)

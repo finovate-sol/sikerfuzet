@@ -87,8 +87,25 @@
     t.dispatchEvent(new PointerEvent('pointerdown', { ...o, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mousedown', o));
     t.dispatchEvent(new PointerEvent('pointerup', { ...o, buttons: 0, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
     t.dispatchEvent(new MouseEvent('click', { ...o, buttons: 0 })); return true; };
-  const ablak = () => { const c = [...document.querySelectorAll('*')].find(e => lat(e) && e.children.length === 0 && kis(e.innerText) === 'új időpont'); if (!c) return null;
-    for (let p = c; p && p !== document.body; p = p.parentElement) if (gombSzoveg(p, 'Mentés').length) return p; return null; };
+  // az időpont-ablak (új vagy szerkesztés): a Mentés gomb legközelebbi őse, amiben a „Cím…” mező is benne van
+  const ablak = () => { const m = gombSzoveg(document, 'Mentés')[0]; if (!m) return null;
+    for (let p = m.parentElement; p && p !== document.body; p = p.parentElement)
+      if ([...p.querySelectorAll('input')].some(i => lat(i) && /^cím/i.test(i.placeholder || ''))) return p;
+    return null; };
+  // Állapot: a Sikerfüzet Megtörtént / Elmaradt / Még nincs jelölése → az Erfolgsjournal Állapot mezője
+  const ALLAPOT = { yes: 'Megtörtént', no: 'Lemondva', '': 'Nyitott' };
+  const allKod = a => 'a:' + (a || 'n');
+  const allapotIr = (ab, all) => {
+    const cel = ALLAPOT[all || ''] || 'Nyitott';
+    const f = felirat(ab, 'Állapot')[0]; let sel = null;
+    if (f) for (let p = f.parentElement; p && p !== ab.parentElement && !sel; p = p.parentElement) sel = [...p.querySelectorAll('select')].find(lat) || null;
+    if (!sel) sel = [...ab.querySelectorAll('select')].find(x => lat(x) && [...x.options].some(o => kis(o.text) === kis('Megtörtént')));
+    if (!sel) return false;
+    const op = [...sel.options].find(o => kis(o.text) === kis(cel)); if (!op) return false;
+    if (sel.value === op.value) return true;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, op.value);
+    sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return true; };
   const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
   // a megnyitott hét naptárába beírja az ide eső, még át nem vitt OVB-időpontokat
   async function idopontokKitolt() {
@@ -98,11 +115,25 @@
     const het = gombSzoveg(document, 'Hét')[0]; if (het) { het.click(); await var_(500); }
     const osz = await varjRa(() => { const l = napOszlopok(); return l.length >= 5 ? l : null; }, 6000); if (!osz) return { db: 0, hiba: ['a heti naptár nem található'] };
     const { sfejKesz = {} } = await chrome.storage.local.get('sfejKesz');
-    const ide = lista.filter(e => osz.some(o => o.md === e.d.slice(5)) && !sfejKesz[e.id]);
-    let db = 0; const hiba = [];
+    const hetben = lista.filter(e => osz.some(o => o.md === e.d.slice(5)));
+    const ide = hetben.filter(e => !sfejKesz[e.id]);
+    let db = 0, fr = 0; const hiba = [];
+    const levelCim = cim => [...document.querySelectorAll('*')].find(x => lat(x) && x.children.length === 0 && !x.closest('#sfejPanel') && kis(x.innerText) === kis(cim));
+    // 1) a már átvitt időpontok állapota: ha a Sikerfüzetben azóta megtörtént / elmaradt lett, itt is átállítjuk
+    for (const e of hetben) {
+      const reg = sfejKesz[e.id]; if (!reg) continue;
+      if (reg === allKod(e.all) || (reg === 1 && !e.all)) { if (reg === 1) sfejKesz[e.id] = allKod(e.all); continue; }
+      const lev = levelCim(e.cim); if (!lev) continue;
+      (lev.closest('a,[role="button"],.fc-event') || lev).click();
+      const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (állapot)'); continue; }
+      const okA = allapotIr(ab, e.all); await var_(250);
+      const ment = gombSzoveg(ab, 'Mentés')[0];
+      if (okA && ment){ ment.click(); if (await varjRa(() => !ablak(), 4000)) { fr++; sfejKesz[e.id] = allKod(e.all); await chrome.storage.local.set({ sfejKesz }); continue; } }
+      hiba.push(e.cim + ' (állapot)'); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); await var_(400);
+    }
     for (const e of ide) {
       // már ott van (pl. kézzel felvitték)? – azonos cím a naptárban
-      if ([...document.querySelectorAll('*')].some(x => lat(x) && x.children.length === 0 && !x.closest('#sfejPanel') && kis(x.innerText) === kis(e.cim))) { sfejKesz[e.id] = 1; continue; }
+      if (levelCim(e.cim)) { sfejKesz[e.id] = 1; continue; }
       const o = napOszlopok().find(x => x.md === e.d.slice(5)); if (!o) { hiba.push(e.cim); continue; }
       const [hh, mm] = e.k.split(':').map(Number);
       let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(300); c = oraCimke(hh, o.el.getBoundingClientRect().left); }
@@ -123,15 +154,16 @@
       const idok = [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}:\d{2}$/.test(i.value)));
       if (idok[0]) idoIr(idok[0], e.k); await var_(100); if (idok[1]) idoIr(idok[1], e.v);
       const holIn = inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) ir(holIn, e.hol);
+      allapotIr(ab, e.all);
       await var_(250);
       const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) { hiba.push(e.cim); continue; }
       ment.click();
-      if (await varjRa(() => !ablak(), 4000)) { db++; sfejKesz[e.id] = 1; await chrome.storage.local.set({ sfejKesz }); }
+      if (await varjRa(() => !ablak(), 4000)) { db++; sfejKesz[e.id] = allKod(e.all); await chrome.storage.local.set({ sfejKesz }); }
       else { hiba.push(e.cim); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); }
       await var_(500);
     }
     await chrome.storage.local.set({ sfejKesz });
-    return { db, hiba };
+    return { db, fr, hiba };
   }
   // ---- automatikus belépés (e-mail + jelszó a Sikerfüzet beállításaiból) ----
   const belepoMezok = () => { const js = [...document.querySelectorAll('input[type="password"]')].find(lat); if (!js) return null;
@@ -172,7 +204,7 @@
       while (true) {
         const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (!f) return;
         if (f.i >= f.hetek.length) {
-          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
+          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
           await chrome.storage.local.remove('sfejFeladat'); await chrome.storage.local.set({ sfejVege: vege });
           rajz(vege);
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
@@ -195,7 +227,7 @@
             const uzi = hetKitolt(kw), m = uzi.match(/(\d+) mező/); f.db += m ? +m[1] : 0; ok = !!m;
             await var_(1800);   // az Erfolgsjournal automatikus mentésének ideje
             if (adat.esem && adat.esem.length) { rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – időpontok`);
-              try { const r = await idopontokKitolt(); f.idp = (f.idp || 0) + r.db; if (r.hiba.length) f.hiba.push(...r.hiba.map(x => `${kw}. hét: ${x}`)); } catch (_) {} }
+              try { const r = await idopontokKitolt(); f.idp = (f.idp || 0) + r.db; f.idfr = (f.idfr || 0) + (r.fr || 0); if (r.hiba.length) f.hiba.push(...r.hiba.map(x => `${kw}. hét: ${x}`)); } catch (_) {} }
           }
         }
         if (!ok) f.hiba.push(kw + '. hét');
@@ -250,7 +282,7 @@
       panel.querySelector('[data-kit]').onclick = () => { const kw = +panel.querySelector('[data-het]').value; panel.querySelector('[data-all]').textContent = hetKitolt(kw); };
       if (adat.esem && adat.esem.length) { const b = document.createElement('button'); b.style.cssText = gomb + ';margin-top:6px;width:100%;background:#fff;color:#0f2a52'; b.textContent = 'Időpontok beírása erre a hétre';
         panel.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = 'Beírás…'; const r = await idopontokKitolt();
-          b.textContent = `${r.db} időpont beírva ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n'); }; }
+          b.textContent = `${r.db} időpont beírva${r.fr ? `, ${r.fr} állapot frissítve` : ''} ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n'); }; }
     }
   }
   // ha a Sikerfüzet közben átadja (vagy frissíti) a számokat, magától újrarajzolunk – nem kell gombot nyomni
