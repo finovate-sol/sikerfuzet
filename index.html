@@ -1287,6 +1287,10 @@
         .evb-naptar { padding:4px 0 8px; } .evb-naptar .evb-ik { display:flex; align-items:center; justify-content:center; margin-top:8px; }
         .evb-cal-pont { width:11px; height:11px; border-radius:50%; background:#94a3b8; display:block; }
         .evb-naptar select { cursor:pointer; font-weight:650; color:var(--navy); }
+        .modal.evb.evb-feladat { width:min(480px, calc(100vw - 32px)); }
+        .evb-feladat .evb-ket { grid-template-columns:1fr; }
+        .evb-feladat .evb-tip, .evb-feladat #qcUnitWrap, .evb-feladat #qcSeg, .evb-feladat .evb-veg, .evb-feladat #qcHossz, .evb-feladat #qcTobbGomb,
+        .evb-feladat .evb-sor:has(.evb-vendeg), .evb-feladat .ev-row:has(#qcMeet), .evb-feladat .ev-row:has(#qcTravel) { display:none !important; }
         .evb-tovabb { border:0; background:none; text-align:left; padding:10px 0 4px; font:700 12.5px inherit; font-family:inherit; color:var(--blue); cursor:pointer; }
         .evb-adv { padding-top:6px; }
         .evb-utperc { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); margin-right:8px; } .evb-utperc input { width:72px; }
@@ -36639,7 +36643,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                             <span class="evb-ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></span>
                             <div class="evb-ido">
                                 <input id="qcDate" type="date" value="${dateStr}" aria-label="Kezdő nap">
-                                <span id="qcStartWrap" class="evb-tol"><input id="qcStartT" type="time" value="${startStr}" aria-label="Kezdés"><span>–</span><input id="qcEndT" type="time" value="${endStr}" aria-label="Vége"></span>
+                                <span id="qcStartWrap" class="evb-tol"><input id="qcStartT" type="time" value="${startStr}" aria-label="Kezdés"><span class="evb-veg">–</span><input id="qcEndT" class="evb-veg" type="time" value="${endStr}" aria-label="Vége"></span>
                                 <span id="qcEndWrap" hidden></span>
                                 <span class="evb-hossz" id="qcHossz"></span>
                                 <div class="evb-kapcs">
@@ -36663,7 +36667,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                         </div>
                         <div class="evb-sor">
                             <span class="evb-ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.3-4-4.8"/></svg></span>
-                            <input id="qcGuests" class="evb-be" placeholder="Meghívottak (e-mail címek vesszővel)" aria-label="Meghívottak">
+                            <input id="qcGuests" class="evb-be evb-vendeg" placeholder="Meghívottak (e-mail címek vesszővel)" aria-label="Meghívottak">
                         </div>
                         <button type="button" class="evb-tovabb" id="qcAdvToggle" aria-expanded="false"><span class="ev-adv-chev">▸</span> Ismétlődés, Meet, utazási idő</button>
                         <div class="ev-adv evb-adv" id="qcAdv" hidden>
@@ -36762,9 +36766,23 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const kindBox = overlay.querySelector("#qcKind");
         const headTitle = overlay.querySelector("#qcHeadTitle");
         const meetRow = overlay.querySelector("#qcMeet").closest(".ev-row");
+        let taskElozoTipus = null;
         const syncKind = () => {
             kindBox.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === curKind));
             headTitle.textContent = curKind === "task" ? "Új feladat" : "Új esemény";
+            // Feladat: egyszerű űrlap – mi a teendő, mikorra, jegyzet. Típus, EH, záró idő, meghívottak, Meet, utazás nincs.
+            const fel = curKind === "task", mod = overlay.querySelector(".evb");
+            mod.classList.toggle("evb-feladat", fel);
+            overlay.querySelector("#qcTitle").placeholder = fel ? "Mi a teendő?" : "Ügyfél neve vagy esemény címe";
+            overlay.querySelector("#qcAdvToggle").lastChild.textContent = fel ? " Ismétlődés" : " Ismétlődés, Meet, utazási idő";
+            if (fel){
+                if (taskElozoTipus == null) taskElozoTipus = curType;
+                curType = EVENT_TYPES.findIndex(t => t.label === "Egyéb");
+                const tc = overlay.querySelector("#qcTravel"); if (tc && tc.checked){ tc.checked = false; tc.dispatchEvent(new Event("change")); }
+                const zw = overlay.querySelector("#qcZaroWrap"); if (zw && !zw.hidden) overlay.querySelector("#qcTobbGomb").click();
+                overlay.querySelector("#qcGuests").value = "";
+            } else if (taskElozoTipus != null){ curType = taskElozoTipus; taskElozoTipus = null; }
+            if (typeof syncTipus === "function") syncTipus();
             if (meetRow){
                 meetRow.hidden = curKind === "task";
                 if (curKind === "task") overlay.querySelector("#qcMeet").checked = false;
@@ -36877,7 +36895,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const dE = (overlay.querySelector("#qcEndDate").value || d) < d ? d : (overlay.querySelector("#qcEndDate").value || d);
             const sDt = isAllDay ? new Date(`${d}T00:00:00`) : new Date(`${d}T${st}:00`);
             const eDtRaw = new Date(`${dE}T${et}:00`);
-            const eDt = eDtRaw > sDt ? eDtRaw : new Date(sDt.getTime() + 900000);
+            const eDt = curKind === "task" && !isAllDay ? new Date(sDt.getTime() + 30 * 60000) : (eDtRaw > sDt ? eDtRaw : new Date(sDt.getTime() + 900000));
             const durationMin = Math.max(15, Math.round((eDt - sDt) / 60000));
             const allDayEnd = isAllDay ? new Date(`${dE}T00:00:00`) : null;
             const location = overlay.querySelector("#qcLoc").value.trim();
