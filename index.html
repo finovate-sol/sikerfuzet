@@ -5809,6 +5809,7 @@
                     font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;
                     border:1px dashed #b8c2d0; box-shadow:0 1px 3px rgba(15,35,70,.12); }
         .wk-gtask:hover { border-color:var(--blue); background:#f5f8ff; }
+        .gt-vet { opacity:.55; border-style:dashed !important; cursor:default !important; }
         .wk-gtask.done { color:#94a3b8; text-decoration:line-through; }
         .wk-gtask b { font-weight:800; opacity:.75; }
         @media (max-width: 900px){
@@ -35080,9 +35081,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const done = taskIsDone(t);
         const tm = taskTimeLabel(due);
         const chip = document.createElement("div");
-        chip.className = "allday-ev allday-gtask" + (done ? " done" : "");
-        chip.dataset.gtask = t.id;
-        chip.draggable = true;
+        chip.className = "allday-ev allday-gtask" + (done ? " done" : "") + (t._vet ? " gt-vet" : "");
+        if (!t._vet){ chip.dataset.gtask = t.id; chip.draggable = true; }
         chip.title = (t.title || "(névtelen feladat)") + " · " + (t.listTitle || "Feladatok")
             + (tm ? " · " + tm : "") + "\nKattints a kipipáláshoz, vagy húzd át másik napra / a rácsba időpontot adni neki";
         chip.innerHTML = `<span class="wk-task-dot${done ? " done" : ""}" style="--c:#64748b"></span>`
@@ -35112,10 +35112,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 return;
             }
             const block = gtaskChip(t);
-            block.className = "wk-gtask" + (taskIsDone(t) ? " done" : "");
-            block.draggable = true;
+            block.className = "wk-gtask" + (taskIsDone(t) ? " done" : "") + (t._vet ? " gt-vet" : "");
+            block.draggable = !t._vet;
             block.title = (t.title || "(névtelen feladat)") + " · " + (t.listTitle || "Feladatok")
-                + "\nKattints a kipipáláshoz, vagy húzd át másik napra / időpontra";
+                + (t._vet ? "\nIsmétlődő feladat – ez egy következő alkalom (a mostani kipipálása után kerül a listába)" : "\nKattints a kipipáláshoz, vagy húzd át másik napra / időpontra");
             block.style.left = `calc(${idx * (100/n)}% + 3px)`;
             block.style.width = `calc(${100/n}% - 6px)`;
             block.style.top = top + "px";
@@ -36093,7 +36093,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 let evs = list.map(({ ev, task, ds }) => {
                     if (task){
                         const due = taskDue(task), tm = taskTimeLabel(due);
-                        return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}" data-gtask="${task.id}" title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
+                        return `<span class="mev mev-task${taskIsDone(task) ? " done" : ""}${task._vet ? " gt-vet" : ""}" ${task._vet ? "" : `data-gtask="${task.id}"`} title="${escM(task.title||"")} · ${escM(task.listTitle||"")}">`
                             + `<span class="wk-task-dot${taskIsDone(task) ? " done" : ""}" style="--c:#64748b"></span>`
                             + `<span class="mh-cim">${escM(task.title || "(névtelen feladat)")}</span>` + (tm ? `<span class="mh-ido">${tm}</span>` : "") + `</span>`;
                     }
@@ -36167,7 +36167,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if (key !== curKey){ curKey = key; html += `<div class="ag-day">${fmtDay(ds)}</div>`; }
             if (task){
                 const done = taskIsDone(task);
-                html += `<div class="ag-item ag-task${done ? " done" : ""}" data-gtask="${task.id}" title="Kattints a kipipáláshoz">
+                html += `<div class="ag-item ag-task${done ? " done" : ""}${task._vet ? " gt-vet" : ""}" ${task._vet ? 'title="Ismétlődő feladat – következő alkalom"' : `data-gtask="${task.id}" title="Kattints a kipipáláshoz"`}>
                     <span class="ag-time">${allDay ? "feladat" : pad2(ds.getHours())+":"+pad2(ds.getMinutes())}</span>
                     <span class="wk-task-dot${done ? " done" : ""}" style="--c:#64748b"></span>
                     <span><span class="ag-title">${escM(task.title || "(névtelen feladat)")}</span><br><span class="ag-tasklist">${escM(task.listTitle || "Feladatok")}</span></span>
@@ -37416,6 +37416,17 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 const due = taskDue(t); if(!due) return false;
                 const d = new Date(due.ymd + "T00:00:00");
                 return d >= rangeStart && d < rangeEnd;
+            });
+            // Ismétlődő feladat: a Google Tasks egyszerre csak a soron következőt tárolja (a következőt
+            // kipipáláskor hozzuk létre), ezért a további alkalmakat halványan előre kirajzoljuk.
+            tasks.forEach(t => {
+                const rp = taskRepeat(t), due = taskDue(t); if(!rp || !due || taskIsDone(t)) return;
+                let y = due.ymd;
+                for(let g = 0; g < 400; g++){
+                    const kov = fdNextDue(y, rp); if(!kov || kov <= y) break; y = kov;
+                    const d = new Date(y + "T00:00:00"); if(d >= rangeEnd) break;
+                    if(d >= rangeStart) inRange.push(Object.assign({}, t, { due: y + "T00:00:00.000Z", _vet: true }));
+                }
             });
             if (viewMode === "day" || viewMode === "week"){ shell(); renderTimeEvents(cols, events, inRange); fitTimeGridBottom(); }
             else if (viewMode === "month") renderMonth(grid, now, events, inRange);
