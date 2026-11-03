@@ -1284,6 +1284,9 @@
         .evb-eh { display:flex; align-items:center; gap:8px; } .evb-eh input { width:90px; } .evb-eh b { color:var(--navy); } .evb-eh small { color:var(--muted); font-size:12px; }
         .evb-be { flex:1; min-width:0; border:1px solid transparent; background:none; border-radius:9px; padding:6px 8px; margin:-1px 0; font:500 14px inherit; font-family:inherit; color:var(--text); resize:none; }
         .evb-be:hover { background:#f4f6fa; }
+        .evb-naptar { padding:4px 0 8px; } .evb-naptar .evb-ik { display:flex; align-items:center; justify-content:center; margin-top:8px; }
+        .evb-cal-pont { width:11px; height:11px; border-radius:50%; background:#94a3b8; display:block; }
+        .evb-naptar select { cursor:pointer; font-weight:650; color:var(--navy); }
         .evb-tovabb { border:0; background:none; text-align:left; padding:10px 0 4px; font:700 12.5px inherit; font-family:inherit; color:var(--blue); cursor:pointer; }
         .evb-adv { padding-top:6px; }
         .evb-utperc { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); margin-right:8px; } .evb-utperc input { width:72px; }
@@ -36523,7 +36526,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         }).join("") + `</div>`;
     }
 
-    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay, allDayEnd, attendees }){
+    async function createCalendarEvent({ summary, description, location, colorId, start, durationMin, addMeet, recurrence, extendedProperties, allDay, allDayEnd, attendees, calId }){
         let token = getCalendarToken();
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const body = { summary };
@@ -36551,7 +36554,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const sendQ = att.length ? "&sendUpdates=all" : "";
 
         async function doInsert(tok){
-            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events?conferenceDataVersion=1" + sendQ, {
+            return fetch("https://www.googleapis.com/calendar/v3/calendars/" + (calId ? encodeURIComponent(calId) : activeCalendarId()) + "/events?conferenceDataVersion=1" + sendQ, {
                 method: "POST",
                 headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
                 body: JSON.stringify(body)
@@ -36628,6 +36631,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                     <nav class="evb-tip" id="qcTiles" aria-label="Esemény típusa"></nav>
                     <div class="evb-jobb">
                         <input id="qcTitle" class="evb-cim" value="${escM(prefillTitle || "")}" placeholder="Ügyfél neve vagy esemény címe" aria-label="Cím">
+                        <div class="evb-sor evb-naptar" id="qcCalWrap" hidden>
+                            <span class="evb-ik"><i class="evb-cal-pont" id="qcCalPont"></i></span>
+                            <select id="qcCal" class="evb-be" aria-label="Melyik naptárba"></select>
+                        </div>
                         <div class="evb-sor">
                             <span class="evb-ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></span>
                             <div class="evb-ido">
@@ -36730,6 +36737,23 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             .map(({ t, i }) => `<button type="button" data-ti="${i}"><i style="background:${GCAL_HEX[t.colorId] || DEFAULT_EVENT_HEX}"></i>${escM(t.label)}</button>`).join("")).join("");
         tilesBox.addEventListener("click", e => { const b = e.target.closest("[data-ti]"); if (!b) return; curType = +b.dataset.ti; syncTipus(); });
         syncTipus();
+        // Melyik naptárba: a fiók írható naptárai (saját + megosztott, ahol szerkesztő); az utoljára választott az alap.
+        // Más munkatárs naptárát nézve nincs választás – az ő naptárába megy, ahogy eddig.
+        const calSel = overlay.querySelector("#qcCal"), calWrap = overlay.querySelector("#qcCalWrap"), calPont = overlay.querySelector("#qcCalPont");
+        const masNezet = window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid;
+        const calPontSzin = () => { const o = calSel.selectedOptions[0]; calPont.style.background = o ? o.dataset.szin : "#94a3b8"; };
+        const calToltes = l => {
+            const irhato = (l || []).filter(c => c.iras);
+            if (masNezet || irhato.length < 2){ calWrap.hidden = true; return; }
+            let alap = ""; try { alap = localStorage.getItem("sf_cal_uj") || ""; } catch(_){}
+            if (!irhato.some(c => (c.primary ? "primary" : c.id) === alap)) alap = calOwnId && irhato.some(c => c.id === calOwnId) ? calOwnId : "primary";
+            calSel.innerHTML = irhato.map(c => { const v = c.primary ? "primary" : c.id;
+                return `<option value="${escM(v)}" data-szin="${escM(c.szin)}"${v === alap ? " selected" : ""}>${escM(c.primary ? "Saját naptár" : c.nev)}</option>`; }).join("");
+            calWrap.hidden = false; calPontSzin();
+        };
+        calSel.addEventListener("change", () => { calPontSzin(); try { localStorage.setItem("sf_cal_uj", calSel.value); } catch(_){} });
+        if (calLista) calToltes(calLista);
+        else if (!masNezet) calListaBetolt(getCalendarToken()).then(l => { if (overlay.isConnected) calToltes(l); }).catch(() => {});
         overlay.querySelector("#qcX").addEventListener("click", close);
         overlay.querySelector("#qcMegse").addEventListener("click", close);
 
@@ -36900,7 +36924,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             saveBtn.disabled = true; saveBtn.textContent = "Mentés…";
             try {
                 const guests = (overlay.querySelector("#qcGuests") || {}).value || "";
-                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay, allDayEnd, attendees: guests });
+                await createCalendarEvent({ summary, description, location, colorId, start: sDt, durationMin, addMeet, recurrence, extendedProperties, allDay: isAllDay, allDayEnd, attendees: guests, calId: calWrap.hidden ? undefined : calSel.value });
                 // Ha egy forrás-sorról (ügyfél/pénz/karrier lista) húzva jutottunk ide, az eredmény
                 // az esemény tényleges állapotát tükrözze (✅→ok / ❌→no / még nincs→pending).
                 if (isClientSrc && typeof window.sfMarkResult === "function"){
