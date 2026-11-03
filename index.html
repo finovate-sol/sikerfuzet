@@ -37402,11 +37402,15 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
             eventsById = {};
             events.forEach(ev => { if (ev.id) eventsById[ev.id] = ev; });
-            // Ugyanaz a meghívó több naptárban is szerepelhet – csak egyszer rajzoljuk.
-            const uidok = new Set(events.map(ev => ev.iCalUID).filter(Boolean));
+            // Ugyanaz a meghívó több naptárban is szerepelhet – csak egyszer rajzoljuk. Az ismétlődő esemény
+            // MINDEN alkalmának ugyanaz az iCalUID-ja, ezért a kulcs az alkalom (eredeti) kezdése is.
+            const evKulcs = ev => { if (!ev.iCalUID) return ""; const o = ev.originalStartTime || ev.start || {};
+                return ev.iCalUID + "|" + (o.dateTime ? new Date(o.dateTime).getTime() : (o.date || "")); };
+            const uidok = new Set(events.map(evKulcs).filter(Boolean));
             atfedok.forEach((c, i) => (kulsok[i] || []).forEach(ev => {
-                if (!ev.id || eventsById[ev.id] || (ev.iCalUID && uidok.has(ev.iCalUID))) return;
-                if (ev.iCalUID) uidok.add(ev.iCalUID);
+                const k = evKulcs(ev);
+                if (!ev.id || eventsById[ev.id] || (k && uidok.has(k))) return;
+                if (k) uidok.add(k);
                 ev._kulso = c.id; ev._szin = c.szin; ev._iras = c.iras; ev._naptar = c.nev;
                 eventsById[ev.id] = ev; events.push(ev);
             }));
