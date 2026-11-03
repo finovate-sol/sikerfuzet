@@ -3757,7 +3757,11 @@
         .pg-ak-inp:focus { border-color:var(--blue); }
         .pg-ak-psel, .pg-ak-dsel { padding:8px 10px; border:1px solid var(--border); border-radius:9px; font-size:11.5px; font-family:inherit; color:var(--text); background:var(--card); outline:none; }
         .pg-ak-psel { cursor:pointer; }
-        .pg-ak-addbtn { white-space:nowrap; }
+        .pg-ak-addbtn, .pg-ak-kiadbtn { white-space:nowrap; }
+        .fx-ak-al { margin:14px 0 6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+        .fx-ak-kiad { margin-top:10px; flex-wrap:wrap; align-items:center; }
+        .fx-ak-kiad select, .fx-ak-kiad input { padding:8px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card); font:inherit; font-size:13px; color:var(--text); min-height:36px; box-sizing:border-box; }
+        .fx-ak-kiad .pg-ak-mt { flex:0 1 170px; } .fx-ak-kiad .pg-ak-inp { flex:1 1 220px; min-width:0; } .fx-ak-kiad .pg-ak-psel { flex:0 0 auto; } .fx-ak-kiad .pg-ak-dsel { flex:0 0 150px; }
         .pg-inbox-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px; }
         .pg-inbox-foot .pg-note-txt { margin:0; }
         .pg-filter { display:flex; gap:6px; margin-bottom:12px; }
@@ -38251,7 +38255,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const mine = a.mtUid === pgOwnUid();
         const today = pgToday();
         const late = a.due && a.due < today && !a.done;
-        const from = a.source === 'csendes' ? 'Csendes PG' : a.source === 'bedolgozas' ? (a.fromName || 'Bedolgozás')
+        const kiadtam = a.leaderUid === pgOwnUid() && a.mtUid !== pgOwnUid();
+        const from = kiadtam ? '→ ' + (a.mtName || pgEmpName(a.mtUid) || 'munkatárs')
+                   : a.source === 'csendes' ? 'Csendes PG' : a.source === 'bedolgozas' ? (a.fromName || 'Bedolgozás')
+                   : a.source === 'vezeto' ? (a.fromName || 'Vezető')
                    : (a.fromName ? `${a.fromName} · Heti PG` : 'Heti PG');
         return `<div class="pg-ak${a.done?' done':''}${late?' late':''}" data-akid="${escM(a.id)}">
             <label class="pg-ak-chk"><input type="checkbox" data-akdone="${escM(a.id)}"${a.done?' checked':''}${mine?'':' disabled'}></label>
@@ -38263,6 +38270,40 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         </div>`;
     }
 
+    // ---- Akcióterv és feladat: a vezető a munkatársainak is ad feladatot (a Sikerfüzet adatbázisában – a Google
+    // Tasks fiókonként privát, oda nem írhatunk másnak). A munkatárs a Feladatok oldalán látja és pipálja ki.
+    const fxAkMunkatarsak = () => (window.sfViewAsEmployees || []);
+    function fxAkKiadHtml(fixMt){
+        const emps = fxAkMunkatarsak(); if(!fixMt && !emps.length) return '';
+        return `<div class="pg-ak-add fx-ak-kiad"${fixMt ? ` data-fixmt="${escM(fixMt)}"` : ''}>
+            ${fixMt ? '' : `<select class="pg-ak-mt" aria-label="Munkatárs">${emps.map(e => `<option value="${escM(e.uid)}">${escM(e.name || e.email || '')}</option>`).join('')}</select>`}
+            <input type="text" class="pg-ak-inp" placeholder="Feladat a munkatársnak…" maxlength="300">
+            <select class="pg-ak-psel" aria-label="Prioritás">${PG_PRIOS.map(p => `<option value="${p}"${p === 'Közepes' ? ' selected' : ''}>${p}</option>`).join('')}</select>
+            <input type="date" class="pg-ak-dsel" aria-label="Határidő">
+            <button type="button" class="btn primary pg-ak-kiadbtn" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ Kiadás</button>
+        </div>`;
+    }
+    async function fxAkKiad(wrap){
+        const inp = wrap.querySelector('.pg-ak-inp'), text = inp.value.trim(); if(!text){ inp.focus(); return null; }
+        const mtUid = wrap.dataset.fixmt || (wrap.querySelector('.pg-ak-mt') || {}).value; if(!mtUid) return null;
+        const emp = fxAkMunkatarsak().find(e => e.uid === mtUid) || {};
+        const most = new Date().toISOString();
+        const a = { mtUid, mtName: emp.name || emp.email || '', text, prio: wrap.querySelector('.pg-ak-psel').value, due: wrap.querySelector('.pg-ak-dsel').value,
+                    source: 'vezeto', fromPgId: '', fromName: pgOwnName(), leaderUid: pgOwnUid(), leaderName: pgOwnName(),
+                    done: false, taskId: '', created: most, updated: most };
+        const gomb = wrap.querySelector('.pg-ak-kiadbtn'); gomb.disabled = true;
+        try { a.id = isConfigured ? await addAkcio(a) : 'local-' + Date.now(); }
+        catch(e){ gomb.disabled = false; alert('Nem sikerült kiadni a feladatot: ' + (e.message || e)); return null; }
+        pgAkciok.push(a);
+        return a;
+    }
+    function fxAkKiadBekot(gyoker, utana){
+        gyoker.querySelectorAll('.fx-ak-kiad').forEach(w => {
+            const indit = async () => { if(await fxAkKiad(w)) utana(); };
+            w.querySelector('.pg-ak-kiadbtn').addEventListener('click', indit);
+            w.querySelector('.pg-ak-inp').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); indit(); } });
+        });
+    }
     function pgAkcioAddHtml(scope){
         return `<div class="pg-ak-add" data-akscope="${scope}">
             <input type="text" class="pg-ak-inp" placeholder="Új akcióterv…" maxlength="300">
@@ -39130,8 +39171,18 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                     </div></div>` : ""}
                     ${fdFilter === "kesz" ? "" : `<div class="fx-szaml">${szaml.map(([k, n, v]) => `<button type="button" class="card fx-ik${fxIdo === k ? " on" : ""}${k === "lej" && v ? " lej" : ""}" data-fxido="${k}" style="--c:${FX_IDO[k][0]}" aria-pressed="${fxIdo === k}"><span class="fx-ik-ic">${FX_IDO[k][1]}</span><span><b>${v}</b><span>${n}</span></span></button>`).join("")}</div>`}
                     ${(() => { const ak = (typeof pgMyAkciok === 'function' ? pgMyAkciok() : []).filter(a => !a.done);
-                        return ak.length && fdFilter !== "kesz" ? `<section class="card pg-card fx-ak"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>Akcióterveim</h2><span class="pg-count">${ak.length} nyitott · a vezetődtől / PG-ből</span></div>
-                            <div class="card-body"><div class="pg-ak-list">${ak.map(pgAkcioRowHtml).join("")}</div></div></section>` : ""; })()}
+                        const vanMt = fxAkMunkatarsak().length > 0;
+                        const kiadott = vanMt ? pgAkciok.filter(a => a.leaderUid === pgOwnUid() && a.mtUid !== pgOwnUid() && !a.done)
+                            .sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))) : [];
+                        if(fdFilter === "kesz" || (!ak.length && !vanMt)) return "";
+                        return `<section class="card pg-card fx-ak"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>Akcióterv és feladat</h2><span class="pg-count">${ak.length} nyitott nekem${vanMt ? ` · ${kiadott.length} kiadott` : ""}</span></div>
+                            <div class="card-body">
+                                ${ak.length ? `<div class="pg-ak-list">${ak.map(pgAkcioRowHtml).join("")}</div>` : `<div class="pg-empty">Nincs nyitott feladatod a vezetődtől vagy a Bedolgozásból.</div>`}
+                                ${vanMt ? `<div class="fx-ak-al">Munkatársaknak kiadott feladatok</div>
+                                    ${kiadott.length ? `<div class="pg-ak-list">${kiadott.map(pgAkcioRowHtml).join("")}</div>` : `<div class="pg-empty">Még nincs nyitott, általad kiadott feladat.</div>`}
+                                    ${fxAkKiadHtml("")}
+                                    <p class="pg-note-txt">A munkatárs a saját Feladatok oldalán, az „Akcióterv és feladat” részben látja, és ő pipálja ki.</p>` : ""}
+                            </div></section>`; })()}
                     <section class="card pg-card fx-lap">
                         <div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7.5 4.5"/><path d="m3 12 1.5 1.5L7.5 10.5"/><path d="m3 18 1.5 1.5L7.5 16.5"/></svg></span>${fdFilter === "kesz" ? "Kész feladatok" : "Teendők"}</h2><span class="pg-count">${lathato.filter(t => fdFilter === "kesz" || !taskIsDone(t)).length} feladat</span></div>
                         <div class="card-body fx-lista">${torzs}</div>
@@ -39299,7 +39350,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
         // --- sorok ---
         body.querySelectorAll(".fx-ak [data-akdone]").forEach(cb => cb.addEventListener("change", async () => { await pgToggleAkcio(cb.dataset.akdone, cb.checked); renderFeladatok(); }));
-        body.querySelectorAll(".fx-ak [data-akdel]").forEach(b => b.remove());
+        // törölni csak a saját magad által kiadottat lehet
+        body.querySelectorAll(".fx-ak [data-akdel]").forEach(b => { const a = pgAkciok.find(x => x.id === b.dataset.akdel);
+            if(!a || a.leaderUid !== pgOwnUid() || a.mtUid === pgOwnUid()) { b.remove(); return; }
+            b.addEventListener("click", async () => { await pgDelAkcio(a.id); renderFeladatok(); }); });
+        fxAkKiadBekot(body, () => renderFeladatok());
         body.querySelectorAll("[data-fdtoggle]").forEach(cb => cb.addEventListener("change", e => {
             e.stopPropagation(); fdPipa(cb, cb.dataset.fdtoggle);
         }));
@@ -39531,17 +39586,21 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if(window.sfViewedUid && window.sfViewedUid !== ownUid){
             const emp = (window.sfViewAsEmployees || []).find(e => e.uid === window.sfViewedUid);
             const nev = emp ? (emp.name || emp.email) : "a munkatárs";
-            body.innerHTML = `<section class="card"><div class="card-body fd-empty">A Google Tasks fiókonként privát – ${escM(nev)} Google-feladatai innen nem érhetők el. Az akcióterveit lent látod.</div></section><div id="fdNezAk"><div class="card"><div class="card-body fd-empty">Akciótervek betöltése…</div></div></div>`;
+            body.innerHTML = `<section class="card"><div class="card-body fd-empty">A Google Tasks fiókonként privát – ${escM(nev)} Google-feladatai innen nem érhetők el. Lent látod a neki kiadott feladatokat, és újat is adhatsz neki.</div></section><div id="fdNezAk"><div class="card"><div class="card-body fd-empty">Akciótervek betöltése…</div></div></div>`;
             // Az akciótervek a Sikerfüzet saját adatbázisában vannak: amit te adtál ki neki, azt mindig látod; adminként az összeset.
             try { await pgLoadAll(); } catch(_){}
             const vid = window.sfViewedUid, m = new Map(pgAkciok.filter(a => a.mtUid === vid).map(a => [a.id, a]));
             if(window.sfIsAdmin){ try { (await getAkciok(vid) || []).filter(a => a.mtUid === vid).forEach(a => m.set(a.id, a)); } catch(_){} }
             const l = [...m.values()].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
             const hely = document.getElementById("fdNezAk"); if(!hely || window.sfViewedUid !== vid) return;
-            hely.innerHTML = `<section class="card pg-card fx-ak" style="margin-top:14px"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>${escM(nev)} akciótervei</h2><span class="pg-count">${l.filter(a => !a.done).length} nyitott · ${l.filter(a => a.done).length} kész</span></div>
+            hely.innerHTML = `<section class="card pg-card fx-ak" style="margin-top:14px"><div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5 6h14l2 6v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/></svg></span>${escM(nev)} – akcióterv és feladat</h2><span class="pg-count">${l.filter(a => !a.done).length} nyitott · ${l.filter(a => a.done).length} kész</span></div>
                 <div class="card-body">${l.length ? `<div class="pg-ak-list">${l.map(pgAkcioRowHtml).join("")}</div>` : `<div class="pg-empty">${window.sfIsAdmin ? "Nincs akcióterve." : "Nincs tőled kapott akcióterve."}</div>`}
-                <p class="pg-note-txt">Ezt látja a munkatárs a Feladatok oldalán, az „Akcióterveim” között (a nyitottakat). Kipipálni ő tudja.</p></div></section>`;
-            hely.querySelectorAll("[data-akdel]").forEach(b => b.remove());
+                ${fxAkKiadHtml(vid)}
+                <p class="pg-note-txt">Ezt látja a munkatárs a Feladatok oldalán, az „Akcióterv és feladat” részben. Kipipálni ő tudja.</p></div></section>`;
+            hely.querySelectorAll("[data-akdel]").forEach(b => { const a = l.find(x => x.id === b.dataset.akdel);
+                if(!a || a.leaderUid !== pgOwnUid()) { b.remove(); return; }
+                b.addEventListener("click", async () => { await pgDelAkcio(a.id); window.sfShowFeladatok(); }); });
+            fxAkKiadBekot(hely, () => window.sfShowFeladatok());
             return;
         }
         if(!isConfigured){ renderFeladatokConnect("A Google bejelentkezés még nincs beállítva."); return; }
