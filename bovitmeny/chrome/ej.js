@@ -3,7 +3,7 @@
 // „Erfolgsjournal megnyitása” gombbal nyitott lap), különben a vágólapról (a megnyitás oda is kiteszi).
 // - Havi terv oldal (…/month/ÉÉÉÉ/H): magától beírja a Célom pénzben / ES-ben értékeket és a Havi képletet.
 // - Aktuális hét oldal (CÉL / VAN · Heti célok): a panelen választott hét Cél és Van számait egy kattintással.
-// - Heti tervezés naptár: a Sikerfüzet ügyfél-időpontjait (E / TA / SZ) az „Új időpont” ablakon át beírja (egyszer).
+// - Heti tervezés naptár: a Sikerfüzet összes OVB-s időpontját (ügyfél, PG, Tréning, Telefonparti, Interjú, MAG-nap…) az „Új időpont” ablakon át beírja (egyszer).
 // A mezőket a feliratuk alapján keresi (nem az oldal belső kódja alapján).
 (() => {
   if (window.__sfejBetoltve) return; window.__sfejBetoltve = true;
@@ -69,7 +69,7 @@
     // a legbelső találat (amiben nincs másik), abból a kattintható link / gomb
     const belso = l.find(e => !l.some(x => x !== e && e.contains(x))); if (!belso) return null;
     return belso.closest('a,button,[role="button"]') || belso.querySelector('a,button,[role="button"]') || belso; };
-  // ---- ügyfél-időpontok a „Heti tervezés” naptárba (Új időpont ablak) ----
+  // ---- OVB-időpontok a „Heti tervezés” naptárba (Új időpont ablak) ----
   const HO_ROV = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.', 'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
   const gombSzoveg = (gy, t) => [...gy.querySelectorAll('button,[role="button"],a')].filter(e => lat(e) && !e.closest('#sfejPanel') && kis(e.innerText) === kis(t));
   // a heti naptár oszlopai: a fejléc „11. 14., Szo” cellái → { md: '11-14', el }
@@ -90,7 +90,7 @@
   const ablak = () => { const c = [...document.querySelectorAll('*')].find(e => lat(e) && e.children.length === 0 && kis(e.innerText) === 'új időpont'); if (!c) return null;
     for (let p = c; p && p !== document.body; p = p.parentElement) if (gombSzoveg(p, 'Mentés').length) return p; return null; };
   const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
-  // a megnyitott hét naptárába beírja az ide eső, még át nem vitt ügyfél-időpontokat
+  // a megnyitott hét naptárába beírja az ide eső, még át nem vitt OVB-időpontokat
   async function idopontokKitolt() {
     const lista = (adat && adat.esem) || []; if (!lista.length) return { db: 0, hiba: [] };
     // a „Heti tervezés” fül, „Hét” nézet
@@ -172,7 +172,7 @@
       while (true) {
         const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (!f) return;
         if (f.i >= f.hetek.length) {
-          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} ügyfél-időpont beírva` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
+          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
           await chrome.storage.local.remove('sfejFeladat'); await chrome.storage.local.set({ sfejVege: vege });
           rajz(vege);
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
@@ -194,7 +194,7 @@
             await var_(500);
             const uzi = hetKitolt(kw), m = uzi.match(/(\d+) mező/); f.db += m ? +m[1] : 0; ok = !!m;
             await var_(1800);   // az Erfolgsjournal automatikus mentésének ideje
-            if (adat.esem && adat.esem.length) { rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – ügyfél-időpontok`);
+            if (adat.esem && adat.esem.length) { rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – időpontok`);
               try { const r = await idopontokKitolt(); f.idp = (f.idp || 0) + r.db; if (r.hiba.length) f.hiba.push(...r.hiba.map(x => `${kw}. hét: ${x}`)); } catch (_) {} }
           }
         }
@@ -248,7 +248,7 @@
         `<div style="display:flex;gap:6px;margin-top:8px"><select data-het style="flex:1;border-radius:9px;border:0;padding:6px 8px;font:600 13px system-ui,sans-serif">${hetOpciok()}</select>
          <button data-kit style="${gomb};background:#22c55e;color:#06260f">Kitöltés</button></div>`);
       panel.querySelector('[data-kit]').onclick = () => { const kw = +panel.querySelector('[data-het]').value; panel.querySelector('[data-all]').textContent = hetKitolt(kw); };
-      if (adat.esem && adat.esem.length) { const b = document.createElement('button'); b.style.cssText = gomb + ';margin-top:6px;width:100%;background:#fff;color:#0f2a52'; b.textContent = 'Ügyfél-időpontok beírása erre a hétre';
+      if (adat.esem && adat.esem.length) { const b = document.createElement('button'); b.style.cssText = gomb + ';margin-top:6px;width:100%;background:#fff;color:#0f2a52'; b.textContent = 'Időpontok beírása erre a hétre';
         panel.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = 'Beírás…'; const r = await idopontokKitolt();
           b.textContent = `${r.db} időpont beírva ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n'); }; }
     }

@@ -23181,12 +23181,12 @@ function ejBovnekAd(ut){
     if(!ejBovVerzio()) return;
     const kuld = u => { try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} };
     kuld(ut);
-    if(ejEsemFut || typeof window.sfUgyfelIdopontok !== 'function' || (window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid)) return;
+    if(ejEsemFut || typeof window.sfOvbIdopontok !== 'function' || (window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid)) return;
     ejEsemFut = true;
     const kk = Object.keys(ejAdat().honapok).map(k => k.split('-').map(Number)).map(([y, m]) => new Date(y, m - 1, 1)).sort((a, b) => a - b);
     const tol = new Date(kk[0].getFullYear(), kk[0].getMonth(), -7), ig = new Date(kk[kk.length - 1].getFullYear(), kk[kk.length - 1].getMonth() + 1, 8);
     let jo = false;
-    window.sfUgyfelIdopontok(tol, ig).then(l => { if(l){ jo = true; ejEsem = l; kuld(''); } }).catch(() => {}).finally(() => { setTimeout(() => { ejEsemFut = false; }, jo ? 60000 : 5000); });
+    window.sfOvbIdopontok(tol, ig).then(l => { if(l){ jo = true; ejEsem = l; kuld(''); } }).catch(() => {}).finally(() => { setTimeout(() => { ejEsemFut = false; }, jo ? 60000 : 5000); });
 }
 function ejAblak(ho){
     ejBovnekAd(`/month/${ho.getFullYear()}/${ho.getMonth() + 1}`);
@@ -23248,7 +23248,7 @@ function ejInfo(){
     ejModal(`<h3>Hogyan működik?</h3>
         <ol class="ej-folyamat"><li>A <b>Kitöltés az Erfolgsjournalban</b> gombbal megnyílik a hónap az Erfolgsjournalban (Chrome-ban).</li>
             <li>A Sikerfüzet bővítménye <b>magától beírja</b> a havi célokat és a Havi képletet.</li>
-            <li>Utána sorban végigmegy a hónap hetein, és mindegyikbe beírja a <b>Cél / Van</b> számokat, a <b>Heti tervezés</b> naptárba pedig az ügyfél-időpontokat (Elemzés, Tanácsadás, Szerviz – a Google Naptárból). Amit egyszer már átvitt, azt nem írja be újra.</li>
+            <li>Utána sorban végigmegy a hónap hetein, és mindegyikbe beírja a <b>Cél / Van</b> számokat, a <b>Heti tervezés</b> naptárba pedig minden OVB-s időpontot (ügyfél-időpontok, PG, Training, Telefonparty, felvételik, MAG-nap… – a Google Naptárból). Amit egyszer már átvitt, azt nem írja be újra.</li>
             <li>A végén visszaáll a havi oldalra – nézd át, és véglegesítsd, ahogy eddig.</li></ol>
         <p style="font-size:12.5px;color:var(--muted)">Havonta egyszer a kezdőlapon emlékeztető jelzi, hogy át kell vinni az előző hónapot.</p>`);
 }
@@ -37116,21 +37116,35 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // Eredmény: [{ d: 'YYYY-MM-DD', tol: perc, ig: perc, egesz: bool, cim }]
     // Az Erfolgsjournal-bővítménynek: a saját naptár ügyfél-időpontjai (E / TA / SZ kód a címben) a [tol, ig) időszakban.
     // Eredmény: [{ id, tip: 'Elemzés' | 'Tanácsadás' | 'Szerviz', cim, d: 'YYYY-MM-DD', k: 'HH:MM', v: 'HH:MM', hol }]
-    window.sfUgyfelIdopontok = async (tol, ig) => {
+    // Az Erfolgsjournal-bővítménynek: a saját naptár MINDEN OVB-s eseménye a [tol, ig) időszakban, az Erfolgsjournal
+    // típusneveivel. Ügyfél-időpontnál a cím „Típus Név”, a többinél az eredeti cím (kód, EH és ✅/❌ nélkül).
+    // Eredmény: [{ id, tip, cim, d: 'YYYY-MM-DD', k: 'HH:MM', v: 'HH:MM', hol }]
+    const EJ_TIPUS = { "Elemzés": "Elemzés", "Tanácsadás": "Tanácsadás", "Szerviz": "Szerviz", "Telefonparty": "Telefonparti",
+        "PG": "PG", "Training": "Tréning", "Oktatás": "Tréning", "Felvételi 1": "Interjú", "Felvételi 2": "Interjú",
+        "Munkatársnyerő": "MAG-nap", "Rendezvény": "Egyéb", "Vezetőségi": "Egyéb" };
+    const EJ_UGYFEL = ["Elemzés", "Tanácsadás", "Szerviz"];
+    window.sfOvbIdopontok = async (tol, ig) => {
         let token = getCalendarToken() || await silentOnce();
         if (!token) return null;
         let items;
         try { items = await fetchEvents(token, tol, ig, "primary"); }
         catch(e){ if (e.status !== 401) return null; const friss = await silentOnce(true); if (!friss) return null; items = await fetchEvents(friss, tol, ig, "primary"); }
-        const TIP = { E: "Elemzés", TA: "Tanácsadás", SZ: "Szerviz" }, p2 = n => String(n).padStart(2, "0");
+        const p2 = n => String(n).padStart(2, "0"), tipusa = t => EVENT_TYPES.find(x => x.label === t);
         return items.filter(ev => ev.status !== "cancelled" && ev.start && ev.start.dateTime).map(ev => {
-            const m = (ev.summary || "").match(/\((E|TA|SZ)\)/); if (!m) return null;
+            const { clean } = parseValidation(ev.summary || "");
+            const sp = splitEventTitle(clean), low = clean.toLowerCase();
+            // a cím kódja / kulcsszava; plusz néhány gyakori írásmód, amit a naptár-színezés nem ismer
+            let t = sp.type || (/mt\s*nyerő|mag-?nap/.test(low) ? tipusa("Munkatársnyerő") : /pg\b/.test(low) ? tipusa("PG") : null);
+            if (!t || !t.ovb || !EJ_TIPUS[t.label]) return null;
+            const tip = EJ_TIPUS[t.label], alap = String(sp.base || clean).replace(/\s+/g, " ").trim();
+            const cim = EJ_UGYFEL.includes(t.label) ? (tip + " " + alap).trim()
+                : t.suffix ? (t.label + " " + alap).trim() : alap || t.label;
             const k = new Date(ev.start.dateTime), v = new Date(ev.end && ev.end.dateTime || ev.start.dateTime);
-            const nev = (ev.summary || "").replace(/\((E|TA|SZ)\)/, " ").replace(/\s+/g, " ").trim();
-            return { id: ev.id, tip: TIP[m[1]], cim: (TIP[m[1]] + " " + nev).trim(), d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
+            return { id: ev.id, tip, cim, d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
                 k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "" };
         }).filter(Boolean);
     };
+    window.sfUgyfelIdopontok = window.sfOvbIdopontok;   // régi név (korábbi hívók)
     window.sfCalFoglalt = async (tol, ig, kiveve) => {
         let token = getCalendarToken() || await silentOnce();
         if (!token){ const e = new Error("Nincs Google Naptár kapcsolat."); e.kod = "token"; throw e; }
