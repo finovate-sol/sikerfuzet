@@ -37254,19 +37254,20 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 return;
             }
             const aktiv = calOwnId || "";
+            // Minden naptár ki-be kapcsolható – a saját (fő) naptár is. Egy lista, a fő naptár legelöl.
+            const foE = c => aktiv ? c.id === aktiv : c.primary;
+            const lathato = c => foE(c) ? !(c.id in calLathato && !calLathato[c.id]) : calBe(c);
             const sor = c => {
-                const akt = aktiv ? c.id === aktiv : c.primary;
-                const cimke = akt ? "aktív" : c.primary ? "saját" : c.iras ? "" : "csak olvasható";
-                return `<label class="cal-ly-sor${akt ? " akt" : ""}" title="${escM(c.nev)}">
+                const cimke = foE(c) ? "saját" : c.iras ? "" : "csak olvasható";
+                return `<label class="cal-ly-sor" title="${escM(c.nev)}">
                     <span class="cal-ly-pont" style="background:${escM(c.szin)}"></span>
                     <span class="cal-ly-nev"><b>${escM(c.nev)}</b>${cimke ? `<small>${cimke}</small>` : ""}</span>
-                    <span class="ev-switch"><input type="checkbox" data-lyid="${escM(c.id)}"${akt || calBe(c) ? " checked" : ""}${akt ? " disabled" : ""}><span></span></span>
+                    <span class="ev-switch"><input type="checkbox" data-lyid="${escM(c.id)}"${lathato(c) ? " checked" : ""}><span></span></span>
                 </label>`;
             };
-            const be = calLista.filter(c => (aktiv ? c.id === aktiv : c.primary) || calBe(c)), ki = calLista.filter(c => !be.includes(c));
-            body.innerHTML = `<p class="cal-ly-sub">A bekapcsolt naptárak a saját színükkel jelennek meg; új esemény az aktív naptárba kerül.</p>`
-                + (be.length ? `<div class="cal-ly-cs">Látszik · ${be.length}</div>${be.map(sor).join("")}` : "")
-                + (ki.length ? `<div class="cal-ly-cs">Rejtett · ${ki.length}</div>${ki.map(sor).join("")}` : "");
+            const lista = calLista.slice().sort((a, b) => foE(b) - foE(a));
+            body.innerHTML = `<p class="cal-ly-sub">A bekapcsolt naptárak eseményei látszanak a naptárban, a saját színükkel. Új eseménynél az ablakban választhatod ki, melyik naptárba kerüljön.</p>
+                <div class="cal-ly-cs" id="calLyDb">Bekapcsolva: ${lista.filter(lathato).length} / ${lista.length}</div>${lista.map(sor).join("")}`;
         };
         overlay.addEventListener("click", async e => {
             if (e.target === overlay || e.target.closest("[data-lyok]")) return bezar();
@@ -37286,6 +37287,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         overlay.addEventListener("change", e => {
             const i = e.target.closest("[data-lyid]"); if (!i) return;
             calLathato[i.dataset.lyid] = i.checked; calLathatoMent(); valtozott = true;
+            const db = overlay.querySelector("#calLyDb"); if (db){ const l = [...overlay.querySelectorAll("[data-lyid]")]; db.textContent = `Bekapcsolva: ${l.filter(x => x.checked).length} / ${l.length}`; }
         });
         rajzol();
         await calListaBetolt(getCalendarToken(), true);
@@ -37423,8 +37425,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             else if (sajatNezet) calListaMentett();
             if (seq !== calRenderSeq) return;
             const atfedok = sajatNezet ? calAtfedok() : [];
+            // a fő (aktív) naptár is kikapcsolható a Naptárak ablakban – ilyenkor az eseményei nem kellenek
+            const fo = sajatNezet && calLista ? calLista.find(c => calOwnId ? c.id === calOwnId : c.primary) : null;
+            const foRejtve = !!(fo && fo.id in calLathato && !calLathato[fo.id]);
             const [events, tasks, ...kulsok] = await Promise.all([
-                fetchEvents(token, rangeStart, rangeEnd),
+                foRejtve ? Promise.resolve([]) : fetchEvents(token, rangeStart, rangeEnd),
                 ownCal ? tasksForCalendar() : Promise.resolve([]),
                 // Egy átfedő naptár hibája (pl. megszűnt hozzáférés) ne vigye el az egészet.
                 // Átmeneti hibánál (lejárt token, túl sok egyidejű kérés belépéskor) újrapróbáljuk,
