@@ -43098,6 +43098,53 @@ Vállalkozás nyitásának átbeszélése`, '']
             const torzs = sorok.slice(i).join('\n').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim();
             return { nev, props, torzs };
         }
+        // A Notion-oldal törzse tagolt: „# Adatok:” alatt „- *Életkor: 31*” sorok, „# Elemzés / Célok:” alatt a célok.
+        // Ezek az ügyfél mezőibe kerülnek; jegyzet csak abból lesz, ami ezeken kívül marad.
+        const ekezetNelkul = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        function impTorzsBontas(torzs){
+            const ki = { details: {}, celok: {}, lakhely: '', phone: '', ajanlo: '', maradek: '' };
+            const sorok = String(torzs || '').split(/\r?\n/);
+            let szakasz = '', marad = [];
+            const tisztit = v => String(v || '').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim();
+            for(const nyers of sorok){
+                const sor = nyers.trim();
+                const fej = sor.match(/^#{1,6}\s*(.+?)\s*:?\s*$/);
+                if(fej){ const n = ekezetNelkul(tisztit(fej[1])); szakasz = /^adatok/.test(n) ? 'adat' : /elemzes|cel/.test(n) ? 'cel' : ''; if(!szakasz) marad.push(nyers); continue; }
+                if(/^(-{3,}|\*{3,}|_{3,})$/.test(sor)) continue;
+                const m = szakasz && sor.match(/^[-*•]\s*(.+)$/);
+                if(m){
+                    const t = tisztit(m[1]), kp = t.indexOf(':');
+                    if(kp > 0){
+                        const cim = ekezetNelkul(t.slice(0, kp)), ert = t.slice(kp + 1).trim();
+                        if(!ert) continue;                       // üres mező („- *Miért gondolt rá:*”)
+                        if(szakasz === 'cel'){
+                            if(/rovid/.test(cim)){ ki.celok.rovid = ert; continue; }
+                            if(/kozep/.test(cim)){ ki.celok.kozep = ert; continue; }
+                            if(/hosszu/.test(cim)){ ki.celok.hosszu = ert; continue; }
+                        } else {
+                            if(/gyerek/.test(cim)){ const n = parseInt(ert, 10);
+                                ki.details.gyerekek = isNaN(n) ? ert : n <= 0 ? 'Nincs gyermeke' : n >= 4 ? '4 vagy több gyermek' : n + ' gyermek'; continue; }
+                            if(/eletkor/.test(cim)){ const n = ert.match(/\d+/); if(n){ ki.details.eletkor = n[0]; continue; } }
+                            if(/telepules|lakhely|varos/.test(cim) && !/helyzet/.test(cim)){ ki.lakhely = ert; continue; }
+                            if(/miert/.test(cim)){ ki.details.miert = ert; continue; }
+                            if(/lakashelyzet|csaladi/.test(cim)){
+                                const csal = RD_LAKAS_OPTS.find(o => ekezetNelkul(o) === ekezetNelkul(ert)), lak = RD_LAKHELYZET_OPTS.find(o => ekezetNelkul(o[0]) === ekezetNelkul(ert));
+                                if(lak) ki.details.lakhelyzet = lak[0]; else ki.details.lakas = csal || ert; continue; }
+                            if(/foglalkozas/.test(cim)){ ki.details.foglalkozas = ert; continue; }
+                            if(/honnan/.test(cim)){ ki.details.honnan = ert; continue; }
+
+                            if(/megjegyzes/.test(cim)){ ki.details.megjegyzes = ert; continue; }
+                            if(/telefon/.test(cim)){ ki.phone = ert; continue; }
+                            if(/ajanlo/.test(cim)){ ki.ajanlo = ert; continue; }
+                        }
+                    }
+                }
+                if(sor || marad.length) marad.push(nyers);
+            }
+            ki.maradek = marad.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+            return ki;
+        }
+        const notionTagolt = t => /^#{1,6}\s*adatok\s*:?\s*$/im.test(String(t || '')) || /^#{1,6}\s*elemz[eé]s\s*\/\s*c[eé]lok/im.test(String(t || ''));
         const IMP_KULCS = ['Telefonszám', 'Status', 'Ajánló Személy', 'MT', 'TP', 'Lakhely', 'Település', 'Munkatárs', 'Ajánlás'];
         const jegyKulcs = t => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
         function impZipUgyfelek(fajlok){
@@ -43119,9 +43166,15 @@ Vállalkozás nyitásának átbeszélése`, '']
                 const get = p => p === 'Név' ? md.nev : (md.props[p] !== undefined && md.props[p] !== '' ? md.props[p] : (csv[p] || ''));
                 const c = notionRowToClient(get); if(!c.name) return;
                 if(md.torzs){
-                    const kt = parseKtResult(md.torzs);
+                    const bt = impTorzsBontas(md.torzs);
+                    c.details = Object.assign({}, bt.details, c.details || {});
+                    c.celok = Object.assign({}, bt.celok, c.celok || {});
+                    if(!c.lakhely && bt.lakhely) c.lakhely = bt.lakhely;
+                    if(!c.phone && bt.phone) c.phone = bt.phone;
+                    if(!c.ajanlo && bt.ajanlo) c.ajanlo = bt.ajanlo;
+                    const kt = parseKtResult(bt.maradek);
                     if(kt) c.kiertekelo = Object.assign(c.kiertekelo || { status:'elvegezve', advisor:'', topic:'', amount:'', feedback:'' }, { eredmeny: Object.assign(kt, { at:'', byName:'' }) });
-                    else c.jegyzetek = [{ id: 'md' + Date.now().toString(36) + n, text: md.torzs, at: new Date().toISOString(), byUid: '', byName: 'Notion' }];
+                    else if(bt.maradek) c.jegyzetek = [{ id: 'md' + Date.now().toString(36) + n, text: bt.maradek, at: new Date().toISOString(), byUid: '', byName: 'Notion' }];
                 }
                 ki.set(k, c);
             });
@@ -43137,9 +43190,19 @@ Vállalkozás nyitásának átbeszélése`, '']
             const exD = ex.details || {}, ujD = {};
             Object.keys(c.details || {}).forEach(k => { if(!String(exD[k] || '').trim() && String(c.details[k] || '').trim()) ujD[k] = c.details[k]; });
             if(Object.keys(ujD).length){ patch.details = Object.assign({}, exD, ujD); mi.push('részletek'); }
-            const exJ = Array.isArray(ex.jegyzetek) ? ex.jegyzetek : [];
+            const exC = ex.celok || {}, ujC = {};
+            Object.keys(c.celok || {}).forEach(k => { if(!String(exC[k] || '').trim() && String(c.celok[k] || '').trim()) ujC[k] = c.celok[k]; });
+            if(Object.keys(ujC).length){ patch.celok = Object.assign({}, exC, ujC); mi.push('célok'); }
+            // a korábbi importból egy-az-egyben jegyzetbe került Notion-oldal („# Adatok:” …) – az adatai a mezőkbe mennek, a jegyzet törlődik
+            const regiTagolt = (Array.isArray(ex.jegyzetek) ? ex.jegyzetek : []).filter(m => m.byName === 'Notion' && notionTagolt(m.text));
+            regiTagolt.forEach(m => { const bt = impTorzsBontas(m.text);
+                Object.keys(bt.details).forEach(k => { const cel = patch.details || Object.assign({}, exD); if(!String(cel[k] || '').trim()){ cel[k] = bt.details[k]; patch.details = cel; } });
+                Object.keys(bt.celok).forEach(k => { const cel = patch.celok || Object.assign({}, exC); if(!String(cel[k] || '').trim()){ cel[k] = bt.celok[k]; patch.celok = cel; } });
+                if(bt.lakhely && !String(ex.lakhely || '').trim() && !patch.lakhely) patch.lakhely = bt.lakhely; });
+            const exJ = (Array.isArray(ex.jegyzetek) ? ex.jegyzetek : []).filter(m => !regiTagolt.includes(m));
             const ujJ = (c.jegyzetek || []).filter(n => !exJ.some(m => jegyKulcs(m.text) === jegyKulcs(n.text) || jegyKulcs(m.text).includes(jegyKulcs(n.text))));
-            if(ujJ.length){ patch.jegyzetek = exJ.concat(ujJ); mi.push('jegyzet'); }
+            if(ujJ.length || regiTagolt.length){ patch.jegyzetek = exJ.concat(ujJ); if(ujJ.length) mi.push('jegyzet'); }
+            if(regiTagolt.length){ mi.push('Notion-jegyzet adatokká alakítva'); if(patch.details && !mi.includes('részletek')) mi.push('részletek'); if(patch.celok && !mi.includes('célok')) mi.push('célok'); }
             if(c.kiertekelo && c.kiertekelo.eredmeny && !(ex.kiertekelo && ex.kiertekelo.eredmeny)){
                 patch.kiertekelo = Object.assign({}, ex.kiertekelo || {}, c.kiertekelo); mi.push('kiértékelő'); }
             return { patch, mi };
