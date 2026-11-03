@@ -5809,6 +5809,9 @@
                     font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;
                     border:1px dashed #b8c2d0; box-shadow:0 1px 3px rgba(15,35,70,.12); }
         .wk-gtask:hover { border-color:var(--blue); background:#f5f8ff; }
+        .wk-kijeloles { position:absolute; z-index:40; background:rgba(31,95,208,.16); border:1.5px solid var(--blue); border-radius:7px; pointer-events:none;
+            font:800 11px Inter,system-ui,sans-serif; color:var(--blue); padding:3px 6px; overflow:hidden; white-space:nowrap; }
+        body.wk-kijelol-folyik, body.wk-kijelol-folyik * { user-select:none !important; cursor:ns-resize; }
         .gt-vet { opacity:.55; border-style:dashed !important; cursor:default !important; }
         .wk-gtask.done { color:#94a3b8; text-decoration:line-through; }
         .wk-gtask b { font-weight:800; opacity:.75; }
@@ -35683,6 +35686,39 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if (!name) return;
             openEventModal(start, { title: name, srcList: payload.list, srcIndex: payload.regidx,
                 durationMin: payload.list === "task" ? 15 : 60 });
+        });
+        // Időtartam kijelölése egérrel: üres helyen lenyomva lehúzva → új esemény / feladat ezzel a kezdéssel és hosszal.
+        canvas.addEventListener("pointerdown", e => {
+            if (e.button > 0 || e.pointerType === "touch" || !currentColumns.length || e.target.closest(".wk-ev, .wk-travel, .wk-gtask, .wk-ev-rs")) return;
+            const n = currentColumns.length, r0 = canvas.getBoundingClientRect();
+            const idx = Math.min(n - 1, Math.max(0, Math.floor((e.clientX - r0.left) / (r0.width / n))));
+            const percY = y => { const r = canvas.getBoundingClientRect();
+                return Math.min(END_H * 60 - 15, Math.max(START_H * 60, START_H * 60 + Math.floor(((y - r.top) / ROW) * 4) * 15)); };
+            const m0 = percY(e.clientY), y0 = e.clientY;
+            let a = m0, b = m0 + 15, mozdult = false, sel = null;
+            const hmP = m => Math.floor(m / 60) + ":" + pad2(m % 60);
+            const mozog = ev => {
+                if (!mozdult && Math.abs(ev.clientY - y0) < 6) return;
+                if (!mozdult){ mozdult = true; document.body.classList.add("wk-kijelol-folyik");
+                    sel = document.createElement("div"); sel.className = "wk-kijeloles";
+                    sel.style.left = `calc(${idx * (100 / n)}% + 2px)`; sel.style.width = `calc(${100 / n}% - 4px)`; canvas.appendChild(sel); }
+                const m = percY(ev.clientY);
+                a = Math.min(m0, m); b = Math.max(m0, m) + 15;
+                sel.style.top = ((a - START_H * 60) / 60 * ROW) + "px";
+                sel.style.height = ((b - a) / 60 * ROW) + "px";
+                const p = b - a;
+                sel.textContent = `${hmP(a)}–${hmP(b)} · ${p % 60 ? (p >= 60 ? Math.floor(p / 60) + " ó " + p % 60 + " p" : p + " p") : p / 60 + " ó"}`;
+            };
+            const vege = () => {
+                window.removeEventListener("pointermove", mozog); window.removeEventListener("pointerup", vege); window.removeEventListener("pointercancel", vege);
+                document.body.classList.remove("wk-kijelol-folyik");
+                if (!mozdult) return;              // sima kattintás: a click-kezelő nyitja (1 órás)
+                wkRsIdo = Date.now();              // a most következő click ne nyisson még egy ablakot
+                const start = new Date(currentColumns[idx]); start.setHours(0, 0, 0, 0); start.setMinutes(a);
+                setTimeout(() => { if (sel) sel.remove(); }, 150);
+                openEventModal(start, { durationMin: b - a });
+            };
+            window.addEventListener("pointermove", mozog); window.addEventListener("pointerup", vege); window.addEventListener("pointercancel", vege);
         });
         canvas.addEventListener("click", e => {
             if (draggingEvent || Date.now() - wkRsIdo < 500 || e.target.closest(".wk-ev, .wk-travel, .wk-gtask")) return;
