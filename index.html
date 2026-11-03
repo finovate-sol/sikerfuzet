@@ -34149,6 +34149,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (!isConfigured) return;
         saveClient(id, data).catch(e => { console.warn("Ügyfél mentése sikertelen:", e); sfMentHiba("Az ügyfél mentése nem sikerült: " + ((e && e.message) || e)); });
     };
+    // megvárható változat (az importnál kell, hogy tudjuk, sikerült-e)
+    window.sfSaveClientAsync = (id, data) => isConfigured ? saveClient(id, data) : Promise.resolve();
     window.sfDeleteClient = function(id){
         if (!isConfigured) return;
         deleteClient(id).catch(e => { console.warn("Ügyfél törlése sikertelen:", e); sfMentHiba("A törlés nem sikerült: " + ((e && e.message) || e)); });
@@ -42951,7 +42953,10 @@ Vállalkozás nyitásának átbeszélése`, '']
         <div class="card"><div class="card-body">
             <div class="adm-section-title">Ügyfelek / MT potenciál (CSV vagy JSON)</div>
             <p style="font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 14px;">
-                Kétféle fájlt fogad el. <b>CSV:</b> Notionben az „… – Ügyfél / MT Potenciál” adatbázison
+                <b>ZIP (ajánlott):</b> Notionben az „… – Ügyfél / MT Potenciál” adatbázison <b>••• → Export → Markdown &amp; CSV</b>,
+                „Include content: Everything” – az ügyféloldalak (md) adataival és szövegével együtt. Ha az ügyfél már fent van,
+                csak a hiányzó adatait és a még nem szereplő jegyzetét teszi fel; ha nincs, újként veszi fel.
+                <b>CSV:</b> Notionben az „… – Ügyfél / MT Potenciál” adatbázison
                 <b>••• → Export → Markdown &amp; CSV</b> – ez csak a táblázat oszlopait hozza.
                 <b>JSON:</b> a kinyert fájl, amiben az oldalak szövege és a kommentek is benne vannak –
                 ezek jegyzetként kerülnek az ügyfélhez, a kiértékelő telefon eredménye pedig a Kiértékelő fülre.
@@ -42961,7 +42966,7 @@ Vállalkozás nyitásának átbeszélése`, '']
             <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
                 <label style="font-size:11.5px;font-weight:700;color:var(--muted);">Kezelő:</label>
                 <select id="impOwner" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;min-width:200px;">${ownerOpts}</select>
-                <input type="file" id="impFile" accept=".csv,.json,text/csv,application/json" style="font-size:12px;">
+                <input type="file" id="impFile" accept=".zip,.csv,.json,application/zip,text/csv,application/json" style="font-size:12px;">
             </div>
             <div id="impPreview"></div>
         </div></div>`;
@@ -42986,6 +42991,120 @@ Vállalkozás nyitásának átbeszélése`, '']
         const impErr = msg => { prev.innerHTML = `<div style="color:var(--red);font-size:12px;">${msg}</div>`; };
 
         // Beolvasott sorok → előnézet + import gomb. A CSV és a JSON ág ugyanide fut be.
+        // ---- ZIP: a Notion „Markdown & CSV” exportja – ügyféloldalak (md) + az adatbázis CSV-je ----
+        // Az md eleje: „# Név”, utána „Mező: érték” sorok, aztán az oldal szövege (az jegyzet lesz).
+        function impMdBol(szoveg, fajlnev){
+            const sorok = String(szoveg || '').replace(/^﻿/, '').split(/\r?\n/);
+            let i = 0; while(i < sorok.length && !sorok[i].trim()) i++;
+            let nev = '';
+            if(i < sorok.length && /^#\s+/.test(sorok[i])){ nev = sorok[i].replace(/^#\s+/, '').trim(); i++; }
+            if(!nev) nev = jgClean(String(fajlnev || '').split('/').pop());
+            while(i < sorok.length && !sorok[i].trim()) i++;
+            const props = {};
+            for(; i < sorok.length; i++){
+                const m = sorok[i].match(/^([^:\n#*>\-][^:\n]{0,40}):\s*(.*)$/);
+                if(!m) break;
+                props[m[1].trim()] = m[2].replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/%20/g, ' ').trim();
+            }
+            const torzs = sorok.slice(i).join('\n').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim();
+            return { nev, props, torzs };
+        }
+        const IMP_KULCS = ['Telefonszám', 'Status', 'Ajánló Személy', 'MT', 'TP', 'Lakhely', 'Település', 'Munkatárs', 'Ajánlás'];
+        const jegyKulcs = t => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        function impZipUgyfelek(fajlok){
+            const dec = new TextDecoder('utf-8');
+            // az adatbázis CSV-je (ha van): név szerint az oszlopai
+            const csvSor = new Map();
+            fajlok.filter(x => /\.csv$/i.test(x.name)).forEach(x => {
+                let rows; try { rows = parseCsv(dec.decode(x.data)); } catch(_){ return; }
+                if(rows.length < 2) return;
+                const head = rows[0].map(h => String(h).trim()); if(!head.includes('Név')) return;
+                rows.slice(1).forEach(r => { const o = {}; head.forEach((h, j) => { if(o[h] === undefined) o[h] = r[j]; }); if(o['Név']) csvSor.set(nameKey(o['Név']), o); });
+            });
+            const ki = new Map();
+            fajlok.filter(x => /\.md$/i.test(x.name)).forEach((x, n) => {
+                const md = impMdBol(dec.decode(x.data), x.name), k = nameKey(md.nev);
+                const csv = csvSor.get(k) || {};
+                // csak az ügyféloldalak: amelyiknek ügyfél-mezője van, vagy szerepel az adatbázis CSV-jében
+                if(!IMP_KULCS.some(p => md.props[p] !== undefined) && !csvSor.has(k)) return;
+                const get = p => p === 'Név' ? md.nev : (md.props[p] !== undefined && md.props[p] !== '' ? md.props[p] : (csv[p] || ''));
+                const c = notionRowToClient(get); if(!c.name) return;
+                if(md.torzs){
+                    const kt = parseKtResult(md.torzs);
+                    if(kt) c.kiertekelo = Object.assign(c.kiertekelo || { status:'elvegezve', advisor:'', topic:'', amount:'', feedback:'' }, { eredmeny: Object.assign(kt, { at:'', byName:'' }) });
+                    else c.jegyzetek = [{ id: 'md' + Date.now().toString(36) + n, text: md.torzs, at: new Date().toISOString(), byUid: '', byName: 'Notion' }];
+                }
+                ki.set(k, c);
+            });
+            // ami csak a CSV-ben van (nincs hozzá md), az is jöjjön
+            csvSor.forEach((o, k) => { if(!ki.has(k)){ const c = notionRowToClient(p => o[p] || ''); if(c.name) ki.set(k, c); } });
+            return [...ki.values()];
+        }
+        // Meglévő ügyfélnél csak a hiányzó adat: üres mezők, hiányzó részletek, még nem szereplő jegyzet, kiértékelő-eredmény.
+        function impHianyzo(ex, c){
+            const patch = {}, mi = [];
+            [['phone', 'telefon'], ['ajanlo', 'ajánló'], ['lakhely', 'település'], ['munkatars', 'munkatárs'], ['ajanlasok', 'ajánlások']].forEach(([f, n]) => {
+                if(!String(ex[f] || '').trim() && String(c[f] || '').trim()){ patch[f] = c[f]; mi.push(n); } });
+            const exD = ex.details || {}, ujD = {};
+            Object.keys(c.details || {}).forEach(k => { if(!String(exD[k] || '').trim() && String(c.details[k] || '').trim()) ujD[k] = c.details[k]; });
+            if(Object.keys(ujD).length){ patch.details = Object.assign({}, exD, ujD); mi.push('részletek'); }
+            const exJ = Array.isArray(ex.jegyzetek) ? ex.jegyzetek : [];
+            const ujJ = (c.jegyzetek || []).filter(n => !exJ.some(m => jegyKulcs(m.text) === jegyKulcs(n.text) || jegyKulcs(m.text).includes(jegyKulcs(n.text))));
+            if(ujJ.length){ patch.jegyzetek = exJ.concat(ujJ); mi.push('jegyzet'); }
+            if(c.kiertekelo && c.kiertekelo.eredmeny && !(ex.kiertekelo && ex.kiertekelo.eredmeny)){
+                patch.kiertekelo = Object.assign({}, ex.kiertekelo || {}, c.kiertekelo); mi.push('kiértékelő'); }
+            return { patch, mi };
+        }
+        function impZipElonezet(all){
+            if(!all.length){ impErr('A ZIP-ben nem találtam ügyféloldalt. Az „… – Ügyfél / MT Potenciál” adatbázis „Markdown & CSV” exportját válaszd, „Include content: Everything” beállítással.'); return; }
+            const meglevo = new Map(); (window.sfAllClients || []).forEach(x => { const k = nameKey(x.name); if(k && !meglevo.has(k)) meglevo.set(k, x); });
+            const ujak = [], frissit = [], nincs = [];
+            all.forEach(c => { const ex = meglevo.get(nameKey(c.name));
+                if(!ex){ ujak.push(c); return; }
+                const h = impHianyzo(ex, c); if(Object.keys(h.patch).length) frissit.push({ ex, c, ...h }); else nincs.push(c); });
+            const td = 'style="padding:5px 8px;border-top:1px solid var(--border)"';
+            const sorok = [...frissit.map(x => `<tr><td ${td}>${escM(x.c.name)}</td><td ${td}><span style="color:#1f5fd0;font-weight:600">kiegészül</span></td><td ${td}>${escM(x.mi.join(', '))}</td></tr>`),
+                           ...ujak.map(c => `<tr><td ${td}>${escM(c.name)}</td><td ${td}><span style="color:var(--green);font-weight:600">új</span></td><td ${td}>${c.mt ? '2 órás füzet' : '10 perces füzet'}${(c.jegyzetek || []).length ? ' · jegyzettel' : ''}</td></tr>`)];
+            prev.innerHTML = `
+                <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;margin-bottom:12px;">
+                    <span>A ZIP-ben: <b>${all.length}</b> ügyfél</span>
+                    <span style="color:var(--green);">Új: <b>${ujak.length}</b></span>
+                    <span style="color:#1f5fd0;">Kiegészül: <b>${frissit.length}</b></span>
+                    <span style="color:var(--muted);">Már minden megvan: <b>${nincs.length}</b></span>
+                </div>
+                ${sorok.length ? `<div style="overflow:auto;max-height:320px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Név</th><th style="text-align:left;padding:7px 8px;">Mi történik</th><th style="text-align:left;padding:7px 8px;">Részlet</th></tr></thead>
+                    <tbody>${sorok.join('')}</tbody></table></div>
+                    <button class="btn primary" id="impZipGo" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mehet: ${ujak.length} új, ${frissit.length} kiegészítés</button>
+                    <span id="impStat" style="margin-left:12px;font-size:12px;color:var(--muted);"></span>`
+                : `<div style="color:var(--muted);font-size:12px;">Nincs teendő – minden ügyfél és adat már fent van.</div>`}`;
+            const go = document.getElementById('impZipGo'); if(!go) return;
+            go.addEventListener('click', async () => {
+                const uid = document.getElementById('impOwner').value;
+                const emp = emps.find(x => x.uid === uid) || { uid: me.uid, email: me.email, name: me.name };
+                if(!confirm(`${ujak.length} új ügyfél (ide: ${emp.name || emp.email}) és ${frissit.length} meglévő kiegészítése. Mehet?`)) return;
+                go.disabled = true;
+                const stat = document.getElementById('impStat'); let ok = 0, fr = 0, fail = 0;
+                const ossz = ujak.length + frissit.length;
+                for(const x of frissit){
+                    try { await window.sfSaveClientAsync(x.ex.id, x.patch); Object.assign(x.ex, x.patch);
+                        const ri = registry.findIndex(r => r.id === x.ex.id); if(ri >= 0) Object.assign(registry[ri], x.patch); fr++; }
+                    catch(err){ fail++; }
+                    stat.textContent = `${ok + fr + fail} / ${ossz}…`;
+                }
+                for(const c of ujak){
+                    const own = (c.kezeloNev && emps.find(x => nameKey(x.name) === nameKey(c.kezeloNev))) || emp;
+                    const row = Object.assign({}, c); delete row.kezeloNev;
+                    const payload = Object.assign(row, { ownerUid: own.uid || '', ownerEmail: own.email || '', ownerName: own.name || own.email || '' });
+                    try { const id = await window.sfAddClient(payload); if(id){ ok++; (window.sfAllClients = window.sfAllClients || []).push(Object.assign({ id }, payload)); } else fail++; }
+                    catch(err){ fail++; }
+                    stat.textContent = `${ok + fr + fail} / ${ossz}…`;
+                }
+                try { store.save('sf_registry', registry); } catch(_){}
+                stat.textContent = `Kész: ${ok} új, ${fr} kiegészítve${fail ? `, ${fail} sikertelen` : ''}.`;
+                if(typeof window.sfShowUgyfelek === 'function') window.sfShowUgyfelek();
+            });
+        }
         function impPreviewRows(all){
             // Duplikátum-szűrés: a már meglévő ügyfelek név + telefon alapján.
             const existing = new Set((window.sfAllClients || []).map(c => nameKey(c.name)+'|'+phoneKey(c.phone)));
@@ -43050,9 +43169,18 @@ Vállalkozás nyitásának átbeszélése`, '']
             });
         }
 
-        document.getElementById('impFile').addEventListener('change', e => {
+        document.getElementById('impFile').addEventListener('change', async e => {
             const f = e.target.files && e.target.files[0];
             if(!f) return;
+            if(/\.zip$/i.test(f.name || '')){
+                prev.innerHTML = '<div style="color:var(--muted);font-size:12px;">ZIP kibontása…</div>';
+                try {
+                    if(typeof DecompressionStream === 'undefined') throw new Error('Ez a böngésző nem tud ZIP-et kibontani – próbáld Chrome-ban.');
+                    const fajlok = await jgUnzipDeep(await f.arrayBuffer());
+                    impZipElonezet(impZipUgyfelek(fajlok));
+                } catch(err){ impErr('A ZIP nem olvasható: ' + escM(err.message || err)); }
+                return;
+            }
             const reader = new FileReader();
             reader.onload = () => {
                 const txt = String(reader.result || '');
