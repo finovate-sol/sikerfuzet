@@ -1253,6 +1253,13 @@
         /* ===== Egységes esemény / feladat ablak (új esemény, szerkesztés, új feladat) ===== */
         .modal.evb { width:min(660px, calc(100vw - 32px)); max-width:660px; padding:0; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); font-size:15px; }
         .evb [hidden] { display:none !important; }
+        /* naptár: esemény átméretezése a szélénél */
+        .wk-ev-rs { position:absolute; left:0; right:0; height:8px; z-index:4; cursor:ns-resize; touch-action:none; }
+        .wk-ev-rs.fel { top:-3px; } .wk-ev-rs.le { bottom:-3px; }
+        .wk-ev-rs.le::after { content:""; position:absolute; left:50%; bottom:5px; width:22px; height:3px; margin-left:-11px; border-radius:2px; background:currentColor; opacity:0; transition:opacity .12s; }
+        .wk-ev:hover .wk-ev-rs.le::after, .wk-rs-aktiv .wk-ev-rs.le::after { opacity:.45; }
+        .wk-rs-aktiv { box-shadow:0 0 0 2px var(--blue), 0 8px 20px rgba(15,42,82,.25) !important; z-index:50 !important; opacity:.95; }
+        .wk-rs-cimke { position:absolute; font-size:11px; font-weight:800; background:rgba(15,23,42,.82); color:#fff; padding:2px 6px; border-radius:6px; white-space:nowrap; pointer-events:none; z-index:60; }
         .evb.evb-feladat .csak-esemeny, .evb:not(.evb-feladat) .csak-feladat { display:none !important; }
         .evb-fej { display:flex; align-items:center; gap:12px; padding:13px 16px 13px 20px; border-bottom:1px solid var(--border); }
         .evb-fej > b { font-size:17px; font-weight:800; color:var(--navy); margin-right:auto; }
@@ -35316,6 +35323,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 : `<span class="wk-ev-del" title="Törlés">×</span>
                     ${titleHtml}
                     ${timeLocHtml}`;
+            // Átméretezés: a blokk felső / alsó szélét húzva a kezdés / vége 15 percenként állítható
+            // (csak időpontos, egynapos, szerkeszthető eseménynél).
+            if (!t.folyt && t.ev.start && t.ev.start.dateTime && evNapok(t.ev).length <= 1 && !(t.ev._kulso && !t.ev._iras))
+                div.insertAdjacentHTML("beforeend", '<span class="wk-ev-rs fel" title="Húzd: kezdés"></span><span class="wk-ev-rs le" title="Húzd: vége"></span>');
             div.title = (t.clean || "") + " — " + hh + (t.ev.location ? " @ " + t.ev.location : "")
                 + (wkMeetUrl ? "\nGoogle Meet: " + wkMeetUrl : "");
             // Utazási idő: nem külön esemény, hanem az esemény fölé rajzolt szürke
@@ -35464,6 +35475,46 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         });
     }
 
+    // Esemény átméretezése a szélénél fogva (egér és érintés): élő előnézet az új időponttal,
+    // elengedéskor mentés. Utána egy pillanatig nem nyílik meg a szerkesztő (a kattintás része volt).
+    let wkRsIdo = 0;
+    document.addEventListener("pointerdown", e => {
+        const fog = e.target.closest && e.target.closest(".wk-ev-rs"); if (!fog || e.button > 0) return;
+        const host = fog.closest(".wk-ev"), id = host && host.dataset.eventId, ev = id && eventsById[id];
+        if (!ev || !ev.start || !ev.start.dateTime) return;
+        e.preventDefault(); e.stopPropagation();
+        const fel = fog.classList.contains("fel"), y0 = e.clientY, top0 = parseFloat(host.style.top) || 0, h0 = parseFloat(host.style.height) || 0;
+        const s0 = new Date(ev.start.dateTime), e0 = new Date(ev.end.dateTime), lep = ROW / 4;
+        const durLep = Math.max(1, Math.round((e0 - s0) / 900000));
+        const napVege = new Date(s0); napVege.setHours(24, 0, 0, 0);
+        const maxLe = Math.floor((napVege - e0) / 900000), maxFel = -Math.floor((s0 - new Date(s0).setHours(START_H, 0, 0, 0)) / 900000);
+        host.draggable = false; host.classList.add("wk-rs-aktiv");
+        const cimke = document.createElement("span"); cimke.className = "wk-rs-cimke"; host.parentNode.appendChild(cimke);
+        const cimkeHely = () => { cimke.style.left = host.offsetLeft + "px"; cimke.style.top = (host.offsetTop + host.offsetHeight + 3) + "px"; };
+        const hmK = d => d.getHours() + ":" + pad2(d.getMinutes());
+        let dPerc = 0;
+        const ujIdok = () => fel ? [new Date(s0.getTime() + dPerc * 60000), e0] : [s0, new Date(e0.getTime() + dPerc * 60000)];
+        const mozog = ev2 => {
+            let l = Math.round((ev2.clientY - y0) / lep);
+            l = fel ? Math.max(maxFel, Math.min(l, durLep - 1)) : Math.min(maxLe, Math.max(l, 1 - durLep));
+            dPerc = l * 15;
+            if (fel){ host.style.top = (top0 + l * lep) + "px"; host.style.height = (h0 - l * lep) + "px"; }
+            else host.style.height = (h0 + l * lep) + "px";
+            const [ns, ne] = ujIdok(), p = Math.round((ne - ns) / 60000);
+            cimke.textContent = `${hmK(ns)}–${hmK(ne)} · ${p % 60 ? (p >= 60 ? Math.floor(p / 60) + " ó " + p % 60 + " p" : p + " p") : p / 60 + " ó"}`;
+            cimkeHely();
+        };
+        mozog(e);
+        const vege = () => {
+            window.removeEventListener("pointermove", mozog); window.removeEventListener("pointerup", vege); window.removeEventListener("pointercancel", vege);
+            wkRsIdo = Date.now();
+            if (!dPerc){ host.style.top = top0 + "px"; host.style.height = h0 + "px"; cimke.remove(); host.classList.remove("wk-rs-aktiv"); host.draggable = true; return; }
+            const [ns, ne] = ujIdok();
+            cimke.textContent += " · mentés…";
+            rescheduleEvent(id, ns, Math.round((ne - ns) / 60000));
+        };
+        window.addEventListener("pointermove", mozog); window.addEventListener("pointerup", vege); window.addEventListener("pointercancel", vege);
+    }, true);
     async function rescheduleEvent(id, newStart, durationMin){
         if (kulsoCsakOlvas(id)) return;
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
@@ -35634,7 +35685,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 durationMin: payload.list === "task" ? 15 : 60 });
         });
         canvas.addEventListener("click", e => {
-            if (draggingEvent || e.target.closest(".wk-ev, .wk-travel, .wk-gtask")) return;
+            if (draggingEvent || Date.now() - wkRsIdo < 500 || e.target.closest(".wk-ev, .wk-travel, .wk-gtask")) return;
             if (!currentColumns.length) return;
             const { idx, minutes } = slotFromEvent(canvas, e);
             const start = new Date(currentColumns[idx]);
@@ -35659,6 +35710,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 catch(err){ gt.style.opacity = ""; alert("Nem sikerült frissíteni a feladatot: " + (err.message || err)); }
                 return;
             }
+            if (Date.now() - wkRsIdo < 500) return;
             const host = e.target.closest("[data-event-id]");
             if (!host || !host.dataset.eventId) return;
             const id = host.dataset.eventId;
