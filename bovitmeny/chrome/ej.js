@@ -192,6 +192,12 @@
       return true;
     } finally { belepFolyik = false; }
   }
+  // diagnosztika: hány OVB-időpont jött át a Sikerfüzetből a megadott hónapra
+  const idopontSzoveg = (ev, ho) => {
+    if (!adat || !Array.isArray(adat.esem)) return '\nOVB-időpontok: NEM jöttek át a Sikerfüzetből (nincs Google Naptár kapcsolat, vagy nyisd meg előbb a Sikerfüzet Havi tervét Chrome-ban).';
+    const elo = `${ev}-${String(+ho).padStart(2, '0')}`, n = adat.esem.filter(e => String(e.d).startsWith(elo)).length;
+    return `\nOVB-időpontok a Sikerfüzetből erre a hónapra: ${n}${n ? '' : ' (a naptárban nincs felismert OVB-esemény)'}`;
+  };
   let futFolyik = false;
   async function honapInditas(ev, ho) {
     const h = adat.honapok && adat.honapok[`${ev}-${+ho}`]; if (!h) return;
@@ -204,7 +210,7 @@
       while (true) {
         const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (!f) return;
         if (f.i >= f.hetek.length) {
-          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}.${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
+          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}.${adat && Array.isArray(adat.esem) ? '' : '\nOVB-időpontok: nem jöttek át a Sikerfüzetből (Google Naptár kapcsolat?).'}${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
           await chrome.storage.local.remove('sfejFeladat'); await chrome.storage.local.set({ sfejVege: vege });
           rajz(vege);
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
@@ -269,7 +275,7 @@
       const k = 'ho:' + kulcs;
       const eredm = kesz.has(k) ? null : honapKitolt(hoM[1], hoM[2]); kesz.add(k);
       const hh = adat.honapok && adat.honapok[`${hoM[1]}-${+hoM[2]}`], n = hh ? hh.hetek.length : 0;
-      rajz((eredm ? eredm.uzi : 'A havi célok és a képlet ki vannak töltve.') + (n ? `\n\nA hetek Cél / Van számai: „Egész hónap kitöltése” (${n} hét, sorban végigmegy rajtuk).` : ''),
+      rajz((eredm ? eredm.uzi : 'A havi célok és a képlet ki vannak töltve.') + idopontSzoveg(hoM[1], hoM[2]) + (n ? `\n\nA hetek Cél / Van számai: „Egész hónap kitöltése” (${n} hét, sorban végigmegy rajtuk).` : ''),
         `${n ? `<button data-honap style="${gomb};margin-top:8px;width:100%;background:#22c55e;color:#06260f">Egész hónap kitöltése (${n} hét)</button>` : ''}
          <button data-ujra style="${gomb};margin-top:6px;background:#fff;color:#0f2a52">Csak a képlet újra</button>`);
       panel.querySelector('[data-ujra]').onclick = () => { const r = honapKitolt(hoM[1], hoM[2]); panel.querySelector('[data-all]').textContent = r.uzi; };

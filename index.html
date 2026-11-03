@@ -23182,8 +23182,9 @@ window.sfEjBelep = {
 // az ügyfél-időpontokat (Google Naptár) a háttérben kérjük le, és amint megvannak, újra átadjuk
 let ejEsem = null, ejEsemFut = false;
 function ejBovnekAd(ut){
-    if(!ejBovVerzio()) return;
-    const kuld = u => { try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} };
+    // az átadás csak akkor megy, ha a bővítmény látja ezt a lapot; az időpontokat viszont mindig előre lekérjük,
+    // hogy a megnyitó link (#sfej=…) is vigye őket – akkor is, ha a lap a bővítmény telepítése előtt nyílt meg
+    const kuld = u => { if(!ejBovVerzio()) return; try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} };
     kuld(ut);
     if(ejEsemFut || typeof window.sfOvbIdopontok !== 'function' || (window.sfViewedUid && window.sfCurrentUser && window.sfViewedUid !== window.sfCurrentUser.uid)) return;
     ejEsemFut = true;
@@ -23201,9 +23202,9 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.7.0';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
+var EJ_BOV_KELL = '1.7.1';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.1'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
