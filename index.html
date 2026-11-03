@@ -1254,8 +1254,8 @@
         .modal.evb { width:min(660px, calc(100vw - 32px)); max-width:660px; padding:0; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); font-size:15px; }
         .evb [hidden] { display:none !important; }
         /* naptár: esemény átméretezése a szélénél */
-        .wk-ev-rs { position:absolute; left:0; right:0; height:8px; z-index:4; cursor:ns-resize; touch-action:none; }
-        .wk-ev-rs.fel { top:-3px; } .wk-ev-rs.le { bottom:-3px; }
+        .wk-ev-rs { position:absolute; left:0; right:0; height:9px; z-index:4; cursor:ns-resize; touch-action:none; -webkit-user-drag:none; }
+        .wk-ev-rs.fel { top:-2px; } .wk-ev-rs.le { bottom:-2px; }
         .wk-ev-rs.le::after { content:""; position:absolute; left:50%; bottom:5px; width:22px; height:3px; margin-left:-11px; border-radius:2px; background:currentColor; opacity:0; transition:opacity .12s; }
         .wk-ev:hover .wk-ev-rs.le::after, .wk-rs-aktiv .wk-ev-rs.le::after { opacity:.45; }
         .wk-rs-aktiv { box-shadow:0 0 0 2px var(--blue), 0 8px 20px rgba(15,42,82,.25) !important; z-index:50 !important; opacity:.95; }
@@ -35480,7 +35480,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
     // Esemény átméretezése a szélénél fogva (egér és érintés): élő előnézet az új időponttal,
     // elengedéskor mentés. Utána egy pillanatig nem nyílik meg a szerkesztő (a kattintás része volt).
-    let wkRsIdo = 0;
+    let wkRsIdo = 0, wkRsAktiv = false;
+    // A blokk maga húzható (áthelyezés) – ha a szélét fogták meg, a böngésző saját húzását letiltjuk,
+    // különben a Chrome az átméretezés helyett áthelyezést indítana.
+    document.addEventListener("dragstart", e => { if (wkRsAktiv){ e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+    document.addEventListener("mousedown", e => { if (e.target.closest && e.target.closest(".wk-ev-rs")) e.preventDefault(); }, true);
     document.addEventListener("pointerdown", e => {
         const fog = e.target.closest && e.target.closest(".wk-ev-rs"); if (!fog || e.button > 0) return;
         const host = fog.closest(".wk-ev"), id = host && host.dataset.eventId, ev = id && eventsById[id];
@@ -35491,7 +35495,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const durLep = Math.max(1, Math.round((e0 - s0) / 900000));
         const napVege = new Date(s0); napVege.setHours(24, 0, 0, 0);
         const maxLe = Math.floor((napVege - e0) / 900000), maxFel = -Math.floor((s0 - new Date(s0).setHours(START_H, 0, 0, 0)) / 900000);
-        host.draggable = false; host.classList.add("wk-rs-aktiv");
+        wkRsAktiv = true; host.draggable = false; host.classList.add("wk-rs-aktiv");
         const cimke = document.createElement("span"); cimke.className = "wk-rs-cimke"; host.parentNode.appendChild(cimke);
         const cimkeHely = () => { cimke.style.left = host.offsetLeft + "px"; cimke.style.top = (host.offsetTop + host.offsetHeight + 3) + "px"; };
         const hmK = d => d.getHours() + ":" + pad2(d.getMinutes());
@@ -35510,7 +35514,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         mozog(e);
         const vege = () => {
             window.removeEventListener("pointermove", mozog); window.removeEventListener("pointerup", vege); window.removeEventListener("pointercancel", vege);
-            wkRsIdo = Date.now();
+            wkRsIdo = Date.now(); wkRsAktiv = false;
             if (!dPerc){ host.style.top = top0 + "px"; host.style.height = h0 + "px"; cimke.remove(); host.classList.remove("wk-rs-aktiv"); host.draggable = true; return; }
             const [ns, ne] = ujIdok();
             cimke.textContent += " · mentés…";
