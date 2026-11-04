@@ -1321,6 +1321,8 @@
         .evb-allapot button { display:inline-flex; align-items:center; gap:5px; border:1px solid var(--border); background:var(--card, #fff); border-radius:999px; padding:6px 12px; font-weight:500; font-size:14px; font-family:inherit; color:var(--muted); cursor:pointer; }
         .evb-allapot button svg { width:14px; height:14px; }
         .evb-allapot button.active { font-weight:600; }
+        .evb-allapot #qcNo { border-color:#fecaca; color:#b91c1c; }
+        .evb-allapot #qcYes { border-color:#bbf7d0; color:#15803d; }
         .evb-allapot #qcYes.active { background:#ecfdf3; border-color:#16a34a; color:#15803d; }
         .evb-allapot #qcNo.active { background:#fef2f2; border-color:#dc2626; color:#b91c1c; }
         .evb-allapot #qcNone.active { background:#eef2f7; border-color:#94a3b8; color:var(--navy); }
@@ -23796,13 +23798,13 @@ function regTervHoOk(v){ return !!v && /^\d{4}-\d{2}$/.test(v); }
 function regTervHoNev(v){
     if(!regTervHoOk(v)) return v || '';
     const ev = v.slice(0, 4), nev = HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase();
-    return ev === String(new Date().getFullYear()) ? nev.charAt(0).toUpperCase() + nev.slice(1) : `${ev}. ${nev}`;
+    return `${ev}. ${nev}`;   // az év mindig látszik
 }
 function regTervBadge(r){
     const v = r && r.tervHo; if(!v || !/^\d{4}-\d{2}$/.test(v)) return '';
     const ma = new Date(), most = `${ma.getFullYear()}-${String(ma.getMonth() + 1).padStart(2, '0')}`;
     const cls = v === most ? 'most' : v < most ? 'mult' : '';
-    const nev = (v.slice(0, 4) !== String(ma.getFullYear()) ? v.slice(0, 4) + '. ' : '') + REG_HO_ROV[+v.slice(5) - 1];
+    const nev = v.slice(0, 4) + '. ' + REG_HO_ROV[+v.slice(5) - 1];
     const eh = parseFloat(String(r.egyseg || '').replace(',', '.')) || 0;
     return `<span class="reg-terv-badge ${cls}" title="Tervezett hónap: ${esc(v.slice(0, 4) + '. ' + HU_MONTHS_FULL[+v.slice(5) - 1].toLowerCase())}${eh ? ' · ' + eh + ' EH' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>${esc(nev)}${eh ? ` · ${eh} EH` : ''}</span>`;
 }
@@ -23810,7 +23812,7 @@ function regTervBadge(r){
 function regTervBadgeSzo(r){
     const v = r && r.tervHo; if(!v || !/^\d{4}-\d{2}$/.test(v)) return '';
     const eh = parseFloat(String(r.egyseg || '').replace(',', '.')) || 0;
-    return (v.slice(0, 4) !== String(new Date().getFullYear()) ? v.slice(0, 4) + '. ' : '') + REG_HO_ROV[+v.slice(5) - 1] + (eh ? ' · ' + eh + ' EH' : '');
+    return v.slice(0, 4) + '. ' + REG_HO_ROV[+v.slice(5) - 1] + (eh ? ' · ' + eh + ' EH' : '');
 }
 function regTervHoOpts(v){
     const ma = new Date(), l = [];
@@ -36623,9 +36625,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 </div>
                 <div class="evb-lab">
                     <div class="evb-allapot" id="qcSeg" role="group" aria-label="Állapot">
-                        <button type="button" id="qcYes">${calSvg("check")} Megtörtént</button>
                         <button type="button" id="qcNo">${calSvg("x")} Elmaradt</button>
                         <button type="button" id="qcNone">Még nincs</button>
+                        <button type="button" id="qcYes">${calSvg("check")} Megtörtént</button>
                     </div>
                     <span class="evb-uzi" id="qcUzi" role="status"></span>
                     <button type="button" class="btn" id="qcMegse">Mégse</button>
