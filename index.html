@@ -3384,6 +3384,25 @@
         #sideViewSikerfuzet .s3-tel { color:#475569; } #sideViewSikerfuzet .s3-seg { border-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button + button { border-left-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button { color:#64748b; }
         #sideViewSikerfuzet .s3-seg .ok.on { background:#16a34a; color:#fff; } #sideViewSikerfuzet .s3-seg .no.on { background:#dc2626; color:#fff; } #sideViewSikerfuzet .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
         #sideViewSikerfuzet .stats-grid .stat { background:#f1f5f9 !important; border:1px solid #e2e8f0 !important; } #sideViewSikerfuzet .stat-num { color:#0b2a55 !important; }
+        /* Ügyletek fül */
+        .ugy-par { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:12.5px; color:var(--muted); }
+        .ugy-par input { padding:6px 9px; border:1px solid var(--border); border-radius:8px; font:inherit; min-width:200px; }
+        .ugy-par-chip { border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; border-radius:999px; padding:3px 11px; font:inherit; font-weight:700; cursor:pointer; }
+        .ugy-par-x, .ugy-par-kot { border:1px solid var(--border); background:#fff; border-radius:8px; padding:4px 9px; font:inherit; cursor:pointer; }
+        .ugy-ossz { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px; }
+        .ugy-ossz div { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:8px 10px; } .ugy-ossz small { display:block; font-size:11px; color:var(--muted); font-weight:600; } .ugy-ossz b { font-size:16px; color:var(--navy); }
+        .ugy-tbl-w { overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+        .ugy-tbl { width:100%; border-collapse:collapse; font-size:12.5px; min-width:700px; table-layout:fixed; }
+        .ugy-tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:7px 6px; background:#f8fafc; }
+        .ugy-tbl td { padding:3px 4px; border-top:1px solid #eef0f3; }
+        .ugy-tbl input, .ugy-tbl select { width:100%; border:1px solid transparent; background:transparent; border-radius:6px; padding:5px 6px; font:inherit; }
+        .ugy-tbl input:hover, .ugy-tbl select:hover, .ugy-tbl input:focus { border-color:var(--border); background:#fff; outline:none; }
+        .ugy-tbl input.sz { text-align:right; } .ugy-tbl input.kicsi { max-width:70px; }
+        .ugy-tbl tr.ugy-befizetve td:first-child { box-shadow:inset 3px 0 #16a34a; } .ugy-tbl tr.ugy-nem td:first-child { box-shadow:inset 3px 0 #dc2626; } .ugy-tbl tr.ugy-nem { color:#94a3b8; }
+        .ugy-tbl tr.ugy-nyitott td:first-child { box-shadow:inset 3px 0 #f59e0b; }
+        .ugy-tor { border:0; background:none; color:#94a3b8; cursor:pointer; font-size:14px; } .ugy-tor:hover { color:#dc2626; }
+        .ugy-uj { margin-top:10px; border:1px dashed #94a3b8; background:#fff; border-radius:9px; padding:7px 12px; font:inherit; font-weight:600; color:var(--navy); cursor:pointer; }
+        @media (max-width:760px){ .ugy-ossz { grid-template-columns:1fr 1fr 1fr; } .ugy-ossz b { font-size:13px; } }
         /* ügyfél-adatlap modál */
         .ugy-modal { z-index:1200; } .ugy-modal[hidden] { display:none !important; }
         .modal.ugy-m { position:relative; width:min(1100px, 96vw) !important; max-width:96vw !important; max-height:92vh; overflow:auto; padding:18px 18px 14px; }
@@ -25377,6 +25396,93 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('toggle', e => { const d = e.target; if(d.matches && d.matches('.ef [data-efbov]')){ if(d.open) efBovNyit.add(d.dataset.efbov); else efBovNyit.delete(d.dataset.efbov); } }, true);
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && efI != null && !document.querySelector('.modal-overlay') && !document.querySelector('.ef-pir2-vetit')) efBezar(true); });
+// ===== ÜGYLETEK (termékenként egy sor) – a „Pipeline” Excelből és kézzel =====
+// r.ugyletek = [{ termek, dij, gyak, eh, esely (0–100), allapot: 'nyitott'|'befizetve'|'nem', ho: 'ÉÉÉÉ-HH', datum: 'ÉÉÉÉ-HH-NN', megj }]
+// A „nem” = nem kötött szerződést (a táblázat „off” jelölése). r.par = { nev } – külön ügyfélként vezetett pár.
+const UGY_ALLAPOT = [['nyitott', 'Nyitott'], ['befizetve', 'Befizetve'], ['nem', 'Nem kötött']];
+const UGY_GYAK = ['havi', 'negyedéves', 'féléves', 'éves', 'egyszeri'];
+const UGY_ESELY = [0, 20, 50, 80, 100];
+const UGY_TERMEK = ['megtakarítás', 'nyugdíjbiztosítás', 'életbiztosítás', 'személyvédelem', 'balesetbiztosítás', 'egészségpénztár', 'egészségbiztosítás', 'eseti befizetés',
+    'kgfb', 'casco', 'lakásbiztosítás', 'társasházbiztosítás', 'utasbiztosítás', 'folyószámla', 'hitel', 'személyi kölcsön', 'LTP', 'okosvédelem', 'vállalati felelősségbiztosítás'];
+const ugySzam = v => { const n = parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+// összesítés: befizetett EH, nyitott (várható, esélysúlyozott) EH
+function ugyOsszeg(l){
+    const o = { befizetve: 0, nyitott: 0, sulyozott: 0, db: (l || []).length };
+    (l || []).forEach(u => { const eh = ugySzam(u.eh);
+        if(u.allapot === 'befizetve') o.befizetve += eh;
+        else if(u.allapot !== 'nem'){ o.nyitott += eh; o.sulyozott += eh * ugySzam(u.esely) / 100; } });
+    return o;
+}
+// az ügyfél státusza az ügyleteiből (importkor)
+function ugyStatusz(l){
+    const fiz = l.some(u => u.allapot === 'befizetve'), nyit = l.some(u => u.allapot === 'nyitott');
+    return fiz && nyit ? 'Szerviz' : fiz ? 'Lezárt – Ügyfél' : nyit ? 'Tanácsadás' : 'Lezárt – Nem ügyfél';
+}
+const ugyHoNev = v => /^\d{4}-\d{2}$/.test(v || '') ? `${v.slice(0, 4)}. ${REG_HO_ROV[+v.slice(5) - 1]}` : '';
+function ugyHoOpts(v){
+    const ma = new Date(), l = [];
+    for(let k = -12; k <= 18; k++){ const d = new Date(ma.getFullYear(), ma.getMonth() + k, 1); l.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
+    if(v && !l.includes(v)) l.unshift(v);
+    return `<option value="">—</option>` + l.map(h => `<option value="${h}"${h === v ? ' selected' : ''}>${ugyHoNev(h)}</option>`).join('');
+}
+function ugyletekHtml(i){
+    const r = registry[i], l = r.ugyletek || [], o = ugyOsszeg(l), f = n => Math.round(n).toLocaleString('hu-HU');
+    const sel = (j, k, opts, v) => `<select data-ugy="${i}:${j}:${k}">${opts.map(([x, n]) => `<option value="${esc(x)}"${String(v ?? '') === String(x) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+    const par = r.par && r.par.nev ? r.par.nev : '';
+    const parIdx = par ? registry.findIndex(x => x && x !== r && regNevKulcs(x.name) === regNevKulcs(par)) : -1;
+    return `<div class="ugy">
+        <div class="ugy-par">${par ? `<span>Pár:</span><button type="button" class="ugy-par-chip" data-parnyit="${parIdx}"${parIdx < 0 ? ' disabled title="Nincs ilyen nevű ügyfél a füzetben"' : ' title="Megnyitás"'}>${esc(par)}</button><button type="button" class="ugy-par-x" data-parbont="${i}" title="Pár szétválasztása">✕</button>`
+            : `<span>Pár:</span><input list="ugyParLista" data-parnev="${i}" placeholder="partner neve…" autocomplete="off"><button type="button" class="ugy-par-kot" data-parkot="${i}">Összekapcsolás</button>`}</div>
+        <div class="ugy-ossz"><div><small>Befizetve</small><b>${f(o.befizetve)} EH</b></div><div><small>Nyitott</small><b>${f(o.nyitott)} EH</b></div><div><small>Várható (esélysúlyozott)</small><b>${f(o.sulyozott)} EH</b></div></div>
+        ${l.length ? `<div class="ugy-tbl-w"><table class="ugy-tbl"><colgroup><col style="width:17%"><col style="width:10%"><col style="width:11%"><col style="width:7%"><col style="width:9%"><col style="width:13%"><col style="width:13%"><col><col style="width:32px"></colgroup><thead><tr><th>Termék</th><th>Díj (Ft)</th><th>Gyakoriság</th><th>EH</th><th>Esély</th><th>Állapot</th><th>Hónap</th><th>Megjegyzés</th><th></th></tr></thead><tbody>
+            ${l.map((u, j) => `<tr class="ugy-${esc(u.allapot || 'nyitott')}">
+                <td><input data-ugy="${i}:${j}:termek" value="${esc(u.termek || '')}" list="ugyTermekLista"></td>
+                <td><input data-ugy="${i}:${j}:dij" value="${esc(u.dij ?? '')}" inputmode="decimal" class="sz"></td>
+                <td>${sel(j, 'gyak', [['', '—'], ...UGY_GYAK.map(x => [x, x])], u.gyak)}</td>
+                <td><input data-ugy="${i}:${j}:eh" value="${esc(u.eh ?? '')}" inputmode="decimal" class="sz kicsi"></td>
+                <td>${sel(j, 'esely', UGY_ESELY.map(x => [x, x + '%']), u.esely ?? '')}</td>
+                <td>${sel(j, 'allapot', UGY_ALLAPOT, u.allapot || 'nyitott')}</td>
+                <td><select data-ugy="${i}:${j}:ho">${ugyHoOpts(u.ho)}</select></td>
+                <td><input data-ugy="${i}:${j}:megj" value="${esc(u.megj || '')}"></td>
+                <td><button type="button" class="ugy-tor" data-ugytor="${i}:${j}" title="Törlés">✕</button></td></tr>`).join('')}
+        </tbody></table></div>` : '<div class="rc-pane-empty">Még nincs ügylet.</div>'}
+        <button type="button" class="ugy-uj" data-ugyuj="${i}">+ Új ügylet</button>
+        <datalist id="ugyTermekLista">${UGY_TERMEK.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+        <datalist id="ugyParLista">${registry.filter(x => x && x !== r && x.name && !x.mt).slice(0, 800).map(x => `<option value="${esc(x.name)}">`).join('')}</datalist></div>`;
+}
+const regNevKulcs = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+function ugyMent(i, ujra){ store.save('sf_registry', registry); persistReg(i); if(ujra) renderRegistry(); }
+document.addEventListener('input', e => { const t = e.target.closest('[data-ugy]'); if(!t || t.tagName === 'SELECT') return;
+    const [i, j, k] = t.dataset.ugy.split(':'), r = registry[+i]; if(!r || !r.ugyletek || !r.ugyletek[+j]) return;
+    r.ugyletek[+j][k] = (k === 'dij' || k === 'eh') ? (t.value.trim() === '' ? '' : ugySzam(t.value)) : t.value;
+    clearTimeout(window.__ugyT); window.__ugyT = setTimeout(() => ugyMent(+i), 600); });
+document.addEventListener('change', e => { const t = e.target.closest('select[data-ugy]'); if(!t) return;
+    const [i, j, k] = t.dataset.ugy.split(':'), r = registry[+i]; if(!r || !r.ugyletek || !r.ugyletek[+j]) return;
+    r.ugyletek[+j][k] = k === 'esely' ? +t.value : t.value; ugyMent(+i, true); });
+document.addEventListener('focusout', e => { if(e.target.closest && e.target.closest('input[data-ugy]')) setTimeout(() => { const a = document.activeElement; if(!(a && a.closest && a.closest('.ugy'))) renderRegistry(); }, 0); });
+document.addEventListener('click', e => {
+    const uj = e.target.closest('[data-ugyuj]');
+    if(uj){ const i = +uj.dataset.ugyuj, r = registry[i]; if(!r) return;
+        (r.ugyletek = r.ugyletek || []).push({ termek: '', dij: '', gyak: 'havi', eh: '', esely: 50, allapot: 'nyitott', ho: '', datum: new Date().toISOString().slice(0, 10), megj: '' });
+        ugyMent(i, true); return; }
+    const tor = e.target.closest('[data-ugytor]');
+    if(tor){ const [i, j] = tor.dataset.ugytor.split(':').map(Number), r = registry[i]; if(!r || !r.ugyletek) return;
+        if(!confirm('Törlöd ezt az ügyletet?')) return; r.ugyletek.splice(j, 1); ugyMent(i, true); return; }
+    const pn = e.target.closest('[data-parnyit]');
+    if(pn){ const x = +pn.dataset.parnyit; if(x >= 0){ if(typeof ugyM !== 'undefined' && ugyM) ugyModalNyit(x); else regSorNyit(x, 'ugyletek'); } return; }
+    const pb = e.target.closest('[data-parbont]');
+    if(pb){ const i = +pb.dataset.parbont, r = registry[i]; if(!r || !r.par) return;
+        if(!confirm(`Szétválasztod a párt (${r.par.nev})?`)) return;
+        const m = registry.findIndex(x => x && x !== r && x.par && regNevKulcs(x.par.nev) === regNevKulcs(r.name));
+        delete r.par; if(m >= 0){ delete registry[m].par; persistReg(m); }
+        ugyMent(i, true); return; }
+    const pk = e.target.closest('[data-parkot]');
+    if(pk){ const i = +pk.dataset.parkot, r = registry[i], inp = document.querySelector(`[data-parnev="${i}"]`), nev = inp ? inp.value.trim() : ''; if(!r || !nev) return;
+        r.par = { nev };
+        const m = registry.findIndex(x => x && x !== r && regNevKulcs(x.name) === regNevKulcs(nev));
+        if(m >= 0 && !registry[m].par){ registry[m].par = { nev: r.name }; persistReg(m); }
+        ugyMent(i, true); return; }
+});
 // Kinyitott kártya: bal oldalt állandó összefoglaló, jobb oldalt füles adatlap.
 function regCardDetailHtml(i){
     if(matchMedia('(max-width:760px)').matches) return regCardDetailMobil(i);
@@ -25391,12 +25497,14 @@ function regCardDetailHtml(i){
     const tabs = [
         ['adatok', 'Adatok', ''],
         ['celok', 'Elemzés / Célok', ''],
+        ['ugyletek', 'Ügyletek', (r.ugyletek || []).length ? String(r.ugyletek.length) : ''],
         ['jegyzetek', 'Jegyzetek', noteN ? String(noteN) : '', cliHasUnread(r)],
         ['kiertekelo', 'Kiértékelő', ktDone ? '1' : ''],
         ['elozmenyek', 'Előzmények', histN ? String(histN) : ''],
     ];
     let pane;
     if(regDetailTab === 'celok') pane = rdCelokFields(r);
+    else if(regDetailTab === 'ugyletek') pane = ugyletekHtml(i);
     else if(regDetailTab === 'jegyzetek') pane = cliNotesHtml(i, 'reg');
     else if(regDetailTab === 'kiertekelo') pane = kiertekeloSummaryHtml(r.kiertekelo, i) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>';
     else if(regDetailTab === 'elozmenyek') pane = kezeloHistoryHtml(r.kezeloHistory) || '<div class="rc-pane-empty">Még nincs kezelő-váltás.</div>';
@@ -25488,6 +25596,7 @@ function regCardDetailMobil(i){
         reszek: [
             { k: 'adatok', ik: 'ember', szin: 'teal', cim: 'Személyes adatok', al: `${kitolt}/${SZ.length}`, pane: () => rdAdatokFields(r, i) },
             { k: 'celok', ik: 'lista', szin: 'cian', cim: 'Elemzés / Célok', al: '', pane: () => rdCelokFields(r) },
+            { k: 'ugyletek', ik: 'aktataska', szin: 'narancs', cim: 'Ügyletek', al: (r.ugyletek || []).length ? String(r.ugyletek.length) : '—', pane: () => ugyletekHtml(i) },
             { k: 'jegyzetek', ik: 'uzenet', szin: 'kek', cim: 'Jegyzetek', al: noteN ? String(noteN) : '—', pont: cliHasUnread(r), pane: () => cliNotesHtml(i, 'reg') },
             { k: 'kiertekelo', ik: 'pipadoboz', szin: 'zold', cim: 'Kiértékelő', al: ktDone ? 'kész' : '—', pane: () => kiertekeloSummaryHtml(r.kiertekelo, i) || '<div class="rc-pane-empty">Még nincs kiértékelő telefon rögzítve.</div>' },
             { k: 'elozmenyek', ik: 'ora', szin: 'acel', cim: 'Előzmények', al: histN ? String(histN) : '—', pane: () => kezeloHistoryHtml(r.kezeloHistory) || '<div class="rc-pane-empty">Még nincs kezelő-váltás.</div>' },
@@ -43639,7 +43748,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         </div></div>
 
         <div class="card"><div class="card-body">
-            <div class="adm-section-title">Ügyfelek / MT potenciál (CSV vagy JSON)</div>
+            <div class="adm-section-title">Ügyfelek / MT potenciál (ZIP, CSV, JSON vagy Excel-pipeline)</div>
             <p style="font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 14px;">
                 <b>ZIP (ajánlott):</b> Notionben az „… – Ügyfél / MT Potenciál” adatbázison <b>••• → Export → Markdown &amp; CSV</b>,
                 „Include content: Everything” – az ügyféloldalak (md) adataival és szövegével együtt. Ha az ügyfél már fent van,
@@ -43649,12 +43758,14 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <b>JSON:</b> a kinyert fájl, amiben az oldalak szövege és a kommentek is benne vannak –
                 ezek jegyzetként kerülnek az ügyfélhez, a kiértékelő telefon eredménye pedig a Kiértékelő fülre.
                 Az <b>MT</b> jelölésű sorok a 2 órás füzetbe kerülnek, a többi a 10 percesbe.
+                <b>Excel (xlsx):</b> „Pipeline” táblázat (Ügyfél, Munkatárs, Dátum, Termék, Díj, Gyakoriság, EH, esély, befizetve/off, termelési hónap) –
+                ügyfelenként összevonva, a termékek az adatlap „Ügyletek” fülére kerülnek; a kezelőt munkatársanként választhatod.
                 Az adat közvetlenül a böngésződből megy a közös adatbázisba.
             </p>
             <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
                 <label style="font-size:11.5px;font-weight:700;color:var(--muted);">Kezelő:</label>
                 <select id="impOwner" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;min-width:200px;">${ownerOpts}</select>
-                <input type="file" id="impFile" accept=".zip,.csv,.json,application/zip,text/csv,application/json" style="font-size:12px;">
+                <input type="file" id="impFile" accept=".zip,.csv,.json,.xlsx,.xls,application/zip,text/csv,application/json" style="font-size:12px;">
             </div>
             <div id="impPreview"></div>
         </div></div>`;
@@ -43920,9 +44031,131 @@ Vállalkozás nyitásának átbeszélése`, '']
             });
         }
 
+        // ---- XLSX: egy másik csapat „Pipeline” táblázata (Google Drive / Excel) ----
+        // Egy sor = egy termék (ügylet). Oszlopok: Ügyfél, Munkatárs, Dátum, Termék, Díj, Gyakoriság, EH,
+        // (esély 0–1), (súlyozott EH), (befizetve / off), termelési hónap, Megjegyzés. Az ügyfelek
+        // ügyfélenként összevonva kerülnek be, az ügyletek az „Ügyletek” fülre; a párok („A és B”) külön ügyfelek, párként összekötve.
+        let xlsxP = null;
+        const xlsxJs = () => window.XLSX ? Promise.resolve(window.XLSX) : (xlsxP = xlsxP || new Promise((ok, hiba) => {
+            const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            sc.onload = () => ok(window.XLSX); sc.onerror = () => { xlsxP = null; hiba(new Error('Az Excel-olvasó nem töltődött be (nincs internet?).')); };
+            document.head.appendChild(sc); }));
+        const HO_NEV = ['január', 'február', 'március', 'április', 'május', 'június', 'július', 'augusztus', 'szeptember', 'október', 'november', 'december'];
+        const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        function plSorok(XLSX, buf){
+            const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+            for(const nev of wb.SheetNames){
+                const t = XLSX.utils.sheet_to_json(wb.Sheets[nev], { header: 1, raw: true, defval: null });
+                const fi = t.findIndex(r => r && r.some(c => /^ügyfél$/i.test(String(c || '').trim())) && r.some(c => /^termék$/i.test(String(c || '').trim())));
+                if(fi < 0) continue;
+                const fej = t[fi].map(c => String(c || '').trim().toLowerCase()), hol = re => fej.findIndex(c => re.test(c));
+                const c = { nev: hol(/^ügyfél$/), mt: hol(/^munkatárs$/), datum: hol(/^dátum$/), termek: hol(/^termék$/), dij: hol(/^díj$/), gyak: hol(/^gyakoriság$/), eh: hol(/^eh$/), ho: hol(/termelési hónap/), megj: hol(/^megjegyzés$/) };
+                c.esely = c.eh + 1; c.allapot = c.eh + 3;
+                const sorok = [];
+                for(const r of t.slice(fi + 1)){
+                    const ugyfel = String(r[c.nev] || '').replace(/\s+/g, ' ').trim(); if(!ugyfel) continue;
+                    const d = r[c.datum] instanceof Date ? r[c.datum] : null;
+                    const es = Number(r[c.esely]), all = String(r[c.allapot] || '').trim().toLowerCase();
+                    const allapot = all === 'befizetve' ? 'befizetve' : all === 'off' ? 'nem' : (es === 0 ? 'nem' : 'nyitott');
+                    // termelési hónap: év nélkül → az ügylet dátuma utáni első ilyen hónap
+                    let ho = ''; const hi = HO_NEV.indexOf(String(r[c.ho] || '').trim().toLowerCase());
+                    if(hi >= 0){ const alap = d || new Date(); let ev = alap.getFullYear(); if(hi < alap.getMonth()) ev++; ho = `${ev}-${String(hi + 1).padStart(2, '0')}`; }
+                    const m = r[c.megj]; const megj = m instanceof Date ? `${m.getFullYear()}. ${HO_NEV[m.getMonth()]}` : String(m ?? '').trim();
+                    const gy = String(r[c.gyak] || '').trim().toLowerCase().replace(/^évi$/, 'éves');
+                    sorok.push({ ugyfel, munkatars: String(r[c.mt] || '').replace(/\s+/g, ' ').trim(), datum: d ? ymd(d) : '',
+                        u: { termek: String(r[c.termek] || '').trim(), dij: Number(r[c.dij]) || '', gyak: gy, eh: Number(r[c.eh]) || '',
+                             esely: isFinite(es) && r[c.esely] !== null ? Math.round(es * 100) : '', allapot, ho, datum: d ? ymd(d) : '', megj } });
+                }
+                // a munkatárs nevének írásmódja egységes legyen („kun Zoltán” = „Kun Zoltán”): a leggyakoribb alak
+                const alak = new Map(); sorok.forEach(x => { const k = nameKey(x.munkatars); const m = alak.get(k) || new Map(); m.set(x.munkatars, (m.get(x.munkatars) || 0) + 1); alak.set(k, m); });
+                sorok.forEach(x => { const m = alak.get(nameKey(x.munkatars)); x.munkatars = [...m.entries()].sort((p, q) => q[1] - p[1] || (/^[A-ZÁÉÍÓÖŐÚÜŰ]/.test(q[0]) - /^[A-ZÁÉÍÓÖŐÚÜŰ]/.test(p[0])))[0][0]; });
+                return sorok;
+            }
+            return null;
+        }
+        // „Varga László és Bóhuczki Viktória” → két név (csak ha mindkét fele legalább két szóból áll)
+        const plParBont = n => { const p = n.split(/\s+(?:és|&|\+)\s+/i).map(x => x.trim()).filter(Boolean);
+            return p.length === 2 && p.every(x => x.split(' ').length >= 2) ? p : [n]; };
+        function plUgyfelek(sorok){
+            const m = new Map();
+            sorok.forEach(s => { const mtNev = s.munkatars, k = nameKey(s.ugyfel) + '|' + nameKey(mtNev);
+                if(!m.has(k)) m.set(k, { nev: s.ugyfel, munkatars: mtNev, ugyletek: [], elso: s.datum });
+                const x = m.get(k); x.ugyletek.push(s.u); if(s.datum && (!x.elso || s.datum < x.elso)) x.elso = s.datum; });
+            const l = [];
+            m.forEach(x => {
+                const nevek = plParBont(x.nev);
+                const nyitottHo = x.ugyletek.filter(u => u.allapot === 'nyitott' && u.ho).map(u => u.ho).sort()[0] || '';
+                const megj = x.ugyletek.filter(u => u.megj).map(u => `${u.termek}: ${u.megj}`).join('\n');
+                nevek.forEach((n, j) => l.push({ name: n, munkatars: x.munkatars, elso: x.elso, tervHo: nyitottHo, megj,
+                    // a pár ügyletei az első nevű ügyfélhez kerülnek (az EH ne számolódjon kétszer)
+                    ugyletek: j === 0 ? x.ugyletek : [], status: ugyStatusz(x.ugyletek), par: nevek.length > 1 ? { nev: nevek[1 - j] } : null, forras: x.nev }));
+            });
+            return l;
+        }
+        function plElonezet(sorok){
+            if(!sorok || !sorok.length){ impErr('Ebben az Excelben nem találtam „Ügyfél” és „Termék” fejlécű pipeline-táblát.'); return; }
+            const ugyf = plUgyfelek(sorok);
+            const meglevo = new Map(); (window.sfAllClients || []).forEach(x => { const k = nameKey(x.name); if(k && !meglevo.has(k)) meglevo.set(k, x); });
+            const mtk = [...new Set(ugyf.map(u => u.munkatars || ''))].sort((a, b) => a.localeCompare(b, 'hu'));
+            const empOpts = v => `<option value="">— a fent kiválasztott kezelő —</option>` + emps.map(e => `<option value="${escM(e.uid)}"${e.uid === v ? ' selected' : ''}>${escM(e.name || e.email)}</option>`).join('');
+            const stDb = {}; ugyf.forEach(u => stDb[u.status] = (stDb[u.status] || 0) + 1);
+            const ujDb = ugyf.filter(u => !meglevo.has(nameKey(u.name))).length, parDb = ugyf.filter(u => u.par).length / 2;
+            const td = 'style="padding:5px 8px;border-top:1px solid var(--border)"';
+            prev.innerHTML = `
+                <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;margin-bottom:12px;">
+                    <span>Sorok (ügyletek): <b>${sorok.length}</b></span><span>Ügyfél: <b>${ugyf.length}</b></span>
+                    <span style="color:var(--green);">Új: <b>${ujDb}</b></span><span style="color:#1f5fd0;">Meglévőhöz ügylet: <b>${ugyf.length - ujDb}</b></span>
+                    ${parDb ? `<span>Párok szétbontva: <b>${parDb}</b></span>` : ''}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;margin-bottom:12px;">${Object.entries(stDb).map(([k, n]) => `<span style="background:var(--bg);border-radius:999px;padding:3px 10px;">${escM(k)}: <b>${n}</b></span>`).join('')}</div>
+                <div class="adm-section-title" style="margin-top:6px;">Kezelő munkatársanként</div>
+                <p style="font-size:12px;color:var(--muted);margin:0 0 8px;">A „Munkatárs” a táblázatból jön. Ha a munkatárs már regisztrált, ő lesz a kezelő; akinek még nincs fiókja, annak ügyfelei a fent kiválasztott kezelőhöz kerülnek (később átadhatók).</p>
+                <div style="overflow:auto;max-height:300px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Munkatárs (táblázat)</th><th style="text-align:left;padding:7px 8px;">Ügyfél</th><th style="text-align:left;padding:7px 8px;">Kezelő</th></tr></thead>
+                    <tbody>${mtk.map(n => { const e = emps.find(x => nameKey(x.name) === nameKey(n));
+                        return `<tr><td ${td}>${escM(n || '(nincs megadva)')}</td><td ${td}>${ugyf.filter(u => (u.munkatars || '') === n).length}</td><td ${td}><select data-plmt="${escM(n)}" style="padding:5px 8px;border:1px solid var(--border);border-radius:7px;font:inherit;">${empOpts(e ? e.uid : '')}</select></td></tr>`; }).join('')}</tbody></table></div>
+                <button class="btn primary" id="plGo" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mehet: ${ujDb} új ügyfél, ${ugyf.length - ujDb} kiegészítés</button>
+                <span id="impStat" style="margin-left:12px;font-size:12px;color:var(--muted);"></span>`;
+            document.getElementById('plGo').addEventListener('click', async () => {
+                const alap = emps.find(x => x.uid === document.getElementById('impOwner').value) || { uid: me.uid, email: me.email, name: me.name };
+                const kez = {}; prev.querySelectorAll('[data-plmt]').forEach(s => { kez[s.dataset.plmt] = emps.find(x => x.uid === s.value) || alap; });
+                if(!confirm(`${ugyf.length} ügyfél importálása (${ujDb} új)?`)) return;
+                const go = document.getElementById('plGo'); go.disabled = true;
+                const stat = document.getElementById('impStat'); let ok = 0, fail = 0, n = 0;
+                const ugyK = u => [u.termek, u.datum, u.dij, u.eh].join('|');
+                for(const u of ugyf){
+                    const own = kez[u.munkatars || ''] || alap, ex = meglevo.get(nameKey(u.name));
+                    try {
+                        if(ex && ex.id){
+                            const regi = ex.ugyletek || [], van = new Set(regi.map(ugyK));
+                            const patch = { ugyletek: regi.concat(u.ugyletek.filter(x => !van.has(ugyK(x)))) };
+                            if(u.par && !ex.par) patch.par = u.par;
+                            if(!ex.tervHo && u.tervHo) patch.tervHo = u.tervHo;
+                            await window.sfSaveClientAsync(ex.id, patch); Object.assign(ex, patch); ok++;
+                        } else {
+                            const payload = { name: u.name, munkatars: u.munkatars, ajanlo: '', phone: '', lakhely: '', status: u.status, tp: false, mt: false,
+                                elemzes: true, portal: false, tanacsadas: true, ajanlasok: '', details: u.megj ? { megjegyzes: u.megj } : {}, celok: {},
+                                tervHo: u.tervHo, ugyletek: u.ugyletek, ...(u.par ? { par: u.par } : {}), forras: 'Pipeline (Excel)',
+                                created: u.elso ? u.elso + 'T12:00:00.000Z' : new Date().toISOString(),
+                                ownerUid: own.uid || '', ownerEmail: own.email || '', ownerName: own.name || own.email || '' };
+                            const id = await window.sfAddClient(payload);
+                            if(id){ ok++; (window.sfAllClients = window.sfAllClients || []).push(Object.assign({ id }, payload)); meglevo.set(nameKey(u.name), Object.assign({ id }, payload)); } else fail++;
+                        }
+                    } catch(err){ fail++; }
+                    stat.textContent = `${++n} / ${ugyf.length}…`;
+                }
+                stat.textContent = `Kész: ${ok} ügyfél${fail ? `, ${fail} sikertelen` : ''}.`;
+                if(typeof window.sfShowUgyfelek === 'function') window.sfShowUgyfelek();
+            });
+        }
+        window.sfPipelineOlvas = async buf => plSorok(await xlsxJs(), buf);   // a teszteknek / máshonnan
         document.getElementById('impFile').addEventListener('change', async e => {
             const f = e.target.files && e.target.files[0];
             if(!f) return;
+            if(/\.xlsx?$/i.test(f.name || '')){
+                prev.innerHTML = '<div style="color:var(--muted);font-size:12px;">Excel beolvasása…</div>';
+                try { plElonezet(plSorok(await xlsxJs(), await f.arrayBuffer())); } catch(err){ impErr('Az Excel nem olvasható: ' + escM(err.message || err)); }
+                return;
+            }
             if(/\.zip$/i.test(f.name || '')){
                 prev.innerHTML = '<div style="color:var(--muted);font-size:12px;">ZIP kibontása…</div>';
                 try {
