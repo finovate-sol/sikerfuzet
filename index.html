@@ -45420,6 +45420,23 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-racs .tv-lk.huzva { opacity:.4; } .tv-racs .tv-lk.cel { background:#eef4ff; box-shadow:0 0 0 2px #2563eb inset; }
 .tv-lk-mozg { position:absolute; left:10px; top:10px; z-index:2; display:flex; gap:3px; opacity:0; transition:opacity .12s; }
 .tv-lk:hover .tv-lk-mozg { opacity:1; }
+.tv-tolt { z-index:1300; display:flex; align-items:center; justify-content:center; }
+.tv-tolt-d { background:#fff; border-radius:18px; padding:28px 34px; min-width:300px; display:flex; flex-direction:column; align-items:center; gap:10px; box-shadow:0 20px 50px rgba(10,37,71,.35); }
+.tv-tolt-d b { font-size:16px; color:var(--navy); } .tv-tolt-sz { font-size:13px; color:var(--muted); }
+.tv-tolt-sav { width:100%; height:8px; border-radius:6px; background:#eef2f7; overflow:hidden; } .tv-tolt-sav i { display:block; height:100%; width:0; background:linear-gradient(90deg, #009999, #2563eb); border-radius:6px; transition:width .25s; }
+.tv-spin { width:46px; height:46px; border-radius:50%; border:4px solid #e2e8f0; border-top-color:#009999; border-right-color:#2563eb; animation:tvForog .9s linear infinite; }
+@keyframes tvForog { to { transform:rotate(360deg); } }
+.tv-pdf-ov { z-index:1250; display:flex; align-items:center; justify-content:center; }
+.tv-pdf-d { width:min(1100px, 96vw); height:94vh; background:#fff; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(10,37,71,.35); }
+.tv-pdf-f { display:flex; align-items:center; gap:10px; padding:10px 12px 10px 18px; border-bottom:1px solid var(--border); }
+.tv-pdf-f b { font-size:14.5px; color:var(--navy); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .tv-pdf-f span { font-size:12.5px; color:var(--muted); margin-right:auto; white-space:nowrap; }
+.tv-pdf-x { width:34px; height:34px; border:0; border-radius:10px; background:#f1f5f9; color:#334155; font-size:16px; cursor:pointer; }
+.tv-pdf-lapok { flex:1; min-height:0; overflow-y:auto; background:#525659; padding:16px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.tv-pdf-lapok iframe { flex:1; width:100%; border:0; }
+.tv-pdf-lap { display:flex; flex-direction:column; align-items:center; gap:6px; } .tv-pdf-lap canvas { max-width:100%; height:auto; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.35); }
+.tv-pdf-lap span { font-size:11.5px; color:#d1d5db; }
+.tv-pdf-tolt { margin:auto; display:flex; flex-direction:column; align-items:center; gap:12px; color:#e5e7eb; font-size:13px; }
+@media (max-width:600px){ .tv-pdf-d { width:100vw; height:100dvh; border-radius:0; } .tv-pdf-f a.btn { display:none; } }
 .tv-lk-mozg button { width:24px; height:24px; border:1px solid #d6dde8; background:rgba(255,255,255,.95); border-radius:7px; font:inherit; font-weight:800; color:#1f3b63; cursor:pointer; padding:0; line-height:1; }
 .tv-gombok { display:flex; gap:8px; margin-top:12px; } .tv-gombok .btn { flex:1; justify-content:center; }
 .tv-lk { position:relative; }
@@ -46095,11 +46112,44 @@ function tvLapMozgat(kulcs, d, ele){
             tvLapMozgat(k, 0, l[j] != null ? l[j] : null); } else renderTervezet(); });
     document.addEventListener('dragend', () => { huz = null; document.querySelectorAll('#tvLapok .huzva, #tvLapok .cel').forEach(x => x.classList.remove('huzva', 'cel')); });
 })();
+// a kész PDF megjelenítése az oldalon belül (modál), innen le is tölthető
+function tvPdfMegjelenit(blob, fajlnev, db, letolt){
+    const url = URL.createObjectURL(blob);
+    const ov = document.createElement('div'); ov.className = 'modal-overlay tv-pdf-ov';
+    ov.innerHTML = `<div class="tv-pdf-d" role="dialog" aria-modal="true" aria-label="Tervezet előnézete">
+        <div class="tv-pdf-f"><b>${esc(fajlnev)}</b><span>${db} oldal</span>
+            <a class="btn" href="${url}" target="_blank" rel="noopener">Megnyitás új lapon</a>
+            <button type="button" class="btn primary" data-tvpdfle>PDF letöltése</button><button type="button" class="tv-pdf-x" data-tvpdfx title="Bezárás">✕</button></div>
+        <div class="tv-pdf-lapok"><div class="tv-pdf-tolt"><div class="tv-spin"></div>Oldalak betöltése…</div></div></div>`;
+    document.body.appendChild(ov); document.body.classList.add('ugy-m-nyitva');
+    // az oldalak kirajzolása a beépített PDF-olvasóval (minden böngészőben, telefonon is egyformán)
+    (async () => { try {
+        const pdfjs = await regPdfJs(), pdf = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+        const host = ov.querySelector('.tv-pdf-lapok'); if(!host) return; host.innerHTML = '';
+        const szel = Math.min(host.clientWidth - 32, 720), dpr = Math.min(2, window.devicePixelRatio || 1);
+        for(let n = 1; n <= pdf.numPages; n++){
+            if(!ov.isConnected) return;
+            const page = await pdf.getPage(n), v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: szel / v0.width * dpr });
+            const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; cv.style.width = szel + 'px';
+            const lap = document.createElement('div'); lap.className = 'tv-pdf-lap'; lap.appendChild(cv);
+            const sz = document.createElement('span'); sz.textContent = `${n} / ${pdf.numPages}`; lap.appendChild(sz);
+            host.appendChild(lap);
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        }
+    } catch(e){ const host = ov.querySelector('.tv-pdf-lapok'); if(host) host.innerHTML = `<iframe src="${url}" title="Tervezet PDF"></iframe>`; } })();
+    const zar = () => { ov.remove(); document.body.classList.remove('ugy-m-nyitva'); document.removeEventListener('keydown', esc_); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+    function esc_(e){ if(e.key === 'Escape') zar(); }
+    document.addEventListener('keydown', esc_);
+    ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-tvpdfx]')) zar(); else if(e.target.closest('[data-tvpdfle]')) letolt(); });
+}
 async function tvLetolt(megnez){
     const all = document.getElementById('tvAllapot'), gomb = document.getElementById(megnez ? 'tvMegnez' : 'tvLetolt');
-    const ablak = megnez ? window.open('', '_blank') : null;   // még a kattintáskor, különben a böngésző letiltja
-    if(ablak) ablak.document.write('<p style="font:16px system-ui;padding:24px;color:#475569">A tervezet PDF készül…</p>');
-    const ir = s => { if(all) all.textContent = s; };
+    // töltőképernyő: a PDF összeállítása alatt (oldalanként haladásjelzővel)
+    const tolt = document.createElement('div'); tolt.className = 'modal-overlay tv-tolt';
+    tolt.innerHTML = `<div class="tv-tolt-d"><div class="tv-spin"></div><b>${megnez ? 'Előnézet készül…' : 'A PDF készül…'}</b><span class="tv-tolt-sz">Előkészítés</span><div class="tv-tolt-sav"><i></i></div></div>`;
+    document.body.appendChild(tolt);
+    const ir = (s, k, n) => { if(all) all.textContent = s; const sz = tolt.querySelector('.tv-tolt-sz'); if(sz) sz.textContent = n ? `${k} / ${n} oldal` : s;
+        const i = tolt.querySelector('.tv-tolt-sav i'); if(i && n) i.style.width = Math.round(k / n * 100) + '%'; };
     try {
         gomb.disabled = true; ir('PDF készül…');
         const [PDFLib, h2c] = await Promise.all([tvPdfLib(), window.sfH2C()]);
@@ -46110,7 +46160,7 @@ async function tvLetolt(megnez){
         const lapok = tvLapok().filter(l => !l.ki);
         if(!lapok.length) throw new Error('Minden oldal ki van hagyva – legalább egy oldalt rakj vissza.');
         for(let i = 0; i < lapok.length; i++){
-            const l = lapok[i]; ir(`PDF készül… ${i + 1} / ${lapok.length}`);
+            const l = lapok[i]; ir(`PDF készül… ${i + 1} / ${lapok.length}`, i + 1, lapok.length);
             munka.innerHTML = l.html; const el = munka.firstElementChild;
             await Promise.all([...el.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
             // a logók élesen, külön rajzolva kerülnek a PDF-be: a képből kihagyjuk, a helyüket megjegyezzük
@@ -46135,12 +46185,13 @@ async function tvLetolt(megnez){
         munka.remove();
         const nev = (tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || 'Ugyfel').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_');
         const blob = new Blob([await doc.save()], { type: 'application/pdf' });
-        if(ablak){ ablak.location.href = URL.createObjectURL(blob); ir(`Kész: ${lapok.length} oldal`); return; }
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${nev}_Tervezet.pdf`; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        ir(`Kész: ${lapok.length} oldal`);
-    } catch(e){ ir(''); if(ablak) ablak.close(); alert('Nem sikerült a PDF: ' + (e.message || e)); }
-    finally { if(gomb) gomb.disabled = false; }
+        const letolt = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${nev}_Tervezet.pdf`; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+        tolt.remove(); ir(`Kész: ${lapok.length} oldal`);
+        if(megnez){ tvPdfMegjelenit(blob, `${nev}_Tervezet.pdf`, lapok.length, letolt); return; }
+        letolt();
+    } catch(e){ ir(''); tolt.remove(); alert('Nem sikerült a PDF: ' + (e.message || e)); }
+    finally { if(gomb) gomb.disabled = false; tolt.remove(); }
 }
 async function tvFajlok(files){
     files = [...files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)); if(!files.length) return;
