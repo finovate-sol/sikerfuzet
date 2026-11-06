@@ -3401,6 +3401,9 @@
         #sideViewSikerfuzet .s3-seg .ok.on { background:#16a34a; color:#fff; } #sideViewSikerfuzet .s3-seg .no.on { background:#dc2626; color:#fff; } #sideViewSikerfuzet .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
         #sideViewSikerfuzet .stats-grid .stat { background:#f1f5f9 !important; border:1px solid #e2e8f0 !important; } #sideViewSikerfuzet .stat-num { color:#0b2a55 !important; }
         /* Ügyletek fül */
+        .evb-hely-gy { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+        .evb-hely-gy button { border:1px solid #dbe3ee; background:#f8fafc; border-radius:999px; padding:3px 10px; font:inherit; font-size:12px; color:#334155; cursor:pointer; }
+        .evb-hely-gy button:hover { border-color:#93c5fd; background:#eff6ff; } .evb-hely-gy button.on { border-color:#2563eb; background:#dbeafe; color:#1d4ed8; font-weight:600; }
         .ugy-par { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:12.5px; color:var(--muted); }
         .ugy-par input { padding:6px 9px; border:1px solid var(--border); border-radius:8px; font:inherit; min-width:200px; }
         .ugy-par-chip { border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; border-radius:999px; padding:3px 11px; font:inherit; font-weight:700; cursor:pointer; }
@@ -37212,6 +37215,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return ki;
     }
 
+    // Alapértelmezett helyszínek (gyorsgombok a Helyszín mező alatt)
+    const EVB_HELYEK = [["Laki Kereskedelmi Központ", "Laki Kereskedelmi Központ, Budapest, Róbert Károly krt. 59, 1134"],
+                        ["Gold Irodaház", "Gold Irodaház, Budapest, Forgách utca 19, 1139"]];
     function evbAblak(o){
         const szerk = o.mod === "szerk", ev = o.ev || null, id = o.id || (ev && ev.id) || "";
         let fajta = o.fajta === "task" ? "task" : "event";
@@ -37285,6 +37291,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                         <div class="evb-sor csak-esemeny">
                             <span class="evb-ik">${evbIk("hely")}</span>
                             <div class="evb-oszl"><input id="qcLoc" class="evb-be" value="${escM((ev && ev.location) || "")}" placeholder="Helyszín" aria-label="Helyszín">
+                            <div class="evb-hely-gy">${EVB_HELYEK.map(([n, cim]) => `<button type="button" data-evbhely="${escM(cim)}" class="${(ev && ev.location) === cim ? "on" : ""}" title="${escM(cim)}">📍 ${escM(n)}</button>`).join("")}</div>
                             <a id="qcMaps" class="evb-al" href="${mapsUrl(ev && ev.location)}" target="_blank" rel="noopener"${ev && ev.location ? "" : " hidden"}>Megnyitás a Google Térképen ↗</a></div>
                         </div>
                         <div class="evb-sor">
@@ -37473,8 +37480,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
         // ---- helyszín, jegyzet, további beállítások ----
         const locInput = $("#qcLoc"), locMaps = $("#qcMaps");
-        const syncMaps = v => { locMaps.href = mapsUrl(v); locMaps.hidden = !v || !szerk; };
+        const helyGy = () => overlay.querySelectorAll("[data-evbhely]").forEach(b => b.classList.toggle("on", b.dataset.evbhely === locInput.value.trim()));
+        const syncMaps = v => { locMaps.href = mapsUrl(v); locMaps.hidden = !v || !szerk; helyGy(); };
         locInput.addEventListener("input", () => syncMaps(locInput.value.trim()));
+        overlay.querySelectorAll("[data-evbhely]").forEach(b => b.addEventListener("click", () => { locInput.value = b.dataset.evbhely; syncMaps(locInput.value); }));
         attachPlaceSearch(locInput, syncMaps);
         const noteEl = $("#qcNote");
         const noteNo = () => { noteEl.style.height = "auto"; noteEl.style.height = Math.min(180, noteEl.scrollHeight) + "px"; };
