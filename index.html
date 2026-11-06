@@ -3317,6 +3317,18 @@
         .het-tbl td small { display:block; font-size:11px; color:var(--muted); padding:0 4px 6px; }
         .het-e { text-align:center !important; width:80px; }
 .het-e .res-cyc { cursor:pointer; }
+        .tp-kpik { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin:0 0 14px; }
+        .tp-kpi { padding:14px 16px; border-top:3px solid var(--c); } .tp-kpi small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
+        .tp-kpi b { display:block; font-size:28px; font-weight:800; color:var(--c); line-height:1.2; margin-top:2px; } .tp-kpi span { font-size:12px; color:var(--muted); }
+        .tp-szuro { margin:0 0 14px; }
+        .tp-racs { display:grid; grid-template-columns:repeat(auto-fit, minmax(460px, 1fr)); gap:14px; align-items:start; }
+        @media (max-width:760px){ .tp-racs { grid-template-columns:1fr; } }
+        .tp-mt { padding:16px 18px; }
+        .tp-sav { margin:0 0 10px; } .tp-sav-f { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); margin-bottom:6px; } .tp-sav-f b { color:#15803d; }
+        .tp-sav-b { height:8px; border-radius:6px; background:#eef2f7; overflow:hidden; } .tp-sav-b i { display:block; height:100%; background:#16a34a; border-radius:6px; }
+        .tp-cel { flex:none; font-size:10.5px; font-weight:700; border:1px solid #86efac; background:#ecfdf3; color:#15803d; border-radius:999px; padding:0 7px; line-height:17px; }
+        .tp-tel { white-space:nowrap; color:var(--muted); } .tp-ures { color:#b6bfcc; } .tp-mt .het-tbl td { padding:6px 4px; }
+        .tp-lab { font-size:12.5px; color:var(--muted); margin-top:14px; }
         .h321-nev { display:flex; align-items:center; gap:6px; padding:6px 4px 0; min-width:0; }
         .h321-nev strong { padding:0 !important; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .het-tbl select.h321-cel { flex:none; width:auto !important; appearance:none; -webkit-appearance:none; border:1px dashed #cbd5e1 !important; border-radius:999px; background:none;
@@ -10774,6 +10786,10 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 <span class="nav-label">Kiértékelő telefon</span>
             </a>
+            <a href="#" data-ter="ovb" data-page="telefonparty" data-navcs="vez" id="navTelefonparty" hidden title="Telefonparty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                <span class="nav-label">Telefonparty</span>
+            </a>
             <a href="#" data-ter="priv" data-page="privma" title="Ma">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 <span class="nav-label">Ma</span>
@@ -11488,6 +11504,11 @@ try {
         <!-- ÖNISMERET (Életkerék, Szabályaim, Hawkins-skála, Havi vállalás) -->
         <div id="page-onismeret" class="page" hidden>
           <div class="page-wrap"><div id="onismeretBody"></div></div>
+        </div>
+
+        <!-- TELEFONPARTY (vezetői dashboard) -->
+        <div id="page-telefonparty" class="page" hidden>
+          <div class="page-wrap"><div id="telefonpartyBody"></div></div>
         </div>
 
         <!-- KIÉRTÉKELŐ TELEFON -->
@@ -12431,6 +12452,7 @@ window.addEventListener('popstate', e => {
             startPageTimer({ domId:'ketorasTimer', storeKey:`sf_timer_2o_${isoWeekKey(new Date())}`, targetSeconds:7200, fmt:fmtHourMin, firestoreCol:'2o', firestoreDoc:isoWeekKey(new Date()) });
         }
         if(p === 'kiertekelo' && typeof window.sfShowKiertekelo === 'function') window.sfShowKiertekelo();
+        if(p === 'telefonparty') renderTelefonparty();
         if(p === 'onismeret' && typeof window.sfShowOnismeret === 'function') window.sfShowOnismeret();
         if(p === 'sablonok' && typeof window.sfShowSablonok === 'function') window.sfShowSablonok();
         if(p === 'prezik' && typeof window.sfShowPrezik === 'function') window.sfShowPrezik();
@@ -15426,6 +15448,79 @@ function ctHaviOssz(h){
     let van = 0, darabVan = 0, darabTerv = 0;
     (h.weeks || []).forEach(w => { if(!w) return; van += ctSzam((w.van || [])[6]); darabVan += ctSzam((w.van || [])[5]); darabTerv += ctSzam((w.cel || [])[5]); });
     return { van, darabVan, darabTerv, terv: ctSzam(h.celES), rang: h.rang || '' };
+}
+// ===== TELEFONPARTY (vezetői dashboard) =====
+// A csapat összes TP-vel jelölt ügyfele munkatársanként, a 3-2-1 eredményével (sikerült-e időpontot egyeztetni),
+// összevetve a munkatárs Havi tervében a KÖVETKEZŐ hétre tervezett EL + TA időponttal.
+let tpSzuro = 'mind';
+const tpHavi = {};
+function tpKovHet(){
+    const m = currentHaviWeek(); let ho = new Date(m.monthDate.getFullYear(), m.monthDate.getMonth(), 1), w = m.weekIdx + 1;
+    if(w >= haviWeekRanges(ho).length){ ho = new Date(ho.getFullYear(), ho.getMonth() + 1, 1); w = 0; }
+    return { ho, w };
+}
+function tpHetCel(h, ho, w){
+    if(!h) return null;
+    const het = (h.weeks || [])[w] || {}, cel = het.cel || [];
+    let el = haviNum(cel[1]), ta = haviNum(cel[3]);
+    if(!el && !ta && Array.isArray(h.formula)){      // a havi képletből, ha a heti cél nincs kiszámolva
+        const n = haviWeekRanges(ho).length || 4;
+        el = Math.round(haviNum(h.formula[1]) / n); ta = Math.round(haviNum(h.formula[3]) / n);
+    }
+    return { el, ta, ossz: el + ta };
+}
+async function renderTelefonparty(){
+    const host = document.getElementById('telefonpartyBody'); if(!host) return;
+    const me = window.sfCurrentUser || {};
+    const { ho, w } = tpKovHet(), y = ho.getFullYear(), m = ho.getMonth();
+    const kw = haviWeekKW(ho, w), hetSzo = haviWeekRanges(ho)[w] || '';
+    // ki kié: a munkatársak (ránézési kör) + magam; az ügyfelek tulajdonosa szerint
+    const nevek = new Map([[me.uid, (me.name || me.email || 'Én') + ' (te)']]);
+    (window.sfViewAsEmployees || []).forEach(e => nevek.set(e.uid, e.name || e.email || ''));
+    const kliensek = (window.sfAllClients || registry || []).filter(c => c && c.tp && !c.mt && !regIsArchived(c.status));
+    kliensek.forEach(c => { if(c.ownerUid && !nevek.has(c.ownerUid)) nevek.set(c.ownerUid, c.ownerName || c.ownerEmail || 'Ismeretlen'); });
+    const res = c => c.resPenz || 'pending';
+    const tagok = [...nevek.entries()].map(([uid, nev]) => {
+        const l = kliensek.filter(c => c.ownerUid === uid || (!c.ownerUid && uid === me.uid));
+        return { uid, nev, l, ok: l.filter(c => res(c) === 'ok').length, no: l.filter(c => res(c) === 'no').length, cel: tpHetCel(tpHavi[`${uid}_${y}_${m}`], ho, w) };
+    });
+    const vanTag = tagok.filter(t => t.l.length || (t.cel && t.cel.ossz)), uresTag = tagok.filter(t => !vanTag.includes(t));
+    const ossz = kliensek.length, ok = kliensek.filter(c => res(c) === 'ok').length, no = kliensek.filter(c => res(c) === 'no').length;
+    const celOssz = tagok.reduce((a, t) => a + (t.cel ? t.cel.ossz : 0), 0);
+    const pct = (a, b) => b ? Math.min(100, Math.round(a / b * 100)) : 0;
+    const kpi = (cim, ert, al, szin) => `<div class="card tp-kpi" style="--c:${szin}"><small>${cim}</small><b>${ert}</b>${al ? `<span>${al}</span>` : ''}</div>`;
+    const szurt = l => tpSzuro === 'mind' ? l : l.filter(c => res(c) === tpSzuro);
+    const CEL_NEV = { E: 'Elemzés', TA: 'Tanácsadás', SZ: 'Szerviz' };
+    const sor = c => `<tr><td><div class="h321-nev"><strong>${esc(c.name || '(névtelen)')}</strong>${c.tp321c ? `<span class="tp-cel" title="${esc(CEL_NEV[c.tp321c] || '')}">${esc(c.tp321c)}</span>` : ''}</div></td>
+        <td class="tp-tel">${esc(c.phone || '—')}</td><td>${esc(c.tp321j || '') || '<span class="tp-ures">—</span>'}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
+        <td class="het-e">${resBadge(res(c))}</td></tr>`;
+    host.innerHTML = `<div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)})</p></div></div>
+        <div class="tp-kpik">
+            ${kpi('TP-s ügyfél', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
+            ${kpi('Lebeszélve', ok, ossz ? pct(ok, ossz) + '% a TP-sekből' : '', '#16a34a')}
+            ${kpi('Nem sikerült', no, '', '#dc2626')}
+            ${kpi('Még nincs', ossz - ok - no, '', '#64748b')}
+            ${kpi('Jövő heti cél', celOssz || '—', celOssz ? `EL + TA időpont · ${pct(ok, celOssz)}% teljesítve` : 'a Havi tervekből', '#7c3aed')}
+        </div>
+        <div class="pv-chipek tp-szuro">${[['mind', 'Mind'], ['ok', '✓ Lebeszélve'], ['no', '✕ Nem sikerült'], ['pending', 'Még nincs']].map(([k, n]) => `<button type="button" data-tpszur="${k}" class="${tpSzuro === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        <div class="tp-racs">${vanTag.length ? vanTag.map(t => { const l = szurt(t.l), cel = t.cel ? t.cel.ossz : 0;
+            return `<section class="card hv-k tp-mt"><div class="hv-k-fej"><h3>${esc(t.nev)}</h3><span class="het-db">${t.l.length} TP</span></div>
+                <div class="tp-sav"><div class="tp-sav-f"><span>Lebeszélve: <b>${t.ok}</b>${cel ? ` / ${cel} (jövő heti cél: EL ${t.cel.el} + TA ${t.cel.ta})` : t.cel ? ' · a jövő hétre nincs EL / TA cél' : ' · nincs havi terv a hónapra'}</span><span>✕ ${t.no} · – ${t.l.length - t.ok - t.no}</span></div>
+                    <div class="tp-sav-b"><i style="width:${pct(t.ok, cel || t.l.length)}%"></i></div></div>
+                ${l.length ? `<div class="het-tbl-w"><table class="het-tbl"><thead><tr><th>Név</th><th>Telefon</th><th>Jegyzet</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead><tbody>${l.map(sor).join('')}</tbody></table></div>`
+                    : `<div class="hv-ures-sz" style="padding:8px 2px">${t.l.length ? 'Nincs a szűrésnek megfelelő ügyfél.' : 'Nincs TP-vel jelölt ügyfele.'}</div>`}
+            </section>`; }).join('') : `<div class="card"><div class="card-body hv-ures-sz">Még senkinél nincs TP-vel jelölt ügyfél.</div></div>`}</div>
+        ${uresTag.length ? `<p class="tp-lab">Nincs TP-s ügyfele és jövő heti terve: ${uresTag.map(t => esc(t.nev)).join(', ')}</p>` : ''}`;
+    host.querySelectorAll('[data-tpszur]').forEach(b => b.addEventListener('click', () => { tpSzuro = b.dataset.tpszur; renderTelefonparty(); }));
+    // a munkatársak havi terve (a jövő hét célja) – egyszer betöltjük, aztán újrarajzolunk
+    const hianyzik = [...nevek.keys()].filter(uid => uid && !(`${uid}_${y}_${m}` in tpHavi));
+    if(hianyzik.length){
+        await Promise.all(hianyzik.map(async uid => { const k = `${uid}_${y}_${m}`;
+            let h = store.load('sf_havi_' + k, null);
+            if(window.sfIsConfigured && typeof window.sfGetHaviTerv === 'function'){ try { const r = await window.sfGetHaviTerv(k); if(r) h = r; } catch(_){} }
+            tpHavi[k] = h || null; }));
+        const pg = document.getElementById('page-telefonparty'); if(pg && !pg.hidden) renderTelefonparty();
+    }
 }
 async function ctHaviBetolt(tagok){
     const req = ++ctHaviReq, y = ctHo.getFullYear(), m = ctHo.getMonth();
@@ -32679,7 +32774,7 @@ function szLapok(){
 }
 const SZ_ROVID = { penzugyek: 'Pénz', enaplo: 'Napló', szokasok: 'Szokások', kiszemelt: 'Kiszemelt', emberek: 'Események', onismeret: 'Önismeret', egeszseg: 'Egészség', konyvek: 'Olvasás', privma: 'Ma',
     home: 'Sikerfüzet', feladatok: 'Feladatok', havi: 'Havi terv', eves: 'Éves terv', pg: 'Bedolgozás', csendes: 'Csendes PG', ugyfelek: '10 perces', ketoras: '2 órás', csapatterv: 'Csapat', kovetkezo: 'Következő',
-    struktura: 'Struktúra', jegyzetek: 'Jegyzetek', sablonok: 'Sablonok', prezik: 'Prezik', tervezet: 'Tervezet', idd: 'IDD', gst: 'GST', tudastar: 'Tudástár', kiertekelo: 'Kiértékelő' };
+    struktura: 'Struktúra', jegyzetek: 'Jegyzetek', sablonok: 'Sablonok', prezik: 'Prezik', tervezet: 'Tervezet', idd: 'IDD', gst: 'GST', tudastar: 'Tudástár', kiertekelo: 'Kiértékelő', telefonparty: 'Telefonparty' };
 function szSavLista(){
     const van = new Set(szLapok().map(x => x.lap));
     const k = SZ_KOZEP[szTer()];
@@ -34133,6 +34228,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             window.sfViewedUid = user.uid;   // alapból a saját nézet
             const nav = document.getElementById("navKiertekelo");
             if (nav) nav.hidden = !leader || !!(window.sfBlockedPages && window.sfBlockedPages.has("kiertekelo"));
+            const navTp = document.getElementById("navTelefonparty");
+            if (navTp) navTp.hidden = !(leader || window.sfIsAdmin) || !!(window.sfBlockedPages && window.sfBlockedPages.has("telefonparty"));
             await loadAndDistributeClients();
             if (leader) setupViewAsSwitcher();
         });
@@ -38005,10 +38102,22 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             el.style.opacity = "";
         });
     }
+    // App-ikon jelvény (telepített appnál): a mára szóló és lejárt feladatok + a nekem kiadott nyitott akcióterv/feladat száma
+    function sfJelvenyFrissit(){
+        if(!("setAppBadge" in navigator)) return;
+        try {
+            const ma = fdToday();
+            const n = gtTasks.filter(t => { if(taskIsDone(t)) return false; const d = taskDue(t); return d && d.ymd <= ma; }).length
+                + (typeof pgMyAkciok === "function" ? pgMyAkciok().filter(a => !a.done).length : 0);
+            (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+        } catch(_){}
+    }
+    window.sfJelvenyFrissit = sfJelvenyFrissit;
     async function tasksForCalendar(){
         try {
             if(!gtLoadedAt || Date.now() - gtLoadedAt > 60000) await loadAllTasks(false);
             await loadTaskMeta();
+            sfJelvenyFrissit();
             return gtTasks;
         } catch(e){ return []; }
     }
@@ -38764,6 +38873,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // A jobb oldali sáv "Feladatok" füle és a PG oldal ugyanabból a Google Tasks
     // listából dolgozik – egy adatváltozás után mindkettőt frissítjük.
     function refreshPGViews(){
+        sfJelvenyFrissit();
         if (document.getElementById("pgMount")) renderPG();
         if (document.getElementById("railFeladatokMount")) renderRailFeladatok();
         const fp = document.getElementById("page-feladatok");
@@ -39677,6 +39787,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             await loadTaskMeta();
             // a vezetőtől kapott akciótervek (Bedolgozás házi, PG) – a munkatárs a Bedolgozás oldalt nem látja, ezért itt jelennek meg
             try { await pgLoadAll(); } catch(_){}
+            sfJelvenyFrissit();
             renderFeladatok();
         } catch(e){
             renderFeladatokConnect((e.status === 401 || e.status === 403)
