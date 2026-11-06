@@ -1588,7 +1588,7 @@
         .rc-head { display:grid; grid-template-columns:var(--rc-cols); gap:12px; padding:0 16px 9px; font-size:9.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:800; }
         .rc-head > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .rc-head .c { text-align:center; }
-        #regRows { --rc-cols:minmax(190px,1.1fr) minmax(120px,1fr) 118px minmax(90px,.75fr) minmax(150px,.9fr) 150px 56px 168px 54px 74px; }
+        #regRows { --rc-cols:minmax(180px,1fr) minmax(205px,1.15fr) minmax(105px,.8fr) 118px minmax(90px,.75fr) 150px 56px 168px 54px 74px; }
         #regRows .rc-head { display:none; }
         #regRows .rc-line { gap:10px; padding:10px 14px; min-height:64px; }
         .rc-mezo { min-width:0; display:flex; flex-direction:column; gap:2px; }
@@ -1597,6 +1597,24 @@
         .rc-mezo .status-sel { align-self:flex-start; }
         .rc-kt .reg-person-sub { display:flex; align-items:center; gap:4px; min-width:0; font-size:12px; padding-left:9px; }
         .rc-kt .reg-person-sub > * { min-width:0; }
+        /* Kezelő / Tanácsadó cella */
+        .kt-dob { display:flex; align-items:center; gap:8px; min-width:0; padding-left:9px; }
+        .kt-av { flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:800; background:#e2e8f0; color:#334155; }
+        .kt-sorok { min-width:0; display:flex; flex-direction:column; gap:1px; }
+        .kt-k, .kt-t { display:flex; align-items:center; gap:5px; min-width:0; font-size:12px; }
+        .kt-k i, .kt-t i { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; flex:none; }
+        body:not(.ktB) .kt-k i, body:not(.ktB) .kt-t i { display:none; }
+        body:not(.ktB) .kt-k b { font-size:13px; } body:not(.ktB) .kt-t::before { content:'Tanácsadó:'; font-size:11px; color:#94a3b8; flex:none; }
+        .kt-k b { font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .kt-k select { min-width:0; max-width:100%; font:inherit; font-weight:700; }
+        .kt-t input.reg-mt-inline { min-width:0; flex:1; border:0; background:none; padding:0; font:inherit; color:#64748b; }
+        /* B változat: chipek */
+        body.ktB .kt-av { display:none; } body.ktB .kt-dob { padding-left:4px; } body.ktB .kt-sorok { gap:4px; }
+        body.ktB .kt-k, body.ktB .kt-t { border-radius:999px; padding:2px 9px 2px 3px; max-width:100%; }
+        body.ktB .kt-k { background:#e0e7ff; } body.ktB .kt-t { background:#f1f5f9; }
+        body.ktB .kt-k i, body.ktB .kt-t i { width:auto; border-radius:999px; padding:1px 6px; font-size:9px; color:#fff; }
+        body.ktB .kt-k i { background:#4338ca; } body.ktB .kt-t i { background:#64748b; }
+        body.ktB .kt-k b { color:#312e81; } body.ktB .kt-t input.reg-mt-inline { color:#334155; font-weight:600; }
         .reg-terv-sor { margin-top:3px; padding-left:8px; } .reg-terv-sor .reg-terv-badge { margin-left:0; }
         .rc-ajanl { display:flex; flex-direction:column; align-items:center; line-height:1.1; }
         .rc-ajanl input.rc-num { width:52px; text-align:center; font-size:16px; font-weight:800; color:#111827; padding:2px 4px; }
@@ -23928,6 +23946,18 @@ function rowMatchesFilters(r){
 // (nem vezetőnek csak a saját kezelt ügyfelei jelennek meg). Nem vezető
 // csak megnézheti, ki a kezelő; vezető át is helyezheti egy másik
 // munkatársra (window.sfEmployeesList a modul-scriptből érkezik).
+// Kezelő / Tanácsadó cella: a kezelő avatarja + neve, alatta a tanácsadó (munkatárs)
+const regRovidNev = n => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length > 2 ? `${p[0]} ${p.slice(1).map(x => x[0] + '.').join(' ')}` : p.join(' '); };
+function regKtHtml(i, r, open, lk){
+    const kez = r.ownerName || r.ownerEmail || '', ac = kez ? avatarColor(kez) : null;
+    const tan = `<input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}" placeholder="—"${lk}>`;
+    return `<div class="kt-dob">
+        <span class="kt-av"${ac ? ` style="background:${ac.bg};color:${ac.fg};"` : ''} title="Kezelő: ${esc(kez || '—')}">${kez ? esc(regInitials(kez)) : '?'}</span>
+        <div class="kt-sorok">
+            <div class="kt-k" title="Kezelő"><i>Kezelő</i>${open ? regKezeloControl(i, r, false) : `<b title="${esc(kez)}">${esc(regRovidNev(kez) || '—')}</b>`}</div>
+            <div class="kt-t" title="Tanácsadó"><i>Tanácsadó</i>${tan}</div>
+        </div></div>`;
+}
 function regKezeloControl(i, r, locked){
     if(locked || !window.sfIsLeader){
         return `<span class="reg-kezelo-ro">${esc(r.ownerName || '—')}</span>`;
@@ -24447,10 +24477,10 @@ function renderRegTable(matched){
                     ${(r.tags||[]).length ? `<div class="reg-tagek">${r.tags.map(t => `<span class="reg-tag" style="--tc:${regTagSzin(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
                 </div>
             </div>
+            <div class="rc-mezo rc-kt"><small>Kezelő / Tanácsadó</small>${regKtHtml(i, r, open, lk)}</div>
             <div class="rc-mezo"><small>Ajánló</small><input class="rc-cell" data-ri="${i}" data-rf="ajanlo" value="${esc(r.ajanlo)}" placeholder="—"${lk}></div>
             <div class="rc-mezo"><small>Telefon</small><input class="rc-cell" data-ri="${i}" data-rf="phone" value="${esc(r.phone)}" placeholder="—"${lk}></div>
             <div class="rc-mezo"><small>Település</small><input class="rc-cell" data-ri="${i}" data-rf="lakhely" value="${esc(r.lakhely)}" placeholder="—"${lk}></div>
-            <div class="rc-mezo rc-kt"><small>Kezelő / Tanácsadó</small><div class="reg-person-sub">${regKezeloControl(i, r, !open)}<span>/</span><input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}" placeholder="—"${lk}></div></div>
             <div class="rc-mezo"><small>Státusz</small>${regStatusSelect(i, r.status, false).replace('class="status-sel', 'class="status-sel szabad')}</div>
             <div class="rc-ajanl" title="Az ügyféltől kapott ajánlások száma"><input class="rc-cell rc-num" type="number" min="0" step="1" data-ri="${i}" data-rf="ajanlasok" value="${esc(r.ajanlasok||'')}" placeholder="0"${lk}><span>ajánlás</span></div>
             <div class="rc-lepesek">${regLepesek(i, r, false)}</div>
