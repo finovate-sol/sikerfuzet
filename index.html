@@ -3329,6 +3329,12 @@
         .tp-cel { flex:none; font-size:10.5px; font-weight:700; border:1px solid #86efac; background:#ecfdf3; color:#15803d; border-radius:999px; padding:0 7px; line-height:17px; }
         .tp-tel { white-space:nowrap; color:var(--muted); } .tp-ures { color:#b6bfcc; } .tp-mt .het-tbl td { padding:6px 4px; }
         .tp-lab { font-size:12.5px; color:var(--muted); margin-top:14px; }
+        .efp-gombok { display:grid; gap:10px; } .efp-gombok button { text-align:left; border:1px solid var(--border, #e2e8f0); background:#fff; border-radius:12px; padding:14px 16px; cursor:pointer; font:inherit; }
+        .efp-gombok button:hover { border-color:var(--navy); background:#f8fafc; } .efp-gombok b { display:block; font-size:15px; color:var(--navy); } .efp-gombok span { font-size:12.5px; color:var(--muted); }
+        .efp-sel { width:100%; padding:9px 10px; border:1px solid var(--border, #e2e8f0); border-radius:10px; font:inherit; background:#fff; }
+        .efp-info { font-size:12.5px; color:var(--muted); margin:6px 0 0; }
+        .efp-fejek { display:flex; flex-wrap:wrap; gap:6px; } .efp-fejek span { font-size:12px; background:#f1f5f9; border-radius:999px; padding:3px 10px; } .efp-fejek b { color:var(--navy); }
+        .efp-pipa { display:flex; gap:8px; align-items:center; font-size:13px; margin-top:10px; cursor:pointer; }
         .tp-mt .het-tbl-w { max-height:var(--tp-max, 470px); overflow:auto; }
         .tp-mt .het-tbl thead th { position:sticky; top:0; background:var(--card, #fff); z-index:1; }
         .tp-ki { flex:none; border:0; background:transparent; color:#94a3b8; font-size:16px; line-height:1; width:26px; height:26px; border-radius:8px; cursor:pointer; }
@@ -24189,7 +24195,8 @@ const GROUP_CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 function groupColorOf(mode, key){
     if(mode === 'status'){
         const c = REG_STATUS_COLOR[key];
-        return c ? STATUS_DOT[c] : (KET_PIPE_COLS.find(x => x.key === key || x.nev === key) || {}).color || '#94a3b8';
+        if(c) return STATUS_DOT[c];
+        try { return (KET_PIPE_COLS.find(x => x.key === key || x.nev === key) || {}).color || '#94a3b8'; } catch(_){ return '#94a3b8'; }   // induláskor a lista még nincs kész
     }
     if(mode === 'minoseg') return { A:'#16a34a', B:'#1f5fd0', C:'#d97706' }[key] || '#94a3b8';
     return '#94a3b8';
@@ -26243,6 +26250,248 @@ async function regPdfImport(file, mod){
         if(typeof sfToast === 'function') sfToast(`${db} ${mt ? 'jelölt' : 'ügyfél'} felvéve ${kep ? 'a képről' : 'a PDF-ből'}.`);
     });
 }
+// ===== ELEMZŐFÜZET PDF-BŐL (a kitölthető OVB „Pénzügyi elemzés” – rövidített füzet) =====
+// A PDF űrlapmezőinek nincs beszédes neve („Text Field 23”, „Igen 1067”), ezért a füzet oldalain elfoglalt
+// helyük alapján vannak megfeleltetve az online elemzőfüzet kulcsainak (r.elemzofuzet.a).
+const EFP_TX = {   // szövegmező sorszáma → kulcs
+    2: 'ugyfel', 3: 'ajanlo', 4: 'tanacsado', 7: 'voltceg', 8: 'cel.havi_tol', 9: 'cel.havi_ig', 10: 'cel.mikortol',
+    99: 'ot.mikorra', 100: 'ot.oner', 101: 'ot.szukseges', 102: 'ot.hitel', 103: 'ot.bank', 104: 'ot.hitelosszeg', 105: 'ot.torleszto', 106: 'ot.futamido',
+    1016: 'gy.ev', 1017: 'gy.havi', 1018: 'gy.kiegeszit', 1019: 'gy.mikortol',
+    110: 'ny.kor', 111: 'ny.celok', 112: 'ny.egyeb', 113: 'ny.munkaber', 114: 'ny.szazalek', 285: 'ny.mikortol',
+    115: 'ny.u.celosszeg', 116: 'ny.p.celosszeg', 117: 'ny.u.ido', 118: 'ny.p.ido', 119: 'ny.u.havi', 120: 'ny.p.havi',
+    123: 'fe.sajat', 124: 'fe.csalad', 125: 'fe.osszeg', 126: 'va.elegedett', 137: 'va.egyossz', 138: 'va.egyossz_mikor', 139: 'va.havi', 140: 'va.havi_mikor',
+    254: 'va.rang0.hozzáférhetőség', 255: 'va.rang0.hozam', 256: 'va.rang0.biztonság', 258: 'va.rang1.hozzáférhetőség', 257: 'va.rang1.hozam', 259: 'va.rang1.biztonság',
+    141: 'kv.u.netto', 142: 'kv.p.netto', 143: 'kv.u.egyeb', 144: 'kv.p.egyeb', 145: 'kv.u.csaladi', 146: 'kv.p.csaladi',
+    182: 'lp.2.cel', 184: 'lp.2.osszeg', 185: 'lp.2.mikor', 183: 'lp.3.cel', 186: 'lp.3.osszeg', 187: 'lp.3.mikor', 188: 'lp.resztvevo', 191: 'lp.elvaras', 192: 'lp.nemmukodne',
+    237: 'sz.tanacsado', 241: 'sz.datum'
+};
+// a költségvetés kiadás-sorai a füzet sorrendjében (EF_KIADASOK indexe szerint)
+[149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 172, 164, 165, 166, 167, 168, 169, 170, 171].forEach((n, i) => EFP_TX[n] = 'kv.k' + i);
+// személyes adatok: [kulcs, ügyfél mező, partner mező]
+[['nev', 209, 210], ['telepules', 211, 212], ['utca', 213, 214], ['szul', 215, 216], ['adoszam', 217, 218], ['fogl', 219, 220], ['jogviszony', 221, 222],
+    ['allampolg', 223, 224], ['csaladi', 235, 236], ['mobil', 225, 226], ['tel', 227, 228], ['email', 229, 230]].forEach(([k, u, p]) => { EFP_TX[u] = `sz.u.${k}`; EFP_TX[p] = `sz.p.${k}`; });
+// banki, biztosítói kapcsolatok: [előtag.sor, jelölő mező, [[oszlop, mező]...]]
+const EFP_TABLA = [
+    ['kb.elet', 242, [['szerzodo', 11], ['tarsasag', 12], ['dij', 13], ['evf', 14], ['info', 15, 'Biz. össz.: '], ['megj', 16]]],
+    ['kb.baleset', 243, [['szerzodo', 17], ['tarsasag', 18], ['dij', 19], ['evf', 20], ['info', 21, 'Modulok: '], ['megj', 22]]],
+    ['kb.kgfb', 244, [['szerzodo', 23], ['tarsasag', 24], ['dij', 25], ['evf', 26], ['info', 27, 'Bonus-malus: '], ['megj', 28]]],
+    ['kb.lakas', 245, [['szerzodo', 29], ['tarsasag', 30], ['dij', 31], ['evf', 32], ['info', 33, 'Méret: ', ' nm'], ['info', 36, 'Bizt. összeg: '], ['megj', 34]]],
+    ['mt.elet', 246, [['szerzodo', 37], ['tarsasag', 38], ['dij', 39], ['kezdet', 40], ['lejarat', 41], ['cel', 42], ['megj', 43]]],
+    ['mt.ul', 247, [['szerzodo', 44], ['tarsasag', 45], ['dij', 46], ['kezdet', 47], ['lejarat', 48], ['cel', 49], ['megj', 50]]],
+    ['mt.lakast', 248, [['szerzodo', 51], ['tarsasag', 52], ['dij', 53], ['kezdet', 54], ['lejarat', 55], ['cel', 56], ['megj', 57]]],
+    ['mt.nyugdij', 249, [['szerzodo', 58], ['tarsasag', 59], ['dij', 60], ['kezdet', 61], ['lejarat', 62], ['cel', 63], ['megj', 64]]],
+    ['bf.betet', 250, [['szerzodo', 65], ['tarsasag', 66], ['osszeg', 67], ['idotav', 68], ['cel', 69], ['megj', 70]]],
+    ['fsz.fsz', 251, [['tulaj', 71], ['tarsasag', 72], ['dij', 73], ['info', 74], ['megj', 75]]],
+    ['hit.h1', 252, [['megj', 79, 'Típus: '], ['szerzodo', 76], ['tartozas', 77], ['osszeg', 78], ['torl', 80], ['kezdet', 81], ['lejarat', 82], ['kamat', 83], ['megj', 84]]],
+    ['hit.h2', 253, [['megj', 88, 'Típus: '], ['szerzodo', 85], ['tartozas', 86], ['osszeg', 87], ['torl', 89], ['kezdet', 90], ['lejarat', 91], ['kamat', 92], ['megj', 93]]]
+];
+// jelölőnégyzetek: [kulcs, érték, több választós-e] – az „Igen N” mező sorszáma szerint
+const EFP_JEL = {
+    1067: ['honnan', 'Internet', 1], 1070: ['honnan', 'Könyvelő', 1], 1071: ['honnan', 'Bank / biztosító', 1],
+    1068: ['honnan', 'Család / ismerősök', 1], 1069: ['honnan', 'Televízió', 1], 1072: ['honnan', 'Személyes utánajárás', 1],
+    1073: ['voltelemzes', 'Igen'], 1074: ['voltelemzes', 'Nem'],
+    10123: ['ot.helyzet', 'Albérlet'], 10124: ['ot.helyzet', 'Szülőknél'],
+    10128: ['ot.tervek', 'Ingatlan vásárlás', 1], 10129: ['ot.tervek', 'Építkezés', 1], 10130: ['ot.tervek', 'Hitelkiváltás', 1], 10131: ['ot.tervek', 'Végtörlesztés', 1], 10132: ['ot.tervek', 'Hitelfelvétel', 1],
+    10133: ['ot.csok', 'Igen'], 10134: ['ot.csok', 'Nem'], 10135: ['ot.munkaltatoi', 'Igen'], 10136: ['ot.munkaltatoi', 'Nem'],
+    10137: ['gy.tervez', 'Igen'], 10138: ['gy.tervez', 'Nem'],
+    10139: ['gy.celok', 'Továbbtanulás', 1], 10140: ['gy.celok', 'Életkezdés támogatása', 1], 10141: ['gy.celok', 'Saját lakás', 1],
+    10142: ['gy.celok', 'Autó, jogosítvány', 1], 10143: ['gy.celok', 'Esküvő', 1], 10144: ['gy.celok', 'Egyéb', 1],
+    10145: ['va.jelleg', 'Egyösszegű befektetés'], 10146: ['va.jelleg', 'Rendszeres megtakarítás'], 10147: ['va.jelleg', 'A kettő együtt'],
+    10157: ['kv.realis', 'Igen'], 10158: ['kv.realis', 'Nem'],
+    10159: ['lp.helyszin', 'Önnél'], 10160: ['lp.helyszin', 'OVB iroda'], 10161: ['lp.helyszin', 'Egyéb']
+};
+// a célok pontozása: képenként 4 jelölő (3, 2, 1, 0), a füzet 3×3-as rácsának sorrendjében
+[[1075, 'vedelem'], [1079, 'egeszseg'], [1083, 'vagyonved'], [1087, 'lakas'], [1091, 'gyerek'], [1095, 'nyugdij'], [1099, 'toke'], [10103, 'ado'], [10107, 'kiadas']]
+    .forEach(([n, k]) => [3, 2, 1, 0].forEach((p, j) => EFP_JEL[n + j] = ['cel.' + k, String(p)]));
+const EFP_CEL_SZAM = { 276: 'vedelem', 277: 'egeszseg', 278: 'vagyonved', 281: 'lakas', 280: 'gyerek', 279: 'nyugdij', 282: 'toke', 283: 'ado', 284: 'kiadas' };
+// dátum a füzetből („2015.03.04.”, „2015-03-04”) → ÉÉÉÉ-HH-NN; ha nem értelmezhető, marad a szöveg
+function efpDatum(s){
+    const m = /(\d{4})\s*[.\-\/ ]\s*(\d{1,2})\s*[.\-\/ ]\s*(\d{1,2})/.exec(String(s || ''));
+    return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : String(s || '').trim();
+}
+// A PDF mezői → { a: kulcs/érték, jegyzet: [...], ajanlottak: [...], db }
+async function efPdfOlvas(file){
+    const pdfjs = await regPdfJs();
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const tx = {}, be = {}; let mezo = 0;
+    for(let p = 1; p <= pdf.numPages; p++){
+        for(const an of await (await pdf.getPage(p)).getAnnotations()){
+            const nev = String(an.fieldName || ''); if(!nev) continue; mezo++;
+            let m = /^Text Field (\d+)$/.exec(nev);
+            if(m){ const v = String(an.fieldValue ?? '').normalize('NFC').replace(/\s+/g, ' ').trim(); if(v) tx[+m[1]] = v; continue; }
+            m = /^Igen (\d+)$/.exec(nev);
+            if(m && an.checkBox){ const v = String(an.fieldValue ?? ''); if(v && v !== 'Off' && (!an.exportValue || v === an.exportValue)) be[+m[1]] = true; }
+        }
+    }
+    if(!mezo) throw new Error('Ebben a PDF-ben nincsenek kitölthető mezők. A kitölthető (számítógépen kitöltött) elemzőfüzetet tudom beolvasni.');
+    const a = {}, jegyzet = [], t = n => tx[n] || '';
+    for(const n in EFP_TX) if(t(n)) a[EFP_TX[n]] = t(n);
+    a['tajekoztatas'] = [t(5), t(6)].filter(Boolean).join(' ');
+    // jelölők
+    for(const n in EFP_JEL){ if(!be[n]) continue; const [k, v, tobb] = EFP_JEL[n];
+        if(tobb){ a[k] = Array.isArray(a[k]) ? a[k] : []; if(!a[k].includes(v)) a[k].push(v); } else a[k] = v; }
+    for(const n in EFP_CEL_SZAM){ const k = 'cel.' + EFP_CEL_SZAM[n], v = /^[0-3]$/.exec(t(n)); if(v && a[k] == null) a[k] = v[0]; }
+    if(be[10125]) a['ot.helyzet'] = be[10127] ? 'Saját ingatlan – terhelt' : 'Saját ingatlan – tehermentes';
+    a['ot.helyzet_megj'] = [t(94), t(95)].filter(Boolean).join(' · ');
+    a['ot.alom'] = [t(96), t(97), t(98)].filter(Boolean).join(' ');
+    if(t(1015)) jegyzet.push('Gyermek egyéb célja: ' + t(1015));
+    // gyermekek: a „Gyermekeink jövője” oldalról, ha ott nincs, a személyes adatokból
+    [[107, 108], [109, 1010], [1011, 1012], [1013, 1014]].forEach(([nv, sz], i) => { if(t(nv)) a[`gy.${i + 1}.nev`] = t(nv); if(t(sz)) a[`gy.${i + 1}.szul`] = efpDatum(t(sz)); });
+    [231, 232, 233, 234].forEach((n, i) => { if(t(n) && !a[`gy.${i + 1}.nev`]) a[`gy.${i + 1}.nev`] = t(n); });
+    // befektetés időtávja: „-tól – -ig” párok, a kipipált sorhoz
+    const tav = (x, y, me) => [t(x), t(y)].filter(Boolean).join('–') + (t(x) || t(y) ? ' ' + me : '');
+    const tv = { 'va.rovid.e': tav(127, 128, 'hó'), 'va.kozep.e': tav(129, 130, 'év'), 'va.kozep.r': tav(133, 134, 'év'), 'va.hosszu.e': tav(131, 132, 'év'), 'va.hosszu.r': tav(135, 136, 'év') };
+    for(const k in tv) if(tv[k]) a[k] = tv[k];
+    [[10148, 'rovid'], [10149, 'kozep'], [10150, 'hosszu']].forEach(([n, k]) => { if(be[n] && !a[`va.${k}.e`] && !a[`va.${k}.r`]) a[`va.${k}.e`] = '✓'; });
+    // táblázatok (banki, biztosítói kapcsolatok)
+    for(const [sor, jel, oszl] of EFP_TABLA){
+        let van = !!t(jel);
+        for(const [o, n, elo, uto] of oszl){ if(!t(n)) continue; van = true; const k = `${sor}.${o}`, v = (elo || '') + t(n) + (uto || '');
+            a[k] = a[k] ? a[k] + ', ' + v : v; }
+        if(van) a[`${sor}.van`] = '1';
+    }
+    const hit = [[177, 'Aktuális egyenleg'], [176, 'Futamidő kezdete'], [175, 'Vége'], [173, 'Típusa'], [174, 'Havi törlesztő']].filter(([n]) => t(n)).map(([n, c]) => `${c}: ${t(n)}`);
+    if(hit.length) a['kv.hitelek'] = hit.join(', ');
+    if(a['lp.resztvevo']) a['lp.ki'] = 'Más is jelen lesz';
+    if(t(189)) jegyzet.push('Helyszín: ' + t(189));
+    if(t(190)) jegyzet.push('Alkalmas időpontok: ' + t(190));
+    if(a['sz.datum']) a['sz.datum'] = efpDatum(a['sz.datum']);
+    if(t(239)) jegyzet.push('MT-szám: ' + t(239));
+    // karrier / tanácsadó ajánlás (2 személy)
+    const ajanlottak = [];
+    [[193, 195, 197, 199, 203, 201, 205], [194, 196, 198, 200, 204, 202, 206]].forEach((m, i) => {
+        const [nev, tel, miert, lakas, fogl, gyer, megj] = m.map(t); if(!nev && !tel) return;
+        const e = regPdfEmber({ nev, tel, miert, lakas, fogl, gyerek: gyer, megj }), n = i + 1;
+        const be2 = (k, v) => { if(v) a[`aj.${n}.${k}`] = v; };
+        be2('nev', e.name); be2('kor', e.details.eletkor); be2('telepules', e.lakhely); be2('tel', e.phone); be2('miert', miert); be2('fogl', fogl);
+        be2('megj', [lakas && 'Lakáshelyzet / családi állapot: ' + lakas, gyer && 'Gyerekek: ' + gyer, megj].filter(Boolean).join(' · '));
+        if(e.name) ajanlottak.push(e);
+    });
+    const lapJegyzet = Array.from({ length: 16 }, (_, i) => t(260 + i)).filter(Boolean).join('\n');
+    const jegy = [...jegyzet, lapJegyzet].filter(Boolean).join('\n');
+    if(jegy) a['jegyzet'] = jegy;
+    for(const k in a) if(a[k] === '' || (Array.isArray(a[k]) && !a[k].length)) delete a[k];
+    return { a, ajanlottak, db: Object.keys(a).length };
+}
+const EFP_FEJ_NEV = { ugyfel: 'Fejléc', ajanlo: 'Fejléc', tanacsado: 'Fejléc', tajekoztatas: 'Törődik pénzügyeivel?', honnan: 'Törődik pénzügyeivel?', voltelemzes: 'Törődik pénzügyeivel?', voltceg: 'Törődik pénzügyeivel?',
+    cel: 'Célok', kb: 'Banki, biztosítói kapcsolatok', mt: 'Banki, biztosítói kapcsolatok', bf: 'Banki, biztosítói kapcsolatok', fsz: 'Banki, biztosítói kapcsolatok', hit: 'Banki, biztosítói kapcsolatok',
+    ot: 'Saját otthon', gy: 'Gyermekeink jövője', ny: 'Nyugdíjas évek', fe: 'Felelősségteljes élet', va: 'Vagyonfelépítés', kv: 'Költségvetés', lp: 'Következő lépések', aj: 'Karrier-ajánlás', sz: 'Személyes adatok', jegyzet: 'Feljegyzések' };
+async function efPdfImport(file){
+    let adat;
+    try { adat = await efPdfOlvas(file); } catch(e){ alert('Az elemzőfüzetet nem sikerült beolvasni: ' + (e && e.message || e)); return; }
+    if(!adat.db){ alert('Az elemzőfüzet üres – nem találtam kitöltött mezőt.'); return; }
+    const a = adat.a, nevK = v => String(v || '').normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+    const telK = v => String(v || '').replace(/\D/g, '').replace(/^36/, '').replace(/^06/, '');
+    const owner = (typeof window.sfCurrentUser === 'object' && window.sfCurrentUser) || {};
+    const nev = a['sz.u.nev'] || a.ugyfel || '', tel = a['sz.u.mobil'] || a['sz.u.tel'] || '';
+    // ügyfél-javaslat: név (pontos, majd részleges) és telefonszám alapján
+    const pont = r => { if(!r || r.mt && !r.tp) return 0; let p = 0; const rn = nevK(r.name), n = nevK(nev);
+        if(n && rn === n) p += 10; else if(n && rn && (rn.includes(n) || n.includes(rn))) p += 5;
+        else if(n && rn && n.split(' ').filter(x => x.length > 2 && rn.split(' ').includes(x)).length >= 2) p += 4;
+        if(telK(tel) && telK(r.phone) === telK(tel)) p += 8; return p; };
+    const sajat = registry.map((r, i) => ({ r, i })).filter(({ r }) => r && (!r.ownerUid || !owner.uid || r.ownerUid === owner.uid) && !r.mt);
+    const jelolt = sajat.map(x => ({ ...x, p: pont(x.r) })).filter(x => x.p > 0).sort((x, y) => y.p - x.p);
+    const fejek = {}; Object.keys(a).forEach(k => { const f = EFP_FEJ_NEV[k] || EFP_FEJ_NEV[k.split('.')[0]] || 'Egyéb'; fejek[f] = (fejek[f] || 0) + 1; });
+    const opt = ({ r, i }) => `<option value="${i}">${esc(r.name || '(névtelen)')}${r.phone ? ' · ' + esc(r.phone) : ''}${r.lakhely ? ' · ' + esc(r.lakhely) : ''}</option>`;
+    const tobbi = sajat.filter(x => !jelolt.some(j => j.i === x.i)).sort((x, y) => String(x.r.name || '').localeCompare(String(y.r.name || ''), 'hu'));
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal na-modal rpi-modal" role="dialog" aria-modal="true">
+        <div class="modal-head">Elemzőfüzet beolvasása · ${esc(file.name || '')}</div>
+        <div class="modal-body">
+            <div class="na-sec">Kinek az elemzése?</div>
+            <select id="efpUgyfel" class="efp-sel">
+                ${jelolt.length ? `<optgroup label="Javasolt (név / telefon alapján)">${jelolt.map(opt).join('')}</optgroup>` : ''}
+                <option value="uj"${jelolt.length ? '' : ' selected'}>+ Új ügyfél: ${esc(nev || '(név nélkül)')}</option>
+                ${tobbi.length ? `<optgroup label="Többi ügyfél">${tobbi.map(opt).join('')}</optgroup>` : ''}
+            </select>
+            <p class="efp-info">A füzetben: <b>${esc(nev || '—')}</b>${tel ? ' · ' + esc(tel) : ''}${a['sz.u.telepules'] ? ' · ' + esc(a['sz.u.telepules']) : ''}</p>
+            <div class="na-sec sep">${adat.db} kitöltött mezőt találtam</div>
+            <div class="efp-fejek">${Object.entries(fejek).map(([f, n]) => `<span>${esc(f)} <b>${n}</b></span>`).join('')}</div>
+            <label class="efp-pipa"><input type="checkbox" id="efpFelul"> Az online füzetben már kitöltött mezőket is írja felül</label>
+            ${adat.ajanlottak.length ? `<div class="na-sec sep">Karrier-ajánlások – felvétel a 2 órás füzetbe munkatárs-jelöltként</div>
+                ${adat.ajanlottak.map((e, x) => `<label class="efp-pipa"><input type="checkbox" data-efpaj="${x}" checked> <b>${esc(e.name)}</b>${e.phone ? ' · ' + esc(e.phone) : ''}${e.lakhely ? ' · ' + esc(e.lakhely) : ''}</label>`).join('')}` : ''}
+        </div>
+        <div class="modal-foot"><button class="btn" id="efpMegse">Mégse</button><button class="btn primary" id="efpMent">Beolvasás az ügyfélhez</button></div></div>`;
+    document.body.appendChild(ov);
+    const $ = id => ov.querySelector('#' + id);
+    const zar = () => { document.removeEventListener('keydown', esc_); ov.remove(); };
+    function esc_(e){ if(e.key === 'Escape') zar(); }
+    document.addEventListener('keydown', esc_);
+    $('efpMegse').addEventListener('click', zar);
+    ov.addEventListener('click', e => { if(e.target === ov) zar(); });
+    $('efpMent').addEventListener('click', () => {
+        const valasz = $('efpUgyfel').value, felul = $('efpFelul').checked;
+        let i = valasz === 'uj' ? -1 : +valasz;
+        if(i < 0){
+            const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+            registry.push({ name: nev || 'Elemzés ' + new Date().toLocaleDateString('hu-HU'), munkatars: a['sz.tanacsado'] || a.tanacsado || owner.name || '', ajanlo: a.ajanlo || '',
+                phone: tel, lakhely: a['sz.u.telepules'] || '', status: 'Új', tp: false, mt: false, elemzes: false, portal: false, tanacsadas: false, ajanlasok: '', details: {}, celok: {},
+                ownerUid: owner.uid || '', ownerEmail: owner.email || '', ownerName: owner.name || '', created: new Date().toISOString(), _localKey: localKey });
+            i = registry.length - 1;
+        }
+        const r = registry[i];
+        if(!r.elemzofuzet || typeof r.elemzofuzet !== 'object') r.elemzofuzet = { a: {} };
+        const ea = r.elemzofuzet.a = r.elemzofuzet.a || {};
+        const ures = v => v == null || v === '' || (Array.isArray(v) && !v.length);
+        let irt = 0;
+        for(const k in a){ if(!felul && !ures(ea[k])) continue; if(JSON.stringify(ea[k]) !== JSON.stringify(a[k])){ ea[k] = a[k]; irt++; } }
+        if(!r.elemzofuzet.indult) r.elemzofuzet.indult = new Date().toISOString();
+        r.elemzofuzet.frissitve = new Date().toISOString();
+        r.elemzofuzet.pdf = { fajl: file.name || '', datum: new Date().toISOString(), mezok: adat.db };
+        // az ügyfél alapadatai: csak ami még üres
+        r.details = r.details || {};
+        const ha = (o, k, v) => { if(v && !String(o[k] || '').trim()) o[k] = v; };
+        ha(r, 'phone', tel); ha(r, 'lakhely', a['sz.u.telepules']); ha(r, 'ajanlo', a.ajanlo); ha(r.details, 'foglalkozas', a['sz.u.fogl']);
+        const csal = String(a['sz.u.csaladi'] || '').toLowerCase();
+        ha(r.details, 'lakas', /özvegy/.test(csal) ? 'Özvegy' : /elvált/.test(csal) ? 'Elvált' : /házas/.test(csal) ? 'Házas' : /élettárs/.test(csal) ? 'Élettársi kapcsolatban él' : /egyedül|hajadon|nőtlen/.test(csal) ? 'Egyedülálló' : '');
+        const szulEv = /(19|20)\d{2}/.exec(a['sz.u.szul'] || ''); if(szulEv) ha(r.details, 'eletkor', String(new Date().getFullYear() - +szulEv[0]));
+        // karrier-ajánlások → 2 órás füzet (munkatárs-jelölt), ajánlónak az ügyféllel
+        let mtDb = 0;
+        ov.querySelectorAll('[data-efpaj]:checked').forEach(cb => {
+            const e = adat.ajanlottak[+cb.dataset.efpaj];
+            if(registry.some(x => x && x.mt && nevK(x.name) === nevK(e.name) && (!telK(e.phone) || !telK(x.phone) || telK(x.phone) === telK(e.phone)))) return;
+            const localKey = '_lk_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+            const uj = { name: e.name, munkatars: r.munkatars || owner.name || '', ajanlo: r.name || '', phone: e.phone, lakhely: e.lakhely, status: '', tp: false, mt: true,
+                elemzes: false, portal: false, tanacsadas: false, ajanlasok: '', details: { ...e.details }, celok: {}, karrierTp: false,
+                toborzas: { minoseg: '', modja: '', megjegyzes: '', hivasok: [], idopontok: [] },
+                ownerUid: owner.uid || '', ownerEmail: owner.email || '', ownerName: owner.name || '', created: new Date().toISOString(), _localKey: localKey };
+            registry.push(uj); mtDb++;
+            if(typeof window.sfAddClient === 'function') window.sfAddClient(regClientPayload(uj)).then(id => { if(!id) return;
+                const rec = registry.find(x => x._localKey === localKey); if(rec){ rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); } }).catch(err => console.warn('Jelölt mentése sikertelen:', err));
+        });
+        store.save('sf_registry', registry);
+        if(r._localKey && !r.id && typeof window.sfAddClient === 'function'){
+            const lk = r._localKey;
+            window.sfAddClient(regClientPayload(r)).then(id => { if(!id) return; const rec = registry.find(x => x._localKey === lk);
+                if(rec){ rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); } }).catch(err => console.warn('Ügyfél mentése sikertelen:', err));
+        } else persistReg(i);
+        renderRegistry(); if(typeof refreshMoneyCareer === 'function') refreshMoneyCareer();
+        if(mtDb && typeof renderKetorasList === 'function') renderKetorasList();
+        zar();
+        if(typeof sfToast === 'function') sfToast(`Elemzőfüzet beolvasva – ${r.name}: ${irt} mező${mtDb ? `, ${mtDb} munkatárs-jelölt a 2 órás füzetbe` : ''}.`);
+        if(confirm(`${irt} mező került ${r.name} elemzőfüzetébe. Megnyitod az online elemzőfüzetet?`) && typeof efNyit === 'function') efNyit(registry.indexOf(r));
+    });
+}
+// Feltöltéskor először megkérdezzük: ajánlólap vagy elemzőfüzet?
+function regPdfTipusKerdes(kesz){
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal na-modal efp-valaszt" role="dialog" aria-modal="true"><div class="modal-head">Mit töltesz fel?</div>
+        <div class="modal-body"><div class="efp-gombok">
+            <button type="button" data-efpt="ajanlo"><b>Ajánlólap</b><span>Ajánlott személyek – új ügyfelek a füzetbe (PDF vagy fotó)</span></button>
+            <button type="button" data-efpt="elemzo"><b>Elemzőfüzet</b><span>Kitöltött „Pénzügyi elemzés” PDF – az ügyfél online elemzőfüzetébe</span></button>
+        </div></div><div class="modal-foot"><button class="btn" data-efpt="">Mégse</button></div></div>`;
+    document.body.appendChild(ov);
+    const vege = t => { document.removeEventListener('keydown', k); ov.remove(); if(t) kesz(t); };
+    function k(e){ if(e.key === 'Escape') vege(''); }
+    document.addEventListener('keydown', k);
+    ov.addEventListener('click', e => { if(e.target === ov) return vege(''); const b = e.target.closest('[data-efpt]'); if(b) vege(b.dataset.efpt); });
+}
+function regFajlFeldolgoz(f, mod, tipus){
+    if(tipus === 'elemzo'){
+        if(regKepE(f)){ alert('Az elemzőfüzetet a kitöltött PDF-ből tudom beolvasni (képből nem).'); return; }
+        efPdfImport(f);
+    } else regPdfImport(f, mod);
+}
 // Ráhúzás a 10 perces füzet oldalára + a „PDF-ből” gomb
 (function(){ for(const [lapId, mod] of [['page-ugyfelek', ''], ['page-ketoras', 'mt']]){
     const lap = document.getElementById(lapId); if(!lap) continue;
@@ -26256,14 +26505,19 @@ async function regPdfImport(file, mod){
         if(!vanFajl(e)) return;
         e.preventDefault(); mely = 0; lap.classList.remove('rpi-drop');
         const f = pdfOf(e.dataTransfer);
-        if(f) regPdfImport(f, mod); else alert('Ide PDF-et vagy képet húzz (az ajánlólapot).');
+        if(f) regPdfTipusKerdes(t => regFajlFeldolgoz(f, mod, t)); else alert('Ide PDF-et vagy képet húzz (ajánlólapot vagy elemzőfüzetet).');
     });
     }
     // Delegálva: az eszköztár újrarajzolódhat, a gomb és a fájlmező akkor is működjön.
-    document.addEventListener('click', e => { const b = e.target.closest('#regPdfBtn, #ketPdfBtn'); if(b){ const inp = document.getElementById(b.id === 'ketPdfBtn' ? 'ketPdfInp' : 'regPdfInp'); if(inp) inp.click(); } });
+    // a gomb előbb megkérdezi, mi lesz feltöltve, és csak utána nyitja a fájlválasztót
+    let tipus = 'ajanlo';
+    document.addEventListener('click', e => { const b = e.target.closest('#regPdfBtn, #ketPdfBtn'); if(!b) return;
+        regPdfTipusKerdes(t => { tipus = t; const inp = document.getElementById(b.id === 'ketPdfBtn' ? 'ketPdfInp' : 'regPdfInp');
+            if(inp){ if(inp.dataset.accept == null) inp.dataset.accept = inp.accept;
+                inp.accept = t === 'elemzo' ? 'application/pdf,.pdf' : inp.dataset.accept; inp.click(); } }); });
     document.addEventListener('change', e => {
         const inp = e.target; if(!inp || (inp.id !== 'regPdfInp' && inp.id !== 'ketPdfInp')) return;
-        const f = inp.files && inp.files[0]; inp.value = ''; if(f) regPdfImport(f, inp.id === 'ketPdfInp' ? 'mt' : '');
+        const f = inp.files && inp.files[0]; inp.value = ''; if(f) regFajlFeldolgoz(f, inp.id === 'ketPdfInp' ? 'mt' : '', tipus);
     });
 })();
 
