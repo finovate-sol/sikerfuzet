@@ -45514,6 +45514,7 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .osz-t .jobb { color:#009999; font-weight:800; } .tvp .osz-t .jobb::after { content:" ▲"; font-size:8px; }
 .tvp .osz-t .ok { color:#009999; font-weight:900; } .tvp .osz-t .nem { color:#cbd5e1; }
 .tvp .osz-kul { margin-top:12px; background:#f2f2f2; border-left:4px solid #009999; padding:9px 12px; font-size:11px; color:#003366; }
+.tv-nelkul { margin-top:10px; background:#f0f7ff; border:1px solid #cfe0fb; border-radius:11px; padding:10px 12px; font-size:12.5px; color:#1f3b63; display:flex; align-items:center; gap:12px; flex-wrap:wrap; } .tv-nelkul .btn { margin-left:auto; }
 .tv-bank { padding:4px 0 10px; border-bottom:1px solid #f1f3f6; } .tv-bank > small { display:block; font-size:12px; font-weight:650; color:#64748b; margin-top:6px; }
 .tv-bank .tv-csomag button:disabled { opacity:.45; cursor:not-allowed; } .tv-bank .tv-csomag button.aj { background:#FF3399; border-color:#FF3399; }
 /* bankszámla oldal */
@@ -45663,6 +45664,8 @@ const TV_BANK = [
     ['uni-nulla', 'UniCredit', 'Partner Aktív Nulla', '0 Ft', 'min. 214 662 Ft jóváírás/hó', '1 569 Ft/hó', 'mobilon díjmentes', 'havi 1. ingyenes', '1. évben 0 Ft, 2. évben 5 626 Ft', '0 Ft', 30000, '30 000 Ft', '2026.11.30.', '12 hónap', 'uni'],
     ['uni-prestige', 'UniCredit', 'Partner Prestige', '0 Ft', 'min. 600 000 Ft jóváírás/hó', '8 000 Ft/hó', 'díjmentes', 'díjmentes (belföldi ATM)', '0 Ft', '0 Ft', 30000, '30 000 Ft', '2026.11.30.', '12 hónap', 'uni']
 ].map(([id, bank, csomag, havi, felt, nelkul, utalas, atm, kartya, sms, bonusz, bonSz, vege, huseg, lep]) => ({ id, bank, csomag, havi, felt, nelkul, utalas, atm, kartya, sms, bonusz, bonSz, vege, huseg, lep }));
+// van-e miből tervezetet készíteni: kalkuláció, vagy kalkuláció nélkül is pl. csak bankszámla / balesetvédelem / egészségpénztár
+const tvVan = () => tvAj.length > 0 || ['bank', 'baleset', 'eszp'].some(k => tvAlap.opc[k]);
 const tvBankVal = () => (tvAlap.bankok || []).map(id => TV_BANK.find(b => b.id === id)).filter(Boolean).slice(0, 3);
 function tvBankLap(lab){
     const l = tvBankVal(); if(!l.length) return '';
@@ -46056,6 +46059,7 @@ function renderTervezet(){
     const vanKesobb = tvAj.some(a => a.kesobb);
     const K1 = `<div class="tv-kartya"><h3><i>1</i>Kalkulációk</h3>
         <label class="tv-drop" id="tvDrop">${sfIkonLap('jegyzet', 'kek')}<b>Húzd ide az OVB-s kalkulációs PDF-et</b>vagy kattints a tallózáshoz · termékenként egy PDF, több is mehet<input type="file" id="tvFajl" accept="application/pdf,.pdf" multiple hidden></label>
+        ${!tvAj.length ? `<div class="tv-nelkul">Kalkuláció nem kötelező: ha csak <b>bankszámlát</b>, <b>balesetvédelmet (BodyGuard)</b> vagy <b>egészségpénztárat</b> viszel, töltsd ki az ügyfél adatait, és a Tartalom lépésben kapcsold be őket. <button type="button" class="btn" data-tvlepes="2">Tovább a Tartalomhoz ›</button></div>` : ''}
         ${tvFut ? `<div class="tv-allapot">${esc(tvFut)}</div>` : ''}${tvHiba ? `<div class="tv-hiba">${esc(tvHiba)}</div>` : ''}
         <div style="margin-top:12px">${tvAj.map(ajHtml).join('')}</div></div>`;
     const K2 = `<div class="tv-kartya"><h3><i>2</i>Ügyfél és tanácsadó</h3><div class="tv-mezok">
@@ -46090,8 +46094,8 @@ function renderTervezet(){
         ${kap('zarszo', 'Zárszó', 'a neveddel és az elérhetőségeddel')}</div></div>`;
     // lépésenként: fent a három fül (állapottal), alattuk csak az aktív lépés kártyája
     if(tvLepes > 3) tvLepes = 3;
-    const lapDb = tvAj.length ? tvLapok().filter(l => !l.ki).length : 0;
-    const allapot = [`${tvAj.length ? tvAj.length + ' kalkuláció' : 'nincs még'} · ${esc(tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '–')}`, tvAj.length ? `${lapDb} oldal` : '–', tvAj.length ? 'sorrend, ki / be' : '–'];
+    const lapDb = tvVan() ? tvLapok().filter(l => !l.ki).length : 0;
+    const allapot = [`${tvAj.length ? tvAj.length + ' kalkuláció' : 'kalkuláció nélkül'} · ${esc(tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '–')}`, tvVan() ? `${lapDb} oldal` : '–', tvVan() ? 'sorrend, ki / be' : '–'];
     const tovabb = n => n < 3 ? `<div class="tv-tovabb"><button type="button" class="btn" data-tvlepes="${n + 1}">Tovább: ${['', 'Tartalom', 'Előnézet'][n]} ›</button></div>` : '';
     // 1. lépés: a kalkulációk és az ügyfél / tanácsadó egy kártyán
     const K12 = K1.replace(/<\/div>\s*$/, '') + `<h4 class="tv-al">Ügyfél és tanácsadó</h4>` + K2.replace(/^<div class="tv-kartya"><h3>.*?<\/h3>/, '').replace(/<\/div>\s*$/, '') + '</div>';
@@ -46100,11 +46104,11 @@ function renderTervezet(){
     const bal = eloLepes ? '' : `${fulek}${[K12, K3][tvLepes - 1].replace(/<\/div>\s*$/, '')}${tovabb(tvLepes)}</div>`;
     host.innerHTML = `<div class="pg-hero"><div class="pg-hero-txt"><h2>Tervezet-készítő</h2><p>OVB-s kalkulációból személyes pénzügyi tervezet PDF-ben</p></div></div>
     ${eloLepes ? `<div class="tv-lay tv-n-lepes tv-elo-lepes"><div>${fulek}</div>
-    <div class="tv-elo"><div class="tv-elo-fej"><div><h3>Előnézet</h3><p>${tvAj.length ? `${lapDb} oldal kerül a PDF-be. Húzd az oldalakat a sorrend módosításához; a ✕ gombbal kihagyhatod őket. A kalkuláció oldalai változtatás nélkül kerülnek bele.` : 'Tölts fel egy kalkulációt az 1. lépésben.'}</p></div>
+    <div class="tv-elo"><div class="tv-elo-fej"><div><h3>Előnézet</h3><p>${tvVan() ? `${lapDb} oldal kerül a PDF-be. Húzd az oldalakat a sorrend módosításához; a ✕ gombbal kihagyhatod őket. A kalkuláció oldalai változtatás nélkül kerülnek bele.` : 'Tölts fel egy kalkulációt az 1. lépésben – vagy kalkuláció nélkül a Tartalom lépésben kapcsold be a Bankszámlát, a Balesetvédelmet vagy az Egészségpénztárat.'}</p></div>
         ${tvSorrend.length ? '<button type="button" class="btn" data-tvsorvissza>↺ Eredeti sorrend</button>' : ''}</div>
       <div class="tv-lapok tv-racs" id="tvLapok"></div>` : `<div class="tv-lay tv-n-lepes tv-egy"><div>${bal}</div>
     <div class="tv-elo" hidden><div class="tv-lapok" id="tvLapok"></div>`}
-      <div class="tv-gombok"><button type="button" class="btn" id="tvMegnez"${tvAj.length ? '' : ' disabled'}>Előnézet</button><button type="button" class="btn primary" id="tvLetolt"${tvAj.length ? '' : ' disabled'}>PDF letöltése</button></div><div class="tv-allapot" id="tvAllapot"></div></div></div>`;
+      <div class="tv-gombok"><button type="button" class="btn" id="tvMegnez"${tvVan() ? '' : ' disabled'}>Előnézet</button><button type="button" class="btn primary" id="tvLetolt"${tvVan() ? '' : ' disabled'}>PDF letöltése</button></div><div class="tv-allapot" id="tvAllapot"></div></div></div>`;
     tvElonezet(); tvEloMeret();
 }
 // Nagy képernyőn a Tervezet-készítő pontosan kitölti az ablakot – az oldal maga nem görget:
@@ -46121,7 +46125,7 @@ function tvEloMeret(){
 addEventListener('resize', tvEloMeret);
 function tvElonezet(){
     const host = document.getElementById('tvLapok'); if(!host) return;
-    if(!tvAj.length){ host.innerHTML = ''; return; }
+    if(!tvVan()){ host.innerHTML = ''; return; }
     let n = 0;
     if(tvLepes !== 3){ host.innerHTML = ''; return; }
     host.innerHTML = tvLapok().map((l, i) => `<div class="tv-lk${l.ki ? ' ki' : ''}" draggable="true" data-tvlk="${esc(l.kulcs)}" title="Húzd a sorrend módosításához"><div class="tv-sk" data-tvsk="${i}">${l.html || ''}</div>
