@@ -12460,34 +12460,40 @@ window.sfApplyResultFromEvent = function(ev, result){
 // a TP-s ügyfél neve és egy (E) / (TA) / (SZ) jelölés, az ügyfél rekordjára felírjuk: r.tpIdopont = { at, cim }.
 // A rekord a közös adatbázisba megy, így a vezető a Telefonparty oldalon a csapattagokét is látja.
 window.sfTpIdopontSync = function(items, tol, ig){
-    if(!Array.isArray(items) || !registry.length) return;
+    if(!Array.isArray(items)) return;
     const me = window.sfCurrentUser || {};
-    const nk = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-    const sajat = registry.map((r, i) => ({ r, i })).filter(({ r }) => r && r.tp && !r.mt && (!r.ownerUid || !me.uid || r.ownerUid === me.uid) && nk(r.name).length > 3);
-    if(!sajat.length) return;
-    const talalt = new Map();   // registry index -> { at, cim }
+    const nk = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    // jelöltek: a saját TP-s ügyfeleim (registry) + vezetőként a csapat TP-s ügyfelei (sfAllClients) – a közös naptárakban az ő eseményeik is ott lehetnek
+    const jeloltek = [], latott = new Set();
+    registry.forEach((r, i) => { if(r && r.tp && !r.mt && nk(r.name).split(' ').length >= 2){ jeloltek.push({ r, i, sajat: !r.ownerUid || !me.uid || r.ownerUid === me.uid }); if(r.id) latott.add(r.id); } });
+    (window.sfAllClients || []).forEach(r => { if(r && r.tp && !r.mt && r.id && !latott.has(r.id) && nk(r.name).split(' ').length >= 2){ jeloltek.push({ r, i: -1, sajat: false }); latott.add(r.id); } });
+    if(!jeloltek.length) return;
+    const talalt = new Map();   // jelölt -> { at, cim }
     for(const ev of items){
         if(!ev || ev.status === 'cancelled' || !ev.start || !ev.start.dateTime) continue;
         const cim = String(ev.summary || ''); if(/^\s*❌/.test(cim)) continue;          // elmaradt
         const priv = (ev.extendedProperties && ev.extendedProperties.private) || {};
-        let idx = -1;
-        if(priv.sfList === 'money' && priv.sfRegId) idx = registry.findIndex(x => x && x.id != null && String(x.id) === priv.sfRegId);
-        if(idx < 0 && /\((E|TA|SZ)\)/.test(cim)){ const c = nk(cim); const t = sajat.find(({ r }) => c.includes(nk(r.name))); if(t) idx = t.i; }
-        if(idx < 0 || !registry[idx] || !registry[idx].tp) continue;
-        const at = ev.start.dateTime, v = talalt.get(idx);
-        if(!v || at > v.at) talalt.set(idx, { at, cim: cim.replace(/^\s*✅\s*/, '') });
+        let j = null;
+        if(priv.sfList === 'money' && priv.sfRegId) j = jeloltek.find(x => x.r.id != null && String(x.r.id) === priv.sfRegId) || null;
+        // a címben benne van az ügyfél teljes neve (ékezet- és írásjel-függetlenül); a leghosszabb egyező név nyer
+        if(!j){ const c = ' ' + nk(cim) + ' '; let leg = 0; for(const x of jeloltek){ const n = nk(x.r.name); if(n.length > leg && c.includes(' ' + n + ' ')){ j = x; leg = n.length; } } }
+        if(!j) continue;
+        const at = ev.start.dateTime, v = talalt.get(j);
+        if(!v || at > v.at) talalt.set(j, { at, cim: cim.replace(/^\s*✅\s*/, '') });
     }
     const t0 = tol instanceof Date ? tol.toISOString() : '', t1 = ig instanceof Date ? ig.toISOString() : '';
-    sajat.forEach(({ r, i }) => {
-        const uj = talalt.get(i), regi = r.tpIdopont;
+    let mentes = false;
+    jeloltek.forEach(x => {
+        const r = x.r, uj = talalt.get(x), regi = r.tpIdopont;
         let kell = null;
         if(uj && (!regi || regi.at !== uj.at && (uj.at > regi.at || (regi.at >= t0 && regi.at < t1)))) kell = uj;          // új vagy áthelyezett
-        else if(!uj && regi && t0 && regi.at >= t0 && regi.at < t1) kell = false;                                              // a lekért időszakban már nincs meg
+        else if(x.sajat && !uj && regi && t0 && regi.at >= t0 && regi.at < t1) kell = false;                                 // a saját naptáramban a lekért időszakban már nincs meg
         if(kell === null) return;
         if(kell) r.tpIdopont = kell; else delete r.tpIdopont;
-        store.save('sf_registry', registry);
+        if(x.i >= 0) mentes = true;
         if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { tpIdopont: kell || null });
     });
+    if(mentes) store.save('sf_registry', registry);
 };
 
 // (A "Következő INFO" kártyát a modul-script tölti fel a megosztott config alapján.)
@@ -35950,6 +35956,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if(!window.__tpSyncAt || Date.now() - window.__tpSyncAt > 15 * 60000){
                 window.__tpSyncAt = Date.now();
                 const t0 = startOfWeek(new Date()); fetchEvents(token, t0, addDays(t0, 35)).catch(() => {});
+                // a bekapcsolt többi naptár (pl. a csapatnaptár) – a csapattagok ügyfeleinek időpontjai miatt
+                try { (typeof calAtfedok === "function" ? calAtfedok() : []).forEach(c => fetchEvents(token, t0, addDays(t0, 35), c.id).catch(() => {})); } catch(_){}
             }
         } catch(e){ /* csendes hiba – marad a helykitöltő */ }
         finally { statsBusy = false; }
