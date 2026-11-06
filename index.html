@@ -3361,8 +3361,10 @@
         .s3-n { flex:1; min-width:0; } .s3-n > strong { display:block; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .s3-al { display:flex; align-items:center; gap:6px; margin-top:2px; min-width:0; }
         .s3-tel { color:var(--muted); font-size:12px; text-decoration:none; white-space:nowrap; } .s3-tel:hover { color:var(--navy); text-decoration:underline; }
-        .sav-321 .het-tbl select.s3-tip { flex:none; width:auto !important; appearance:none; -webkit-appearance:none; border:0 !important; background:none; padding:0 !important; height:auto; font-size:11.5px; color:#94a3b8; cursor:pointer; }
-        .sav-321 .het-tbl select.s3-tip.van { color:#334155; font-weight:600; }
+        .sav-321 .het-tbl select.s3-tip { flex:none; width:auto !important; appearance:none; -webkit-appearance:none; border:1px dashed #cbd5e1 !important; border-radius:999px; background:none;
+            padding:0 7px !important; height:19px; line-height:17px; font-size:10.5px; font-weight:700; color:#94a3b8; cursor:pointer; }
+        .het-tbl select.h321-cel, .sav-321 .het-tbl select.s3-tip { field-sizing:content; min-width:0; }   /* a chip a kiválasztott szöveg szélességű */
+        .sav-321 .het-tbl select.s3-tip:not([data-v=""]) { border:1px solid #93c5fd !important; background:#eff6ff; color:#1d4ed8; }
         .sav-321 .het-tbl input.s3-jegy { flex:1; min-width:40px; width:auto !important; border:0 !important; background:none; padding:0 2px !important; height:auto; font-size:12px; font-style:italic; color:#475569; }
         .sav-321 .het-tbl input.s3-jegy:focus { outline:none; background:#f8fafc; border-radius:4px; font-style:normal; }
         .s3-seg { display:flex; flex:none; border:1px solid #e2e8f0; border-radius:9px; overflow:hidden; }
@@ -12061,7 +12063,7 @@ function het321SorHtml(l, r, gi, sav){
         return `<tr draggable="true" data-name="${esc(r.name)}" data-list="${l === 'penz' ? 'money' : 'career'}" data-regidx="${gi}" title="Húzd a naptárba"><td colspan="4"><div class="s3-sor">
             <div class="s3-n"><strong>${esc(r.name) || '(névtelen)'}</strong>
                 <div class="s3-al">${r.phone ? `<a class="s3-tel" href="tel:${esc(String(r.phone).replace(/\s/g, ''))}" draggable="false">${esc(r.phone)}</a>` : ''}${celSel}
-                    <select class="s3-tip${r[m.t] ? ' van' : ''}" data-h321="${l}:${gi}:t" aria-label="Típus"><option value="">típus</option>${HET_TIPUS.map(t => `<option${r[m.t] === t ? ' selected' : ''}>${t}</option>`).join('')}</select>
+                    <select class="s3-tip" data-h321="${l}:${gi}:t" data-v="${esc(r[m.t] || '')}" title="Típus" aria-label="Típus"><option value="">típus?</option>${HET_TIPUS.map(t => `<option${r[m.t] === t ? ' selected' : ''}>${t}</option>`).join('')}</select>
                     <input class="s3-jegy" data-h321="${l}:${gi}:j" value="${esc(r[m.j] || '')}" placeholder="jegyzet…" aria-label="Jegyzet"></div></div>
             <div class="s3-seg" role="group" aria-label="Eredmény">${[['no', '✕', 'Nem sikerült'], ['pending', '–', 'Még nincs'], ['ok', '✓', 'Lebeszélve']].map(([k, j, t]) =>
                 `<button type="button" class="${k}${e === k ? ' on' : ''}" data-h321r="${l}:${gi}:${k}" title="${t}" aria-pressed="${e === k}">${j}</button>`).join('')}</div></div></td></tr>`; }
@@ -12206,7 +12208,7 @@ wire('infoList','info');
     tb.addEventListener('input', e=>{
         const t=e.target.closest('[data-h321]'); if(!t) return;
         const [l, gi, f]=t.dataset.h321.split(':'); const r=registry[+gi]; if(!r) return;
-        r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel')) t.dataset.v=t.value;
+        r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel') || t.classList.contains('s3-tip')) t.dataset.v=t.value;
         clearTimeout(window.__s321T); window.__s321T=setTimeout(()=>{ store.save('sf_registry', registry); persistReg(+gi); }, t.tagName==='SELECT' ? 0 : 600);
     });
     tb.addEventListener('focusout', ()=> setTimeout(()=>{ if(!sav321Szerk(tb)) (id === 'moneyTable' ? renderMoney : renderCareer)(); }, 0));
@@ -17210,7 +17212,7 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(haviNezet!=='het') return;
     const t=e.target.closest('[data-h321]'); if(!t) return;
     const [l, gi, f]=t.dataset.h321.split(':'); const r=registry[+gi]; if(!r) return;
-    r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel')) t.dataset.v=t.value;
+    r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel') || t.classList.contains('s3-tip')) t.dataset.v=t.value;
     clearTimeout(window.__h321T); window.__h321T=setTimeout(()=>het321Ment(+gi), t.tagName==='SELECT' ? 0 : 600);
 });
 document.getElementById('haviBody').addEventListener('click', e=>{
