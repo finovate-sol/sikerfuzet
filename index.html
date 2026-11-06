@@ -45526,6 +45526,15 @@ Vállalkozás nyitásának átbeszélése`, '']
 /* az összehasonlító és a bankszámla oldalon a sarokkép kisebb, hogy ne lógjon a kártyákba */
 .tvp.bk .skor, .tvp.osz .skor { width:176px; height:176px; right:-58px; top:-58px; border-width:7px; }
 .tvp.bk .sfej, .tvp.osz .sfej { width:420px; }
+/* SIGNAL balesetbiztosítás tábla */
+.tvp .bal-t { width:100%; border-collapse:collapse; font-size:9px; margin-top:6px; table-layout:fixed; }
+.tvp .bal-t th { background:#003366; color:#fff; padding:6px 4px; font-size:9.5px; text-align:center; } .tvp .bal-t th:first-child { text-align:left; padding-left:8px; }
+.tvp .bal-t td { padding:3px 6px; border-bottom:1px solid #e5e7eb; text-align:right; white-space:nowrap; line-height:1.25; } .tvp .bal-t td:first-child { text-align:left; color:#28364a; padding-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tvp .bal-t tr:nth-child(even) td { background:#f7f9fc; }
+.tvp .bal-t th.v { background:#FF3399; } .tvp .bal-t td.v { background:#fff0f7 !important; font-weight:700; color:#003366; }
+.tvp .bal-t tr.d td { font-weight:800; color:#003366; background:#eef2f7; } .tvp .bal-t tr.d td.v { background:#ffd9ec !important; color:#be185d; }
+.tvp.osz > *, .tvp.bal > * { flex-shrink:0; } .tvp .osz-kk > *, .tvp .bk-kk > * { min-width:0; }
+.tvp.bal .osz-t { font-size:9.5px; margin-top:10px; } .tvp.bal .osz-t td { padding:3px 6px; } .tvp.bal .osz-t td:first-child { white-space:nowrap; } .tvp.bal .osz-kk .osz-k .big { font-size:20px; } .tvp.bal .osz-k .em { margin-bottom:0; }
 /* bankszámla oldal */
 .tvp.bk .sfej { min-height:0; margin-bottom:12px; width:440px; flex:none; } .tvp.bk > * { flex-shrink:0; }
 .tvp.bk .bk-t { font-size:8px; } .tvp.bk .bk-t td { padding:2px 4px; line-height:1.2; } .tvp.bk .bk-t th { padding:4px 4px; font-size:9px; } .tvp.bk .bk-t col.c0 { width:96px; }
@@ -45858,6 +45867,59 @@ const tvBiztLap = (nev, top) => { const b = TV_BIZT_LAP[nev]; if(!b) return '';
 // (az oszlophatárok a kép szélességének %-ában)
 const TV_BG = { csomagok: ['Standard', 'Optimum', 'Prémium', 'Szuperior', 'Gyermek'], dij: [20000, 30000, 45000, 72000, 9000],
     oszlop: [[28.75, 13.5], [42.25, 13.5], [55.75, 13.6], [69.35, 15.0], [84.35, 15.4]] };
+// ===== Balesetbiztosítások tételesen: UNIQA BodyGuard VIP Pro és SIGNAL Exkluzív Védelem Plusz =====
+// tételek: [kulcs, megnevezés]; értékek csomagonként (null = nincs ilyen fedezet)
+const TV_BAL_TET = [['halal', 'Baleseti halál'], ['r67', 'Baleseti rokkantság (67–100%)'], ['r36', 'Baleseti rokkantság (36–66%)'], ['r10', 'Baleseti rokkantság (10/15–35%)'],
+    ['rehab', 'Rehabilitációs támogatás'], ['korhaz', 'Kórházi napi térítés'], ['mutet', 'Baleseti műtéti térítés'], ['plaszt', 'Baleseti plasztikai műtét'],
+    ['eges', 'Égési sérülés'], ['csont', 'Csonttörés'], ['lagy', 'Lágyrészek sérülése'], ['kereso', 'Keresőképtelenség'], ['gyogy', 'Gyógyulási támogatás'],
+    ['kullancs', 'Kullancs okozta bénulás'], ['kepalk', 'Képalkotó vizsgálatok'], ['tanul', 'Tanulási támogatás']];
+const TV_M = 1000000;
+const TV_BAL = {
+    uniqa: { nev: 'UNIQA – BodyGuard VIP Pro', rov: 'UNIQA', csomagok: ['Standard', 'Optimum', 'Prémium', 'Szuperior', 'Gyermek'], dij: [20000, 30000, 45000, 72000, 9000],
+        e: { halal: [12*TV_M, 15*TV_M, 20*TV_M, 30*TV_M, 1*TV_M], r67: [24*TV_M, 40*TV_M, 60*TV_M, 90*TV_M, 40*TV_M], r36: [12*TV_M, 20*TV_M, 30*TV_M, 45*TV_M, 15*TV_M], r10: [8*TV_M, 12*TV_M, 18*TV_M, 18*TV_M, 6*TV_M],
+            rehab: [null, 2*TV_M, 5*TV_M, 7.5*TV_M, 2*TV_M], korhaz: [8000, 10000, 10000, 20000, 5000], mutet: [500000, 1*TV_M, 1*TV_M, 2*TV_M, 100000], plaszt: [750000, 1.5*TV_M, 2*TV_M, 2*TV_M, 1.25*TV_M],
+            eges: [500000, 750000, 750000, 1*TV_M, null], csont: [150000, 200000, 300000, 400000, 100000], lagy: [75000, 100000, 150000, 200000, 50000],
+            kereso: [100000, 150000, 200000, null, null], gyogy: [null, null, null, 400000, null], kullancs: [1*TV_M, 2*TV_M, 2.5*TV_M, 2.5*TV_M, 2*TV_M], kepalk: [null, null, 150000, 250000, null], tanul: [null, null, null, null, null] } },
+    signal: { nev: 'SIGNAL – Exkluzív Védelem Plusz', rov: 'SIGNAL', csomagok: ['TOP', 'TOP PLUSZ', 'TOP PRÉMIUM', 'Gyermek'], dij: [20000, 30000, 40000, 15000],
+        e: { halal: [12*TV_M, 17*TV_M, 22*TV_M, null], r67: [24*TV_M, 36*TV_M, 45*TV_M, 24*TV_M], r36: [12*TV_M, 18*TV_M, 24*TV_M, 12*TV_M], r10: [8*TV_M, 12*TV_M, 16*TV_M, 8*TV_M],
+            rehab: [null, null, null, null], korhaz: [12000, 15000, 20000, 12000], mutet: [250000, 350000, 500000, 250000], plaszt: [1*TV_M, 1.5*TV_M, 2*TV_M, 1*TV_M],
+            eges: [500000, 750000, 1*TV_M, 500000], csont: [50000, 125000, 200000, 50000], lagy: [50000, 50000, 50000, 50000],
+            kereso: [100000, 150000, 200000, null], gyogy: [null, null, null, null], kullancs: [null, null, null, null], kepalk: [null, null, null, null], tanul: [null, null, null, 100000] } }
+};
+const tvBalBizt = () => ['uniqa', 'signal', 'mind'].includes(tvAlap.balBizt) ? tvAlap.balBizt : 'uniqa';
+const tvSigIdx = () => Math.max(0, TV_BAL.signal.csomagok.indexOf(tvAlap.sigCsomag || 'TOP PLUSZ'));
+// SIGNAL Exkluzív Védelem Plusz – a csomagtábla a választott csomag kiemelésével
+function tvSignalLap(lab){
+    const B = TV_BAL.signal, ci = tvSigIdx(), dij = B.dij[ci];
+    const sorok = TV_BAL_TET.filter(([k]) => B.e[k].some(v => v != null));
+    return `<div class="tvp">${tvFej('EGYÉB TERMÉKEK – PÉNZÜGYI VÉDELEM', 'Balesetvédelem')}
+        <div class="et-f" style="border-color:#FF3399"><b>${esc(B.nev)} · ${esc(B.csomagok[ci])}</b><span>${tvFt(dij)} Ft/év (${tvFt(Math.floor(dij / 12))} Ft/hó)</span></div>
+        <p class="bg-be">A balesetbiztosítás a hirtelen, váratlan külső behatás következtében bekövetkező balesetekre nyújt pénzügyi védelmet – a kockázatviselés ideje alatt, előzmény nélkül bekövetkezett eseményekre.</p>
+        <table class="bal-t"><colgroup><col style="width:178px">${B.csomagok.map(() => '<col>').join('')}</colgroup><thead><tr><th>Szolgáltatások (Ft)</th>${B.csomagok.map((c, j) => `<th${j === ci ? ' class="v"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>
+        ${sorok.map(([k, n]) => `<tr><td>${esc(n.replace('10/15', '15').replace('Baleseti rokkantság', 'Rokkantság'))}</td>${B.e[k].map((v, j) => `<td${j === ci ? ' class="v"' : ''}>${v == null ? '—' : tvFt(v)}</td>`).join('')}</tr>`).join('')}
+        <tr class="d"><td>1. éves díj</td>${B.dij.map((v, j) => `<td${j === ci ? ' class="v"' : ''}>${tvFt(v)} Ft</td>`).join('')}</tr></tbody></table>
+        <div class="bg-info"><div><b>Fontos tudnivalók</b><ul><li>Belépési kor: Gyermek csomag 1–15 év, a többi 1–79 év</li><li>Lejárati kor: gyermek 16 év, felnőtt 80 év</li><li>Várakozási idő: nincs</li><li>Kórházi napidíj: legalább 3 napos ápolástól</li></ul></div>
+        <div><b>Többletszolgáltatás baleseti halál esetén</b><ul><li>Tömegközlekedési baleset: +50%</li><li>Szülők együttes halála: +50%</li><li>Légi katasztrófa: +100%</li></ul></div></div>
+        ${lab}</div>`;
+}
+// UNIQA és SIGNAL tételesen, a választott csomagokkal
+function tvBalOszLap(lab){
+    const U = TV_BAL.uniqa, S = TV_BAL.signal, ui = tvCsomagIdx(), si = tvSigIdx();
+    const sorok = TV_BAL_TET.filter(([k]) => U.e[k][ui] != null || S.e[k][si] != null);
+    const cella = (v, m) => `<td${v != null && m != null && v === m ? ' class="jobb"' : ''}>${v == null ? '<span class="nem">—</span>' : tvFt(v) + ' Ft'}</td>`;
+    const sor = ([k, n]) => { n = n.replace('Baleseti rokkantság', 'Rokkantság'); const a = U.e[k][ui], b = S.e[k][si], m = a != null && b != null && a !== b ? Math.max(a, b) : (a == null) !== (b == null) ? (a ?? b) : null;
+        return `<tr><td>${esc(n)}</td>${cella(a, m)}${cella(b, m)}</tr>`; };
+    const dU = U.dij[ui], dS = S.dij[si];
+    const tobb = sorok.filter(([k]) => { const a = U.e[k][ui], b = S.e[k][si]; return a != null && (b == null || a > b); }).length,
+        tobbS = sorok.filter(([k]) => { const a = U.e[k][ui], b = S.e[k][si]; return b != null && (a == null || b > a); }).length;
+    return `<div class="tvp osz bal">${tvFej('ÖSSZEHASONLÍTÁS – BALESETVÉDELEM', 'UNIQA vagy SIGNAL?')}
+        <div class="osz-kk">${[[U, U.csomagok[ui], dU], [S, S.csomagok[si], dS]].map(([B, c, d]) => `<div class="osz-k"><small>${esc(B.rov)}</small><h3>${esc(B.nev.split(' – ')[1])} · ${esc(c)}</h3>
+            <div class="big">${tvFt(d)} Ft</div><div class="em">éves díj · ${tvFt(Math.floor(d / 12))} Ft/hó</div></div>`).join('')}</div>
+        <table class="osz-t"><thead><tr><th></th><th>UNIQA<small>BodyGuard VIP Pro · ${esc(U.csomagok[ui])}</small></th><th>SIGNAL<small>Exkluzív Védelem Plusz · ${esc(S.csomagok[si])}</small></th></tr></thead><tbody>
+        ${sorok.map(sor).join('')}<tr class="f"><td>Éves díj</td><td${dU < dS ? ' class="jobb"' : ''}>${tvFt(dU)} Ft</td><td${dS < dU ? ' class="jobb"' : ''}>${tvFt(dS)} Ft</td></tr></tbody></table>
+        <div class="osz-kul">Tételenként magasabb térítés: UNIQA <b>${tobb}</b>, SIGNAL <b>${tobbS}</b> tételben. A ▲ a magasabb összeget jelöli; a „—” azt, hogy az adott fedezet a csomagban nem szerepel. A térítések pontos feltételei a biztosítók termékleírásában.</div>
+        ${lab}</div>`;
+}
 const tvCsomagIdx = () => { const regi = { Premium: 'Prémium', Superior: 'Szuperior', Gyerek: 'Gyermek' }; return Math.max(0, TV_BG.csomagok.indexOf(regi[tvAlap.csomag] || tvAlap.csomag)); };
 const tvFt = n => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('hu-HU').replace(/\u00a0/g, ' ');
 const tvSzam = s => { const m = String(s || '').replace(/\u00a0/g, ' ').match(/-?\d[\d ]*(?:[.,]\d+)?/); return m ? parseFloat(m[0].replace(/ /g, '').replace(',', '.')) : null; };
@@ -46039,8 +46101,9 @@ function tvLapok(){
         <div class="et-f"><b>Mire jó az egészségpénztári számla?</b></div>
         <div class="mire">${['Magánorvosi ellátások', 'Gyógyszer és gyógyászati segédeszközök', 'Orvostechnikai eszközök', 'Szemüveg, kontaktlencse', 'Gyógytorna, gyógymasszázs, fizioterápia', 'Kieső jövedelem pótlása', 'Csecsemőápolási termékek, pelenka, tápszerek', 'Számos más szolgáltatás'].map(x => `<div>${x}</div>`).join('')}</div>
         ${tvLab(sz())}</div>` });
-    if(o.baleset && o.bizt && !tvAj.some(a => a.biztosito === 'UNIQA')) L.push({ nev: 'Biztosító – UNIQA', html: tvBiztLap('UNIQA', 'EGYÉB TERMÉKEK – A BIZTOSÍTÓ') + `${tvLab(sz())}</div>` });
-    if(o.baleset){ const ci = tvCsomagIdx(), dij = TV_BG.dij[ci];
+    const balB = tvBalBizt(), balU = balB !== 'signal', balS = balB !== 'uniqa';
+    if(o.baleset && o.bizt && balU && !tvAj.some(a => a.biztosito === 'UNIQA')) L.push({ nev: 'Biztosító – UNIQA', html: tvBiztLap('UNIQA', 'EGYÉB TERMÉKEK – A BIZTOSÍTÓ') + `${tvLab(sz())}</div>` });
+    if(o.baleset && balU){ const ci = tvCsomagIdx(), dij = TV_BG.dij[ci];
         L.push({ nev: 'Balesetvédelem', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK – PÉNZÜGYI VÉDELEM', 'Balesetvédelem')}
         <div class="et-f" style="border-color:#FF3399"><b>UNIQA – BodyGuard VIP Pro · ${esc(TV_BG.csomagok[ci])}</b><span>${tvFt(dij)} Ft/év (${tvFt(Math.floor(dij / 12))} Ft/hó)</span></div>
         <p class="bg-be">Egy baleset váratlan és kiszámíthatatlan – egy valami biztos: az anyagi teher, amivel jár. A BodyGuard VIP Pro magas biztosítási összegekkel segít, hogy a váratlan kiadások miatt ne kelljen aggódni.</p>
@@ -46049,6 +46112,9 @@ function tvLapok(){
         <div><b>Újdonságok 2026.10.29-től</b><ul><li>Új fedezet: lágyrészek sérülése</li><li>Csonttörésnél a térítés 50%-ra emelkedett (a súlyos csonttörés továbbra is 100%)</li><li>Magasabb biztosítási összegek: Optimum, Prémium, Gyermek</li></ul></div></div>
         <p class="bg-megj">Egyes fedezetek (pl. műtéti térítés, csonttörés, égési sérülés) a sérülés súlyosságának megfelelő %-ot térítik, a napi térítés az önrész letelte után indul – részletek a feltételekben.</p>
         ${tvLab(sz())}</div>` }); }
+    if(o.baleset && balS && o.bizt && TV_BIZT_LAP['Signal Iduna'] && !tvAj.some(a => a.biztosito === 'Signal Iduna')) L.push({ nev: 'Biztosító – Signal Iduna', html: tvBiztLap('Signal Iduna', 'EGYÉB TERMÉKEK – A BIZTOSÍTÓ') + `${tvLab(sz())}</div>` });
+    if(o.baleset && balS) L.push({ nev: 'Balesetvédelem – SIGNAL', html: tvSignalLap(tvLab(sz())) });
+    if(o.baleset && balB === 'mind') L.push({ nev: 'Balesetvédelem – összehasonlítás', html: tvBalOszLap(tvLab(sz())) });
     if(o.bank && tvBankVal().length) L.push({ nev: 'Bankszámla', html: tvBankLap(tvLab(sz())) });
     if(o.zarszo) L.push({ nev: 'Zárszó', html: `<div class="tvp">${tvFej('ZÁRSZÓ', 'Köszönöm a bizalmát!')}<div class="szov">
         <p>Feltételezzük, hogy korábban nem volt része hasonló tanácsadásban. Mint ahogyan az orvosi szakmában, úgy a mi szakmánkban is rendkívül fontos az egymás iránti bizalom és lojalitás.</p>
@@ -46124,8 +46190,10 @@ function renderTervezet(){
         ${kap('bizt', 'Biztosító bemutatása', 'Generali, Signal Iduna, UNIQA')}
         ${kap('port', 'Portfólió, eszközalapok, bónuszok', 'Generali Kabala, Signal Iduna, UNIQA Premium Life')}
         ${kap('eszp', 'Prémium Egészségpénztár')}
-        ${kap('baleset', 'Balesetvédelem – UNIQA BodyGuard VIP Pro')}
-        ${o.baleset ? `<div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvCsomagIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
+        ${kap('baleset', 'Balesetvédelem', 'UNIQA BodyGuard VIP Pro és / vagy SIGNAL Exkluzív Védelem Plusz – tételes összehasonlítással')}
+        ${o.baleset ? `<div class="tv-bank"><small>Biztosító</small><div class="tv-csomag">${[['uniqa', 'UNIQA BodyGuard'], ['signal', 'SIGNAL Exkluzív Védelem Plusz'], ['mind', 'Mindkettő – összehasonlítás']].map(([k, n]) => `<button type="button" data-tvbalb="${k}" class="${tvBalBizt() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+            ${tvBalBizt() !== 'signal' ? `<small>UNIQA BodyGuard VIP Pro csomag</small><div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvCsomagIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
+            ${tvBalBizt() !== 'uniqa' ? `<small>SIGNAL Exkluzív Védelem Plusz csomag</small><div class="tv-csomag">${TV_BAL.signal.csomagok.map((c, j) => `<button type="button" data-tvsigcs="${c}" class="${tvSigIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BAL.signal.dij[j])} Ft/év</button>`).join('')}</div>` : ''}</div>` : ''}
         ${kap('bank', 'Bankszámla', 'partneri online számlacsomagok – kártyák, összehasonlítás és a bónusz feltételei')}
         ${o.bank ? `<div class="tv-bank"><small>Számlacsomagok (legfeljebb 3)</small><div class="tv-csomag">${TV_BANK.map(b => { const on = tvAlap.bankok.includes(b.id);
                 return `<button type="button" data-tvbank="${b.id}" class="${on ? 'on' : ''}"${!on && tvAlap.bankok.length >= 3 ? ' disabled' : ''}>${on ? '✓ ' : ''}${esc(b.bank)} ${esc(b.csomag)}${b.bonusz ? ` · ${esc(b.bonSz.replace('akár ', ''))}` : ''}</button>`; }).join('')}</div>
@@ -46387,6 +46455,8 @@ document.addEventListener('click', e => {
     const eu = e.target.closest('[data-tveluj]'); if(eu){ const inp = document.querySelector(`[data-tvelin="${eu.dataset.tveluj}"]`), v = inp && inp.value.trim(); if(v){ tvAj[+eu.dataset.tveluj].elony.push(v); renderTervezet(); } return; }
     const fl = e.target.closest('[data-tvfedlap]'); if(fl){ tvAlap.fedlap = fl.dataset.tvfedlap; tvMent(); renderTervezet(); return; }
     const cs = e.target.closest('[data-tvcsomag]'); if(cs){ tvAlap.csomag = cs.dataset.tvcsomag; tvMent(); renderTervezet(); return; }
+    const bb = e.target.closest('[data-tvbalb]'); if(bb){ tvAlap.balBizt = bb.dataset.tvbalb; tvMent(); renderTervezet(); return; }
+    const sc = e.target.closest('[data-tvsigcs]'); if(sc){ tvAlap.sigCsomag = sc.dataset.tvsigcs; tvMent(); renderTervezet(); return; }
     const bk = e.target.closest('[data-tvbank]'); if(bk){ const id = bk.dataset.tvbank, l = tvAlap.bankok, i = l.indexOf(id);
         if(i >= 0) l.splice(i, 1); else if(l.length < 3) l.push(id); tvMent(); renderTervezet(); return; }
     const ba = e.target.closest('[data-tvbankaj]'); if(ba){ tvAlap.bankAj = ba.dataset.tvbankaj; tvMent(); renderTervezet(); return; }
