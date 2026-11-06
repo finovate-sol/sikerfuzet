@@ -44001,13 +44001,17 @@ Vállalkozás nyitásának átbeszélése`, '']
             // státusz-javítás: a régi (kettébontás előtti) „Lezárt” mind „Lezárt – Ügyfél” lett – a Notion szerinti „Nem ügyfél” ezt helyreteszi;
             // az üres / „Új” státusz a Notionéből töltődik
             const exSt = regStatusNorm(ex.status), cSt = c.status || '';
-            if(cSt && cSt !== exSt && ((cSt === 'Lezárt – Nem ügyfél' && exSt === 'Lezárt – Ügyfél') || !exSt || exSt === 'Új')){ patch.status = cSt; mi.push('státusz → ' + cSt); }
+            if(cSt && cSt !== exSt && exSt !== 'Archív' && (cSt === 'Lezárt – Nem ügyfél' || !exSt || exSt === 'Új')){ patch.status = cSt; mi.push('státusz → ' + cSt); }
             return { patch, mi };
         }
         function impZipElonezet(all){
             if(!all.length){ impErr('A ZIP-ben nem találtam ügyféloldalt. Az „… – Ügyfél / MT Potenciál” adatbázis „Markdown & CSV” exportját válaszd, „Include content: Everything” beállítással.'); return; }
             const meglevo = new Map(); (window.sfAllClients || []).forEach(x => { const k = nameKey(x.name); if(k && !meglevo.has(k)) meglevo.set(k, x); });
+            if(!meglevo.size){ impErr('Az ügyféllista még nem töltődött be (vagy üres) – így mindenki újként kerülne be, duplikálva. Várj pár másodpercet / frissítsd az oldalt, és válaszd ki újra a fájlt.'); return; }
             const ujak = [], frissit = [], nincs = [];
+            // diagnosztika: a Notion szerint „Nem ügyfél” sorok most milyen státuszban vannak az appban
+            const nemDiag = {}; all.filter(c => c.status === 'Lezárt – Nem ügyfél').forEach(c => { const ex = meglevo.get(nameKey(c.name));
+                const k = ex ? (regStatusNorm(ex.status) || '(üres)') : 'nincs az appban'; nemDiag[k] = (nemDiag[k] || 0) + 1; });
             all.forEach(c => { const ex = meglevo.get(nameKey(c.name));
                 if(!ex){ ujak.push(c); return; }
                 const h = impHianyzo(ex, c); if(Object.keys(h.patch).length) frissit.push({ ex, c, ...h }); else nincs.push(c); });
@@ -44017,6 +44021,8 @@ Vállalkozás nyitásának átbeszélése`, '']
             prev.innerHTML = `
                 <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;margin-bottom:12px;">
                     <span>A fájlban: <b>${all.length}</b> ügyfél</span>
+                    ${Object.keys(nemDiag).length ? `<span style="color:#b91c1c;">Notion szerint „Nem ügyfél”: <b>${Object.values(nemDiag).reduce((a, b) => a + b, 0)}</b> – az appban most: ${Object.entries(nemDiag).map(([k, n]) => `${escM(k)} ${n}`).join(', ')}</span>` : ''}
+                    <span style="color:#b91c1c;">Státusz-javítás: <b>${frissit.filter(x => x.patch.status).length}</b></span>
                     <span style="color:var(--green);">Új: <b>${ujak.length}</b></span>
                     <span style="color:#1f5fd0;">Kiegészül: <b>${frissit.length}</b></span>
                     <span style="color:var(--muted);">Már minden megvan: <b>${nincs.length}</b></span>
