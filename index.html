@@ -45466,6 +45466,27 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .sfej small { display:block; font-size:11px; font-weight:700; letter-spacing:.14em; color:#009999; }
 .tvp .sfej h2 { margin:6px 0 0; font-size:27px; font-weight:800; color:#003366; line-height:1.12; letter-spacing:-.01em; } .tvp .sfej h2 b { font-weight:900; }
 .tvp .sfej .v { width:46px; height:4px; background:#FF3399; margin-top:12px; }
+/* összehasonlító oldal */
+.tvp.osz .sfej { min-height:0; margin-bottom:14px; }
+.tvp .osz-kk { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; } .tvp.osz3 .osz-kk { grid-template-columns:repeat(3, 1fr); gap:8px; }
+.tvp .osz-k { border:1.5px solid #e5e7eb; padding:12px 12px 8px; text-align:center; position:relative; }
+.tvp .osz-k.aj { border:2px solid #009999; }
+.tvp .osz-k .bb { position:absolute; top:-9px; left:50%; transform:translateX(-50%); background:#FF3399; color:#fff; font-size:9px; font-weight:800; letter-spacing:.12em; padding:3px 9px; white-space:nowrap; }
+.tvp .osz-k small { display:block; font-size:10px; letter-spacing:.12em; color:#009999; font-weight:700; text-transform:uppercase; }
+.tvp .osz-k h3 { margin:3px 0 2px; font-size:14px; color:#003366; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvp .osz-k .s { font-size:10.5px; color:#6b7280; }
+.tvp .osz-k .big { font-size:24px; font-weight:900; color:#003366; margin:8px 0 1px; } .tvp.osz3 .osz-k .big { font-size:18px; } .tvp .osz-k .em { font-size:10px; color:#6b7280; margin-bottom:6px; }
+.tvp .osz-k .sor { display:flex; justify-content:space-between; gap:6px; font-size:10.5px; border-top:1px solid #eef0f3; padding:5px 0; text-align:left; } .tvp .osz-k .sor b { color:#003366; white-space:nowrap; }
+.tvp .osz-t { width:100%; border-collapse:collapse; font-size:10.5px; margin-top:14px; }
+.tvp .osz-t th { background:#003366; color:#fff; font-weight:700; padding:7px 6px; text-align:center; } .tvp .osz-t th:first-child { background:transparent; }
+.tvp .osz-t th small { display:block; font-weight:400; color:#9cc3e6; font-size:9px; }
+.tvp .osz-t td { padding:5px 6px; border-bottom:1px solid #e5e7eb; text-align:center; } .tvp .osz-t td:first-child { text-align:left; color:#475569; font-weight:600; }
+.tvp .osz-t tr.f td { background:#f2f2f2; font-weight:800; color:#003366; font-size:12px; }
+.tvp .osz-t .jobb { color:#009999; font-weight:800; } .tvp .osz-t .jobb::after { content:" ▲"; font-size:8px; }
+.tvp .osz-t .ok { color:#009999; font-weight:900; } .tvp .osz-t .nem { color:#cbd5e1; }
+.tvp .osz-kul { margin-top:12px; background:#f2f2f2; border-left:4px solid #009999; padding:9px 12px; font-size:11px; color:#003366; }
+.tv-osz-sor { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 0 6px 0; padding:2px 0 6px; border-bottom:1px solid #f1f3f6; }
+.tv-osz-tema { border:1px solid var(--border); background:#fff; border-radius:99px; padding:5px 11px; font:inherit; font-size:12px; font-weight:650; color:#475569; cursor:pointer; }
+.tv-osz-tema.on { background:#16a34a; border-color:#16a34a; color:#fff; } .tv-osz-aj { font-size:12px; color:#64748b; font-weight:650; } .tv-osz-sor .tv-csomag { margin:0; }
 .tvp .ossz { text-align:center; }
 .tvp .ossz .sor1 { font-size:13px; color:#6b7280; margin-bottom:8px; } .tvp .ossz .sor1 b { color:#003366; }
 .tvp .ossz .nagy span { display:block; font-size:11px; letter-spacing:.14em; color:#009999; font-weight:700; text-transform:uppercase; }
@@ -45557,6 +45578,45 @@ let tvAlap = store.load('sf_tv_alap', null) || { ugyfel: '', hely: 'Budapest', t
     opc: { eloszo: true, kesobb: true, bizt: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
 if(tvAlap.opc.bizt == null) tvAlap.opc.bizt = true;
 if(tvAlap.opc.port == null) tvAlap.opc.port = true;
+if(tvAlap.opc.osz == null) tvAlap.opc.osz = true;
+if(!tvAlap.oszTema) tvAlap.oszTema = { megt: true, nyugd: true };
+// összehasonlítás: témakörönként az ajánlott termék (a kalkuláció állandó azonosítója) – csak a munkamenetre
+const tvOszAjanl = {};
+const TV_OSZ_TEMA = { megt: 'Megtakarítás', nyugd: 'Nyugdíj' };
+// az azonos témakörű kalkulációk (legalább kettő) – ezek hasonlíthatók össze
+const tvOszCsop = () => { const g = { megt: [], nyugd: [] }; tvAj.forEach((a, i) => g[tvTipusK(a)].push({ a, i })); return Object.entries(g).filter(([, l]) => l.length >= 2); };
+// Összehasonlító oldal: fent a termékek kártyái (B), alattuk a részletes táblázat a jobb érték kiemelésével és az előnyök pipával (A)
+function tvOszLap(k, l, sorszam, lab){
+    l = l.slice(0, 3);
+    const ajKid = tvOszAjanl[k], n = l.length;
+    const ert = l.map(({ a }) => ({ a, bef: tvBefizet(a), ado: tvAdoSorok(a).o || 0, veg: a.kifizetes || 0, hoz: a.hozam }));
+    const leg = (f, max = true) => { const v = ert.map(f).filter(x => x != null && !isNaN(x)); if(v.length < 2) return null; const m = max ? Math.max(...v) : Math.min(...v); return v.filter(x => x === m).length === v.length ? null : m; };
+    const vegMax = leg(x => x.veg), hozMax = leg(x => x.hoz), adoMax = leg(x => x.ado);
+    const pc = v => v == null ? '–' : String(v).replace('.', ',') + '%';
+    const nev = a => `${esc(a.biztosito)}<small>${esc(a.termek)}</small>`;
+    const kart = ert.map(({ a, bef, ado, veg }) => `<div class="osz-k${a._kid === ajKid ? ' aj' : ''}">${a._kid === ajKid ? '<span class="bb">AJÁNLOTT</span>' : ''}
+        <small>${esc(a.biztosito)}</small><h3>${esc(a.termek)}</h3><div class="s">${tvFt(a.dij)} Ft/${esc(a.gyak)} · ${a.ido || '–'} év</div>
+        <div class="big">${tvFt(veg)} Ft</div><div class="em">a ${a.ido || ''}. év végén${a.hozam != null ? ` · ${pc(a.hozam)} hozammal` : ''}</div>
+        <div class="sor"><span>Befizetve</span><b>${tvFt(bef)} Ft</b></div><div class="sor"><span>Adókedvezmény</span><b>+${tvFt(ado)} Ft</b></div></div>`).join('');
+    const jo = (v, m) => m != null && v === m ? ' class="jobb"' : '';
+    const sor = (cim, f) => `<tr><td>${cim}</td>${ert.map(f).join('')}</tr>`;
+    const elonyok = [...new Set(l.flatMap(({ a }) => a.elony.filter(Boolean)))].slice(0, 7);
+    const sorrend = ert.slice().sort((x, y) => y.veg - x.veg), kul = sorrend.length > 1 ? sorrend[0].veg - sorrend[1].veg : 0;
+    return `<div class="tvp osz osz${n}">${tvFej(`${sorszam}. ÖSSZEHASONLÍTÁS · ${TV_OSZ_TEMA[k].toUpperCase()}`, n > 2 ? 'Három út ugyanahhoz a célhoz' : 'Két út ugyanahhoz a célhoz')}
+        <div class="osz-kk">${kart}</div>
+        <table class="osz-t"><thead><tr><th></th>${ert.map(({ a }) => `<th>${nev(a)}</th>`).join('')}</tr></thead><tbody>
+        ${sor('Díj', ({ a }) => `<td>${tvFt(a.dij)} Ft/${esc(a.gyak)}</td>`)}
+        ${sor('Futamidő', ({ a }) => `<td>${a.ido || '–'} év</td>`)}
+        ${sor('Éves díjemelés', ({ a }) => `<td>${pc(a.emeles)}</td>`)}
+        ${sor('Összes befizetés', ({ bef }) => `<td>${tvFt(bef)} Ft</td>`)}
+        ${sor('Feltételezett hozam', ({ hoz }) => `<td${jo(hoz, hozMax)}>${pc(hoz)}</td>`)}
+        ${sor('Adókedvezmény összesen', ({ ado }) => `<td${jo(ado, adoMax)}>${tvFt(ado)} Ft</td>`)}
+        <tr class="f"><td>A futamidő végén</td>${ert.map(({ veg }) => `<td${jo(veg, vegMax)}>${tvFt(veg)} Ft</td>`).join('')}</tr>
+        ${elonyok.map(e => sor(esc(e), ({ a }) => `<td>${a.elony.includes(e) ? '<span class="ok">✓</span>' : '<span class="nem">–</span>'}</td>`)).join('')}
+        </tbody></table>
+        ${kul > 0 ? `<div class="osz-kul">A futamidő végén a <b>${esc(sorrend[0].a.biztosito)} – ${esc(sorrend[0].a.termek)}</b> várhatóan <b>${tvFt(kul)} Ft-tal többet</b> ér el${sorrend[0].a.dij === sorrend[1].a.dij ? ', azonos díj mellett' : ''}.</div>` : ''}
+        ${lab}</div>`;
+}
 const tvMent = () => store.save('sf_tv_alap', { ...tvAlap, ugyfel: '' });
 const TV_BIZT = [[/^GENERALI\b/, 'Generali'], [/^SIGNAL( IDUNA)?\b/, 'Signal Iduna'], [/^ALLIANZ\b/, 'Allianz'], [/^UNION\b/, 'Union'], [/^NN\b/, 'NN'],
     [/^GROUPAMA\b/, 'Groupama'], [/^AEGON\b/, 'Aegon'], [/^METLIFE\b/, 'MetLife'], [/^UNIQA\b/, 'UNIQA'], [/^GRAWE\b/, 'Grawe'], [/^CIG( PANN[ÓO]NIA)?\b/, 'CIG Pannónia'],
@@ -45828,6 +45888,9 @@ function tvLapok(){
             html: `<div class="tvp kalk">${tvFej(`${i + 1}. KALKULÁCIÓ${csop.length > 1 ? ` · ${k + 1}/${csop.length}` : ''}`, esc(`${a.biztosito} – ${a.termek}`), logo)}<p class="kalk-al">${esc(nev)} részére · OVB kalkulátor</p>${tvLab(sz())}</div>` }));
         L.slice(elso).forEach(l => { l.aj = a._kid; });
     });
+    // összehasonlítás: témakörönként egy oldal, ha legalább két azonos témakörű kalkuláció van
+    if(o.osz) tvOszCsop().forEach(([k, l], j) => { if(tvAlap.oszTema[k] === false) return;
+        L.push({ nev: `Összehasonlítás – ${TV_OSZ_TEMA[k]}`, html: tvOszLap(k, l, tvAj.length + j + 1, tvLab(sz())) }); });
     if(o.eszp) L.push({ nev: 'Egészségpénztár', html: `<div class="tvp">${tvFej('EGYÉB TERMÉKEK', 'Prémium Egészségpénztár')}
         <div class="ket"><div><b>CÉGADATOK</b>Alapítás éve: 2002<br>Magyarország legnagyobb egészségpénztára<br>291 000 pénztártag<br>19 000 szolgáltatói partner<br>8 500 kártya-elfogadóhely<br>20% adókedvezmény</div>
         <div><b>VÉDŐHÁLÓ</b>Akár 1 500 000 Ft-os egészségbiztosítási szolgáltatás<br>VÁRÓLISTA: CT, MRI vizsgálatok 10 napon belül, ingyenesen<br>EGYNAPOS SEBÉSZET: évi 300 000 Ft keretösszegig végezhető műtétek<br>Mindössze 335 Ft-os havidíj<br>A szolgáltatáscsomag közeli hozzátartozókra is igényelhető</div></div>
@@ -45899,6 +45962,10 @@ function renderTervezet(){
             <label title="Saját kép feltöltése"><span class="kk">+</span>Feltöltés<input type="file" id="tvKepFajl" accept="image/*" hidden></label></div>` : ''}
         <div class="tv-kaps">${kap('egyedi', 'Egyedi ajánlat', 'kiemelt „Egyedi ajánlat” jelölés a borítón')}
         ${kap('eloszo', 'Előszó', 'a fő üzenetek kiemelve')}
+        ${(() => { const cs = tvOszCsop(); if(!cs.length) return '';
+            return kap('osz', 'Összehasonlítás', 'az azonos témakörű ajánlatok egymás mellett – kártyák és részletes táblázat') + (o.osz ? cs.map(([k, l]) => `<div class="tv-osz-sor">
+                <button type="button" class="tv-osz-tema${tvAlap.oszTema[k] !== false ? ' on' : ''}" data-tvosz="${k}">${tvAlap.oszTema[k] !== false ? '✓ ' : ''}${TV_OSZ_TEMA[k]} · ${l.length} termék</button>
+                ${tvAlap.oszTema[k] !== false ? `<span class="tv-osz-aj">Ajánlott:</span><span class="tv-csomag">${l.slice(0, 3).map(({ a, i }) => `<button type="button" data-tvoszaj="${k}" data-i="${i}" class="${tvOszAjanl[k] && tvOszAjanl[k] === a._kid ? 'on' : ''}">${esc(tvAj.filter(x => x.biztosito === a.biztosito).length > 1 ? a.biztosito + ' ' + a.termek : a.biztosito)}</button>`).join('')}<button type="button" data-tvoszaj="${k}" data-i="-1" class="${!tvOszAjanl[k] ? 'on' : ''}">nincs</button></span>` : ''}</div>`).join('') : ''); })()}
         ${kap('kesobb', '„Ha később indítja”', vanKesobb ? 'a kalkulációból' : 'ez a kalkuláció nem tartalmazza', !vanKesobb)}
         ${kap('bizt', 'Biztosító bemutatása', 'Generali, Signal Iduna, UNIQA')}
         ${kap('port', 'Portfólió, eszközalapok, bónuszok', 'Generali Kabala, Signal Iduna, UNIQA Premium Life')}
@@ -46078,6 +46145,9 @@ document.addEventListener('click', e => {
     const eu = e.target.closest('[data-tveluj]'); if(eu){ const inp = document.querySelector(`[data-tvelin="${eu.dataset.tveluj}"]`), v = inp && inp.value.trim(); if(v){ tvAj[+eu.dataset.tveluj].elony.push(v); renderTervezet(); } return; }
     const fl = e.target.closest('[data-tvfedlap]'); if(fl){ tvAlap.fedlap = fl.dataset.tvfedlap; tvMent(); renderTervezet(); return; }
     const cs = e.target.closest('[data-tvcsomag]'); if(cs){ tvAlap.csomag = cs.dataset.tvcsomag; tvMent(); renderTervezet(); return; }
+    const ot = e.target.closest('[data-tvosz]'); if(ot){ const k = ot.dataset.tvosz; tvAlap.oszTema[k] = tvAlap.oszTema[k] === false; tvMent(); renderTervezet(); return; }
+    const oa = e.target.closest('[data-tvoszaj]'); if(oa){ const k = oa.dataset.tvoszaj, a = tvAj[+oa.dataset.i]; if(a && !a._kid) a._kid = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        tvOszAjanl[k] = a ? a._kid : ''; renderTervezet(); return; }
     if(e.target.closest('#tvLetolt')) tvLetolt();
     if(e.target.closest('#tvMegnez')) tvLetolt(true);
 });
