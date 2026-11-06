@@ -3792,6 +3792,14 @@
         .pg-ak-addbtn, .pg-ak-kiadbtn { white-space:nowrap; }
         .fx-fofulek { display:inline-flex; gap:4px; background:#e6ebf2; border-radius:12px; padding:4px; margin:0 0 14px; }
         .fx-fofulek button { border:0; background:none; padding:8px 16px; border-radius:9px; font:inherit; font-size:14px; font-weight:500; color:var(--muted); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+        .fx-ful-r { display:none; }
+        @media (max-width:760px){
+            .fx-fofulek { display:grid; grid-template-columns:1fr 1fr; width:100%; box-sizing:border-box; margin:0 0 12px; }
+            .fx-fofulek button { justify-content:center; white-space:nowrap; padding:9px 8px; }
+            .fx-ful-h { display:none; } .fx-ful-r { display:inline; }
+            .fx-mt .fx-ak-kiad .pg-ak-mt, .fx-mt .fx-ak-kiad .pg-ak-inp { flex:1 1 100%; } .fx-mt .fx-ak-kiad .pg-ak-psel, .fx-mt .fx-ak-kiad .pg-ak-dsel { flex:1 1 0; min-width:0; }
+            .fx-mt .fx-ak-kiad .pg-ak-kiadbtn { flex:1 1 100%; }
+        }
         .fx-fofulek button.on { background:var(--card, #fff); color:var(--navy); font-weight:600; box-shadow:0 1px 3px rgba(15,23,42,.1); }
         .fx-mt-mod .fx-tabs, .fx-mt-mod .fx-racs, .fx-mt-mod .fx-eszk, .fx-mt-mod .fx-gtszo, .fx-mt-mod .fx-fab { display:none !important; }
         .fx-mt { max-width:900px; } .fx-mt-db { font-weight:400; text-transform:none; letter-spacing:0; margin-left:6px; }
@@ -5346,6 +5354,7 @@
             #page-feladatok .fx.fx-szuro .fx-eszk { margin:0 0 10px; }
         }
         .fx .fx-ak { margin-bottom:14px; flex:none; } .fx .fx-ak .card-body { max-height:30vh; overflow-y:auto; }
+        .fx .fx-ak.fx-mt .card-body { max-height:none; overflow:visible; }   /* az MT-fül a teljes lap, nem kell belső görgetés */
         @media (max-width:760px){
             .fx .pg-rec.fx-t { flex-wrap:wrap; row-gap:4px; }
             .fx .pg-rec .fx-datum { order:3; flex:0 1 auto; width:auto; margin-left:31px; }
@@ -8671,7 +8680,9 @@
         }
         /* a 10 perces és a 2 órás füzet felső sávja (kereső, szűrők, nézetek) görgetéskor fent marad */
         :is(#page-ugyfelek, #page-ketoras) .reg-bar { position:sticky; top:0; z-index:30; box-shadow:0 6px 16px rgba(15,47,95,.08); }
-        @media (max-width:760px){ :is(#page-ugyfelek, #page-ketoras) .reg-bar { top:var(--mb-h, 58px); } }
+        @media (max-width:760px){ :is(#page-ugyfelek, #page-ketoras) .reg-bar { top:var(--mb-h, 58px); transition:transform .22s ease, opacity .22s ease; }
+            /* lefelé görgetéskor / ügyfél megnyitásakor elbújik, felfelé görgetéskor visszajön */
+            body.regbar-rejt :is(#page-ugyfelek, #page-ketoras) .reg-bar { transform:translateY(calc(-100% - var(--mb-h, 58px) - 12px)); opacity:0; pointer-events:none; } }
         /* gépen a kereső kitölti az első sor maradék helyét */
         @media (min-width:701px){ .reg-bar .reg-search { flex:1 1 260px; max-width:none; } }
 
@@ -12159,6 +12170,30 @@ function enableRowDrag(tbodyId){
 }
 enableRowDrag('moneyTable');
 enableRowDrag('careerTable');
+
+// Telefonon a 10 perces / 2 órás füzetben a szűrő-kereső sáv lefelé görgetve és ügyfél megnyitásakor elbújik, felfelé görgetve visszajön.
+(function(){
+    let utolso = window.scrollY, csendIg = 0;
+    const lap = () => ['ugyfelek', 'ketoras'].some(p => { const e = document.getElementById('page-' + p); return e && !e.hidden; });
+    const mob = () => window.matchMedia('(max-width:760px)').matches;
+    const rejt = b => document.body.classList.toggle('regbar-rejt', !!b);
+    window.addEventListener('scroll', () => {
+        const y = window.scrollY;
+        if(!mob() || !lap()){ rejt(false); utolso = y; return; }
+        if(Date.now() < csendIg){ utolso = y; return; }
+        if(y < 30) rejt(false);
+        else if(y > utolso + 6) rejt(true);
+        else if(y < utolso - 6) rejt(false);
+        if(Math.abs(y - utolso) > 6) utolso = y;
+    }, { passive: true });
+    document.addEventListener('click', e => {
+        if(!mob() || !lap()) return;
+        const sor = e.target.closest('[data-open], [data-ketopen]');
+        if(sor && !e.target.closest('.rc.open .rc-detail, .rc.open .rcm, .reg-bar')){ csendIg = Date.now() + 700; setTimeout(() => rejt(true), 0); }
+    });
+    // lapváltáskor alaphelyzet
+    document.addEventListener('click', e => { if(e.target.closest('.nav a[data-page], .mobile-bar a, [data-page]')) rejt(false); }, true);
+})();
 
 // Sikerfüzet oldal: a jobb oldalsáv szélessége a bal szélén (középen a fogantyú) húzva állítható; dupla kattintás: alapméret.
 (function(){
@@ -25018,17 +25053,37 @@ function akFelvesz(n){
         status: 'Új', tp: false, mt: false, elemzes: false, portal: false, tanacsadas: false, ajanlasok: '', details, celok: {},
         ownerUid: owner.uid || '', ownerEmail: owner.email || '', ownerName: owner.name || '', created: new Date().toISOString(), _localKey: localKey };
     registry.push(r);
+    a[`ak.${n}.lk`] = localKey;      // melyik ügyfél lett belőle – a későbbi módosítás ezt frissíti
     if(typeof window.sfAddClient === 'function') window.sfAddClient(regClientPayload(r)).then(id => {
         if(!id) return; const rec = registry.find(x => x._localKey === localKey);
-        if(rec){ rec.id = id; delete rec._localKey; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); } }).catch(e => console.warn('Ajánlott mentése sikertelen:', e));
+        if(rec){ rec.id = id; delete rec._localKey; a[`ak.${n}.rid`] = id; store.save('sf_registry', registry); persistReg(registry.indexOf(rec)); akMent(true); } }).catch(e => console.warn('Ajánlott mentése sikertelen:', e));
     a[`ak.${n}.felveve`] = 1;
     return true;
+}
+// Egy már felvett ajánlott módosítása: a 10 perces füzetben lévő ügyfelét frissítjük (nem veszünk fel újat).
+// Csak az ajánlásban szereplő mezőket írjuk; amit a 10 percesben azóta máshol kitöltöttek, az megmarad.
+function akFrissit(n){
+    const a = akA(), r0 = registry[akI], v = k => String(a[`ak.${n}.${k}`] || '').trim();
+    const nevK = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    let ri = registry.findIndex(x => x && ((a[`ak.${n}.rid`] && x.id === a[`ak.${n}.rid`]) || (a[`ak.${n}.lk`] && x._localKey === a[`ak.${n}.lk`])));
+    for(const nv of [a[`ak.${n}.nev0`], v('nev')]){ if(ri >= 0 || !nv) continue; ri = registry.findIndex(x => x && nevK(x.name) === nevK(nv) && nevK(x.ajanlo) === nevK(r0.name)); }
+    if(ri < 0) return false;
+    const r = registry[ri]; r.details = r.details || {};
+    let valt = false; const ir = (obj, k, ert) => { if(ert && obj[k] !== ert){ obj[k] = ert; valt = true; } };
+    ir(r, 'name', v('nev')); ir(r, 'phone', v('tel')); ir(r, 'lakhely', v('telepules'));
+    [['eletkor', 'kor'], ['miert', 'miert'], ['lakhelyzet', 'lakhelyzet'], ['legkisebb', 'legkisebb'], ['vagyon', 'vagyon'],
+        ['lakas', 'lakas'], ['foglalkozas', 'fogl'], ['gyerekek', 'gyerek'], ['megjegyzes', 'megj']].forEach(([d, k]) => ir(r.details, d, v(k)));
+    if(valt){ if(r.id) a[`ak.${n}.rid`] = r.id; store.save('sf_registry', registry); persistReg(ri); }
+    return valt;
 }
 function akKesz(){
     const r0 = registry[akI], a = akA(), nevek = akNevek();
     const uj = nevek.filter(n => !a[`ak.${n}.felveve`]);
     if(uj.length && !confirm(`${uj.length} ajánlott személy kerül a 10 perces füzetbe, ajánlónak „${r0.name || ''}” lesz megadva. Mehet?`)) return;
-    uj.forEach(akFelvesz);
+    uj.forEach(n => { a[`ak.${n}.nev0`] = String(a[`ak.${n}.nev`] || '').trim(); akFelvesz(n); });
+    // a korábban már felvett ajánlottak: ha azóta módosult valami, a meglévő ügyfelet frissítjük
+    const frissult = nevek.filter(n => a[`ak.${n}.felveve`] && !uj.includes(n) && akFrissit(n)).length;
+    if(frissult && typeof sfToast === 'function') sfToast(`${frissult} korábban felvett ajánlott adatai frissültek a 10 perces füzetben.`);
     r0.ajanlasok = String(Math.max(+r0.ajanlasok || 0, nevek.length));
     // az elégedettség a vezetői áttekintéshez is megmarad
     const pont = AK_KERDESEK.map((_, x) => a[`ak.eg.${x + 1}`]).filter(v => v !== undefined && v !== '').map(Number);
@@ -39264,8 +39319,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const nyitott = pgAkciok.filter(a => a.leaderUid === pgOwnUid() && a.mtUid !== pgOwnUid() && !a.done).length;
         const sajatDb = gtTasks.filter(t => !taskIsDone(t)).length + pgMyAkciok().filter(a => !a.done).length;
         return `<div class="fx-fofulek" role="tablist">
-            <button type="button" role="tab" data-fxful="sajat" class="${fxFul !== "mt" ? "on" : ""}" aria-selected="${fxFul !== "mt"}">Saját feladataim${sajatDb ? ` <span class="pg-badge">${sajatDb}</span>` : ""}</button>
-            <button type="button" role="tab" data-fxful="mt" class="${fxFul === "mt" ? "on" : ""}" aria-selected="${fxFul === "mt"}">Akcióterv és feladat MT-nek${nyitott ? ` <span class="pg-badge">${nyitott}</span>` : ""}</button>
+            <button type="button" role="tab" data-fxful="sajat" class="${fxFul !== "mt" ? "on" : ""}" aria-selected="${fxFul !== "mt"}"><span class="fx-ful-h">Saját feladataim</span><span class="fx-ful-r">Saját</span>${sajatDb ? ` <span class="pg-badge">${sajatDb}</span>` : ""}</button>
+            <button type="button" role="tab" data-fxful="mt" class="${fxFul === "mt" ? "on" : ""}" aria-selected="${fxFul === "mt"}"><span class="fx-ful-h">Akcióterv és feladat MT-nek</span><span class="fx-ful-r">MT-knek</span>${nyitott ? ` <span class="pg-badge">${nyitott}</span>` : ""}</button>
         </div>`;
     }
     function fxMtFulHtml(){
