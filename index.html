@@ -3407,7 +3407,17 @@
         :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .ok.on { background:#16a34a; color:#fff; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .no.on { background:#dc2626; color:#fff; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
         #sideViewSikerfuzet .stats-grid .stat { background:#f1f5f9 !important; border:1px solid #e2e8f0 !important; } #sideViewSikerfuzet .stat-num { color:#0b2a55 !important; }
         /* Ügyletek fül */
-        .evb-hely-gy { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+        .evb-kapcs { display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-top:6px; font-size:12px; } .evb-kapcs > span { color:var(--muted); font-weight:600; }
+.evb-kapcs button { border:1px dashed #cbd5e1; background:#fff; border-radius:999px; padding:3px 9px; font:inherit; font-size:12px; color:#334155; cursor:pointer; }
+.evb-kapcs button i { font-style:normal; font-size:10px; font-weight:800; color:#64748b; margin-left:2px; } .evb-kapcs button.fel i { color:#7c3aed; }
+.evb-kapcs button.van { border-style:solid; border-color:#86efac; background:#ecfdf3; color:#15803d; } .evb-kapcs button.mind { border-style:solid; color:#1d4ed8; }
+.evb-rsvp { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:9px 12px; margin-bottom:10px; font-size:13px; }
+.evb-rsvp.uj { background:#eff6ff; border-color:#93c5fd; } .evb-rsvp > div { display:flex; gap:6px; }
+.evb-rsvp button { border:1px solid var(--border); background:#fff; border-radius:999px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:650; color:#334155; cursor:pointer; }
+.evb-rsvp button.on.accepted { background:#16a34a; border-color:#16a34a; color:#fff; } .evb-rsvp button.on.declined { background:#dc2626; border-color:#dc2626; color:#fff; } .evb-rsvp button.on.tentative { background:#d97706; border-color:#d97706; color:#fff; }
+.wk-ev.wk-meghivo { background:repeating-linear-gradient(135deg, rgba(255,255,255,.85) 0 6px, rgba(255,255,255,.55) 6px 12px) !important; border:1.5px dashed currentColor !important; }
+.wk-ev.wk-meghivo .wk-ev-title::before { content:"📩 "; } .wk-ev.wk-talan { opacity:.75; border-style:dashed !important; }
+.evb-hely-gy { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
         .evb-hely-gy button { border:1px solid #dbe3ee; background:#f8fafc; border-radius:999px; padding:3px 10px; font:inherit; font-size:12px; color:#334155; cursor:pointer; }
         .evb-hely-gy button:hover { border-color:#93c5fd; background:#eff6ff; } .evb-hely-gy button.on { border-color:#2563eb; background:#dbeafe; color:#1d4ed8; font-weight:600; }
         .ugy-par { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:12.5px; color:var(--muted); }
@@ -34995,6 +35005,14 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if (nav) nav.hidden = !leader || !!(window.sfBlockedPages && window.sfBlockedPages.has("kiertekelo"));
             const navTp = document.getElementById("navTelefonparty");
             if (navTp) navTp.hidden = !(leader || window.sfIsAdmin) || !!(window.sfBlockedPages && window.sfBlockedPages.has("telefonparty"));
+            // a struktúrában fölöttem és alattam lévők (meghíváskor gyors hozzáadáshoz)
+            (async () => { try {
+                const emps = await getEmployees(), byUid = new Map(emps.map(e => [e.uid, e])), kap = [];
+                let f = accessMap[user.uid], lep = 0; const lat = new Set([user.uid]);
+                while (f && !lat.has(f) && lep < 10){ lat.add(f); const e = byUid.get(f); if (e && e.email) kap.push({ uid: f, nev: e.name || e.email, email: e.email, rel: lep === 0 ? "felettes" : "felettes+" }); f = accessMap[f]; lep++; }
+                getSubordinateUids(user.uid, accessMap).forEach(u => { const e = byUid.get(u); if (e && e.email && u !== user.uid) kap.push({ uid: u, nev: e.name || e.email, email: e.email, rel: accessMap[u] === user.uid ? "beosztott" : "beosztott+" }); });
+                window.sfStrukturaKapcsolatok = kap;
+            } catch(e){ window.sfStrukturaKapcsolatok = []; } })();
             await loadAndDistributeClients();
             if (leader) setupViewAsSwitcher();
         });
@@ -36153,6 +36171,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const mode = isTask ? "task" : calStyle;
             const modeClass = { task:" wk-task", apple:" wk-ev-apple", light:" wk-ev-light", outline:" wk-ev-outline", gradient:" wk-ev-gradient", split:" wk-ev-split" }[mode] || "";
             div.className = "wk-ev" + modeClass;
+            { const me = evMeghivo(t.ev); if (me && me.responseStatus === "needsAction") div.classList.add("wk-meghivo"); else if (me && me.responseStatus === "tentative") div.classList.add("wk-talan"); }
             div.draggable = true;
             if (mode === "task"){
                 div.style.background = calSotet() ? "#202b3b" : "#ffffff";
@@ -37398,6 +37417,18 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // Alapértelmezett helyszínek (gyorsgombok a Helyszín mező alatt)
     const EVB_HELYEK = [["Laki Kereskedelmi Központ", "Laki Kereskedelmi Központ, Budapest, Róbert Károly krt. 59, 1134"],
                         ["Gold Irodaház", "Gold Irodaház, Budapest, Forgách utca 19, 1139"]];
+    // meghívás: a struktúrában fölöttem / alattam lévők gyors hozzáadása
+    function evbKapcsHtml(){
+        const k = window.sfStrukturaKapcsolatok || []; if (!k.length) return "";
+        const cimke = { "felettes": "felettes", "felettes+": "felettes", "beosztott": "MT", "beosztott+": "MT" };
+        const sorr = x => ({ "felettes": 0, "felettes+": 1, "beosztott": 2, "beosztott+": 3 })[x.rel];
+        return `<div class="evb-kapcs"><span>Struktúra:</span>${k.slice().sort((a, b) => sorr(a) - sorr(b) || a.nev.localeCompare(b.nev, "hu")).map(x =>
+            `<button type="button" data-evbkap="${escM(x.email)}" class="${x.rel.startsWith("felettes") ? "fel" : ""}" title="${escM(x.email)}">+ ${escM(x.nev)} <i>${cimke[x.rel]}</i></button>`).join("")}
+            ${k.length > 1 ? `<button type="button" data-evbkapmind class="mind">+ mindenki</button>` : ""}</div>`;
+    }
+    // a saját válaszom egy meghívásra (nem én szerveztem)
+    function evMeghivo(ev){ if (!ev || !ev.attendees || (ev.organizer && ev.organizer.self)) return null; return ev.attendees.find(a => a.self) || null; }
+    const RSVP = [["accepted", "✓ Elfogadom"], ["tentative", "Talán"], ["declined", "✕ Nem megyek"]];
     function evbAblak(o){
         const szerk = o.mod === "szerk", ev = o.ev || null, id = o.id || (ev && ev.id) || "";
         let fajta = o.fajta === "task" ? "task" : "event";
@@ -37464,6 +37495,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                                 <div class="evb-zaro csak-esemeny" id="qcZaroWrap"${tobbNap0 ? "" : " hidden"}><span>Záró nap <i class="ev-tobbnap" id="qcTobbNap"></i></span><input id="qcEndDate" type="date" value="${endDateStr}" min="${dateStr}" aria-label="Záró nap"></div>
                             </div>
                         </div>
+                        ${(() => { const me = szerk && evMeghivo(ev); if (!me) return ""; const szerv = (ev.organizer && (ev.organizer.displayName || ev.organizer.email)) || "";
+                            return `<div class="evb-rsvp${me.responseStatus === "needsAction" ? " uj" : ""}"><span>📩 <b>Meghívás</b>${szerv ? ` – ${escM(szerv)}` : ""}${me.responseStatus === "needsAction" ? " · még nem válaszoltál" : ""}</span>
+                                <div>${RSVP.map(([k, n]) => `<button type="button" data-evbrsvp="${k}" class="${me.responseStatus === k ? "on " + k : ""}">${n}</button>`).join("")}</div></div>`; })()}
                         <div class="evb-sor csak-esemeny" id="qcUnitWrap" hidden>
                             <span class="evb-ik">${evbIk("trend")}</span>
                             <div class="evb-eh"><input id="qcUnit" type="number" min="0" step="1" value="${escM(eh0)}" inputmode="decimal" aria-label="Várható egység"><b>EH</b><small>várható egység</small></div>
@@ -37481,6 +37515,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                         <div class="evb-sor csak-esemeny">
                             <span class="evb-ik">${evbIk("ember")}</span>
                             <div class="evb-oszl"><input id="qcGuests" class="evb-be" value="${escM(szerk ? attendeesToText(ev) : "")}" placeholder="Meghívottak (e-mail címek vesszővel)" aria-label="Meghívottak">
+                            ${evbKapcsHtml()}
                             ${szerk ? attendeeStateHtml(ev) : ""}</div>
                         </div>
                         ${meetUrl ? `<div class="evb-sor csak-esemeny"><span class="evb-ik">${evbIk("video")}</span><a class="evb-be evb-meet" href="${meetUrl}" target="_blank" rel="noopener">Google Meet – csatlakozás ↗</a></div>` : ""}
@@ -37659,6 +37694,25 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         qcEndDateEl.addEventListener("change", () => { if (qcEndDateEl.value && qcEndDateEl.value < qcDateEl.value) qcEndDateEl.value = qcDateEl.value; syncTobbNap(); });
 
         // ---- helyszín, jegyzet, további beállítások ----
+        // meghívottak: struktúra-gombok
+        overlay.querySelectorAll("[data-evbkap], [data-evbkapmind]").forEach(b => b.addEventListener("click", () => {
+            const inp = $("#qcGuests"), van = new Set(parseAttendees(inp.value).map(x => x.toLowerCase()));
+            const uj = b.hasAttribute("data-evbkapmind") ? (window.sfStrukturaKapcsolatok || []).map(x => x.email) : [b.dataset.evbkap];
+            const lista = parseAttendees(inp.value).concat(uj.filter(x => !van.has(x.toLowerCase())));
+            inp.value = lista.join(", "); inp.dispatchEvent(new Event("input", { bubbles: true }));
+            overlay.querySelectorAll("[data-evbkap]").forEach(x => x.classList.toggle("van", lista.map(y => y.toLowerCase()).includes(x.dataset.evbkap.toLowerCase())));
+        }));
+        { const van = parseAttendees($("#qcGuests").value).map(y => y.toLowerCase()); overlay.querySelectorAll("[data-evbkap]").forEach(x => x.classList.toggle("van", van.includes(x.dataset.evbkap.toLowerCase()))); }
+        // meghívásra válasz (elfogadom / talán / nem megyek)
+        overlay.querySelectorAll("[data-evbrsvp]").forEach(b => b.addEventListener("click", async () => {
+            const v = b.dataset.evbrsvp; overlay.querySelectorAll("[data-evbrsvp]").forEach(x => x.disabled = true);
+            try {
+                const att = (ev.attendees || []).map(a => a.self ? Object.assign({}, a, { responseStatus: v }) : a);
+                await updateCalendarEvent(id, { attendees: att }); ev.attendees = att;
+                if (typeof sfToast === "function") sfToast(v === "accepted" ? "Meghívás elfogadva." : v === "declined" ? "Meghívás elutasítva." : "Válasz: talán.");
+                close(); initCalendar();
+            } catch(e){ alert("A válasz nem ment el: " + (e && e.message || e)); overlay.querySelectorAll("[data-evbrsvp]").forEach(x => x.disabled = false); }
+        }));
         const locInput = $("#qcLoc"), locMaps = $("#qcMaps");
         const helyGy = () => overlay.querySelectorAll("[data-evbhely]").forEach(b => b.classList.toggle("on", b.dataset.evbhely === locInput.value.trim()));
         const syncMaps = v => { locMaps.href = mapsUrl(v); locMaps.hidden = !v || !szerk; helyGy(); };
