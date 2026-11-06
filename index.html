@@ -45514,6 +45514,12 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .osz-t .jobb { color:#009999; font-weight:800; } .tvp .osz-t .jobb::after { content:" ▲"; font-size:8px; }
 .tvp .osz-t .ok { color:#009999; font-weight:900; } .tvp .osz-t .nem { color:#cbd5e1; }
 .tvp .osz-kul { margin-top:12px; background:#f2f2f2; border-left:4px solid #009999; padding:9px 12px; font-size:11px; color:#003366; }
+.tv-drop.kicsi { padding:12px 14px; } .tv-drop.kicsi b { font-size:13.5px; }
+.tv-al small { font-weight:500; color:var(--muted); font-size:12px; }
+.tv-szb-s { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:11px; padding:7px 10px; margin-top:8px; }
+.tv-szb-s input { flex:1; min-width:0; border:1px solid transparent; border-radius:8px; padding:6px 8px; font:inherit; font-size:13.5px; font-weight:600; color:#16243a; } .tv-szb-s input:hover, .tv-szb-s input:focus { border-color:var(--border); outline:none; }
+.tv-szb-s small { color:var(--muted); font-size:12px; white-space:nowrap; }
+.tv-szb-ik { font-size:10px; font-weight:800; color:#fff; background:#7c3aed; border-radius:6px; padding:3px 6px; }
 .tv-nelkul { margin-top:10px; background:#f0f7ff; border:1px solid #cfe0fb; border-radius:11px; padding:10px 12px; font-size:12.5px; color:#1f3b63; display:flex; align-items:center; gap:12px; flex-wrap:wrap; } .tv-nelkul .btn { margin-left:auto; }
 .tv-bank { padding:4px 0 10px; border-bottom:1px solid #f1f3f6; } .tv-bank > small { display:block; font-size:12px; font-weight:650; color:#64748b; margin-top:6px; }
 .tv-bank .tv-csomag button:disabled { opacity:.45; cursor:not-allowed; } .tv-bank .tv-csomag button.aj { background:#FF3399; border-color:#FF3399; }
@@ -45668,7 +45674,30 @@ const TV_BANK = [
     ['uni-prestige', 'UniCredit', 'Partner Prestige', '0 Ft', 'min. 600 000 Ft jóváírás/hó', '8 000 Ft/hó', 'díjmentes', 'díjmentes (belföldi ATM)', '0 Ft', '0 Ft', 30000, '30 000 Ft', '2026.11.30.', '12 hónap', 'uni']
 ].map(([id, bank, csomag, havi, felt, nelkul, utalas, atm, kartya, sms, bonusz, bonSz, vege, huseg, lep]) => ({ id, bank, csomag, havi, felt, nelkul, utalas, atm, kartya, sms, bonusz, bonSz, vege, huseg, lep }));
 // van-e miből tervezetet készíteni: kalkuláció, vagy kalkuláció nélkül is pl. csak bankszámla / balesetvédelem / egészségpénztár
-const tvVan = () => tvAj.length > 0 || ['bank', 'baleset', 'eszp'].some(k => tvAlap.opc[k]);
+// Személybiztosítási ajánlat (PDF vagy kép) – változtatás nélkül, a tervezet keretébe téve
+let tvSzb = [];   // { id, cim, tipus: 'pdf' | 'kep', bytes, meretek: [{ w, h }], kep (dataURL), _pdf }
+async function tvSzbFajlok(files){
+    for(const f of [...(files || [])]){
+        const kep = /^image\//.test(f.type || '') || /\.(jpe?g|png|webp|heic)$/i.test(f.name || ''), pdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+        if(!kep && !pdf) continue;
+        const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cim = String(f.name || 'Személybiztosítás').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+        try {
+            if(pdf){ const bytes = new Uint8Array(await f.arrayBuffer()), pdfjs = await regPdfJs(), d = await pdfjs.getDocument({ data: bytes.slice() }).promise, meretek = [];
+                for(let n = 1; n <= d.numPages; n++){ const v = (await d.getPage(n)).getViewport({ scale: 1 }); meretek.push({ w: v.width, h: v.height }); }
+                tvSzb.push({ id, cim, tipus: 'pdf', bytes, meretek, _pdf: d });
+            } else {
+                const url = URL.createObjectURL(f), im = await new Promise((ok, hiba) => { const i = new Image(); i.onload = () => ok(i); i.onerror = hiba; i.src = url; });
+                const k = Math.min(1, 2000 / Math.max(im.width, im.height)), cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+                cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+                tvSzb.push({ id, cim, tipus: 'kep', kep: cv.toDataURL('image/jpeg', .9), meretek: [{ w: cv.width, h: cv.height }] });
+            }
+        } catch(e){ tvHiba = `${f.name}: nem sikerült beolvasni (${e.message || e})`; }
+    }
+    renderTervezet();
+}
+// a feltöltött oldal helye a tervezet-oldalon (arányosan, középre igazítva)
+const tvSzbHely = m => { const b = { x: 28, y: 180, w: 539, h: 842 - 180 - 54 }, k = Math.min(b.w / m.w, b.h / m.h), w = m.w * k, h = m.h * k; return { x: b.x + (b.w - w) / 2, y: b.y, w, h, s: k }; };
+const tvVan = () => tvAj.length > 0 || tvSzb.length > 0 || ['bank', 'baleset', 'eszp'].some(k => tvAlap.opc[k]);
 const tvBankVal = () => (tvAlap.bankok || []).map(id => TV_BANK.find(b => b.id === id)).filter(Boolean).slice(0, 3);
 function tvBankLap(lab){
     const l = tvBankVal(); if(!l.length) return '';
@@ -45996,6 +46025,11 @@ function tvLapok(){
             html: `<div class="tvp kalk">${tvFej(`${i + 1}. KALKULÁCIÓ${csop.length > 1 ? ` · ${k + 1}/${csop.length}` : ''}`, esc(`${a.biztosito} – ${a.termek}`), logo)}<p class="kalk-al">${esc(nev)} részére · OVB kalkulátor</p>${tvLab(sz())}</div>` }));
         L.slice(elso).forEach(l => { l.aj = a._kid; });
     });
+    // személybiztosítási ajánlat(ok): oldalanként, változtatás nélkül
+    tvSzb.forEach(x => x.meretek.forEach((m, k) => { const h = tvSzbHely(m), n = x.meretek.length;
+        L.push({ nev: `Személybiztosítás – ${x.cim}${n > 1 ? ` ${k + 1}/${n}` : ''}`, aj: x.id, szb: { id: x.id, lap: k, ...h },
+            html: `<div class="tvp kalk">${tvFej(`SZEMÉLYBIZTOSÍTÁS${n > 1 ? ` · ${k + 1}/${n}` : ''}`, esc(x.cim))}<p class="kalk-al">${esc(nev)} részére</p>
+                ${x.tipus === 'kep' ? `<img src="${x.kep}" alt="" style="position:absolute;left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px;object-fit:contain">` : ''}${tvLab(sz())}</div>` }); }));
     // összehasonlítás: témakörönként egy oldal, ha legalább két azonos témakörű kalkuláció van
     if(o.osz) tvOszCsop().forEach(([k, l], j) => { if(tvAlap.oszTema[k] === false) return;
         L.push({ nev: `Összehasonlítás – ${TV_OSZ_TEMA[k]}`, html: tvOszLap(k, l, tvAj.length + j + 1, tvLab(sz())) }); });
@@ -46062,7 +46096,10 @@ function renderTervezet(){
     const vanKesobb = tvAj.some(a => a.kesobb);
     const K1 = `<div class="tv-kartya"><h3><i>1</i>Kalkulációk</h3>
         <label class="tv-drop" id="tvDrop">${sfIkonLap('jegyzet', 'kek')}<b>Húzd ide az OVB-s kalkulációs PDF-et</b>vagy kattints a tallózáshoz · termékenként egy PDF, több is mehet<input type="file" id="tvFajl" accept="application/pdf,.pdf" multiple hidden></label>
-        ${!tvAj.length ? `<div class="tv-nelkul">Kalkuláció nem kötelező: ha csak <b>bankszámlát</b>, <b>balesetvédelmet (BodyGuard)</b> vagy <b>egészségpénztárat</b> viszel, töltsd ki az ügyfél adatait, és a Tartalom lépésben kapcsold be őket. <button type="button" class="btn" data-tvlepes="2">Tovább a Tartalomhoz ›</button></div>` : ''}
+        <div class="tv-szb"><h4 class="tv-al">Személybiztosítás <small>– ajánlat PDF-ben vagy képként (nem kötelező)</small></h4>
+            <label class="tv-drop kicsi" id="tvSzbDrop"><b>Húzd ide a személybiztosítási ajánlatot</b>PDF vagy kép (fotó, képernyőkép) · több is mehet<input type="file" id="tvSzbFajl" accept="application/pdf,.pdf,image/*" multiple hidden></label>
+            ${tvSzb.map(x => `<div class="tv-szb-s"><span class="tv-szb-ik">${x.tipus === 'pdf' ? 'PDF' : 'KÉP'}</span><input data-tvszbcim="${x.id}" value="${esc(x.cim)}" aria-label="Cím a tervezetben"><small>${x.meretek.length} oldal</small><button type="button" class="tv-x" data-tvszbx="${x.id}" title="Eltávolítás">×</button></div>`).join('')}</div>
+        ${!tvAj.length ? `<div class="tv-nelkul">Kalkuláció nem kötelező: ha csak <b>személybiztosítást</b>, <b>bankszámlát</b>, <b>balesetvédelmet (BodyGuard)</b> vagy <b>egészségpénztárat</b> viszel, töltsd ki az ügyfél adatait, és a Tartalom lépésben kapcsold be őket. <button type="button" class="btn" data-tvlepes="2">Tovább a Tartalomhoz ›</button></div>` : ''}
         ${tvFut ? `<div class="tv-allapot">${esc(tvFut)}</div>` : ''}${tvHiba ? `<div class="tv-hiba">${esc(tvHiba)}</div>` : ''}
         <div style="margin-top:12px">${tvAj.map(ajHtml).join('')}</div></div>`;
     const K2 = `<div class="tv-kartya"><h3><i>2</i>Ügyfél és tanácsadó</h3><div class="tv-mezok">
@@ -46137,6 +46174,16 @@ function tvElonezet(){
         <span>${l.ki ? '<s>' + esc(l.nev) + '</s> · kihagyva' : `${++n}. ${esc(l.nev)}`}</span></div>`).join('');
     const sk = host.querySelector('.tv-sk'); const sc = sk ? sk.clientWidth / 595 : .25;
     host.querySelectorAll('.tv-sk > .tvp').forEach(p => p.style.transform = `scale(${sc})`);
+    // a személybiztosítási PDF oldalai
+    tvLapok().forEach(async (l, i) => { if(!l.szb) return; const x = tvSzb.find(y => y.id === l.szb.id); if(!x || x.tipus !== 'pdf') return;
+        try { const pdf = x._pdf || (x._pdf = await (await regPdfJs()).getDocument({ data: x.bytes.slice() }).promise);
+            const cel = host.querySelector(`[data-tvsk="${i}"]`); if(!cel) return;
+            const page = await pdf.getPage(l.szb.lap + 1), k = cel.clientWidth / 595 * 2, vp = page.getViewport({ scale: l.szb.s * k });
+            const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+            cv.style.cssText = `position:absolute;left:${l.szb.x / 5.95}%;top:${l.szb.y / 8.42}%;width:${l.szb.w / 5.95}%;height:${l.szb.h / 8.42}%`;
+            cel.appendChild(cv);
+        } catch(e){} });
     // a kalkuláció oldalai: a PDF-ből kirajzolva
     tvLapok().forEach(async (l, i) => { if(!l.kalk) return;
         try { const a = tvAj[l.kalk.aj], pdfjs = await regPdfJs();
@@ -46257,6 +46304,11 @@ async function tvLetolt(megnez){
             const p = doc.addPage([595.28, 841.89]); p.drawImage(kep, { x: 0, y: 0, width: 595.28, height: 841.89 });
             for(const o of ovbk) await tvOvbRajz(PDFLib, doc, p, o);
             for(const k of kepek) await tvKepRajz(doc, p, k, kepTar);
+            // a személybiztosítási PDF oldala vektorosan, arányosan a keretbe
+            if(l.szb){ const x = tvSzb.find(y => y.id === l.szb.id);
+                if(x && x.tipus === 'pdf'){ if(!forras[x.id]) forras[x.id] = await PDFLib.PDFDocument.load(x.bytes.slice());
+                    const [emb] = await doc.embedPages([forras[x.id].getPage(l.szb.lap)]);
+                    p.drawPage(emb, { x: l.szb.x, y: 841.89 - l.szb.y - l.szb.h, xScale: l.szb.s, yScale: l.szb.s }); } }
             // a kalkuláció eredeti oldala (vektorosan, a saját fejléce és lábléce nélkül) a tervezet keretébe
             if(l.kalk){
                 const k = l.kalk.aj; if(!forras[k]) forras[k] = await PDFLib.PDFDocument.load(tvAj[k].bytes.slice());
@@ -46294,6 +46346,7 @@ async function tvFajlok(files){
 window.sfShowTervezet = function(){ renderTervezet(); };
 document.addEventListener('change', e => {
     if(e.target.id === 'tvFajl'){ tvFajlok(e.target.files); e.target.value = ''; return; }
+    if(e.target.id === 'tvSzbFajl'){ tvSzbFajlok(e.target.files); e.target.value = ''; return; }
     if(e.target.id === 'tvKepFajl'){ const f = e.target.files[0]; e.target.value = ''; if(!f) return;
         // a saját kép kicsinyítve (900 px), hogy elférjen a böngészőben és gyors legyen a PDF
         const im = new Image(); im.onload = () => { const k = Math.min(1, 900 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
@@ -46305,6 +46358,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('input', e => {
     const t = e.target; if(!t.closest || !t.closest('#tervezetBody')) return;
+    if(t.dataset.tvszbcim != null){ const x = tvSzb.find(y => y.id === t.dataset.tvszbcim); if(x){ x.cim = t.value; clearTimeout(window.__tvSzbT); window.__tvSzbT = setTimeout(() => { if(tvLepes === 3) tvElonezet(); }, 400); } return; }
     if(t.dataset.tvaj != null){ const a = tvAj[+t.dataset.tvaj], k = t.dataset.k;
         a[k] = ['dij', 'ido', 'emeles', 'hozam', 'befizetett', 'kifizetes'].includes(k) ? tvSzam(t.value) : t.value;
         const ado = tvAdo(a), box = t.closest('.tv-aj').querySelectorAll('.tv-ado b');
@@ -46339,14 +46393,15 @@ document.addEventListener('click', e => {
     const ot = e.target.closest('[data-tvosz]'); if(ot){ const k = ot.dataset.tvosz; tvAlap.oszTema[k] = tvAlap.oszTema[k] === false; tvMent(); renderTervezet(); return; }
     const oa = e.target.closest('[data-tvoszaj]'); if(oa){ const k = oa.dataset.tvoszaj, a = tvAj[+oa.dataset.i]; if(a && !a._kid) a._kid = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         tvOszAjanl[k] = a ? a._kid : ''; renderTervezet(); return; }
+    const sx = e.target.closest('[data-tvszbx]'); if(sx){ tvSzb = tvSzb.filter(x => x.id !== sx.dataset.tvszbx); renderTervezet(); return; }
     if(e.target.closest('#tvLetolt')) tvLetolt();
     if(e.target.closest('#tvMegnez')) tvLetolt(true);
 });
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches && e.target.matches('[data-tvelin]')){ e.preventDefault(); document.querySelector(`[data-tveluj="${e.target.dataset.tvelin}"]`)?.click(); } });
 ['dragover', 'dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => {
-    const d = e.target.closest && e.target.closest('#tvDrop'); if(!d) return;
+    const d = e.target.closest && e.target.closest('#tvDrop, #tvSzbDrop'); if(!d) return;
     e.preventDefault(); d.classList.toggle('over', ev === 'dragover');
-    if(ev === 'drop') tvFajlok(e.dataTransfer.files);
+    if(ev === 'drop'){ if(d.id === 'tvSzbDrop') tvSzbFajlok(e.dataTransfer.files); else tvFajlok(e.dataTransfer.files); }
 }));
 </script>
 <script>
