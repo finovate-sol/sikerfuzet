@@ -3339,8 +3339,9 @@
         .tp-kpi b { display:block; font-size:28px; font-weight:800; color:var(--c); line-height:1.2; margin-top:2px; } .tp-kpi span { font-size:12px; color:var(--muted); }
         .tp-szuro { margin:0 0 14px; }
         /* a felső rész (cím, számok, szűrő) a helyén marad, a kártyák alatta görgetődnek */
-        .tp-fix { position:sticky; top:0; z-index:5; background:var(--bg, #e9edf3); padding-top:6px; margin-top:-6px; }
-        .tp-fix .tp-szuro { margin-bottom:0; padding-bottom:14px; }
+        #telefonpartyBody.tp-kitolt { display:flex; flex-direction:column; overflow:hidden; }
+        .tp-fix { flex:none; }
+        #telefonpartyBody.tp-kitolt .tp-gorg { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:2px 4px 16px; margin:0 -4px; }
         .tp-racs { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
         @media (max-width:760px){ .tp-racs { grid-template-columns:1fr; } }
         .tp-mt { padding:16px 18px; }
@@ -15746,6 +15747,22 @@ function tpHetCel(h, ho, w){
     }
     return { el, ta, ossz: el + ta };
 }
+// a Telefonparty kitölti a képernyő alját: a fejrész áll, csak a kártyák területe görget (gépen)
+function tpMagassag(){
+    const host = document.getElementById('telefonpartyBody'); if(!host) return;
+    const gepen = matchMedia('(min-width:761px)').matches;
+    host.classList.toggle('tp-kitolt', gepen);
+    if(!gepen){ host.style.height = ''; return; }
+    const top = host.getBoundingClientRect().top + (document.scrollingElement ? 0 : 0);
+    let h = Math.max(320, window.innerHeight - Math.max(0, top) - 12);
+    host.style.height = h + 'px';
+    // ha a lap alján lévő belső margó miatt az egész oldal még görgetne, annyival kisebb legyen
+    let sc = host.parentElement; while(sc && !(/(auto|scroll)/.test(getComputedStyle(sc).overflowY) && sc.scrollHeight > sc.clientHeight)) sc = sc.parentElement;
+    sc = sc || document.scrollingElement;
+    const tobb = sc ? sc.scrollHeight - sc.clientHeight : 0;
+    if(tobb > 0 && h - tobb >= 320){ h -= tobb; host.style.height = h + 'px'; }
+}
+window.addEventListener('resize', () => { const pg = document.getElementById('page-telefonparty'); if(pg && !pg.hidden) tpMagassag(); });
 async function renderTelefonparty(){
     const host = document.getElementById('telefonpartyBody'); if(!host) return;
     const me = window.sfCurrentUser || {};
@@ -15777,6 +15794,7 @@ async function renderTelefonparty(){
     const sor = c => `<tr><td><div class="h321-nev"><strong>${esc(c.name || '(névtelen)')}</strong>${c.tp321c ? `<span class="tp-cel" title="${esc(CEL_NEV[c.tp321c] || '')}">${esc(c.tp321c)}</span>` : ''}</div></td>
         <td class="tp-tel">${esc(c.phone || '—')}</td><td>${idop(c) ? `<span class="tp-idop" title="${esc(idop(c).cim || '')}">📅 ${esc(new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}${esc(c.tp321j || '') || (idop(c) ? '' : '<span class="tp-ures">—</span>')}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
         <td class="het-e">${resBadge(res(c))}</td></tr>`;
+    const gorgVolt = (host.querySelector('.tp-gorg') || {}).scrollTop || 0;
     host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)})</p></div></div>
         <div class="tp-kpik">
             ${kpi('TP-s ügyfél', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
@@ -15786,7 +15804,7 @@ async function renderTelefonparty(){
             ${kpi('Jövő heti cél', celOssz || '—', celOssz ? `EL + TA időpont · ${pct(ok, celOssz)}% teljesítve` : 'a Havi tervekből', '#7c3aed')}
         </div>
         <div class="pv-chipek tp-szuro">${[['mind', 'Mind'], ['ok', '✓ Lebeszélve'], ['no', '✕ Nem sikerült'], ['pending', 'Még nincs']].map(([k, n]) => `<button type="button" data-tpszur="${k}" class="${tpSzuro === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
-        <div class="tp-racs">${vanTag.length ? vanTag.map(t => { const l = szurt(t.l), cel = t.cel ? t.cel.ossz : 0;
+        <div class="tp-gorg"><div class="tp-racs">${vanTag.length ? vanTag.map(t => { const l = szurt(t.l), cel = t.cel ? t.cel.ossz : 0;
             return `<section class="card hv-k tp-mt"><div class="hv-k-fej"><h3>${esc(t.nev)}</h3><span class="het-db">${t.l.length} TP</span><button type="button" class="tp-ki" data-tpki="${esc(t.uid)}" title="Nincs jelen – kivétel a heti telefonpartyból">✕</button></div>
                 <div class="tp-sav"><div class="tp-sav-f"><span>Lebeszélve: <b>${t.ok}</b>${cel ? ` / ${cel} (jövő heti cél: EL ${t.cel.el} + TA ${t.cel.ta})` : t.cel ? ' · a jövő hétre nincs EL / TA cél' : ' · nincs havi terv a hónapra'}</span><span>✕ ${t.no} · – ${t.l.length - t.ok - t.no}</span></div>
                     <div class="tp-sav-b"><i style="width:${pct(t.ok, cel || t.l.length)}%"></i></div></div>
@@ -15794,7 +15812,9 @@ async function renderTelefonparty(){
                     : `<div class="hv-ures-sz" style="padding:8px 2px">${t.l.length ? 'Nincs a szűrésnek megfelelő ügyfél.' : 'Nincs TP-vel jelölt ügyfele.'}</div>`}
             </section>`; }).join('') : `<div class="card"><div class="card-body hv-ures-sz">Még senkinél nincs TP-vel jelölt ügyfél.</div></div>`}</div>
         ${uresTag.length ? `<p class="tp-lab">Nincs TP-s ügyfele és jövő heti terve: ${uresTag.map(t => esc(t.nev)).join(', ')}</p>` : ''}
-        ${kint.size ? `<div class="tp-kint">Nincs jelen (kivéve a héten):${[...kint].map(uid => `<button type="button" data-tpbe="${esc(uid)}" title="Visszavétel">↩ ${esc(nevek.get(uid) || 'Ismeretlen')}</button>`).join('')}</div>` : ''}`;
+        ${kint.size ? `<div class="tp-kint">Nincs jelen (kivéve a héten):${[...kint].map(uid => `<button type="button" data-tpbe="${esc(uid)}" title="Visszavétel">↩ ${esc(nevek.get(uid) || 'Ismeretlen')}</button>`).join('')}</div>` : ''}</div>`;
+    tpMagassag();
+    const gorgUj = host.querySelector('.tp-gorg'); if(gorgUj && gorgVolt) gorgUj.scrollTop = gorgVolt;
     const kiMent = () => { store.save(kiKulcs, [...kint]); renderTelefonparty(); };
     host.querySelectorAll('[data-tpki]').forEach(b => b.addEventListener('click', () => { kint.add(b.dataset.tpki); kiMent(); }));
     host.querySelectorAll('[data-tpbe]').forEach(b => b.addEventListener('click', () => { kint.delete(b.dataset.tpbe); kiMent(); }));
