@@ -3352,6 +3352,23 @@
         .sav-321 { padding:14px 12px; } .sav-321 .het-tbl { font-size:12px; } .sav-321 .het-tbl th { font-size:10.5px; }
         .sav-321 .het-tbl td:first-child { width:38%; } .sav-321 .het-e { width:62px; }
         .sav-321 .het-tbl tbody tr[draggable] { cursor:grab; }
+        /* oldalsáv 3-2-1: kompakt sor (A) */
+        .sav-321 .het-tbl thead { display:none; } .sav-321 .het-tbl { min-width:0 !important; width:100%; table-layout:fixed; } .sav-321 .het-tbl td[colspan] { width:auto !important; padding:0 !important; }
+        .s3-fej { margin:0 0 8px; } .s3-sav { display:flex; height:6px; border-radius:6px; overflow:hidden; background:#eef2f7; margin-bottom:8px; } .s3-sav i { display:block; height:100%; }
+        .s3-szuro { display:flex; gap:5px; flex-wrap:wrap; } .s3-szuro button { border:1px solid #e2e8f0; background:#fff; border-radius:999px; padding:3px 9px; font:inherit; font-size:11.5px; font-weight:600; color:#334155; cursor:pointer; }
+        .s3-szuro button.on { background:var(--navy); border-color:var(--navy); color:#fff; }
+        .s3-sor { display:flex; align-items:center; gap:8px; padding:7px 2px; }
+        .s3-n { flex:1; min-width:0; } .s3-n > strong { display:block; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .s3-al { display:flex; align-items:center; gap:6px; margin-top:2px; min-width:0; }
+        .s3-tel { color:var(--muted); font-size:12px; text-decoration:none; white-space:nowrap; } .s3-tel:hover { color:var(--navy); text-decoration:underline; }
+        .sav-321 .het-tbl select.s3-tip { flex:none; width:auto !important; appearance:none; -webkit-appearance:none; border:0 !important; background:none; padding:0 !important; height:auto; font-size:11.5px; color:#94a3b8; cursor:pointer; }
+        .sav-321 .het-tbl select.s3-tip.van { color:#334155; font-weight:600; }
+        .sav-321 .het-tbl input.s3-jegy { flex:1; min-width:40px; width:auto !important; border:0 !important; background:none; padding:0 2px !important; height:auto; font-size:12px; font-style:italic; color:#475569; }
+        .sav-321 .het-tbl input.s3-jegy:focus { outline:none; background:#f8fafc; border-radius:4px; font-style:normal; }
+        .s3-seg { display:flex; flex:none; border:1px solid #e2e8f0; border-radius:9px; overflow:hidden; }
+        .s3-seg button { border:0; background:#fff; width:28px; height:28px; font-size:13px; color:#94a3b8; cursor:pointer; padding:0; }
+        .s3-seg button + button { border-left:1px solid #e2e8f0; }
+        .s3-seg .no.on { background:#fee2e2; color:#dc2626; } .s3-seg .ok.on { background:#dcfce7; color:#16a34a; } .s3-seg .pending.on { background:#f1f5f9; color:#334155; }
         /* kompakt Havi terv */
         .havi-layout.hv-lay { gap:12px; }
         .hv-lay .hl-left, .hv-oldal { gap:12px; }
@@ -12038,6 +12055,16 @@ const HET_CEL = { penz: [['E', 'Elemzés'], ['TA', 'Tanácsadás'], ['SZ', 'Szer
 // egy 3-2-1 sor – ugyanez a Havi terv „Aktuális hét” nézetében és a Sikerfüzet oldalsávjában (ott húzható a naptárba)
 function het321SorHtml(l, r, gi, sav){
     const m = HET_MEZO[l], c = r[m.c] || '';
+    const celSel = `<select class="h321-cel" data-h321="${l}:${gi}:c" data-v="${esc(c)}" title="Mire hívta fel" aria-label="Mire hívta fel"><option value="">mire?</option>${HET_CEL[l].map(([k, n]) => `<option value="${k}"${c === k ? ' selected' : ''} title="${n}">${k}</option>`).join('')}</select>`;
+    // oldalsáv: kompakt sor – név, alatta telefon · mire · típus · jegyzet, jobbra ✕ / – / ✓ kapcsoló
+    if(sav){ const e = r[m.e] || 'pending';
+        return `<tr draggable="true" data-name="${esc(r.name)}" data-list="${l === 'penz' ? 'money' : 'career'}" data-regidx="${gi}" title="Húzd a naptárba"><td colspan="4"><div class="s3-sor">
+            <div class="s3-n"><strong>${esc(r.name) || '(névtelen)'}</strong>
+                <div class="s3-al">${r.phone ? `<a class="s3-tel" href="tel:${esc(String(r.phone).replace(/\s/g, ''))}" draggable="false">${esc(r.phone)}</a>` : ''}${celSel}
+                    <select class="s3-tip${r[m.t] ? ' van' : ''}" data-h321="${l}:${gi}:t" aria-label="Típus"><option value="">típus</option>${HET_TIPUS.map(t => `<option${r[m.t] === t ? ' selected' : ''}>${t}</option>`).join('')}</select>
+                    <input class="s3-jegy" data-h321="${l}:${gi}:j" value="${esc(r[m.j] || '')}" placeholder="jegyzet…" aria-label="Jegyzet"></div></div>
+            <div class="s3-seg" role="group" aria-label="Eredmény">${[['no', '✕', 'Nem sikerült'], ['pending', '–', 'Még nincs'], ['ok', '✓', 'Lebeszélve']].map(([k, j, t]) =>
+                `<button type="button" class="${k}${e === k ? ' on' : ''}" data-h321r="${l}:${gi}:${k}" title="${t}" aria-pressed="${e === k}">${j}</button>`).join('')}</div></div></td></tr>`; }
     return `<tr${sav ? ` draggable="true" data-name="${esc(r.name)}" data-list="${l === 'penz' ? 'money' : 'career'}" data-regidx="${gi}" title="Húzd a naptárba"` : ''}>
         <td><div class="h321-nev"><strong>${esc(r.name) || '(névtelen)'}</strong>
             <select class="h321-cel" data-h321="${l}:${gi}:c" data-v="${esc(c)}" title="Mire hívta fel" aria-label="Mire hívta fel"><option value="">mire?</option>${HET_CEL[l].map(([k, n]) => `<option value="${k}"${c === k ? ' selected' : ''} title="${n}">${k}</option>`).join('')}</select></div>
@@ -12050,11 +12077,23 @@ const hetSorok = l => registry.map((r, gi) => ({ r, gi })).filter(x => x.r && x.
 // ===== RENDER: PÉNZEM (a nyilvántartó TP jelöléséből) =====
 // gépelés közben nem rajzoljuk újra (elveszne a fókusz) – a mező értéke már a rekordon van
 const sav321Szerk = tb => { const a = document.activeElement; return !!(a && tb.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName)); };
+const sav321Szuro = { penz: 'mind', karr: 'mind' };
 function sav321Render(l, tbId, dbId, ures){
     const tb = document.getElementById(tbId); if(!tb || sav321Szerk(tb)) return;
-    const list = hetSorok(l);
-    tb.innerHTML = list.length ? list.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('') : `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`;
-    const db = document.getElementById(dbId); if(db) db.textContent = `${list.length} / ${HET_SOR[l]}`;
+    const list = hetSorok(l), e = x => x.r[HET_MEZO[l].e] || 'pending';
+    const db = { ok: list.filter(x => e(x) === 'ok').length, no: list.filter(x => e(x) === 'no').length }; db.pending = list.length - db.ok - db.no;
+    // felül: színes állapotsáv + szűrő (az oldalsáv kompakt nézete)
+    const wrap = tb.closest('.tbl-scroll');
+    let fej = wrap && wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('s3-fej') ? wrap.previousElementSibling : null;
+    if(wrap && !fej){ fej = document.createElement('div'); fej.className = 's3-fej'; wrap.before(fej); }
+    if(sav321Szuro[l] !== 'mind' && !db[sav321Szuro[l]]) sav321Szuro[l] = 'mind';
+    const cel = HET_SOR[l], pc = n => Math.min(100, n / Math.max(cel, list.length, 1) * 100);
+    if(fej) fej.innerHTML = list.length ? `<div class="s3-sav" title="${db.ok} lebeszélve · ${db.no} nem sikerült · ${db.pending} még nincs"><i style="width:${pc(db.ok)}%;background:#16a34a"></i><i style="width:${pc(db.no)}%;background:#dc2626"></i></div>
+        <div class="s3-szuro">${[['mind', `Mind ${list.length}`], ['pending', `Még nincs ${db.pending}`], ['ok', `✓ ${db.ok}`], ['no', `✕ ${db.no}`]].map(([k, n]) =>
+            `<button type="button" data-s3sz="${l}:${k}" class="${sav321Szuro[l] === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : '';
+    const lat = sav321Szuro[l] === 'mind' ? list : list.filter(x => e(x) === sav321Szuro[l]);
+    tb.innerHTML = lat.length ? lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('') : `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`;
+    const dbEl = document.getElementById(dbId); if(dbEl) dbEl.textContent = `${list.length} / ${HET_SOR[l]}`;
     capTableRows(tb);
 }
 function renderMoney(){ sav321Render('penz', 'moneyTable', 'moneyDb', 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'); }
@@ -12148,6 +12187,9 @@ wire('infoList','info');
 ['moneyTable', 'careerTable'].forEach(id => {
     const tb = document.getElementById(id);
     tb.addEventListener('click', e=>{
+        const rb=e.target.closest('[data-h321r]');
+        if(rb){ const [l, gi, v]=rb.dataset.h321r.split(':'); const r=registry[+gi]; if(!r) return;
+            r[HET_MEZO[l].e]=v; store.save('sf_registry', registry); persistReg(+gi); (l === 'penz' ? renderMoney : renderCareer)(); return; }
         const ee=e.target.closest('[data-h321e]'); if(!ee) return;
         const [l, gi]=ee.dataset.h321e.split(':'); const r=registry[+gi]; if(!r) return; const k=HET_MEZO[l].e;
         r[k]=cycleRes(r[k]||'pending'); ee.innerHTML=resBadge(r[k]); store.save('sf_registry', registry); persistReg(+gi);
@@ -12159,6 +12201,8 @@ wire('infoList','info');
         clearTimeout(window.__s321T); window.__s321T=setTimeout(()=>{ store.save('sf_registry', registry); persistReg(+gi); }, t.tagName==='SELECT' ? 0 : 600);
     });
     tb.addEventListener('focusout', ()=> setTimeout(()=>{ if(!sav321Szerk(tb)) (id === 'moneyTable' ? renderMoney : renderCareer)(); }, 0));
+    tb.closest('.sav-321')?.addEventListener('click', e=>{ const b=e.target.closest('[data-s3sz]'); if(!b) return;
+        const [l, k]=b.dataset.s3sz.split(':'); sav321Szuro[l]=k; (l === 'penz' ? renderMoney : renderCareer)(); });
 });
 
 // ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
@@ -12283,7 +12327,7 @@ window.sfSelectView = function(v, kesleltet){
     const target = SF_SIDE_VIEWS[v] ? v : 'sikerfuzet';
     const targetBtn = document.getElementById(SF_SIDE_VIEWS[target].btn);
     const alreadyActive = targetBtn && targetBtn.classList.contains('active');
-    if(alreadyActive && panel && !panel.classList.contains('collapsed')){
+    if(alreadyActive && !kesleltet && panel && !panel.classList.contains('collapsed')){   // induláskor (kesleltet) nem csukjuk össze
         panel.classList.add('collapsed');
         if(content) content.classList.add('side-collapsed');
         store.save('sf_side_collapsed', true);
@@ -12312,6 +12356,8 @@ window.sfSelectView = function(v, kesleltet){
 // a Mai nap panel megszűnt: aki azon hagyta, a Sikerfüzetet kapja
 if(store.load('sf_side_view', 'sikerfuzet') === 'mainap') store.save('sf_side_view', 'sikerfuzet');
 sfSelectView(store.load('sf_side_view', 'sikerfuzet'), true);
+// egyszeri javítás: a Mai nap kivétele után induláskor tévesen összecsukódott (és így mentődött) az oldalsáv
+if(!store.load('sf_side_fix1', false)){ store.save('sf_side_fix1', true); store.save('sf_side_collapsed', false); }
 if(store.load('sf_side_collapsed', false)){
     const p = document.getElementById('sidePanel'), c = document.querySelector('.content');
     if(p) p.classList.add('collapsed');
