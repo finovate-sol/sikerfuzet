@@ -12097,11 +12097,13 @@ function sav321Render(l, tbId, dbId, ures){
     capTableRows(tb);
     if(typeof window.sfStatTp === 'function') window.sfStatTp();
 }
-// Statisztikák „TP” doboza: a TP-vel jelölt ügyfelek + munkatárs-jelöltek száma (a 3-2-1 listákból)
+// Statisztikák „K” (kontaktus) doboza: a 3-2-1 és a Saját KARRIEREM listában elért személyek –
+// akinél már van eredmény (✓ sikeres vagy ✕ sikertelen)
 window.sfStatTp = function(){
     const el = document.getElementById('statTp'); if(!el) return;
-    const u = hetSorok('penz').length, m = hetSorok('karr').length;
-    el.innerHTML = `<div class="stat-label">TP</div><div class="stat-num">${u + m}</div><span class="trend flat">${u} ügyfél + ${m} MT</span><div class="stat-sub">TP-vel jelölt ügyfél + munkatárs-jelölt</div>`;
+    let ok = 0, no = 0;
+    ['penz', 'karr'].forEach(l => hetSorok(l).forEach(({ r }) => { const e = r[HET_MEZO[l].e]; if(e === 'ok') ok++; else if(e === 'no') no++; }));
+    el.innerHTML = `<div class="stat-label">K</div><div class="stat-num">${ok + no}</div><span class="trend flat">✓ ${ok} · ✕ ${no}</span><div class="stat-sub">elért kontaktus (sikeres + sikertelen)</div>`;
 };
 function renderMoney(){ sav321Render('penz', 'moneyTable', 'moneyDb', 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'); }
 // ===== RENDER: KARRIEREM (a 2 órás füzet TP jelöléséből) =====
@@ -35556,13 +35558,13 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 if(d >= thisStart && d < thisEnd) cur[ti]++;
                 else if(d >= lastStart && d < thisStart) prev[ti]++;
             });
-            grid.innerHTML = STAT_TYPES.map((t,i) => {
+            grid.innerHTML = `<div class="stat" id="statTp" title="Kontaktus: a 3-2-1 (Saját PÉNZEM) és a Saját KARRIEREM listában elért személyek – sikeres (✓) vagy sikertelen (✕) eredménnyel"></div>` + STAT_TYPES.map((t,i) => {
                 const diff = cur[i] - prev[i];
                 const cls = diff > 0 ? "" : (diff < 0 ? " down" : " flat");
                 const arrow = diff > 0 ? "▲" : (diff < 0 ? "▼" : "=");
                 const txt = diff === 0 ? "±0" : (diff > 0 ? "+" : "") + diff;
                 return `<div class="stat"><div class="stat-label">${t.label}</div><div class="stat-num">${cur[i]}</div><span class="trend${cls}">${arrow} ${txt}</span><div class="stat-sub">az előző héthez képest</div></div>`;
-            }).join("") + `<div class="stat" id="statTp" title="TP-vel jelölt ügyfelek (Saját PÉNZEM) + munkatárs-jelöltek (Saját KARRIEREM)"></div>`;
+            }).join("");
             if(typeof window.sfStatTp === "function") window.sfStatTp();
         } catch(e){ /* csendes hiba – marad a helykitöltő */ }
         finally { statsBusy = false; }
