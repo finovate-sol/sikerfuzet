@@ -12095,7 +12095,14 @@ function sav321Render(l, tbId, dbId, ures){
     tb.innerHTML = lat.length ? lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('') : `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`;
     const dbEl = document.getElementById(dbId); if(dbEl) dbEl.textContent = `${list.length} / ${HET_SOR[l]}`;
     capTableRows(tb);
+    if(typeof window.sfStatTp === 'function') window.sfStatTp();
 }
+// Statisztikák „TP” doboza: a TP-vel jelölt ügyfelek + munkatárs-jelöltek száma (a 3-2-1 listákból)
+window.sfStatTp = function(){
+    const el = document.getElementById('statTp'); if(!el) return;
+    const u = hetSorok('penz').length, m = hetSorok('karr').length;
+    el.innerHTML = `<div class="stat-label">TP</div><div class="stat-num">${u + m}</div><span class="trend flat">${u} ügyfél + ${m} MT</span><div class="stat-sub">TP-vel jelölt ügyfél + munkatárs-jelölt</div>`;
+};
 function renderMoney(){ sav321Render('penz', 'moneyTable', 'moneyDb', 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'); }
 // ===== RENDER: KARRIEREM (a 2 órás füzet TP jelöléséből) =====
 function renderCareer(){ sav321Render('karr', 'careerTable', 'careerDb', 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.'); }
@@ -35514,7 +35521,6 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         { label:"TA", test: s => ["TA"].some(c => s.includes("(" + c + ")")) },
         { label:"SZ", test: s => ["SZ"].some(c => s.includes("(" + c + ")")) },
         { label:"F",  test: s => ["F1","F2"].some(c => s.includes("(" + c + ")")) },
-        { label:"TP", test: s => /telefonparty/i.test(s) },
     ];
     function statTypeOf(summary){
         const s = summary || "";
@@ -35556,7 +35562,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 const arrow = diff > 0 ? "▲" : (diff < 0 ? "▼" : "=");
                 const txt = diff === 0 ? "±0" : (diff > 0 ? "+" : "") + diff;
                 return `<div class="stat"><div class="stat-label">${t.label}</div><div class="stat-num">${cur[i]}</div><span class="trend${cls}">${arrow} ${txt}</span><div class="stat-sub">az előző héthez képest</div></div>`;
-            }).join("");
+            }).join("") + `<div class="stat" id="statTp" title="TP-vel jelölt ügyfelek (Saját PÉNZEM) + munkatárs-jelöltek (Saját KARRIEREM)"></div>`;
+            if(typeof window.sfStatTp === "function") window.sfStatTp();
         } catch(e){ /* csendes hiba – marad a helykitöltő */ }
         finally { statsBusy = false; }
     }
