@@ -25437,7 +25437,7 @@ function ugyletekHtml(i){
         ${l.length ? `<div class="ugy-tbl-w"><table class="ugy-tbl"><colgroup><col style="width:17%"><col style="width:10%"><col style="width:11%"><col style="width:7%"><col style="width:9%"><col style="width:13%"><col style="width:13%"><col><col style="width:32px"></colgroup><thead><tr><th>Termék</th><th>Díj (Ft)</th><th>Gyakoriság</th><th>EH</th><th>Esély</th><th>Állapot</th><th>Hónap</th><th>Megjegyzés</th><th></th></tr></thead><tbody>
             ${l.map((u, j) => `<tr class="ugy-${esc(u.allapot || 'nyitott')}">
                 <td><input data-ugy="${i}:${j}:termek" value="${esc(u.termek || '')}" list="ugyTermekLista"></td>
-                <td><input data-ugy="${i}:${j}:dij" value="${esc(u.dij ?? '')}" inputmode="decimal" class="sz"></td>
+                <td><input data-ugy="${i}:${j}:dij" value="${esc(u.dij === '' || u.dij == null ? '' : ugySzam(u.dij).toLocaleString('hu-HU'))}" inputmode="decimal" class="sz"></td>
                 <td>${sel(j, 'gyak', [['', '—'], ...UGY_GYAK.map(x => [x, x])], u.gyak)}</td>
                 <td><input data-ugy="${i}:${j}:eh" value="${esc(u.eh ?? '')}" inputmode="decimal" class="sz kicsi"></td>
                 <td>${sel(j, 'esely', UGY_ESELY.map(x => [x, x + '%']), u.esely ?? '')}</td>
@@ -44092,6 +44092,15 @@ Vállalkozás nyitásának átbeszélése`, '']
             });
             return l;
         }
+        // munkatárs ↔ fiók: pontos név, vagy a táblázatbeli név minden szava benne van a fiók nevében
+        // („Somogyi Mátyás” = „Mátyás András Somogyi”)
+        function plEmpKeres(n){
+            const k = nameKey(n); if(!k) return null;
+            const pontos = emps.find(x => nameKey(x.name) === k); if(pontos) return pontos;
+            const sz = k.split(' ').filter(w => w.length > 1); if(sz.length < 2) return null;
+            const jo = emps.filter(x => { const t = new Set(nameKey(x.name).split(' ')); return sz.every(w => t.has(w)); });
+            return jo.length === 1 ? jo[0] : null;
+        }
         function plElonezet(sorok){
             if(!sorok || !sorok.length){ impErr('Ebben az Excelben nem találtam „Ügyfél” és „Termék” fejlécű pipeline-táblát.'); return; }
             const ugyf = plUgyfelek(sorok);
@@ -44111,7 +44120,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <p style="font-size:12px;color:var(--muted);margin:0 0 8px;">A „Munkatárs” a táblázatból jön. Ha a munkatárs már regisztrált, ő lesz a kezelő; akinek még nincs fiókja, annak ügyfelei a fent kiválasztott kezelőhöz kerülnek (később átadhatók).</p>
                 <div style="overflow:auto;max-height:300px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
                     <thead><tr style="background:var(--bg);"><th style="text-align:left;padding:7px 8px;">Munkatárs (táblázat)</th><th style="text-align:left;padding:7px 8px;">Ügyfél</th><th style="text-align:left;padding:7px 8px;">Kezelő</th></tr></thead>
-                    <tbody>${mtk.map(n => { const e = emps.find(x => nameKey(x.name) === nameKey(n));
+                    <tbody>${mtk.map(n => { const e = plEmpKeres(n);
                         return `<tr><td ${td}>${escM(n || '(nincs megadva)')}</td><td ${td}>${ugyf.filter(u => (u.munkatars || '') === n).length}</td><td ${td}><select data-plmt="${escM(n)}" style="padding:5px 8px;border:1px solid var(--border);border-radius:7px;font:inherit;">${empOpts(e ? e.uid : '')}</select></td></tr>`; }).join('')}</tbody></table></div>
                 <button class="btn primary" id="plGo" style="background:var(--blue);color:#fff;border-color:var(--blue);">Mehet: ${ujDb} új ügyfél, ${ugyf.length - ujDb} kiegészítés</button>
                 <span id="impStat" style="margin-left:12px;font-size:12px;color:var(--muted);"></span>`;
