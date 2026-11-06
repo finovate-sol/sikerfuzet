@@ -45408,6 +45408,19 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-elo h3 { margin:0 0 4px; font-size:15px; color:var(--navy); } .tv-elo p { margin:0 0 10px; font-size:12.5px; color:var(--muted); }
 .tv-lapok { display:grid; grid-template-columns:1fr; gap:14px; flex:1 1 auto; min-height:180px; overflow-y:auto; padding:2px 6px 2px 2px; scroll-snap-type:y proximity; }
 .tv-lapok .tv-lk { scroll-snap-align:start; }
+/* 1–2. lépés: teljes szélesség (az előnézet külön lépés) */
+.tv-lay.tv-egy { grid-template-columns:minmax(0,1fr); } .tv-lay.tv-egy > .tv-elo { display:none; }
+.tv-kartya > h4.tv-al { margin:22px 0 12px; padding-top:16px; border-top:1px solid #eef0f3; font-size:15px; color:var(--navy); }
+/* 3. lépés: Előnézet – az oldalak rácsban, áthúzással rendezhetők */
+.tv-lay.tv-elo-lepes { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); }
+.tv-elo-lepes > .tv-elo { position:static; min-height:0; }
+.tv-elo-fej { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; } .tv-elo-fej p { margin:2px 0 0; }
+.tv-lapok.tv-racs { grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:18px 14px; scroll-snap-type:none; padding:4px; }
+.tv-racs .tv-lk { cursor:grab; border-radius:6px; padding:4px; transition:background .12s, box-shadow .12s; }
+.tv-racs .tv-lk.huzva { opacity:.4; } .tv-racs .tv-lk.cel { background:#eef4ff; box-shadow:0 0 0 2px #2563eb inset; }
+.tv-lk-mozg { position:absolute; left:10px; top:10px; z-index:2; display:flex; gap:3px; opacity:0; transition:opacity .12s; }
+.tv-lk:hover .tv-lk-mozg { opacity:1; }
+.tv-lk-mozg button { width:24px; height:24px; border:1px solid #d6dde8; background:rgba(255,255,255,.95); border-radius:7px; font:inherit; font-weight:800; color:#1f3b63; cursor:pointer; padding:0; line-height:1; }
 .tv-gombok { display:flex; gap:8px; margin-top:12px; } .tv-gombok .btn { flex:1; justify-content:center; }
 .tv-lk { position:relative; }
 .tv-lk-ki { position:absolute; top:8px; right:8px; z-index:2; border:1px solid #d6dde8; background:rgba(255,255,255,.94); color:#b42318; font:inherit; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; cursor:pointer; box-shadow:0 2px 6px rgba(0,20,50,.12); opacity:.85; }
@@ -45574,6 +45587,7 @@ let tvAj = [], tvHiba = '', tvFut = '';
 let tvLepes = 1;   // a bal oldal lépésenként: 1 kalkulációk, 2 ügyfél, 3 tartalom
 // a PDF-ből kihagyott oldalak (az oldal kulcsa szerint) – új kalkuláció betöltésekor nem nullázódik, a kulcs a tartalmat követi
 const tvKihagy = new Set();
+let tvSorrend = [];   // az oldalak kézi sorrendje (oldalkulcsok) – az Előnézet lépésben állítható
 let tvAlap = store.load('sf_tv_alap', null) || { ugyfel: '', hely: 'Budapest', tan: { nev: '', mnb: '', tel: '', email: '' },
     opc: { eloszo: true, kesobb: true, bizt: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
 if(tvAlap.opc.bizt == null) tvAlap.opc.bizt = true;
@@ -45918,9 +45932,16 @@ function tvLapok(){
     // oldalkulcs (ismétlődő név esetén sorszámmal), kihagyás jelölése, oldalszámok
     const db = {}; let n = 0;
     // ajánlat oldalainál a kulcs: azonosító + oldaltípus (a megjelenő név változhat)
-    L.forEach(l => { const k0 = l.aj ? l.aj + '|' + l.nev.split(' – ')[0] : l.nev; db[k0] = (db[k0] || 0) + 1; l.kulcs = db[k0] > 1 ? `${k0} #${db[k0]}` : k0; l.ki = tvKihagy.has(l.kulcs);
-        l.html = l.html.split('%%LAPSZAM%%').join(l.ki ? '' : String(++n)); });
-    return L;
+    L.forEach(l => { const k0 = l.aj ? l.aj + '|' + l.nev.split(' – ')[0] : l.nev; db[k0] = (db[k0] || 0) + 1; l.kulcs = db[k0] > 1 ? `${k0} #${db[k0]}` : k0; });
+    // kézi sorrend (az Előnézet lépésben áthúzással): az ismert oldalak a mentett sorrendben, az újak az eredeti szomszédjuk után
+    let R = L;
+    if(tvSorrend.length){
+        const hely = new Map(tvSorrend.map((k, i) => [k, i]));
+        R = L.filter(l => hely.has(l.kulcs)).sort((x, y) => hely.get(x.kulcs) - hely.get(y.kulcs));
+        L.forEach((l, i) => { if(hely.has(l.kulcs)) return; const elotte = i > 0 ? R.indexOf(L[i - 1]) : -1; R.splice(elotte + 1, 0, l); });
+    }
+    R.forEach(l => { l.ki = tvKihagy.has(l.kulcs); l.html = l.html.split('%%LAPSZAM%%').join(l.ki ? '' : String(++n)); });
+    return R;
 }
 
 // ---- az oldal (űrlap + élő előnézet) ----
@@ -45974,14 +45995,21 @@ function renderTervezet(){
         ${o.baleset ? `<div class="tv-csomag">${TV_BG.csomagok.map((c, j) => `<button type="button" data-tvcsomag="${c}" class="${tvCsomagIdx() === j ? 'on' : ''}">${c} · ${tvFt(TV_BG.dij[j])} Ft/év</button>`).join('')}</div>` : ''}
         ${kap('zarszo', 'Zárszó', 'a neveddel és az elérhetőségeddel')}</div></div>`;
     // lépésenként: fent a három fül (állapottal), alattuk csak az aktív lépés kártyája
-    const allapot = [tvAj.length ? `${tvAj.length} kalkuláció` : 'nincs még', esc(tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '–'), tvAj.length ? `${tvLapok().filter(l => !l.ki).length} oldal` : '–'];
-    const tovabb = n => n < 3 ? `<div class="tv-tovabb"><button type="button" class="btn" data-tvlepes="${n + 1}">Tovább: ${['', 'Ügyfél és tanácsadó', 'Mi kerüljön bele?'][n]} ›</button></div>` : '';
-    const bal = `<div class="tv-lepesek">${[['1', 'Kalkulációk'], ['2', 'Ügyfél'], ['3', 'Tartalom']].map(([n, c], j) => `<button type="button" data-tvlepes="${n}" class="${tvLepes === +n ? 'on' : ''}"><i>${n}</i><span><b>${c}</b><small>${allapot[j]}</small></span></button>`).join('')}</div>
-            ${[K1, K2, K3][tvLepes - 1].replace(/<\/div>\s*$/, '')}${tovabb(tvLepes)}</div>`;
+    if(tvLepes > 3) tvLepes = 3;
+    const lapDb = tvAj.length ? tvLapok().filter(l => !l.ki).length : 0;
+    const allapot = [`${tvAj.length ? tvAj.length + ' kalkuláció' : 'nincs még'} · ${esc(tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '–')}`, tvAj.length ? `${lapDb} oldal` : '–', tvAj.length ? 'sorrend, ki / be' : '–'];
+    const tovabb = n => n < 3 ? `<div class="tv-tovabb"><button type="button" class="btn" data-tvlepes="${n + 1}">Tovább: ${['', 'Tartalom', 'Előnézet'][n]} ›</button></div>` : '';
+    // 1. lépés: a kalkulációk és az ügyfél / tanácsadó egy kártyán
+    const K12 = K1.replace(/<\/div>\s*$/, '') + `<h4 class="tv-al">Ügyfél és tanácsadó</h4>` + K2.replace(/^<div class="tv-kartya"><h3>.*?<\/h3>/, '').replace(/<\/div>\s*$/, '') + '</div>';
+    const fulek = `<div class="tv-lepesek">${[['1', 'Kalkulációk és ügyfél'], ['2', 'Tartalom'], ['3', 'Előnézet']].map(([n, c], j) => `<button type="button" data-tvlepes="${n}" class="${tvLepes === +n ? 'on' : ''}"><i>${n}</i><span><b>${c}</b><small>${allapot[j]}</small></span></button>`).join('')}</div>`;
+    const eloLepes = tvLepes === 3;
+    const bal = eloLepes ? '' : `${fulek}${[K12, K3][tvLepes - 1].replace(/<\/div>\s*$/, '')}${tovabb(tvLepes)}</div>`;
     host.innerHTML = `<div class="pg-hero"><div class="pg-hero-txt"><h2>Tervezet-készítő</h2><p>OVB-s kalkulációból személyes pénzügyi tervezet PDF-ben</p></div></div>
-    <div class="tv-lay tv-n-lepes"><div>${bal}</div>
-    <div class="tv-elo"><h3>Előnézet</h3><p>${tvAj.length ? 'A kalkuláció oldalai változtatás nélkül kerülnek bele.' : 'Tölts fel egy kalkulációt.'}</p>
-      <div class="tv-lapok" id="tvLapok"></div>
+    ${eloLepes ? `<div class="tv-lay tv-n-lepes tv-elo-lepes"><div>${fulek}</div>
+    <div class="tv-elo"><div class="tv-elo-fej"><div><h3>Előnézet</h3><p>${tvAj.length ? `${lapDb} oldal kerül a PDF-be. Húzd az oldalakat a sorrend módosításához; a ✕ gombbal kihagyhatod őket. A kalkuláció oldalai változtatás nélkül kerülnek bele.` : 'Tölts fel egy kalkulációt az 1. lépésben.'}</p></div>
+        ${tvSorrend.length ? '<button type="button" class="btn" data-tvsorvissza>↺ Eredeti sorrend</button>' : ''}</div>
+      <div class="tv-lapok tv-racs" id="tvLapok"></div>` : `<div class="tv-lay tv-n-lepes tv-egy"><div>${bal}</div>
+    <div class="tv-elo" hidden><div class="tv-lapok" id="tvLapok"></div>`}
       <div class="tv-gombok"><button type="button" class="btn" id="tvMegnez"${tvAj.length ? '' : ' disabled'}>Előnézet</button><button type="button" class="btn primary" id="tvLetolt"${tvAj.length ? '' : ' disabled'}>PDF letöltése</button></div><div class="tv-allapot" id="tvAllapot"></div></div></div>`;
     tvElonezet(); tvEloMeret();
 }
@@ -46001,7 +46029,9 @@ function tvElonezet(){
     const host = document.getElementById('tvLapok'); if(!host) return;
     if(!tvAj.length){ host.innerHTML = ''; return; }
     let n = 0;
-    host.innerHTML = tvLapok().map((l, i) => `<div class="tv-lk${l.ki ? ' ki' : ''}"><div class="tv-sk" data-tvsk="${i}">${l.html || ''}</div>
+    if(tvLepes !== 3){ host.innerHTML = ''; return; }
+    host.innerHTML = tvLapok().map((l, i) => `<div class="tv-lk${l.ki ? ' ki' : ''}" draggable="true" data-tvlk="${esc(l.kulcs)}" title="Húzd a sorrend módosításához"><div class="tv-sk" data-tvsk="${i}">${l.html || ''}</div>
+        <span class="tv-lk-mozg"><button type="button" data-tvmozg="-1" data-k="${esc(l.kulcs)}" title="Előrébb">‹</button><button type="button" data-tvmozg="1" data-k="${esc(l.kulcs)}" title="Hátrébb">›</button></span>
         <button type="button" class="tv-lk-ki" data-tvkihagy="${esc(l.kulcs)}" title="${l.ki ? 'Visszakerül a PDF-be' : 'Ez az oldal nem kerül a PDF-be'}">${l.ki ? '↺ Visszarakás' : '✕ Kihagyás'}</button>
         <span>${l.ki ? '<s>' + esc(l.nev) + '</s> · kihagyva' : `${++n}. ${esc(l.nev)}`}</span></div>`).join('');
     const sk = host.querySelector('.tv-sk'); const sc = sk ? sk.clientWidth / 595 : .25;
@@ -46044,6 +46074,27 @@ async function tvKepRajz(doc, p, k, tar){
     } catch(e){}
 }
 // megnez: a kész PDF új lapon nyílik meg (letöltés nélkül) – így pontosan az látszik, ami kigenerálódik
+// oldalak sorrendje az Előnézet lépésben: áthúzás vagy ‹ › gombok
+function tvLapMozgat(kulcs, d, ele){
+    const l = tvLapok().map(x => x.kulcs), i = l.indexOf(kulcs); if(i < 0) return;
+    l.splice(i, 1);
+    let j = ele != null ? l.indexOf(ele) : i + d;
+    if(ele != null && j < 0) j = l.length;
+    l.splice(Math.max(0, Math.min(l.length, j)), 0, kulcs);
+    tvSorrend = l; renderTervezet();
+}
+(function(){
+    let huz = null;
+    document.addEventListener('dragstart', e => { const lk = e.target.closest && e.target.closest('#tvLapok [data-tvlk]'); if(!lk) return;
+        huz = lk.dataset.tvlk; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', huz); } catch(_){} lk.classList.add('huzva'); });
+    document.addEventListener('dragover', e => { if(!huz) return; const lk = e.target.closest && e.target.closest('#tvLapok [data-tvlk]'); if(!lk) return;
+        e.preventDefault(); document.querySelectorAll('#tvLapok .cel').forEach(x => x !== lk && x.classList.remove('cel')); lk.classList.add('cel'); });
+    document.addEventListener('drop', e => { if(!huz) return; const lk = e.target.closest && e.target.closest('#tvLapok [data-tvlk]'); e.preventDefault();
+        const k = huz; huz = null; if(lk && lk.dataset.tvlk !== k){ const r = lk.getBoundingClientRect(), utana = e.clientX > r.left + r.width / 2;
+            const l = tvLapok().map(x => x.kulcs).filter(x => x !== k), j = l.indexOf(lk.dataset.tvlk) + (utana ? 1 : 0);
+            tvLapMozgat(k, 0, l[j] != null ? l[j] : null); } else renderTervezet(); });
+    document.addEventListener('dragend', () => { huz = null; document.querySelectorAll('#tvLapok .huzva, #tvLapok .cel').forEach(x => x.classList.remove('huzva', 'cel')); });
+})();
 async function tvLetolt(megnez){
     const all = document.getElementById('tvAllapot'), gomb = document.getElementById(megnez ? 'tvMegnez' : 'tvLetolt');
     const ablak = megnez ? window.open('', '_blank') : null;   // még a kattintáskor, különben a böngésző letiltja
@@ -46135,6 +46186,8 @@ document.addEventListener('click', e => {
     const an = e.target.closest('[data-tvajnyit]'); if(an && !e.target.closest('[data-tvtorol]')){ const a = tvAj[+an.dataset.tvajnyit];
         a._nyit = !(a._nyit != null ? a._nyit : tvAj.length === 1); renderTervezet(); return; }
     const lp = e.target.closest('[data-tvlepes]'); if(lp){ tvLepes = +lp.dataset.tvlepes; renderTervezet(); return; }
+    if(e.target.closest('[data-tvsorvissza]')){ tvSorrend = []; renderTervezet(); return; }
+    const mz = e.target.closest('[data-tvmozg]'); if(mz){ tvLapMozgat(mz.dataset.k, +mz.dataset.tvmozg); return; }
     const kh = e.target.closest('[data-tvkihagy]'); if(kh){ const k = kh.dataset.tvkihagy; if(tvKihagy.has(k)) tvKihagy.delete(k); else tvKihagy.add(k);
         const lp = document.getElementById('tvLapok'), poz = lp ? lp.scrollTop : 0; tvElonezet(); if(lp) lp.scrollTop = poz; return; }
     const ce = e.target.closest('[data-tvcel]'); if(ce){ tvAlap.cel = ce.dataset.tvcel; tvCelKezi = true; tvMent(); renderTervezet(); return; }
