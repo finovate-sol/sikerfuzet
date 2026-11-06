@@ -3397,10 +3397,10 @@
         #sideViewSikerfuzet h2, #sideViewSikerfuzet h3 { color:#0b2a55 !important; }
         #sideViewSikerfuzet .het-db { background:#0b2a55 !important; color:#fff !important; }
         #sideViewSikerfuzet .goals-bar { background:#e2e8f0 !important; } #sideViewSikerfuzet .goals-bar span { background:#2563eb !important; }
-        #sideViewSikerfuzet .s3-szuro button { border-color:#cbd5e1; color:#334155; } #sideViewSikerfuzet .s3-szuro button.on { background:#0b2a55; border-color:#0b2a55; color:#fff; }
-        #sideViewSikerfuzet .sav-321 .het-tbl tr + tr td { border-top:1px solid #edf0f4; }
-        #sideViewSikerfuzet .s3-tel { color:#475569; } #sideViewSikerfuzet .s3-seg { border-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button + button { border-left-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button { color:#64748b; }
-        #sideViewSikerfuzet .s3-seg .ok.on { background:#16a34a; color:#fff; } #sideViewSikerfuzet .s3-seg .no.on { background:#dc2626; color:#fff; } #sideViewSikerfuzet .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
+        :is(#sideViewSikerfuzet, .s3-havi) .s3-szuro button { border-color:#cbd5e1; color:#334155; } :is(#sideViewSikerfuzet, .s3-havi) .s3-szuro button.on { background:#0b2a55; border-color:#0b2a55; color:#fff; }
+        :is(#sideViewSikerfuzet, .s3-havi) .sav-321 .het-tbl tr + tr td { border-top:1px solid #edf0f4; }
+        :is(#sideViewSikerfuzet, .s3-havi) .s3-tel { color:#475569; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg { border-color:#cbd5e1; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg button + button { border-left-color:#cbd5e1; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg button { color:#64748b; }
+        :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .ok.on { background:#16a34a; color:#fff; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .no.on { background:#dc2626; color:#fff; } :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
         #sideViewSikerfuzet .stats-grid .stat { background:#f1f5f9 !important; border:1px solid #e2e8f0 !important; } #sideViewSikerfuzet .stat-num { color:#0b2a55 !important; }
         /* Ügyletek fül */
         .evb-hely-gy { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
@@ -12144,20 +12144,25 @@ const hetSorok = l => registry.map((r, gi) => ({ r, gi })).filter(x => x.r && x.
 // gépelés közben nem rajzoljuk újra (elveszne a fókusz) – a mező értéke már a rekordon van
 const sav321Szerk = tb => { const a = document.activeElement; return !!(a && tb.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName)); };
 const sav321Szuro = { penz: 'mind', karr: 'mind' };
+// a kompakt 3-2-1 lista feje (állapotsáv + szűrő) és a szűrt sorok – az oldalsáv és a Havi terv „Aktuális hét” közös része
+function sav321Fej(l, list){
+    const e = x => x.r[HET_MEZO[l].e] || 'pending';
+    const db = { ok: list.filter(x => e(x) === 'ok').length, no: list.filter(x => e(x) === 'no').length }; db.pending = list.length - db.ok - db.no;
+    if(sav321Szuro[l] !== 'mind' && !db[sav321Szuro[l]]) sav321Szuro[l] = 'mind';
+    const cel = HET_SOR[l], pc = n => Math.min(100, n / Math.max(cel, list.length, 1) * 100);
+    const html = list.length ? `<div class="s3-sav" title="${db.ok} lebeszélve · ${db.no} nem sikerült · ${db.pending} még nincs"><i style="width:${pc(db.ok)}%;background:#16a34a"></i><i style="width:${pc(db.no)}%;background:#dc2626"></i></div>
+        <div class="s3-szuro">${[['mind', `Mind ${list.length}`], ['pending', `Még nincs ${db.pending}`], ['ok', `✓ ${db.ok}`], ['no', `✕ ${db.no}`]].map(([k, n]) =>
+            `<button type="button" data-s3sz="${l}:${k}" class="${sav321Szuro[l] === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : '';
+    return { html, lat: sav321Szuro[l] === 'mind' ? list : list.filter(x => e(x) === sav321Szuro[l]) };
+}
 function sav321Render(l, tbId, dbId, ures){
     const tb = document.getElementById(tbId); if(!tb || sav321Szerk(tb)) return;
-    const list = hetSorok(l), e = x => x.r[HET_MEZO[l].e] || 'pending';
-    const db = { ok: list.filter(x => e(x) === 'ok').length, no: list.filter(x => e(x) === 'no').length }; db.pending = list.length - db.ok - db.no;
-    // felül: színes állapotsáv + szűrő (az oldalsáv kompakt nézete)
+    const list = hetSorok(l);
     const wrap = tb.closest('.tbl-scroll');
     let fej = wrap && wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('s3-fej') ? wrap.previousElementSibling : null;
     if(wrap && !fej){ fej = document.createElement('div'); fej.className = 's3-fej'; wrap.before(fej); }
-    if(sav321Szuro[l] !== 'mind' && !db[sav321Szuro[l]]) sav321Szuro[l] = 'mind';
-    const cel = HET_SOR[l], pc = n => Math.min(100, n / Math.max(cel, list.length, 1) * 100);
-    if(fej) fej.innerHTML = list.length ? `<div class="s3-sav" title="${db.ok} lebeszélve · ${db.no} nem sikerült · ${db.pending} még nincs"><i style="width:${pc(db.ok)}%;background:#16a34a"></i><i style="width:${pc(db.no)}%;background:#dc2626"></i></div>
-        <div class="s3-szuro">${[['mind', `Mind ${list.length}`], ['pending', `Még nincs ${db.pending}`], ['ok', `✓ ${db.ok}`], ['no', `✕ ${db.no}`]].map(([k, n]) =>
-            `<button type="button" data-s3sz="${l}:${k}" class="${sav321Szuro[l] === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : '';
-    const lat = sav321Szuro[l] === 'mind' ? list : list.filter(x => e(x) === sav321Szuro[l]);
+    const f = sav321Fej(l, list); if(fej) fej.innerHTML = f.html;
+    const lat = f.lat;
     tb.innerHTML = lat.length ? lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('') : `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`;
     const dbEl = document.getElementById(dbId); if(dbEl) dbEl.textContent = `${list.length} / ${HET_SOR[l]}`;
     capTableRows(tb);
@@ -17180,12 +17185,13 @@ function hetLep(d){
     window.sfHetMutat(ho, w);
 }
 function hetListaHtml(l, cim){
-    const m = HET_MEZO[l], lista = hetSorok(l);
-    const sorok = lista.map(({ r, gi }) => het321SorHtml(l, r, gi, false)).join('');
+    const lista = hetSorok(l), f = sav321Fej(l, lista);
+    const sorok = f.lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('');
     const ures = l === 'penz' ? 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.' : 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.';
-    return `<section class="card hv-k het-lista"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} / ${HET_SOR[l]}</span></div>
-        <div class="het-tbl-w"><table class="het-tbl"><thead><tr><th>Név</th><th>Jegyzetek</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead>
-        <tbody>${sorok || `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`}</tbody></table></div></section>`;
+    // ugyanaz a kompakt lista, mint a Sikerfüzet oldalsávjában
+    return `<section class="card hv-k het-lista sav-321 s3-havi"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} / ${HET_SOR[l]}</span></div>
+        <div class="s3-fej">${f.html}</div>
+        <div class="het-tbl-w"><table class="het-tbl"><tbody>${sorok || `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`}</tbody></table></div></section>`;
 }
 function hetFejHtml(){
     const s = hetKezd(hetHo, hetIdx), kw = haviKW(s);
@@ -17363,6 +17369,12 @@ document.getElementById('haviBody').addEventListener('input', e=>{
 document.getElementById('haviBody').addEventListener('click', e=>{
     if(haviNezet!=='het') return;
     const lep=e.target.closest('[data-hetlep]'); if(lep){ hetLep(+lep.dataset.hetlep); return; }
+    const rb=e.target.closest('[data-h321r]');
+    if(rb){ const [l, gi, v]=rb.dataset.h321r.split(':'); const r=registry[+gi]; if(!r) return; r[HET_MEZO[l].e]=v; het321Ment(+gi); renderHavi(); return; }
+    const sz=e.target.closest('[data-s3sz]');
+    if(sz){ const [l, k]=sz.dataset.s3sz.split(':'); sav321Szuro[l]=k; renderHavi(); renderMoney(); renderCareer(); return; }
+    const nv=e.target.closest('.s3-n');
+    if(nv && !e.target.closest('input, select, a, button')){ const tr=nv.closest('tr[data-regidx]'); if(tr && typeof ugyModalNyit === 'function') ugyModalNyit(+tr.dataset.regidx); return; }
     const ee=e.target.closest('[data-h321e]');
     if(ee){ const [l, gi]=ee.dataset.h321e.split(':'); const r=registry[+gi]; if(!r) return; const k=HET_MEZO[l].e;
         r[k]=cycleRes(r[k]||'pending'); ee.innerHTML=resBadge(r[k]); het321Ment(+gi); return; }
