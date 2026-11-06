@@ -43998,6 +43998,10 @@ Vállalkozás nyitásának átbeszélése`, '']
             if(regiTagolt.length){ mi.push('Notion-jegyzet adatokká alakítva'); if(patch.details && !mi.includes('részletek')) mi.push('részletek'); if(patch.celok && !mi.includes('célok')) mi.push('célok'); }
             if(c.kiertekelo && c.kiertekelo.eredmeny && !(ex.kiertekelo && ex.kiertekelo.eredmeny)){
                 patch.kiertekelo = Object.assign({}, ex.kiertekelo || {}, c.kiertekelo); mi.push('kiértékelő'); }
+            // státusz-javítás: a régi (kettébontás előtti) „Lezárt” mind „Lezárt – Ügyfél” lett – a Notion szerinti „Nem ügyfél” ezt helyreteszi;
+            // az üres / „Új” státusz a Notionéből töltődik
+            const exSt = regStatusNorm(ex.status), cSt = c.status || '';
+            if(cSt && cSt !== exSt && ((cSt === 'Lezárt – Nem ügyfél' && exSt === 'Lezárt – Ügyfél') || !exSt || exSt === 'Új')){ patch.status = cSt; mi.push('státusz → ' + cSt); }
             return { patch, mi };
         }
         function impZipElonezet(all){
@@ -44012,7 +44016,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                            ...ujak.map(c => `<tr><td ${td}>${escM(c.name)}</td><td ${td}><span style="color:var(--green);font-weight:600">új</span></td><td ${td}>${c.mt ? '2 órás füzet' : '10 perces füzet'}${(c.jegyzetek || []).length ? ' · jegyzettel' : ''}</td></tr>`)];
             prev.innerHTML = `
                 <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;margin-bottom:12px;">
-                    <span>A ZIP-ben: <b>${all.length}</b> ügyfél</span>
+                    <span>A fájlban: <b>${all.length}</b> ügyfél</span>
                     <span style="color:var(--green);">Új: <b>${ujak.length}</b></span>
                     <span style="color:#1f5fd0;">Kiegészül: <b>${frissit.length}</b></span>
                     <span style="color:var(--muted);">Már minden megvan: <b>${nincs.length}</b></span>
@@ -44282,6 +44286,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                     const idx = {}; head.forEach((h,i) => { if(idx[h] === undefined) idx[h] = i; });
                     all = rows.slice(1).map(r => notionRowToClient(k => (idx[k] === undefined ? '' : r[idx[k]])))
                               .filter(c => c.name);
+                    // CSV: a meglévőket is kiegészíti / a státuszukat javítja (mint a ZIP)
+                    impZipElonezet(all); return;
                 }
                 impPreviewRows(all);
             };
