@@ -581,7 +581,7 @@
         /* A kezdőoldal peremét egy helyen állítjuk: a jobb oldali sáv negatív
            margói ugyanebből dolgoznak, különben elcsúsznának tőle. */
         .content { --cpad-y:6px; --cpad-x:8px;
-                   padding: var(--cpad-y) var(--cpad-x); display: grid; grid-template-columns: 1fr 450px; gap: 14px; align-items:start; }
+                   padding: var(--cpad-y) var(--cpad-x); display: grid; grid-template-columns: 1fr var(--side-w, 450px); gap: 14px; align-items:start; }
         .card.money-card { border: 2px solid var(--green); }
         .card.career-card { border: 2px solid var(--amber); }
         .col-main { display:flex; flex-direction:column; gap:14px; min-width:0; }
@@ -617,7 +617,15 @@
             #page-home .rail-btn:hover { background:#f1f4f9; color:#1f3b63; }
             #page-home .rail-btn.active { background:#e6eefc; color:#2563eb; }
         }
-        .side-panel.collapsed { display:none; }
+.side-panel.collapsed { display:none; }
+        .side-meretezo { display:none; }
+        @media (min-width:1001px){
+            #page-home .side-meretezo { display:block; position:absolute; left:-5px; top:0; bottom:0; width:10px; cursor:col-resize; z-index:30; }
+            #page-home .side-meretezo i { position:absolute; left:3px; top:50%; width:4px; height:44px; margin-top:-22px; border-radius:3px; background:#cbd5e1; opacity:.55; transition:opacity .15s, background .15s; }
+            #page-home .side-meretezo:hover i, body.side-meretez #page-home .side-meretezo i { opacity:1; background:var(--blue); }
+            .content.side-collapsed .side-meretezo { display:none !important; }
+            body.side-meretez, body.side-meretez * { cursor:col-resize !important; user-select:none !important; }
+        }
         @media (min-width:1001px){
             .content.side-collapsed { grid-template-columns: 1fr 46px; }
         }
@@ -1336,7 +1344,7 @@
             .evb-g { display:none; }
             .evb-tip button { flex:none; border:1px solid var(--border); background:var(--card, #fff); border-radius:999px; padding:6px 12px; }
             .evb-tip button.on { border-color:var(--blue); box-shadow:0 0 0 1px var(--blue) inset; }
-            .evb-lab { flex-wrap:wrap; } .evb-allapot { width:100%; } .evb-allapot button { flex:1; justify-content:center; }
+            .evb-lab { flex-wrap:wrap; padding-bottom:calc(18px + env(safe-area-inset-bottom, 0px)); } .evb-allapot { width:100%; } .evb-allapot button { flex:1; justify-content:center; }
             .evb-lab .btn { flex:1; justify-content:center; }
             .evb-naptar { flex-wrap:wrap; } .evb-prio { flex:1 1 100%; margin-left:32px; }
         }
@@ -3308,7 +3316,17 @@
         .het-tbl td strong { display:block; font-size:13px; padding:6px 4px 0; }
         .het-tbl td small { display:block; font-size:11px; color:var(--muted); padding:0 4px 6px; }
         .het-e { text-align:center !important; width:80px; }
-        .het-e .res-cyc { cursor:pointer; }
+.het-e .res-cyc { cursor:pointer; }
+        .h321-nev { display:flex; align-items:center; gap:6px; padding:6px 4px 0; min-width:0; }
+        .h321-nev strong { padding:0 !important; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .het-tbl select.h321-cel { flex:none; width:auto !important; appearance:none; -webkit-appearance:none; border:1px dashed #cbd5e1 !important; border-radius:999px; background:none;
+            padding:0 7px !important; height:19px; font-size:10.5px; font-weight:700; color:#94a3b8; cursor:pointer; line-height:17px; }
+        .het-tbl select.h321-cel[data-v="E"], .het-tbl select.h321-cel[data-v="TA"], .het-tbl select.h321-cel[data-v="SZ"] { border:1px solid #86efac !important; background:#ecfdf3; color:#15803d; }
+        .het-tbl select.h321-cel[data-v="F1"], .het-tbl select.h321-cel[data-v="F2"] { border:1px solid #fdba74 !important; background:#fff7ed; color:#c2410c; }
+        /* a Sikerfüzet oldalsávjában a keskenyebb helyhez */
+        .sav-321 { padding:14px 12px; } .sav-321 .het-tbl { font-size:12px; } .sav-321 .het-tbl th { font-size:10.5px; }
+        .sav-321 .het-tbl td:first-child { width:38%; } .sav-321 .het-e { width:62px; }
+        .sav-321 .het-tbl tbody tr[draggable] { cursor:grab; }
         /* kompakt Havi terv */
         .havi-layout.hv-lay { gap:12px; }
         .hv-lay .hl-left, .hv-oldal { gap:12px; }
@@ -10939,6 +10957,7 @@ try {
 
             <!-- ===== RIGHT COLUMN ===== -->
             <div class="col-side">
+                <div class="side-meretezo" id="sideMeretezo" title="Húzd: az oldalsáv szélessége" role="separator" aria-orientation="vertical" aria-label="Oldalsáv szélessége"><i></i></div>
 
                 <!-- CSÚSZÓ PANEL -->
                 <div class="side-panel" id="sidePanel">
@@ -10963,32 +10982,18 @@ try {
                         </div>
                     </section>
 
-                    <!-- PÉNZEM -->
-                    <section class="card money-card">
-                        <div class="calls-head">
-                            <span class="tag money">3 - 2 - 1</span>
-                            <h2>Saját PÉNZEM</h2>
-                        </div>
-                        <div class="tbl-scroll">
-                            <table>
-                                <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
-                                <tbody id="moneyTable"></tbody>
-                            </table>
-                        </div>
+                    <!-- 3-2-1: ugyanaz, mint a Havi terv „Aktuális hét” nézetében -->
+                    <section class="card hv-k het-lista sav-321">
+                        <div class="hv-k-fej"><h3>3-2-1 · Saját PÉNZEM</h3><span class="het-db" id="moneyDb"></span></div>
+                        <div class="het-tbl-w tbl-scroll"><table class="het-tbl">
+                            <thead><tr><th>Név</th><th>Jegyzetek</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead>
+                            <tbody id="moneyTable"></tbody></table></div>
                     </section>
-
-                    <!-- KARRIEREM -->
-                    <section class="card career-card">
-                        <div class="calls-head">
-                            <span class="tag career">3 - 2 - 1</span>
-                            <h2>Saját KARRIEREM</h2>
-                        </div>
-                        <div class="tbl-scroll">
-                            <table>
-                                <thead><tr><th>Név</th><th>Tel.szám</th><th style="text-align:center;">Eredmény</th></tr></thead>
-                                <tbody id="careerTable"></tbody>
-                            </table>
-                        </div>
+                    <section class="card hv-k het-lista sav-321">
+                        <div class="hv-k-fej"><h3>3-2-1 · Saját KARRIEREM</h3><span class="het-db" id="careerDb"></span></div>
+                        <div class="het-tbl-w tbl-scroll"><table class="het-tbl">
+                            <thead><tr><th>Név</th><th>Jegyzetek</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead>
+                            <tbody id="careerTable"></tbody></table></div>
                     </section>
 
                     <!-- STATISZTIKÁK -->
@@ -11980,28 +11985,38 @@ function capTableRows(tb){
     const head = wrap.querySelector('thead');
     wrap.style.maxHeight = Math.round((head ? head.getBoundingClientRect().height : 0) + h) + 'px';
 }
+// ===== 3-2-1 közös: a Havi terv „Aktuális hét” és a Sikerfüzet oldalsáv ugyanezt használja =====
+const HET_SOR = { penz: 20, karr: 12 };
+const HET_TIPUS = ['Hívás', 'Üzenet', 'Személyes', 'Online'];
+// a lista mezői a nyilvántartás rekordján: zászló, eredmény, jegyzet, típus
+const HET_MEZO = { penz: { tp: 'tp', e: 'resPenz', j: 'tp321j', t: 'tp321t', c: 'tp321c' }, karr: { tp: 'karrierTp', e: 'resKarrier', j: 'kar321j', t: 'kar321t', c: 'kar321c' } };
+// mire hívta fel: ügyfélnél Elemzés / Tanácsadás / Szerviz, munkatárs-jelöltnél Felvételi 1 / 2 (mini chip a név mellett)
+const HET_CEL = { penz: [['E', 'Elemzés'], ['TA', 'Tanácsadás'], ['SZ', 'Szerviz']], karr: [['F1', 'Felvételi 1'], ['F2', 'Felvételi 2']] };
+// egy 3-2-1 sor – ugyanez a Havi terv „Aktuális hét” nézetében és a Sikerfüzet oldalsávjában (ott húzható a naptárba)
+function het321SorHtml(l, r, gi, sav){
+    const m = HET_MEZO[l], c = r[m.c] || '';
+    return `<tr${sav ? ` draggable="true" data-name="${esc(r.name)}" data-list="${l === 'penz' ? 'money' : 'career'}" data-regidx="${gi}" title="Húzd a naptárba"` : ''}>
+        <td><div class="h321-nev"><strong>${esc(r.name) || '(névtelen)'}</strong>
+            <select class="h321-cel" data-h321="${l}:${gi}:c" data-v="${esc(c)}" title="Mire hívta fel" aria-label="Mire hívta fel"><option value="">mire?</option>${HET_CEL[l].map(([k, n]) => `<option value="${k}"${c === k ? ' selected' : ''} title="${n}">${k}</option>`).join('')}</select></div>
+            ${r.phone ? `<small>${esc(r.phone)}</small>` : ''}</td>
+        <td><input data-h321="${l}:${gi}:j" value="${esc(r[m.j] || '')}" placeholder="—"></td>
+        <td><select data-h321="${l}:${gi}:t"><option value="">—</option>${HET_TIPUS.map(t => `<option${r[m.t] === t ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+        <td class="het-e"><span class="res-cyc" data-h321e="${l}:${gi}" title="Kattints az eredmény váltásához">${resBadge(r[m.e] || 'pending')}</span></td></tr>`;
+}
+const hetSorok = l => registry.map((r, gi) => ({ r, gi })).filter(x => x.r && x.r[HET_MEZO[l].tp]);
 // ===== RENDER: PÉNZEM (a nyilvántartó TP jelöléséből) =====
-function renderMoney(){
-    const tb = document.getElementById('moneyTable'); if(!tb) return;
-    const list = registry.map((r,gi)=>({r,gi})).filter(x=>x.r.tp);
-    tb.innerHTML = list.length ? list.map(({r,gi})=>`<tr draggable="true" data-name="${esc(r.name)}" data-list="money" data-regidx="${gi}" title="Húzd a naptárba">
-        <td><strong>${esc(r.name)||'(névtelen)'}</strong></td>
-        <td class="phone">${esc(r.phone)}</td>
-        <td style="text-align:center;"><span class="res-cyc" data-resmoney="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resPenz||'pending')}</span></td>
-    </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs TP-vel jelölt ügyfél.</td></tr>`;
+// gépelés közben nem rajzoljuk újra (elveszne a fókusz) – a mező értéke már a rekordon van
+const sav321Szerk = tb => { const a = document.activeElement; return !!(a && tb.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName)); };
+function sav321Render(l, tbId, dbId, ures){
+    const tb = document.getElementById(tbId); if(!tb || sav321Szerk(tb)) return;
+    const list = hetSorok(l);
+    tb.innerHTML = list.length ? list.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('') : `<tr><td colspan="4" class="hv-ures-sz" style="padding:14px 6px">${ures}</td></tr>`;
+    const db = document.getElementById(dbId); if(db) db.textContent = `${list.length} / ${HET_SOR[l]}`;
     capTableRows(tb);
 }
+function renderMoney(){ sav321Render('penz', 'moneyTable', 'moneyDb', 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'); }
 // ===== RENDER: KARRIEREM (a 2 órás füzet TP jelöléséből) =====
-function renderCareer(){
-    const tb = document.getElementById('careerTable'); if(!tb) return;
-    const list = registry.map((r,gi)=>({r,gi})).filter(x=>x.r.karrierTp);
-    tb.innerHTML = list.length ? list.map(({r,gi})=>`<tr draggable="true" data-name="${esc(r.name)}" data-list="career" data-regidx="${gi}" title="Húzd a naptárba">
-        <td><strong>${esc(r.name)||'(névtelen)'}</strong></td>
-        <td class="phone">${esc(r.phone)}</td>
-        <td style="text-align:center;"><span class="res-cyc" data-rescareer="${gi}" title="Kattints az eredmény váltásához">${resBadge(r.resKarrier||'pending')}</span></td>
-    </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);padding:14px;">Nincs TP-vel jelölt karrier-jelölt.</td></tr>`;
-    capTableRows(tb);
-}
+function renderCareer(){ sav321Render('karr', 'careerTable', 'careerDb', 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.'); }
 function cycleRes(v){ return v==='pending'?'ok':(v==='ok'?'no':'pending'); }
 // ===== RENDER: INFO RÉSZTVEVŐK =====
 function renderInfo(){
@@ -12086,15 +12101,21 @@ wire('infoList','info');
 // a Firestore-ba is el kell jutnia (persistReg), különben a következő
 // szinkronizáláskor (pl. egy sima oldalfrissítéskor) a felhőből visszatöltött,
 // e nélkül a mező nélküli rekord felülírja a csak helyben elmentett váltást.
-document.getElementById('moneyTable').addEventListener('click', e=>{
-    const s=e.target.closest('[data-resmoney]'); if(!s) return;
-    const i=+s.dataset.resmoney; const r=registry[i]; if(!r) return;
-    r.resPenz=cycleRes(r.resPenz||'pending'); store.save('sf_registry', registry); persistReg(i); renderMoney();
-});
-document.getElementById('careerTable').addEventListener('click', e=>{
-    const s=e.target.closest('[data-rescareer]'); if(!s) return;
-    const i=+s.dataset.rescareer; const r=registry[i]; if(!r) return;
-    r.resKarrier=cycleRes(r.resKarrier||'pending'); store.save('sf_registry', registry); persistReg(i); renderCareer();
+// Oldalsáv 3-2-1: ugyanazok a mezők, mint a Havi terv „Aktuális hét” nézetében (jegyzet, típus, mire, eredmény)
+['moneyTable', 'careerTable'].forEach(id => {
+    const tb = document.getElementById(id);
+    tb.addEventListener('click', e=>{
+        const ee=e.target.closest('[data-h321e]'); if(!ee) return;
+        const [l, gi]=ee.dataset.h321e.split(':'); const r=registry[+gi]; if(!r) return; const k=HET_MEZO[l].e;
+        r[k]=cycleRes(r[k]||'pending'); ee.innerHTML=resBadge(r[k]); store.save('sf_registry', registry); persistReg(+gi);
+    });
+    tb.addEventListener('input', e=>{
+        const t=e.target.closest('[data-h321]'); if(!t) return;
+        const [l, gi, f]=t.dataset.h321.split(':'); const r=registry[+gi]; if(!r) return;
+        r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel')) t.dataset.v=t.value;
+        clearTimeout(window.__s321T); window.__s321T=setTimeout(()=>{ store.save('sf_registry', registry); persistReg(+gi); }, t.tagName==='SELECT' ? 0 : 600);
+    });
+    tb.addEventListener('focusout', ()=> setTimeout(()=>{ if(!sav321Szerk(tb)) (id === 'moneyTable' ? renderMoney : renderCareer)(); }, 0));
 });
 
 // ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
@@ -12117,6 +12138,28 @@ function enableRowDrag(tbodyId){
 }
 enableRowDrag('moneyTable');
 enableRowDrag('careerTable');
+
+// Sikerfüzet oldal: a jobb oldalsáv szélessége a bal szélén (középen a fogantyú) húzva állítható; dupla kattintás: alapméret.
+(function(){
+    const fog = document.getElementById('sideMeretezo'), cont = fog && fog.closest('.content'); if(!fog || !cont) return;
+    const MIN = 340, MAX = 820;
+    try { const w = +localStorage.getItem('sf_side_w'); if(w >= MIN && w <= MAX) cont.style.setProperty('--side-w', w + 'px'); } catch(_){}
+    const ujraMer = () => { window.dispatchEvent(new Event('resize')); if(typeof window.sfCalUjraMer === 'function') window.sfCalUjraMer(); };
+    fog.addEventListener('pointerdown', e => {
+        if(e.button > 0) return; e.preventDefault();
+        document.body.classList.add('side-meretez');
+        const r = cont.getBoundingClientRect();
+        const mozog = ev => { const max = Math.max(MIN, Math.min(MAX, r.width - 480)); cont.style.setProperty('--side-w', Math.round(Math.max(MIN, Math.min(max, r.right - ev.clientX))) + 'px'); };
+        const vege = () => {
+            window.removeEventListener('pointermove', mozog); window.removeEventListener('pointerup', vege); window.removeEventListener('pointercancel', vege);
+            document.body.classList.remove('side-meretez');
+            try { localStorage.setItem('sf_side_w', parseInt(cont.style.getPropertyValue('--side-w'), 10) || ''); } catch(_){}
+            ujraMer();
+        };
+        window.addEventListener('pointermove', mozog); window.addEventListener('pointerup', vege); window.addEventListener('pointercancel', vege);
+    });
+    fog.addEventListener('dblclick', () => { cont.style.removeProperty('--side-w'); try { localStorage.removeItem('sf_side_w'); } catch(_){} ujraMer(); });
+})();
 
 // A naptárba mentés utáni kezdeti eredmény (az esemény állapotától függően).
 window.sfMarkResult = function(list, regIdx, result){
@@ -16764,10 +16807,6 @@ function haviTablaFrissit(){
 // kezdőlapon (a 10 perces füzet TP-s ügyfelei és a 2 órás füzet TP-s
 // karrier-jelöltjei), kiegészítve az Erfolgsjournal mezőivel (jegyzet, típus, eredmény).
 let haviNezet = 'ho', hetHo = null, hetIdx = 0;
-const HET_SOR = { penz: 20, karr: 12 };
-const HET_TIPUS = ['Hívás', 'Üzenet', 'Személyes', 'Online'];
-// a lista mezői a nyilvántartás rekordján: zászló, eredmény, jegyzet, típus
-const HET_MEZO = { penz: { tp: 'tp', e: 'resPenz', j: 'tp321j', t: 'tp321t' }, karr: { tp: 'karrierTp', e: 'resKarrier', j: 'kar321j', t: 'kar321t' } };
 function hetKezd(ho, w){ const k = haviKezdet(ho.getFullYear(), ho.getMonth()); k.setDate(k.getDate() + w * 7); return k; }
 function hetKulcsResz(ho, w){
     const s = hetKezd(ho, w), cs = new Date(s); cs.setDate(s.getDate() + 5);   // a kedd hetének csütörtökje → ISO-év
@@ -16786,14 +16825,9 @@ function hetLep(d){
     else if(w >= haviWeekRanges(ho).length){ ho = new Date(ho.getFullYear(), ho.getMonth() + 1, 1); w = 0; }
     window.sfHetMutat(ho, w);
 }
-const hetSorok = l => registry.map((r, gi) => ({ r, gi })).filter(x => x.r && x.r[HET_MEZO[l].tp]);
 function hetListaHtml(l, cim){
     const m = HET_MEZO[l], lista = hetSorok(l);
-    const sorok = lista.map(({ r, gi }) => `<tr>
-        <td><strong>${esc(r.name) || '(névtelen)'}</strong>${r.phone ? `<small>${esc(r.phone)}</small>` : ''}</td>
-        <td><input data-h321="${l}:${gi}:j" value="${esc(r[m.j] || '')}" placeholder="—"></td>
-        <td><select data-h321="${l}:${gi}:t"><option value="">—</option>${HET_TIPUS.map(t => `<option${r[m.t] === t ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
-        <td class="het-e"><span class="res-cyc" data-h321e="${l}:${gi}" title="Kattints az eredmény váltásához">${resBadge(r[m.e] || 'pending')}</span></td></tr>`).join('');
+    const sorok = lista.map(({ r, gi }) => het321SorHtml(l, r, gi, false)).join('');
     const ures = l === 'penz' ? 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.' : 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.';
     return `<section class="card hv-k het-lista"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} / ${HET_SOR[l]}</span></div>
         <div class="het-tbl-w"><table class="het-tbl"><thead><tr><th>Név</th><th>Jegyzetek</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead>
@@ -16969,7 +17003,7 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     if(haviNezet!=='het') return;
     const t=e.target.closest('[data-h321]'); if(!t) return;
     const [l, gi, f]=t.dataset.h321.split(':'); const r=registry[+gi]; if(!r) return;
-    r[HET_MEZO[l][f]]=t.value;
+    r[HET_MEZO[l][f]]=t.value; if(t.classList.contains('h321-cel')) t.dataset.v=t.value;
     clearTimeout(window.__h321T); window.__h321T=setTimeout(()=>het321Ment(+gi), t.tagName==='SELECT' ? 0 : 600);
 });
 document.getElementById('haviBody').addEventListener('click', e=>{
