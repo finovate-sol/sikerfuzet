@@ -3370,7 +3370,27 @@
         .s3-seg { display:flex; flex:none; border:1px solid #e2e8f0; border-radius:9px; overflow:hidden; }
         .s3-seg button { border:0; background:#fff; width:28px; height:28px; font-size:13px; color:#94a3b8; cursor:pointer; padding:0; }
         .s3-seg button + button { border-left:1px solid #e2e8f0; }
-        .s3-seg .no.on { background:#fee2e2; color:#dc2626; } .s3-seg .ok.on { background:#dcfce7; color:#16a34a; } .s3-seg .pending.on { background:#f1f5f9; color:#334155; }
+.s3-seg .no.on { background:#fee2e2; color:#dc2626; } .s3-seg .ok.on { background:#dcfce7; color:#16a34a; } .s3-seg .pending.on { background:#f1f5f9; color:#334155; }
+        .s3-n > strong { cursor:pointer; } .s3-n > strong:hover { color:#1f5fd0; text-decoration:underline; }
+        /* ===== Jobb oldali sáv: „A” – fehér kártyák sötétebb szürke alapon, kontrasztosabb jelölések ===== */
+        html body #page-home .col-side, html body #sidePanel { background:#e3e8ef !important; }
+        #sideViewSikerfuzet { padding:10px; display:flex; flex-direction:column; gap:10px; }
+        html body #sideViewSikerfuzet > .card { background:#fff !important; border-radius:12px !important; box-shadow:0 1px 3px rgba(15,23,42,.12) !important; border:0 !important; }
+        #sideViewSikerfuzet h2, #sideViewSikerfuzet h3 { color:#0b2a55 !important; }
+        #sideViewSikerfuzet .het-db { background:#0b2a55 !important; color:#fff !important; }
+        #sideViewSikerfuzet .goals-bar { background:#e2e8f0 !important; } #sideViewSikerfuzet .goals-bar span { background:#2563eb !important; }
+        #sideViewSikerfuzet .s3-szuro button { border-color:#cbd5e1; color:#334155; } #sideViewSikerfuzet .s3-szuro button.on { background:#0b2a55; border-color:#0b2a55; color:#fff; }
+        #sideViewSikerfuzet .sav-321 .het-tbl tr + tr td { border-top:1px solid #edf0f4; }
+        #sideViewSikerfuzet .s3-tel { color:#475569; } #sideViewSikerfuzet .s3-seg { border-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button + button { border-left-color:#cbd5e1; } #sideViewSikerfuzet .s3-seg button { color:#64748b; }
+        #sideViewSikerfuzet .s3-seg .ok.on { background:#16a34a; color:#fff; } #sideViewSikerfuzet .s3-seg .no.on { background:#dc2626; color:#fff; } #sideViewSikerfuzet .s3-seg .pending.on { background:#e2e8f0; color:#0f172a; }
+        #sideViewSikerfuzet .stats-grid .stat { background:#f1f5f9 !important; border:1px solid #e2e8f0 !important; } #sideViewSikerfuzet .stat-num { color:#0b2a55 !important; }
+        /* ügyfél-adatlap modál */
+        .ugy-modal { z-index:1200; } .ugy-modal[hidden] { display:none !important; }
+        .modal.ugy-m { position:relative; width:min(1100px, 96vw) !important; max-width:96vw !important; max-height:92vh; overflow:auto; padding:18px 18px 14px; }
+        .ugy-m-x { position:absolute; top:10px; right:10px; z-index:3; width:34px; height:34px; border:0; border-radius:10px; background:#f1f5f9; color:#334155; cursor:pointer; display:grid; place-items:center; }
+        .ugy-m-x svg { width:18px; height:18px; } .ugy-m-x:hover { background:#e2e8f0; }
+        body.ugy-m-nyitva { overflow:hidden; }
+        @media (max-width:760px){ .modal.ugy-m { width:100vw !important; max-width:100vw !important; max-height:94vh; border-radius:16px 16px 0 0; align-self:flex-end; padding:14px 12px; } }
         /* kompakt Havi terv */
         .havi-layout.hv-lay { gap:12px; }
         .hv-lay .hl-left, .hv-oldal { gap:12px; }
@@ -11569,6 +11589,10 @@ try {
     </div>
 </div>
 
+<!-- Ügyfél-adatlap modálban (a Sikerfüzet oldalsáv 3-2-1 listáiból) -->
+<div class="modal-overlay ugy-modal" id="ugyModal" hidden><div class="modal ugy-m" role="dialog" aria-modal="true" aria-label="Ügyfél adatlapja">
+    <button type="button" class="ugy-m-x" data-ugymzar title="Bezárás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <div id="ugyMReg"></div><div id="ugyMKet"></div></div></div>
 <script>
 // A képkészítő (html2canvas) csak az első képmentéskor töltődik be – nem lassítja az indulást.
 window.sfH2C = function(){
@@ -12198,6 +12222,8 @@ wire('infoList','info');
 ['moneyTable', 'careerTable'].forEach(id => {
     const tb = document.getElementById(id);
     tb.addEventListener('click', e=>{
+        const nv=e.target.closest('.s3-n');
+        if(nv && !e.target.closest('input, select, a, button')){ const tr=nv.closest('tr[data-regidx]'); if(tr && typeof ugyModalNyit === 'function') ugyModalNyit(+tr.dataset.regidx); return; }
         const rb=e.target.closest('[data-h321r]');
         if(rb){ const [l, gi, v]=rb.dataset.h321r.split(':'); const r=registry[+gi]; if(!r) return;
             r[HET_MEZO[l].e]=v; store.save('sf_registry', registry); persistReg(+gi); (l === 'penz' ? renderMoney : renderCareer)(); return; }
@@ -12215,6 +12241,47 @@ wire('infoList','info');
     tb.closest('.sav-321')?.addEventListener('click', e=>{ const b=e.target.closest('[data-s3sz]'); if(!b) return;
         const [l, k]=b.dataset.s3sz.split(':'); sav321Szuro[l]=k; (l === 'penz' ? renderMoney : renderCareer)(); });
 });
+
+// ===== Ügyfél-adatlap modálban (a 3-2-1 listákból) =====
+// A 10 perces / 2 órás füzet saját kinyitott adatlapját mutatjuk modálban: a kezelők ugyanazok
+// (a regExpandedIdx / ketorasExpandedIdx alapján), így minden mező ugyanúgy ment.
+let ugyM = null;   // { gi, ket, elozo }
+function ugyModalRajz(){
+    if(!ugyM) return;
+    const ov = document.getElementById('ugyModal'), reg = document.getElementById('ugyMReg'), ket = document.getElementById('ugyMKet');
+    const nyitott = ugyM.ket ? ketorasExpandedIdx : regExpandedIdx;
+    if(nyitott !== ugyM.gi || !registry[ugyM.gi]){ ugyModalZar(true); return; }   // az adatlapon belül bezárták / átkerült
+    const a = document.activeElement; if(a && ov.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return;
+    const gorg = ov.querySelector('.ugy-m').scrollTop;
+    reg.innerHTML = ugyM.ket ? '' : regCardDetailHtml(ugyM.gi);
+    ket.innerHTML = ugyM.ket ? ketCardDetailHtml(ugyM.gi) : '';
+    ov.querySelector('.ugy-m').scrollTop = gorg;
+}
+function ugyModalNyit(gi){
+    const r = registry[gi]; if(!r) return;
+    if(ugyM) ugyModalZar(true);
+    const ket = !!r.mt;
+    ugyM = { gi, ket, elozo: ket ? ketorasExpandedIdx : regExpandedIdx };
+    if(ket){ ketorasExpandedIdx = gi; ketDetailTab = 'adatok'; } else { regExpandedIdx = gi; regDetailTab = matchMedia('(max-width:760px)').matches ? '' : 'adatok'; }
+    if(typeof cliMarkSeen === 'function') cliMarkSeen(gi);
+    document.getElementById('ugyModal').hidden = false; document.body.classList.add('ugy-m-nyitva');
+    ugyModalRajz();
+}
+function ugyModalZar(csendes){
+    if(!ugyM) return;
+    const { ket, elozo, gi } = ugyM; ugyM = null;
+    document.getElementById('ugyModal').hidden = true; document.body.classList.remove('ugy-m-nyitva');
+    document.getElementById('ugyMReg').innerHTML = ''; document.getElementById('ugyMKet').innerHTML = '';
+    if(ket){ if(ketorasExpandedIdx === gi) ketorasExpandedIdx = elozo; } else if(regExpandedIdx === gi) regExpandedIdx = elozo;
+    if(!csendes){ renderRegistry(); if(typeof renderKetorasList === 'function') renderKetorasList(); }
+    refreshMoneyCareer();
+}
+document.getElementById('ugyModal').addEventListener('click', e => { if(e.target.id === 'ugyModal' || e.target.closest('[data-ugymzar]')) ugyModalZar(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && ugyM && !document.querySelector('.modal-overlay:not(#ugyModal):not([hidden])')) ugyModalZar(); });
+// a füzetek újrarajzolásakor a modál is frissül (fülváltás, jelölők, státusz…)
+{ const rr = renderRegistry; renderRegistry = function(){ const v = rr.apply(this, arguments); if(ugyM && !ugyM.ket) ugyModalRajz(); return v; }; }
+window.addEventListener('load', () => { if(typeof renderKetorasList !== 'function') return; const rk = renderKetorasList;
+    renderKetorasList = function(){ const v = rk.apply(this, arguments); if(ugyM && ugyM.ket) ugyModalRajz(); return v; }; });
 
 // ===== DRAG: PÉNZEM / KARRIEREM sor húzása a naptárba =====
 function enableRowDrag(tbodyId){
@@ -25871,7 +25938,9 @@ function openRegAddModal(){
     // ugyanúgy mentsenek – a delegálás mindhárom esetben azonos.
     const tbl = document.getElementById('regViews');
     if(!tbl) return;
-    tbl.addEventListener('input', e=>{
+    // ugyanezek a kezelők a modálban megnyitott adatlapra is (#ugyMReg)
+    const regOn = (ev, fn) => [tbl, document.getElementById('ugyMReg')].forEach(x => x && x.addEventListener(ev, fn));
+    regOn('input', e=>{
         const t=e.target;
         if(t.dataset.ri!==undefined && t.type!=='checkbox'){
             const idx=+t.dataset.ri;
@@ -25890,7 +25959,7 @@ function openRegAddModal(){
         store.save('sf_registry', registry); refreshMoneyCareer();
         persistReg(i);
     });
-    tbl.addEventListener('change', e=>{
+    regOn('change', e=>{
         const t=e.target;
         // a rating szempontjai: a kiválasztás után a % (sorban és adatlapon) frissüljön
         if(t.dataset.d!==undefined && ['eletkor','lakhelyzet','legkisebb','kapcsolat','vagyon'].includes(t.dataset.d)){ renderRegistry(); return; }
@@ -25941,7 +26010,7 @@ function openRegAddModal(){
         if(rSel){ rSel.value = regRend; rSel.addEventListener('change', ()=>{ regRend = rSel.value; store.save('sf_regrend', regRend); renderRegistry(); }); }
     }
     renderRegFilters();
-    tbl.addEventListener('click', e=>{
+    regOn('click', e=>{
         const d=e.target.closest('[data-rdel]');
         if(d){
             const idx=+d.dataset.rdel, r=registry[idx];
@@ -26958,7 +27027,8 @@ function ketCardDetailHtml(i){
     // oldalpanel és a kétpaneles adatlap mezői ugyanúgy mentenek.
     const list = document.getElementById('ketorasViews');
     const persistExpanded = () => { store.save('sf_registry', registry); if(ketorasExpandedIdx!=null) persistReg(ketorasExpandedIdx); };
-    if(list) list.addEventListener('input', e=>{
+    const ketOn = (ev, fn) => [list, document.getElementById('ugyMKet')].forEach(x => x && x.addEventListener(ev, fn));
+    if(list) ketOn('input', e=>{
         const t = e.target;
         const i = ketorasExpandedIdx; if(i==null) return;
         const r = registry[i]; if(!r) return;
@@ -26980,7 +27050,7 @@ function ketCardDetailHtml(i){
         } else return;
         persistExpanded();
     });
-    if(list) list.addEventListener('change', e=>{
+    if(list) ketOn('change', e=>{
         const t = e.target;
         if(t.type==='checkbox' && t.dataset.ri!==undefined && t.dataset.rf==='karrierTp'){
             const idx = +t.dataset.ri;
@@ -27021,7 +27091,7 @@ function ketCardDetailHtml(i){
             persistExpanded(); renderKetorasList();
         }
     });
-    if(list) list.addEventListener('click', e=>{
+    if(list) ketOn('click', e=>{
         const i = ketorasExpandedIdx;
         if(e.target.closest('#tobAddHivas') && i!=null){
             const tob = registry[i].toborzas; tob.hivasok = tob.hivasok||[]; tob.hivasok.push({datum:'',nap:'',ido:'',feljegyzes:''});
