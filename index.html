@@ -12489,7 +12489,7 @@ window.sfApplyResultFromEvent = function(ev, result){
 // A munkatárs naptárából: ha egy esemény a 3-2-1 listából lett behúzva (sfRegId), vagy a címében benne van
 // a TP-s ügyfél neve és egy (E) / (TA) / (SZ) jelölés, az ügyfél rekordjára felírjuk: r.tpIdopont = { at, cim }.
 // A rekord a közös adatbázisba megy, így a vezető a Telefonparty oldalon a csapattagokét is látja.
-window.sfTpIdopontSync = function(items, tol, ig){
+window.sfTpIdopontSync = function(items, tol, ig, torolhet){
     if(!Array.isArray(items)) return;
     const me = window.sfCurrentUser || {};
     const nk = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -12517,7 +12517,7 @@ window.sfTpIdopontSync = function(items, tol, ig){
         const r = x.r, uj = talalt.get(x), regi = r.tpIdopont;
         let kell = null;
         if(uj && (!regi || regi.at !== uj.at && (uj.at > regi.at || (regi.at >= t0 && regi.at < t1)))) kell = uj;          // új vagy áthelyezett
-        else if(x.sajat && !uj && regi && t0 && regi.at >= t0 && regi.at < t1) kell = false;                                 // a saját naptáramban a lekért időszakban már nincs meg
+        else if(torolhet && x.sajat && !uj && regi && t0 && regi.at >= t0 && regi.at < t1) kell = false;                                 // a saját naptáramban a lekért időszakban már nincs meg
         if(kell === null) return;
         if(kell) r.tpIdopont = kell; else delete r.tpIdopont;
         if(x.i >= 0) mentes = true;
@@ -15815,12 +15815,18 @@ function ctHaviOssz(h){
 // összevetve a munkatárs Havi tervében a KÖVETKEZŐ hétre tervezett EL + TA időponttal.
 let tpSzuro = 'mind';
 const tpHavi = {};
-// Az OVB-hét szombaton kezdődik: hétvégén a pénteki telefonparty „jövő hete” még a most induló hét (hétfő–péntek)
+// A telefonparty ablaka: a legutóbbi péntektől a következő hét vasárnapjáig (10 nap – a hétvégék átfedésben vannak).
+// A „jövő hét” (cél, KW) az az OVB-hét, amelyik a péntek utáni szombattal kezdődik.
+function tpAblak(){
+    const ma = new Date(); ma.setHours(0, 0, 0, 0);
+    const tol = new Date(ma); tol.setDate(ma.getDate() - (ma.getDay() - 5 + 7) % 7);
+    const ig = new Date(tol); ig.setDate(tol.getDate() + 10);
+    return { tol, ig };
+}
 function tpKovHet(){
-    const m = currentHaviWeek(), nap = new Date().getDay(), hetvege = nap === 6 || nap === 0;
-    let ho = new Date(m.monthDate.getFullYear(), m.monthDate.getMonth(), 1), w = m.weekIdx + (hetvege ? 0 : 1);
-    if(w >= haviWeekRanges(ho).length){ ho = new Date(ho.getFullYear(), ho.getMonth() + 1, 1); w = 0; }
-    return { ho, w };
+    const { tol } = tpAblak(), szo = new Date(tol); szo.setDate(tol.getDate() + 1);
+    const m = haviWeekForDate(szo);
+    return { ho: new Date(m.monthDate.getFullYear(), m.monthDate.getMonth(), 1), w: m.weekIdx };
 }
 function tpHetCel(h, ho, w){
     if(!h) return null;
@@ -15869,10 +15875,10 @@ async function renderTelefonparty(){
     const kliensek = osszKliens.filter(c => !kint.has(c.ownerUid || me.uid));
     // Lebeszélve = csak a naptárban rögzített időpont a jövő hét elejétől (r.tpIdopont). A 3-2-1 kapcsolója azt jelzi, sikerült-e elérni
     // (ez külön oszlopban látszik); Nem sikerült = a 3-2-1-ben ✕ és nincs időpont.
-    const kovKezd = (() => { const k = haviPeriod(ho).start; const d = new Date(k); d.setDate(d.getDate() + w * 7); d.setHours(0, 0, 0, 0); return d; })();
-    // a folyó OVB-hét elejétől minden rögzített időpont számít (a hét közbeni partyn a még e heti időpont is lebeszélt)
-    const aktKezd = (() => { const m = currentHaviWeek(), k = new Date(m.ft); k.setDate(k.getDate() + m.weekIdx * 7); k.setHours(0, 0, 0, 0); return k < kovKezd ? k : kovKezd; })();
-    const idop = c => c.tpIdopont && c.tpIdopont.at && new Date(c.tpIdopont.at) >= aktKezd ? c.tpIdopont : null;
+    // Lebeszélve: a naptárban rögzített időpont péntektől a jövő hét vasárnapjáig
+    const abl = tpAblak();
+    const idop = c => { const t = c.tpIdopont && c.tpIdopont.at ? new Date(c.tpIdopont.at) : null; return t && t >= abl.tol && t < abl.ig ? c.tpIdopont : null; };
+    const ablSzo = (() => { const v = new Date(abl.ig); v.setDate(v.getDate() - 1); const f = d => d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short' }); return `${f(abl.tol)} – ${f(v)}`; })();
     const res = c => idop(c) ? 'ok' : c.resPenz === 'no' ? 'no' : 'pending';
     const tagok = [...nevek.entries()].filter(([uid]) => !kint.has(uid)).map(([uid, nev]) => {
         const l = kliensek.filter(c => c.ownerUid === uid || (!c.ownerUid && uid === me.uid));
@@ -15890,7 +15896,7 @@ async function renderTelefonparty(){
         <td class="tp-tel">${esc(c.phone || '—')}</td><td>${!idop(c) && c.resPenz === 'ok' ? '<span class="tp-nincsnapt" title="A 3-2-1-ben elérve, de a naptárban még nincs rögzített időpont">elérve · nincs időpont</span>' : ''}${idop(c) ? `<span class="tp-idop" title="${esc(idop(c).cim || '')}">📅 ${esc(new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}${esc(c.tp321j || '') || (idop(c) ? '' : '<span class="tp-ures">—</span>')}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
         <td class="het-e">${resBadge(c.resPenz || 'pending')}</td></tr>`;
     const gorgVolt = (host.querySelector('.tp-gorg') || {}).scrollTop || 0;
-    host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)})</p></div></div>
+    host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)}) · lebeszéltnek számít a naptárban ${esc(ablSzo)} között rögzített időpont</p></div></div>
         <div class="tp-kpik">
             ${kpi('TP-s ügyfél', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
             ${kpi('Lebeszélve', ok, (ossz ? pct(ok, ossz) + '% a TP-sekből · ' : '') + 'naptárban rögzítve', '#16a34a')}
@@ -36018,7 +36024,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             items.push(...(data.items || []));
             if (!data.nextPageToken) break; lapTok = data.nextPageToken;
         }
-        try { if (typeof window.sfTpIdopontSync === "function") window.sfTpIdopontSync(items, start, end); } catch(_){}
+        // törölni (az időpont már nincs meg) csak a saját fő naptár átnézése után szabad – egy csapat- vagy más naptárban a saját események nem szerepelnek
+        const sajatFo = !calId && activeCalendarId() === "primary";
+        try { if (typeof window.sfTpIdopontSync === "function") window.sfTpIdopontSync(items, start, end, sajatFo); } catch(_){}
         return items;
     }
 
@@ -36097,9 +36105,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             // a TP-s ügyfelek lebeszélt időpontjai (Telefonparty): a következő 4 hét átnézése, legfeljebb 15 percenként
             if(!window.__tpSyncAt || Date.now() - window.__tpSyncAt > 15 * 60000){
                 window.__tpSyncAt = Date.now();
-                const t0 = startOfWeek(new Date()); fetchEvents(token, t0, addDays(t0, 35)).catch(() => {});
+                const t0 = addDays(startOfWeek(new Date()), -3); fetchEvents(token, t0, addDays(t0, 38)).catch(() => {});
                 // a bekapcsolt többi naptár (pl. a csapatnaptár) – a csapattagok ügyfeleinek időpontjai miatt
-                try { (typeof calAtfedok === "function" ? calAtfedok() : []).forEach(c => fetchEvents(token, t0, addDays(t0, 35), c.id).catch(() => {})); } catch(_){}
+                try { (typeof calAtfedok === "function" ? calAtfedok() : []).forEach(c => fetchEvents(token, t0, addDays(t0, 38), c.id).catch(() => {})); } catch(_){}
             }
         } catch(e){ /* csendes hiba – marad a helykitöltő */ }
         finally { statsBusy = false; }
