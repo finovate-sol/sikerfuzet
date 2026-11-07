@@ -2929,6 +2929,20 @@
         .sb-m-fej { margin:0; padding:12px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .sb-m-fej > div { flex:1; min-width:0; display:flex; flex-direction:column; } .sb-m-fej b { font-size:17px; color:#111827; } .sb-m-fej em { font-style:normal; font-size:11.5px; color:var(--muted); }
         .sb-m-gombok { display:flex; gap:6px; flex-wrap:wrap; }
+        .sb-vissza { display:none; border:0; background:#eef2f8; color:#0b2a55; font:inherit; font-weight:700; border-radius:999px; padding:6px 12px; cursor:pointer; }
+        @media (max-width:999px){
+            .sb-m-lay.mob-lista > .sb-jobb { display:none; }
+            .sb-m-lay.mob-reszlet > .sb-ml { display:none; }
+            .sb-vissza { display:inline-flex; flex:none; }
+            .sb-m-fej { padding:12px; gap:8px; }
+            .sb-m-fej > div { flex:1 1 calc(100% - 100px); }
+            .sb-m-fej b { font-size:16px; line-height:1.25; }
+            .sb-m-gombok { flex:1 1 100%; } .sb-m-gombok .sb-g2 { flex:1; text-align:center; justify-content:center; }
+            .sb-targy b { flex:1 1 100%; }
+            .sb-targy .sb-masol { margin-left:auto; }
+            .sb-elo-gombok > * { flex:1; text-align:center; justify-content:center; }
+            .sb-ph-racs { grid-template-columns:1fr; }
+        }
         .sb-g2 { border:1px solid var(--border); background:#fff; color:var(--navy); font:inherit; font-size:12.5px; font-weight:700; border-radius:999px; padding:6px 13px; cursor:pointer; text-decoration:none; white-space:nowrap; }
         .sb-g2:hover { border-color:var(--blue); } .sb-g2.piros { color:#b91c1c; } .sb-g2.piros:hover { border-color:#fca5a5; }
         .sb-ph-k { margin:0; padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
@@ -13691,13 +13705,13 @@ function sbMentettHtml(d, tip){
     if(!akt) return `<div class="sb-m-lay">${lista}<div></div></div>`;
     const helyek = sbHelyek((email ? akt.targy + '\n' : '') + akt.sz);
     const reszlet = `<div class="sb-jobb">
-        <section class="card sb-m-fej"><div><b>${esc(akt.n || 'Névtelen')}</b><em>${email ? 'E-mail' : 'Telefonos segédlet'}</em></div>
+        <section class="card sb-m-fej"><button type="button" class="sb-vissza" data-sbvissza aria-label="Vissza a listához">‹ Vissza</button><div><b>${esc(akt.n || 'Névtelen')}</b><em>${email ? 'E-mail' : 'Telefonos segédlet'}</em></div>
             <span class="sb-m-gombok"><button type="button" class="sb-g2" data-sbszerk="${esc(akt.id)}">Szerkesztés</button><button type="button" class="sb-g2" data-sbmasolat="${esc(akt.id)}">Másolat</button><button type="button" class="sb-g2 piros" data-sbtorol="${esc(akt.id)}">Törlés</button></span></section>
         ${helyek.length ? `<section class="card sb-ph-k"><span class="c">Kitöltendő mezők</span><div class="sb-ph-racs">${helyek.map(k => `<label><span>${esc(k)}</span><input type="text" class="sb-in" data-sbph="${esc(k)}" value="${esc(sbKitolt[k] || '')}" maxlength="120"></label>`).join('')}</div>
             <button type="button" class="ez-link sb-ph-tor" data-sbphtor>Mezők ürítése</button></section>` : ''}
         <section class="card sb-v sb-elo" data-sbelo>${sbElonezetBlokk(akt)}</section>
     </div>`;
-    return `<div class="sb-m-lay">${lista}${reszlet}</div>`;
+    return `<div class="sb-m-lay ${sbMobReszlet ? 'mob-reszlet' : 'mob-lista'}">${lista}${reszlet}</div>`;
 }
 function sbElonezetBlokk(akt){
     const email = akt.tip === 'email';
@@ -13731,6 +13745,8 @@ function sbSzerkModal(d, x){
         prvMent('sablonok'); ov.remove(); renderSablonok();
     });
 }
+// telefonon: előbb csak a lista, egy sablonra koppintva csak a sablon (Vissza gombbal)
+let sbMobReszlet = false;
 async function renderSablonok(){
     const host = document.getElementById('sablonokBody'); if(!host) return;
     if(!sbAdat.nev && window.sfCurrentUser && window.sfCurrentUser.displayName) sbAdat.nev = window.sfCurrentUser.displayName;
@@ -15254,7 +15270,8 @@ document.addEventListener('click', async e => {
     // mentett sablonok
     const d = PRV.sablonok; if(!d) return;
     const of = id => d.lista.find(x => x.id === id);
-    const vl = e.target.closest('[data-sbvalaszt]'); if(vl){ sbValaszt[sbFo] = vl.dataset.sbvalaszt; store.save('sf_sb_valaszt', sbValaszt); renderSablonok(); return; }
+    const vl = e.target.closest('[data-sbvalaszt]'); if(vl){ sbValaszt[sbFo] = vl.dataset.sbvalaszt; store.save('sf_sb_valaszt', sbValaszt); sbMobReszlet = true; renderSablonok(); window.scrollTo({ top: 0 }); return; }
+    if(e.target.closest('[data-sbvissza]')){ sbMobReszlet = false; renderSablonok(); window.scrollTo({ top: 0 }); return; }
     const uj = e.target.closest('[data-sbuj]'); if(uj){ sbSzerkModal(d, { tip: uj.dataset.sbuj }); return; }
     const sz = e.target.closest('[data-sbszerk]'); if(sz){ const x = of(sz.dataset.sbszerk); if(x) sbSzerkModal(d, x); return; }
     const mo = e.target.closest('[data-sbmasolat]');
