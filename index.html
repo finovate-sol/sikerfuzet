@@ -3371,7 +3371,7 @@
         .tp-mt .het-tbl-w { max-height:var(--tp-max, 470px); overflow:auto; }
         .tp-mt .het-tbl thead th { position:sticky; top:0; background:var(--card, #fff); z-index:1; }
         .tp-ok td { background:#f0fdf4; } .tp-ok td:first-child { box-shadow:inset 3px 0 #16a34a; }
-        .tp-nincsnapt { display:inline-block; white-space:nowrap; font-size:11px; font-weight:700; color:#15803d; background:#dcfce7; border-radius:999px; padding:1px 8px; margin-right:6px; }
+        .tp-nincsnapt { display:inline-block; white-space:nowrap; font-size:11px; font-weight:700; color:#b45309; background:#fef3c7; border-radius:999px; padding:1px 8px; margin-right:6px; }
         .tp-idop{ display:inline-block; font-size:11.5px; font-weight:700; color:#15803d; background:#ecfdf3; border:1px solid #bbf7d0; border-radius:999px; padding:1px 8px; margin-right:6px; white-space:nowrap; }
         .tp-ki { flex:none; border:0; background:transparent; color:#94a3b8; font-size:16px; line-height:1; width:26px; height:26px; border-radius:8px; cursor:pointer; }
         .tp-ki:hover { background:#fee2e2; color:#dc2626; }
@@ -15859,17 +15859,17 @@ async function renderTelefonparty(){
     const sajatId = new Map((registry || []).filter(r => r && r.id).map(r => [r.id, r]));
     const csapat = (window.sfTpCsapat || window.sfAllClients || []).map(c => (c && c.id && sajatId.get(c.id)) || c);
     const lattId = new Set(csapat.map(c => c && c.id).filter(Boolean));
-    const osszKliens = [...csapat, ...(registry || []).filter(r => r && !(r.id && lattId.has(r.id)) && (!(window.sfTpCsapat || window.sfAllClients) || !r.id))]
+    const osszKliens = [...csapat, ...(registry || []).filter(r => r && !(r.id && lattId.has(r.id)))]
         .filter(c => c && c.tp && !c.mt && !regIsArchived(c.status));
     osszKliens.forEach(c => { if(c.ownerUid && !nevek.has(c.ownerUid)) nevek.set(c.ownerUid, c.ownerName || c.ownerEmail || 'Ismeretlen'); });
     // a heti telefonpartyról kinyomott (nem jelenlévő) munkatársak – hetente újraindul
     const kiKulcs = `sf_tp_ki_${y}_${m}_${w}`, kint = new Set(store.load(kiKulcs, []) || []);
     const kliensek = osszKliens.filter(c => !kint.has(c.ownerUid || me.uid));
-    // Az eredmény ugyanaz, mint a 3-2-1-ben (✓ / ✕ / –); Lebeszélve akkor is, ha a naptárban van rögzített időpontja a jövő hét elejétől (r.tpIdopont)
+    // Lebeszélve = csak a naptárban rögzített időpont a jövő hét elejétől (r.tpIdopont). A 3-2-1 kapcsolója azt jelzi, sikerült-e elérni
+    // (ez külön oszlopban látszik); Nem sikerült = a 3-2-1-ben ✕ és nincs időpont.
     const kovKezd = (() => { const k = haviPeriod(ho).start; const d = new Date(k); d.setDate(d.getDate() + w * 7); d.setHours(0, 0, 0, 0); return d; })();
     const idop = c => c.tpIdopont && c.tpIdopont.at && new Date(c.tpIdopont.at) >= kovKezd ? c.tpIdopont : null;
-    const res = c => (idop(c) || c.resPenz === 'ok') ? 'ok' : c.resPenz === 'no' ? 'no' : 'pending';
-    const naptarDb = kliensek.filter(c => idop(c)).length;
+    const res = c => idop(c) ? 'ok' : c.resPenz === 'no' ? 'no' : 'pending';
     const tagok = [...nevek.entries()].filter(([uid]) => !kint.has(uid)).map(([uid, nev]) => {
         const l = kliensek.filter(c => c.ownerUid === uid || (!c.ownerUid && uid === me.uid));
         return { uid, nev, l, ok: l.filter(c => res(c) === 'ok').length, no: l.filter(c => res(c) === 'no').length, cel: tpHetCel(tpHavi[`${uid}_${y}_${m}`], ho, w) };
@@ -15883,13 +15883,13 @@ async function renderTelefonparty(){
     const szurt = l => (tpSzuro === 'mind' ? l : l.filter(c => res(c) === tpSzuro)).map((c, i) => [c, i]).sort((a, b) => TP_REND[res(a[0])] - TP_REND[res(b[0])] || a[1] - b[1]).map(x => x[0]);
     const CEL_NEV = { E: 'Elemzés', TA: 'Tanácsadás', SZ: 'Szerviz' };
     const sor = c => `<tr class="${res(c) === 'ok' ? 'tp-ok' : ''}"><td><div class="h321-nev"><strong>${esc(c.name || '(névtelen)')}</strong>${c.tp321c ? `<span class="tp-cel" title="${esc(CEL_NEV[c.tp321c] || '')}">${esc(c.tp321c)}</span>` : ''}</div></td>
-        <td class="tp-tel">${esc(c.phone || '—')}</td><td>${!idop(c) && c.resPenz === 'ok' ? '<span class="tp-nincsnapt" title="A 3-2-1-ben lebeszéltnek jelölve, de a naptárban nincs rögzített időpont">✓ nincs naptárban</span>' : ''}${idop(c) ? `<span class="tp-idop" title="${esc(idop(c).cim || '')}">📅 ${esc(new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}${esc(c.tp321j || '') || (idop(c) ? '' : '<span class="tp-ures">—</span>')}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
-        <td class="het-e">${resBadge(res(c))}</td></tr>`;
+        <td class="tp-tel">${esc(c.phone || '—')}</td><td>${!idop(c) && c.resPenz === 'ok' ? '<span class="tp-nincsnapt" title="A 3-2-1-ben elérve, de a naptárban még nincs rögzített időpont">elérve · nincs időpont</span>' : ''}${idop(c) ? `<span class="tp-idop" title="${esc(idop(c).cim || '')}">📅 ${esc(new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}${esc(c.tp321j || '') || (idop(c) ? '' : '<span class="tp-ures">—</span>')}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
+        <td class="het-e">${resBadge(c.resPenz || 'pending')}</td></tr>`;
     const gorgVolt = (host.querySelector('.tp-gorg') || {}).scrollTop || 0;
     host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)})</p></div></div>
         <div class="tp-kpik">
             ${kpi('TP-s ügyfél', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
-            ${kpi('Lebeszélve', ok, (ossz ? pct(ok, ossz) + '% a TP-sekből · ' : '') + `ebből ${naptarDb} a naptárban`, '#16a34a')}
+            ${kpi('Lebeszélve', ok, (ossz ? pct(ok, ossz) + '% a TP-sekből · ' : '') + 'naptárban rögzítve', '#16a34a')}
             ${kpi('Nem sikerült', no, '', '#dc2626')}
             ${kpi('Még nincs', ossz - ok - no, '', '#64748b')}
             ${kpi('Jövő heti cél', celOssz || '—', celOssz ? `EL + TA időpont · ${pct(ok, celOssz)}% teljesítve` : 'a Havi tervekből', '#7c3aed')}
@@ -15899,7 +15899,7 @@ async function renderTelefonparty(){
             return `<section class="card hv-k tp-mt"><div class="hv-k-fej"><h3>${esc(t.nev)}</h3><span class="het-db">${t.l.length} TP</span><button type="button" class="tp-ki" data-tpki="${esc(t.uid)}" title="Nincs jelen – kivétel a heti telefonpartyból">✕</button></div>
                 <div class="tp-sav"><div class="tp-sav-f"><span>Lebeszélve: <b>${t.ok}</b>${cel ? ` / ${cel} (jövő heti cél: EL ${t.cel.el} + TA ${t.cel.ta})` : t.cel ? ' · a jövő hétre nincs EL / TA cél' : ' · nincs havi terv a hónapra'}</span><span>✕ ${t.no} · – ${t.l.length - t.ok - t.no}</span></div>
                     <div class="tp-sav-b"><i style="width:${pct(t.ok, cel || t.l.length)}%"></i></div></div>
-                ${l.length ? `<div class="het-tbl-w"><table class="het-tbl"><thead><tr><th>Név</th><th>Telefon</th><th>Időpont / jegyzet</th><th>Típus</th><th class="het-e">Eredmény</th></tr></thead><tbody>${l.map(sor).join('')}</tbody></table></div>`
+                ${l.length ? `<div class="het-tbl-w"><table class="het-tbl"><thead><tr><th>Név</th><th>Telefon</th><th>Időpont / jegyzet</th><th>Típus</th><th class="het-e" title="A 3-2-1 kapcsolója: sikerült-e elérni">3-2-1</th></tr></thead><tbody>${l.map(sor).join('')}</tbody></table></div>`
                     : `<div class="hv-ures-sz" style="padding:8px 2px">${t.l.length ? 'Nincs a szűrésnek megfelelő ügyfél.' : 'Nincs TP-vel jelölt ügyfele.'}</div>`}
             </section>`; }).join('') : `<div class="card"><div class="card-body hv-ures-sz">Még senkinél nincs TP-vel jelölt ügyfél.</div></div>`}</div>
         ${uresTag.length ? `<p class="tp-lab">Nincs TP-s ügyfele és jövő heti terve: ${uresTag.map(t => esc(t.nev)).join(', ')}</p>` : ''}
