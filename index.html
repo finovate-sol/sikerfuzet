@@ -3548,6 +3548,27 @@
         .havi-formula .fbox input { order:2; }
         /* Heti táblák kártya */
         .havi-weekscard { display:flex; flex-direction:column; }
+        .hv-gorg { border:1px solid #bfdbfe; background:#f5f9ff; border-radius:12px; padding:12px 14px; margin:2px 0 12px; --gc:#15803d; }
+        .hv-gorg.fesz { border-color:#fcd34d; background:#fffbeb; --gc:#b45309; }
+        .hv-gorg.nehez { border-color:#fca5a5; background:#fef2f2; --gc:#b91c1c; }
+        .hv-gorg-fej { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .hv-gorg-fej b { font-size:14px; color:#0b2a55; }
+        .hv-gorg-all { font-size:12px; font-weight:700; color:#fff; background:var(--gc); border-radius:999px; padding:2px 10px; }
+        .hv-gorg-fej small { margin-left:auto; color:#64748b; font-size:12px; }
+        .hv-gorg-fo { margin:8px 0 6px; font-size:13px; color:#1e293b; }
+        .hv-gorg-w { overflow-x:auto; }
+        .hv-gorg-t { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; }
+        .hv-gorg-t th { font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:#64748b; text-align:right; padding:4px 6px; white-space:nowrap; }
+        .hv-gorg-t th:first-child, .hv-gorg-t td:first-child { text-align:left; }
+        .hv-gorg-t td { text-align:right; padding:4px 6px; border-top:1px solid rgba(15,23,42,.07); white-space:nowrap; }
+        .hv-gorg-t td:first-child { font-weight:600; color:#334155; }
+        .hv-gorg-t td.neg { color:#b91c1c; font-weight:600; } .hv-gorg-t td.pos { color:#15803d; }
+        .hv-gorg-t td.kell { font-weight:800; color:#0b2a55; } .hv-gorg-t td.kell.fel { color:#b45309; } .hv-gorg-t td.kell.le { color:#15803d; }
+        .hv-gorg-megj { margin:8px 0 0; font-size:11.5px; color:#64748b; }
+        table.havi tr.hgorrow td { background:#f5f9ff; }
+        table.havi tr.hgorrow .hgor { display:inline-block; min-width:28px; font-weight:700; color:#0b2a55; border-radius:6px; padding:1px 6px; }
+        table.havi tr.hgorrow .hgor.fel { background:#fef3c7; color:#b45309; }
+        table.havi tr.hgorrow .hgor.le { background:#dcfce7; color:#15803d; }
         .hweek-block { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:16px; }
         .hweek-block:last-child { margin-bottom:0; }
         .hweek-title { font-size:13px; font-weight:700; color:var(--navy); margin:0; padding:11px 14px; background:#f5f7fa; display:flex; align-items:center; gap:10px; }
@@ -17288,7 +17309,8 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
     const n = ranges.length;
     const thRow = `<tr><th class="hlblcol"></th>${HAVI_METRICS.map(m => `<th>${m === 'Egység' ? 'ES' : m}</th>`).join('')}<th class="hszv" title="Az Erfolgsjournalban is külön oszlop – csak a tényleges számot írjuk">Szerviz</th></tr>`;
     const chev = '<span class="hweek-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>';
-    let t = '<p class="hv-megj hv-tabla-megj">Dőlt szám = a Sikerfüzetből számolt javaslat – Enterrel vagy a hét „Számoltak beírása” gombjával kerül be.</p>';
+    const gk = haviGorgK();
+    let t = '<div id="haviGorg"></div><p class="hv-megj hv-tabla-megj">Dőlt szám = a Sikerfüzetből számolt javaslat – Enterrel vagy a hét „Számoltak beírása” gombjával kerül be.</p>';
     for(let w = 0; w < n; w++){
         const cur = w === cwIdx, wk = haviData.weeks[w], auto = haviAutoErtek(haviAnchor, w);
         const ures = auto.some((v, i) => v && String((i < 8 ? wk.van[i] : wk.szv) ?? '').trim() === '');
@@ -17302,6 +17324,7 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
             }).join('')}<td class="hszv"><span class="hszv-nincs">—</span></td></tr>`
             + `<tr><td class="hlblcol">Van</td>${HAVI_METRICS.map((m, i) => `<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(wk.van[i])}"${haviAutoHint(auto[i], i)}></td>`).join('')}<td class="hszv"><input type="text" inputmode="numeric" data-hszv="${w}" value="${esc(wk.szv)}"${haviAutoHint(auto[8], 8)}></td></tr>`
             + `<tr class="hdiffrow"><td class="hlblcol">Diff +/-</td>${HAVI_METRICS.map((m, i) => `<td><span class="havi-diff" id="hdiff-${w}-${i}"></span></td>`).join('')}<td class="hszv"></td></tr>`
+            + (gk !== null && w >= gk ? `<tr class="hgorrow"><td class="hlblcol" title="A havi célból a már lezárt hetek után hiányzó rész, elosztva a hátralévő hetekre">Görgetett</td>${HAVI_METRICS.map((m, i) => `<td><span class="hgor" id="hgor-${w}-${i}"></span></td>`).join('')}<td class="hszv"></td></tr>` : '')
             + `</tbody></table></div></div>`;
     }
     t += `<div class="hweek-block"><div class="hweek-title">Összesen</div><div class="havi-table-wrap"><table class="havi hsum"><thead>${thRow}</thead><tbody>`
@@ -17350,6 +17373,51 @@ function recomputeHaviClients(){
     let sum=0; (haviData.clients||[]).forEach(c=>sum+=haviNum(c.units));
     el.textContent=sum+' EH';
 }
+// ===== Görgetés: ha egy hét elmaradt, a hiány a hátralévő hetekre oszlik =====
+// Lezárt hét = az aktuális hét előtti hetek (csak a folyó hónapban; múlt hónapnál nincs mit görgetni).
+function haviGorgK(){
+    const cw = haviCurWeekIndex();
+    return (cw !== null && cw >= 1 && cw < haviWeekCount) ? cw : null;
+}
+function haviGorgSzamol(){
+    const k = haviGorgK(); if(k === null) return null;
+    const n = haviWeekCount, mar = n - k;
+    return HAVI_METRICS.map((m, i) => {
+        let cel = 0, eddig = 0, eddigCel = 0;
+        for(let w = 0; w < n; w++){ const c = haviNum(haviData.weeks[w].cel[i]); cel += c; if(w < k){ eddig += haviNum(haviData.weeks[w].van[i]); eddigCel += c; } }
+        const hiany = Math.max(0, cel - eddig);
+        const het = Array.from({ length: n }, (x, w) => w < k ? '' : haviNum(haviCelOszt(hiany, mar, w - k)));
+        const eredeti = mar ? (cel - eddigCel) / mar : 0, kell = mar ? hiany / mar : 0;
+        return { m, cel, eddig, eddigCel, hiany, het, eredeti, kell, elmarad: eddig - eddigCel };
+    });
+}
+function haviGorgRajz(){
+    const host = document.getElementById('haviGorg'); if(!host) return;
+    const g = haviGorgSzamol();
+    for(let w = 0; w < haviWeekCount; w++) for(let i = 0; i < 8; i++){
+        const el = document.getElementById(`hgor-${w}-${i}`); if(!el || !g) continue;
+        const v = g[i].het[w], c = haviNum(haviData.weeks[w].cel[i]);
+        el.textContent = g[i].cel ? v : '';
+        el.className = 'hgor' + (v > c ? ' fel' : v < c ? ' le' : '');
+        el.title = g[i].cel ? `Eredeti heti cél: ${c} · görgetve: ${v}` : '';
+    }
+    if(!g){ host.innerHTML = ''; return; }
+    const k = haviGorgK(), n = haviWeekCount, mar = n - k;
+    const f1 = x => (Math.round(x * 10) / 10).toLocaleString('hu-HU');
+    const sorok = g.filter(r => r.cel > 0);
+    if(!sorok.length){ host.innerHTML = ''; return; }
+    const es = g[6], arany = es.cel && es.eredeti ? es.kell / es.eredeti : (sorok.reduce((a, r) => Math.max(a, r.eredeti ? r.kell / r.eredeti : 0), 0));
+    const all = arany <= 1.001 ? ['ok', 'Tartható – hozod a tervet'] : arany <= 1.3 ? ['ok', 'Tartható – egy kis ráhúzással'] : arany <= 1.7 ? ['fesz', 'Feszített – erősebb hetek kellenek'] : ['nehez', 'Nehezen tartható – érdemes a képletet átnézni'];
+    const fo = es.cel ? (es.hiany <= 0 ? `Az ES-célt már elérted (${f1(es.eddig)} / ${f1(es.cel)} EH).`
+        : `A havi ${f1(es.cel)} EH-hoz még <b>${f1(es.hiany)} EH</b> kell → a hátralévő ${mar} hétben hetente <b>${f1(es.kell)} EH</b> (eredetileg ${f1(es.eredeti)}).`) : '';
+    host.innerHTML = `<section class="hv-gorg ${all[0]}"><div class="hv-gorg-fej"><b>Görgetett terv</b><span class="hv-gorg-all">${all[1]}</span><small>${k}. hét lezárva · ${mar} hét van hátra</small></div>
+        ${fo ? `<p class="hv-gorg-fo">${fo}</p>` : ''}
+        <div class="hv-gorg-w"><table class="hv-gorg-t"><thead><tr><th></th><th>Havi cél</th><th>Eddig van</th><th>Eltérés</th><th>Hátravan</th><th>Hetente kell</th><th>Eredeti heti</th></tr></thead><tbody>${sorok.map(r => {
+            const d = r.elmarad, kul = r.kell - r.eredeti;
+            return `<tr><td>${r.m === 'Egység' ? 'ES' : r.m}</td><td>${f1(r.cel)}</td><td>${f1(r.eddig)}</td><td class="${d < 0 ? 'neg' : 'pos'}">${d > 0 ? '+' : ''}${f1(d)}</td><td>${f1(r.hiany)}</td><td class="kell ${kul > 0.05 ? 'fel' : kul < -0.05 ? 'le' : ''}">${f1(r.kell)}${kul > 0.05 ? ' ▲' : kul < -0.05 ? ' ▼' : ''}</td><td>${f1(r.eredeti)}</td></tr>`;
+        }).join('')}</tbody></table></div>
+        <p class="hv-gorg-megj">A hetek „Görgetett” sora mutatja, hétről hétre mennyi kell. A heti célok (Cél sor) nem változnak – az Erfolgsjournalba továbbra is azok mennek.</p></section>`;
+}
 function recomputeHavi(){
     let egyVan=0, weeksWithData=0;
     for(let i=0;i<8;i++){
@@ -17367,6 +17435,7 @@ function recomputeHavi(){
         haviArnyal(document.getElementById(`hvtotvan-${i}`), tv, tc);
     }
     for(let w=0;w<haviWeekCount;w++){ egyVan+=haviNum(haviData.weeks[w].van[6]); if(haviData.weeks[w].van.some(x=>haviNum(x)>0)) weeksWithData++; }
+    try { haviGorgRajz(); } catch(e){ console.warn(e); }
     let szv=0; for(let w=0;w<haviWeekCount;w++) szv+=haviNum(haviData.weeks[w].szv);
     const szvEl=document.getElementById('htotszv'); if(szvEl) szvEl.textContent=szv;
     // Havi cél teljesítése (Egység VAN / Célom ES-ben)
@@ -17377,8 +17446,9 @@ function recomputeHavi(){
     const fracEl=document.getElementById('hcelFrac'); if(fracEl) fracEl.textContent=`${weeksWithData} / ${haviWeekCount} hét teljesítve`;
     // Aktuális teljesítmény (az aktuális hét)
     const cw=haviData.weeks[haviCurWeek]||{cel:[],van:[]};
+    let gAkt=null; try { gAkt = haviGorgK()===haviCurWeek ? haviGorgSzamol() : null; } catch(e){}
     for(let i=0;i<8;i++){
-        const c=haviNum(cw.cel[i]), v=haviNum(cw.van[i]);
+        const c=(gAkt && gAkt[i].cel) ? gAkt[i].het[haviCurWeek] : haviNum(cw.cel[i]), v=haviNum(cw.van[i]);
         const p=c?Math.min(100,Math.round(v/c*100)):0;
         const fr=document.getElementById(`hact-frac-${i}`); if(fr) fr.textContent=`${v} / ${c}`;
         const bb=document.getElementById(`hact-bar-${i}`); if(bb) bb.style.width=p+'%';
