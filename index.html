@@ -10877,7 +10877,10 @@ try {
     // a Sikerfüzet-változat rövidebb: az első naptárbetöltésig, de legfeljebb ~2,5 mp-ig
     var t0 = Date.now(), MIN = siker ? 900 : 1800, kesz = false;
     window.sfSplashLe = function(){
-        if(kesz) return; kesz = true;
+        if(kesz) return;
+        // amíg a belépés nem készült el, az indítókép marad (különben a betöltetlen oldal látszana) – legfeljebb 25 mp-ig
+        if(!window.sfCurrentUser && Date.now() - t0 < 25000){ clearTimeout(window.__splVar); window.__splVar = setTimeout(window.sfSplashLe, 250); return; }
+        kesz = true;
         setTimeout(function(){
             H.classList.remove(OSZT);
             sp.style.display = 'flex'; sp.classList.add('el');
@@ -11057,8 +11060,8 @@ try {
         <!-- Lábléc: profil és egy ikonsor – Nézet (ránézés), Admin, Kilépés.
              A Nézet és az Admin csak annak látszik, akinek van jogosultsága. -->
         <div class="sidebar-user">
-            <div class="avatar" id="userAvatar">SM</div>
-            <span class="su-name" id="userName">Szécsi Márk</span>
+            <div class="avatar" id="userAvatar"></div>
+            <span class="su-name" id="userName"></span>
             <button type="button" class="su-ikon" id="viewAsBtn" hidden aria-label="Nézet váltása (ránézés)" aria-expanded="false" aria-controls="sidebarViewAs" title="Nézet">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
@@ -35183,6 +35186,25 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // Ha a Firebase be van állítva: csak engedélyezett, belépett user maradhat.
     requireAuth((user) => {
         if (!user) return; // demó mód (nincs config)
+        // Más felhasználó adatai ne maradjanak a böngészőben: ha itt korábban más volt belépve,
+        // a helyben tárolt (nem felhasználóhoz kötött) adatokat töröljük, és újratöltünk.
+        try {
+            const elozo = localStorage.getItem("sf_uid");
+            let idegen = !!(elozo && elozo !== user.uid);
+            if (!elozo){
+                const reg = JSON.parse(localStorage.getItem("sf_registry") || "[]");
+                const tulaj = Array.isArray(reg) ? reg.map(r => r && r.ownerUid).filter(Boolean) : [];
+                idegen = tulaj.length > 0 && !tulaj.includes(user.uid);
+            }
+            if (idegen){
+                const marad = new Set(["sf_belepve", "sf_app_icon"]);
+                Object.keys(localStorage).filter(k => k.startsWith("sf_") && !marad.has(k)).forEach(k => localStorage.removeItem(k));
+                try { Object.keys(sessionStorage).filter(k => k.startsWith("sf_")).forEach(k => sessionStorage.removeItem(k)); } catch(_){}
+                localStorage.setItem("sf_uid", user.uid);
+                location.reload(); return;
+            }
+            if (elozo !== user.uid) localStorage.setItem("sf_uid", user.uid);
+        } catch(e){ console.warn("Felhasználóváltás-ellenőrzés:", e); }
         const nameEl = document.getElementById("userName");
         const avatarEl = document.getElementById("userAvatar");
         const logoutBtn = document.getElementById("logoutBtn");
