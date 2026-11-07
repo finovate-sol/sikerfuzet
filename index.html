@@ -2627,6 +2627,18 @@
         .ctrl-het { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--navy); }
         .ctrl-het .tt-gomb { padding:5px 12px; } .ctrl-het .tt-gomb:disabled { opacity:.35; cursor:default; }
         .ctrl-megj { margin:-6px 0 12px; font-size:12px; color:var(--muted); }
+        .ctrl-pz-k { margin:0 0 12px; padding:14px 16px; }
+        .ctrl-pz-fej { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; } .ctrl-pz-fej b { font-size:15px; color:var(--navy, #0b2a55); } .ctrl-pz-fej span { font-size:12px; color:var(--muted); }
+        .ctrl-pz { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; table-layout:fixed; }
+        .ctrl-pz th { font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); font-weight:700; text-align:right; padding:4px 6px; }
+        .ctrl-pz td { text-align:right; padding:5px 6px; border-top:1px solid var(--border); white-space:nowrap; }
+        .ctrl-pz th:first-child, .ctrl-pz td:first-child { text-align:left; width:58%; overflow:hidden; text-overflow:ellipsis; }
+        .ctrl-pz td:first-child { font-weight:600; }
+        .ctrl-pz.nagy { table-layout:auto; } .ctrl-pz.nagy th:first-child, .ctrl-pz.nagy td:first-child { width:auto; max-width:280px; }
+        .ctrl-pz.nagy td.kik { text-align:left; white-space:normal; color:var(--muted); font-size:12px; } .ctrl-pz.nagy th:last-child { text-align:left; }
+        .ctrl-pz-sz { margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); }
+        .ctrl-pz-sz > span { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#b45309; margin-bottom:2px; }
+        .ctrl-pz-ures { margin:4px 0 2px; font-size:12px; color:var(--muted); font-style:italic; }
         .ctrl-racs { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:12px; }
         .ctrl-k { margin:0; padding:14px 14px 10px; }
         .ctrl-nev { display:flex; align-items:center; gap:10px; margin-bottom:8px; } .ctrl-nev b { font-size:15px; color:#111827; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -15009,6 +15021,23 @@ function pziSzamlal(gyoker, fr){
     });
 }
 // opt (elemzés-találkozó): { lepes: 'b1'|'b2', vegen: fn, vegeCim } – a végén továbblép a folyamat következő lépésére
+// ===== Prezentáció-mérés (Control): hányszor nyitották meg és mennyi időt töltöttek rajta =====
+// Az idő csak látható fülön számít. Megnyitáskor +1, kilépéskor (vagy a lap bezárásakor) az eltöltött másodpercek.
+function pziMeresKulcs(p){
+    const nev = String(p.n || 'Prezentáció').trim();
+    return { kulcs: (String(p.id || 'x') + '_' + nev).replace(/[^A-Za-z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ]+/g, '_').slice(0, 90), nev };
+}
+function pziMeresIndit(p){
+    const { kulcs, nev } = pziMeresKulcs(p), nap = todayKey();
+    let sec = 0, kesz = false;
+    const t = setInterval(() => { if(!document.hidden) sec++; }, 1000);
+    const kuld = (darab, s) => { if(typeof window.sfPreziKuld === 'function' && window.sfCurrentUser && !document.body.classList.contains('sf-privat'))
+        window.sfPreziKuld(nap.slice(0, 7), nap, kulcs, nev, darab, s).catch(e => console.warn('Prezentáció-mérés mentése sikertelen:', e)); };
+    kuld(1, 0);
+    const vege = () => { if(kesz) return; kesz = true; clearInterval(t); removeEventListener('pagehide', vege); if(sec >= 1) kuld(0, sec); };
+    addEventListener('pagehide', vege);
+    return { vege };
+}
 function pziVetit(p, kit, opt){
     opt = opt || {};
     if(p.diak.some(x => x.rejt)) p = { ...p, diak: p.diak.filter(x => !x.rejt) };
@@ -15023,6 +15052,7 @@ function pziVetit(p, kit, opt){
             <button type="button" data-v="teljes" title="Teljes képernyő (F)">⛶</button><button type="button" data-v="ki" title="Kilépés (Esc)">✕</button></div>`;
     if(opt.lepes) v.querySelector('.pzi-sav').insertAdjacentHTML('afterbegin', talLepesHtml(opt.lepes));
     document.body.appendChild(v); document.body.classList.add('pzi-vetit');
+    const mer = pziMeresIndit(p);
     const szinpad = v.querySelector('.pzi-szinpad'), jegyz = v.querySelector('.pzi-jegyzet');
     const sav = () => {
         v.querySelector('.pzi-szaml').textContent = `${i + 1} / ${p.diak.length}`;
@@ -15060,6 +15090,7 @@ function pziVetit(p, kit, opt){
         // a találkozó közben a teljes képernyő a lépések között is megmarad
         if(document.fullscreenElement && !opt.lepes) document.exitFullscreen().catch(() => {});
         if(window.__pziKi === ki) window.__pziKi = null;
+        mer.vege();
         v.remove(); document.body.classList.remove('pzi-vetit'); };
     window.__pziKi = ki;
     const bill = e => {
@@ -15593,6 +15624,32 @@ async function ctrlAdat(uid, napok){
         const p10 = Math.max((x.p10 || 0) + plus.p10, r);
         return { p10, p2: (x.p2 || 0) + plus.p2, ossz: Math.max((x.ossz || 0) + plus.ossz, p10) }; });
 }
+// prezentáció-vetítések az adott hét napjaira: [{ kulcs, nev, db, sec }] (db szerint csökkenő)
+async function ctrlPreziAdat(uid, napok){
+    const hok = [...new Set(napok.map(d => ctrlNapK(d).slice(0, 7)))];
+    const docs = await Promise.all(hok.map(h => window.sfAktivitasOlvas(`${uid}_prezi_${h}`)));
+    const nk = new Set(napok.map(ctrlNapK)), m = {};
+    docs.forEach(x => { if(!x || !x.napok) return;
+        Object.entries(x.napok).forEach(([nap, pk]) => { if(!nk.has(nap)) return;
+            Object.entries(pk || {}).forEach(([k, v]) => { const r = m[k] || (m[k] = { kulcs: k, nev: (x.nevek && x.nevek[k]) || k, db: 0, sec: 0 });
+                r.db += (v && v.db) || 0; r.sec += (v && v.sec) || 0; }); }); });
+    return Object.values(m).sort((a, b) => b.db - a.db || b.sec - a.sec);
+}
+const ctrlIdo = sec => !sec ? '–' : sec < 60 ? `${sec}″` : sec < 3600 ? `${Math.round(sec / 60)}′` : `${Math.floor(sec / 3600)} ó ${Math.round(sec % 3600 / 60)}′`;
+function ctrlPreziSorok(l){
+    if(!l || !l.length) return '<p class="ctrl-pz-ures">Ezen a héten nem nyitott meg prezentációt.</p>';
+    return `<table class="ctrl-pz"><thead><tr><th>Prezentáció</th><th>Megnyitás</th><th>Idő</th></tr></thead><tbody>${l.map(r => `<tr><td title="${esc(r.nev)}">${esc(r.nev)}</td><td>${r.db}×</td><td>${ctrlIdo(r.sec)}</td></tr>`).join('')}</tbody></table>`;
+}
+function ctrlPreziOsszesito(emb, pz){
+    const m = {};
+    emb.forEach((e, i) => (pz[i] || []).forEach(r => { const x = m[r.kulcs] || (m[r.kulcs] = { nev: r.nev, db: 0, sec: 0, kik: [] });
+        x.db += r.db; x.sec += r.sec; x.kik.push(`${String(e.name).replace(/ \(te\)$/, '')} (${r.db}×, ${ctrlIdo(r.sec)})`); }));
+    const l = Object.values(m).sort((a, b) => b.db - a.db || b.sec - a.sec);
+    return `<section class="card ctrl-pz-k"><div class="ctrl-pz-fej"><b>Prezentációk</b><span>megnyitások és vetítéssel töltött idő ezen a héten</span></div>
+        ${l.length ? `<div class="ctrl-tabla-k"><table class="ctrl-pz nagy"><thead><tr><th>Prezentáció</th><th>Megnyitás</th><th>Össz. idő</th><th>Átlag / megnyitás</th><th>Kik</th></tr></thead><tbody>${l.map(r =>
+            `<tr><td>${esc(r.nev)}</td><td>${r.db}×</td><td>${ctrlIdo(r.sec)}</td><td>${r.db ? ctrlIdo(Math.round(r.sec / r.db)) : '–'}</td><td class="kik">${esc(r.kik.join(' · '))}</td></tr>`).join('')}</tbody></table></div>`
+            : '<p class="ctrl-pz-ures">Ezen a héten még senki nem nyitott meg prezentációt.</p>'}</section>`;
+}
 async function renderControl(host){
     const napok = ctrlNapok(), ma = ctrlNapK(new Date());
     const cim = `${napok[0].getFullYear()}. ${napok[0].toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} – ${napok[6].toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}`;
@@ -15602,18 +15659,20 @@ async function renderControl(host){
     const emb = ctrlEmberek(true);
     host.innerHTML = fej + ctrlAlakKartya() + sfVaz();
     haviAlakBetolt();
-    const adat = await Promise.all(emb.map(e => ctrlAdat(e.uid, napok).catch(() => null)));
+    const [adat, pz] = await Promise.all([Promise.all(emb.map(e => ctrlAdat(e.uid, napok).catch(() => null))),
+        Promise.all(emb.map(e => ctrlPreziAdat(e.uid, napok).catch(() => null)))]);
     if(ttFo !== 'control' || !host.isConnected) return;
     const sor = (nev, k, l, cel) => `<tr><th>${nev}</th>${l.map((x, i) => { const p = ctrlPerc(x[k]), nk = ctrlNapK(napok[i]);
         return `<td class="${nk === ma ? 'ma' : ''}${cel && p >= cel ? ' ok' : ''}${p ? '' : ' nulla'}">${p ? p + '′' : '–'}</td>`; }).join('')}<td class="ossz">${ctrlPerc(l.reduce((a, x) => a + x[k], 0)) || '–'}${l.some(x => x[k] >= 30) ? '′' : ''}</td></tr>`;
-    host.innerHTML = fej + ctrlAlakKartya() + `<p class="ctrl-megj">Percben. Csak a Sikerfüzetben aktívan töltött idő számít (látható fül, az elmúlt 5 percben volt mozgás); a privát rész nem. A 10 perces füzetnél zöld, ha megvan a napi 10 perc.</p>
+    host.innerHTML = fej + ctrlAlakKartya() + ctrlPreziOsszesito(emb, pz) + `<p class="ctrl-megj">Percben. Csak a Sikerfüzetben aktívan töltött idő számít (látható fül, az elmúlt 5 percben volt mozgás); a privát rész nem. A 10 perces füzetnél zöld, ha megvan a napi 10 perc.</p>
         <div class="ctrl-racs">${emb.map((e, i) => { const l = adat[i];
             if(!l) return `<div class="card ctrl-k"><div class="ctrl-nev"><span class="tt-av">${esc(initialsTt(e.name))}</span><b>${esc(e.name)}</b></div><p class="ctrl-hiba">Nem sikerült betölteni.</p></div>`;
             const o = k => ctrlPerc(l.reduce((a, x) => a + x[k], 0));
             return `<div class="card ctrl-k"><div class="ctrl-nev"><span class="tt-av">${esc(initialsTt(e.name))}</span><b>${esc(e.name)}</b>
                 <span class="ctrl-sum"><i class="c10">${o('p10')}′</i><i class="c2">${o('p2')}′</i><i class="co">${o('ossz')}′</i></span></div>
                 <div class="ctrl-tabla-k"><table class="ctrl-tabla"><thead><tr><th></th>${napok.map(d => `<th class="${ctrlNapK(d) === ma ? 'ma' : ''}">${CTRL_NAPN[(d.getDay() + 6) % 7]}<small>${d.getDate()}</small></th>`).join('')}<th>Össz.</th></tr></thead>
-                <tbody>${sor('10 perces', 'p10', l, 10)}${sor('2 órás', 'p2', l, 0)}${sor('Oldalon', 'ossz', l, 0)}</tbody></table></div></div>`; }).join('')}</div>`;
+                <tbody>${sor('10 perces', 'p10', l, 10)}${sor('2 órás', 'p2', l, 0)}${sor('Oldalon', 'ossz', l, 0)}</tbody></table></div>
+                <div class="ctrl-pz-sz"><span>Prezentációk</span>${ctrlPreziSorok(pz[i])}</div></div>`; }).join('')}</div>`;
 }
 // a saját havi tervek Van számai, utolsó 12 hónap (a Havi tervből áthozva)
 function ctrlAlakKartya(){ return `<section class="card hv-k ctl-alak" id="ctlAlak">${haviAlakHtml(new Date())}</section>`; }
@@ -34949,7 +35008,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=87";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=88";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -35130,6 +35189,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const owner = window.sfCurrentUser;
         if (!isConfigured || !owner || !owner.uid) return Promise.reject(new Error("nincs belépve"));
         return addActivityNap(owner.uid, owner.name || owner.email || "", ho, nap, d);
+    };
+    window.sfPreziKuld = function(ho, nap, kulcs, nev, darab, sec){
+        const owner = window.sfCurrentUser;
+        if (!isConfigured || !owner || !owner.uid) return Promise.reject(new Error("nincs belépve"));
+        return addPreziNap(owner.uid, owner.name || owner.email || "", ho, nap, kulcs, nev, darab, sec);
     };
     window.sfAktivitasOlvas = function(key){ return isConfigured ? getActivityTimer(key) : Promise.resolve(null); };
     window.sfSaveTimer = function(col, periodKey, seconds){

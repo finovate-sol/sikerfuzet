@@ -138,6 +138,14 @@ export async function addActivityNap(uid, name, ho, nap, d){
     if(!Object.keys(n).length) return;
     await setDoc(doc(db, "activity_timers", `${uid}_nap_${ho}`), { uid, name: name || "", col: "nap", period: ho, napok: { [nap]: n }, updatedAt: Date.now() }, { merge: true });
 }
+// Prezentáció-vetítések (Control): activity_timers/{uid}_prezi_{YYYY-MM} =
+// { nevek: { kulcs: név }, napok: { 'YYYY-MM-DD': { kulcs: { db, sec } } } } – növeléssel.
+export async function addPreziNap(uid, name, ho, nap, kulcs, nev, darab, sec){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const x = {}; if(darab > 0) x.db = increment(Math.round(darab)); if(sec > 0) x.sec = increment(Math.round(sec));
+    if(!Object.keys(x).length) return;
+    await setDoc(doc(db, "activity_timers", `${uid}_prezi_${ho}`), { uid, name: name || "", col: "prezi", period: ho, nevek: { [kulcs]: nev || "" }, napok: { [nap]: { [kulcs]: x } }, updatedAt: Date.now() }, { merge: true });
+}
 export async function getActivityTimer(key){
     if(!isConfigured || !db) return null;
     try { const snap = await getDoc(doc(db, "activity_timers", key)); return snap.exists() ? (snap.data() || null) : null; }
