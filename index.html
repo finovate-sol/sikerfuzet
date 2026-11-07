@@ -3346,7 +3346,13 @@
         .het-tbl td small { display:block; font-size:11px; color:var(--muted); padding:0 4px 6px; }
         .het-e { text-align:center !important; width:80px; }
 .het-e .res-cyc { cursor:pointer; }
-        .tp-kpik { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin:0 0 14px; }
+        .tp-kpik { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)) minmax(0, 1.5fr); gap:12px; margin:0 0 14px; }
+        @media (max-width:1100px){ .tp-kpik { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+        @media (max-width:560px){ .tp-kpik { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+        html body #telefonpartyBody .card.tp-kpi.tp-kpi-cel { background:linear-gradient(135deg, #6d28d9, #4f46e5) !important; border-top-color:transparent; color:#fff; box-shadow:0 6px 18px rgba(79,70,229,.28); }
+        .tp-kpi.tp-kpi-cel small, .tp-kpi.tp-kpi-cel span { color:rgba(255,255,255,.85); }
+        .tp-kpi.tp-kpi-cel b { color:#fff; font-size:34px; } .tp-kpi.tp-kpi-cel b em { font-style:normal; font-size:20px; font-weight:700; opacity:.75; }
+        .tp-kpi-sav { display:block; height:6px; border-radius:6px; background:rgba(255,255,255,.25); margin-top:8px; overflow:hidden; } .tp-kpi-sav s { display:block; height:100%; background:#fff; border-radius:6px; }
         .tp-kpi { padding:14px 16px; border-top:3px solid var(--c); } .tp-kpi small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
         .tp-kpi b { display:block; font-size:28px; font-weight:800; color:var(--c); line-height:1.2; margin-top:2px; } .tp-kpi span { font-size:12px; color:var(--muted); }
         .tp-szuro { margin:0 0 14px; }
@@ -15886,6 +15892,8 @@ async function renderTelefonparty(){
     });
     const vanTag = tagok.filter(t => t.l.length || (t.cel && t.cel.ossz)), uresTag = tagok.filter(t => !vanTag.includes(t));
     const ossz = kliensek.length, ok = kliensek.filter(c => res(c) === 'ok').length, no = kliensek.filter(c => res(c) === 'no').length;
+    // Kontaktus: akit felhívtak – a 3-2-1-ben elérve (✓) vagy nem sikerült (✕), illetve akinek már időpontja van
+    const kontakt = kliensek.filter(c => c.resPenz === 'ok' || c.resPenz === 'no' || idop(c)).length;
     const celOssz = tagok.reduce((a, t) => a + (t.cel ? t.cel.ossz : 0), 0);
     const pct = (a, b) => b ? Math.min(100, Math.round(a / b * 100)) : 0;
     const kpi = (cim, ert, al, szin) => `<div class="card tp-kpi" style="--c:${szin}"><small>${cim}</small><b>${ert}</b>${al ? `<span>${al}</span>` : ''}</div>`;
@@ -15898,13 +15906,15 @@ async function renderTelefonparty(){
     const gorgVolt = (host.querySelector('.tp-gorg') || {}).scrollTop || 0;
     host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)}) · lebeszéltnek számít a naptárban ${esc(ablSzo)} között rögzített időpont</p></div></div>
         <div class="tp-kpik">
-            ${kpi('TP-s ügyfél', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
-            ${kpi('Lebeszélve', ok, (ossz ? pct(ok, ossz) + '% a TP-sekből · ' : '') + 'naptárban rögzítve', '#16a34a')}
+            ${kpi('TP ügyfél potenciál', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
+            ${kpi('Kontaktus', kontakt, `felhívva${ossz ? ' · ' + pct(kontakt, ossz) + '% a TP-sekből' : ''}`, '#0891b2')}
+            ${kpi('Lebeszélve', ok, (kontakt ? pct(ok, kontakt) + '% a kontaktusokból · ' : '') + 'naptárban rögzítve', '#16a34a')}
             ${kpi('Nem sikerült', no, '', '#dc2626')}
-            ${kpi('Még nincs', ossz - ok - no, '', '#64748b')}
-            ${kpi('Jövő heti cél', celOssz || '—', celOssz ? `EL + TA időpont · ${pct(ok, celOssz)}% teljesítve` : 'a Havi tervekből', '#7c3aed')}
+            ${kpi('Még nem', ossz - ok - no, '', '#64748b')}
+            <div class="card tp-kpi tp-kpi-cel"><small>Jövő heti cél</small><b>${celOssz ? `${ok} <em>/ ${celOssz}</em>` : '—'}</b>
+                <span>${celOssz ? `EL + TA időpont · ${pct(ok, celOssz)}% teljesítve` : 'a Havi tervekből'}</span>${celOssz ? `<i class="tp-kpi-sav"><s style="width:${pct(ok, celOssz)}%"></s></i>` : ''}</div>
         </div>
-        <div class="pv-chipek tp-szuro">${[['mind', 'Mind'], ['ok', '✓ Lebeszélve'], ['no', '✕ Nem sikerült'], ['pending', 'Még nincs']].map(([k, n]) => `<button type="button" data-tpszur="${k}" class="${tpSzuro === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
+        <div class="pv-chipek tp-szuro">${[['mind', 'Mind'], ['ok', '✓ Lebeszélve'], ['no', '✕ Nem sikerült'], ['pending', 'Még nem']].map(([k, n]) => `<button type="button" data-tpszur="${k}" class="${tpSzuro === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
         <div class="tp-gorg"><div class="tp-racs">${vanTag.length ? vanTag.map(t => { const l = szurt(t.l), cel = t.cel ? t.cel.ossz : 0;
             return `<section class="card hv-k tp-mt"><div class="hv-k-fej"><h3>${esc(t.nev)}</h3><span class="het-db">${t.l.length} TP</span><button type="button" class="tp-ki" data-tpki="${esc(t.uid)}" title="Nincs jelen – kivétel a heti telefonpartyból">✕</button></div>
                 <div class="tp-sav"><div class="tp-sav-f"><span>Lebeszélve: <b>${t.ok}</b>${cel ? ` / ${cel} (jövő heti cél: EL ${t.cel.el} + TA ${t.cel.ta})` : t.cel ? ' · a jövő hétre nincs EL / TA cél' : ' · nincs havi terv a hónapra'}</span><span>✕ ${t.no} · – ${t.l.length - t.ok - t.no}</span></div>
