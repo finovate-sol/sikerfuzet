@@ -3356,6 +3356,23 @@
         .tp-kpi { padding:14px 16px; border-top:3px solid var(--c); } .tp-kpi small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
         .tp-kpi b { display:block; font-size:28px; font-weight:800; color:var(--c); line-height:1.2; margin-top:2px; } .tp-kpi span { font-size:12px; color:var(--muted); }
         .tp-szuro { margin:0 0 14px; }
+        #telefonpartyBody .pg-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+        .tp-ful { flex:none; }
+        .tp-e-k { padding:6px 10px 10px; }
+        .tp-e { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+        .tp-e > thead th { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); text-align:right; padding:8px 8px; white-space:nowrap; }
+        .tp-e > thead th:first-child, .tp-e > tbody > tr > td:first-child { text-align:left; }
+        .tp-e-sor td { text-align:right; padding:9px 8px; border-top:1px solid var(--border); cursor:pointer; }
+        .tp-e-sor:hover td { background:#f8fafc; } .tp-e-sor.nyitva td { background:#eff6ff; }
+        .tp-e-sor td:first-child b { display:block; color:#0b2a55; } .tp-e-sor td:first-child small { color:var(--muted); font-size:11.5px; }
+        .tp-e td.ok, .tp-e-tag td.ok { color:#15803d; font-weight:800; } .tp-e td.no, .tp-e-tag td.no { color:#b91c1c; font-weight:700; }
+        .tp-e-p { display:flex; align-items:center; gap:6px; justify-content:flex-end; font-weight:700; } .tp-e-p i { width:70px; height:6px; border-radius:6px; background:#e5e7eb; overflow:hidden; } .tp-e-p s { display:block; height:100%; }
+        .tp-e-bel > td { padding:4px 8px 12px 18px; background:#f8fbff; }
+        .tp-e-tag { width:100%; border-collapse:collapse; font-size:12.5px; }
+        .tp-e-tag th { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); text-align:left; padding:6px; }
+        .tp-e-tag td { padding:6px; border-top:1px solid #e8eef6; vertical-align:top; }
+        .tp-e-tag td.nevek span { display:inline-block; font-size:11.5px; background:#ecfdf3; color:#15803d; border:1px solid #bbf7d0; border-radius:999px; padding:1px 8px; margin:1px 4px 1px 0; }
+        .tp-e-megj { margin:8px 4px 2px; font-size:11.5px; color:var(--muted); }
         /* a felső rész (cím, számok, szűrő) a helyén marad, a kártyák alatta görgetődnek */
         #telefonpartyBody.tp-kitolt { display:flex; flex-direction:column; overflow:hidden; }
         .tp-fix { flex:none; }
@@ -15819,7 +15836,35 @@ function ctHaviOssz(h){
 // ===== TELEFONPARTY (vezetői dashboard) =====
 // A csapat összes TP-vel jelölt ügyfele munkatársanként, a 3-2-1 eredményével (sikerült-e időpontot egyeztetni),
 // összevetve a munkatárs Havi tervében a KÖVETKEZŐ hétre tervezett EL + TA időponttal.
-let tpSzuro = 'mind';
+let tpSzuro = 'mind', tpFul = 'akt', tpEredNyit = new Set(), tpEredMentT = null, tpEredUtolso = '';
+const tpEredLokal = () => store.load('sf_tp_ered', {}) || {};
+// a heti állás mentése (a hét végéig folyamatosan frissül – az utolsó állapot lesz a hét eredménye)
+function tpEredRogzit(kulcs, adat){
+    const j = JSON.stringify(adat); if(j === tpEredUtolso) return; tpEredUtolso = j;
+    const l = tpEredLokal(); l[kulcs] = adat; store.save('sf_tp_ered', l);
+    clearTimeout(tpEredMentT);
+    tpEredMentT = setTimeout(() => { if(typeof window.sfTpEredMent === 'function') window.sfTpEredMent(kulcs.slice(0, 4), kulcs, adat).catch(e => console.warn('Telefonparty eredmény mentése sikertelen:', e)); }, 2500);
+}
+async function tpEredBetolt(){
+    const l = Object.assign({}, tpEredLokal()), ev = new Date().getFullYear();
+    if(typeof window.sfTpEredOlvas === 'function'){
+        const d = await Promise.all([ev, ev - 1].map(e => window.sfTpEredOlvas(e).catch(() => null)));
+        d.forEach(x => Object.entries((x && x.hetek) || {}).forEach(([k, v]) => { if(!l[k] || (v.mentve || 0) > (l[k].mentve || 0)) l[k] = v; }));
+    }
+    return Object.entries(l).sort((a, b) => b[0].localeCompare(a[0]));
+}
+function tpEredHtml(lista){
+    const pct = (a, b) => b ? Math.min(100, Math.round(a / b * 100)) : 0;
+    if(!lista.length) return '<div class="card"><div class="card-body hv-ures-sz">Még nincs mentett telefonparty-eredmény. Az aktuális hét állása automatikusan mentődik, amikor megnyitod az Aktuális fület.</div></div>';
+    const fej = '<tr><th>Hét</th><th>Potenciál</th><th>Kontaktus</th><th>Lebeszélve</th><th>Nem sikerült</th><th>Még nem</th><th>Cél</th><th>Teljesítés</th></tr>';
+    const sor = (k, h) => { const o = h.ossz || {}, p = pct(o.ok, o.cel), ny = tpEredNyit.has(k);
+        return `<tr class="tp-e-sor${ny ? ' nyitva' : ''}" data-tpered="${esc(k)}"><td><b>KW ${esc(String(h.kw || ''))}</b><small>${esc(h.ablak || '')}</small></td><td>${o.pot || 0}</td><td>${o.kont || 0}</td><td class="ok">${o.ok || 0}</td><td class="no">${o.no || 0}</td><td>${o.meg || 0}</td><td>${o.cel || '—'}</td>
+            <td>${o.cel ? `<div class="tp-e-p"><i><s style="width:${p}%;background:${p >= 100 ? '#16a34a' : p >= 60 ? '#eab308' : '#ef4444'}"></s></i>${p}%</div>` : '—'}</td></tr>`
+            + (ny ? `<tr class="tp-e-bel"><td colspan="8"><table class="tp-e-tag"><thead><tr><th>Munkatárs</th><th>Potenciál</th><th>Kontaktus</th><th>Lebeszélve / cél</th><th>Nem sikerült</th><th>Lebeszélt időpontok</th></tr></thead><tbody>${Object.values(h.tagok || {}).sort((a, b) => (b.ok || 0) - (a.ok || 0)).map(t =>
+                `<tr><td><b>${esc(t.nev || '')}</b></td><td>${t.pot || 0}</td><td>${t.kont || 0}</td><td class="ok">${t.ok || 0}${t.cel ? ` / ${t.cel}` : ''}</td><td class="no">${t.no || 0}</td><td class="nevek">${(t.idok || []).map(x => `<span>${esc(x)}</span>`).join('') || '—'}</td></tr>`).join('')}</tbody></table></td></tr>` : ''); };
+    return `<div class="card tp-e-k"><div class="het-tbl-w"><table class="tp-e"><thead>${fej}</thead><tbody>${lista.map(([k, h]) => sor(k, h)).join('')}</tbody></table></div>
+        <p class="tp-e-megj">Hetente a péntektől a következő hét vasárnapjáig tartó időszak végső állása. Kattints egy hétre a munkatársankénti bontásért.</p></div>`;
+}
 const tpHavi = {};
 // A telefonparty ablaka: a legutóbbi péntektől a következő hét vasárnapjáig (10 nap – a hétvégék átfedésben vannak).
 // A „jövő hét” (cél, KW) az az OVB-hét, amelyik a péntek utáni szombattal kezdődik.
@@ -15903,8 +15948,28 @@ async function renderTelefonparty(){
     const sor = c => `<tr class="${res(c) === 'ok' ? 'tp-ok' : ''}"><td><div class="h321-nev"><strong>${esc(c.name || '(névtelen)')}</strong>${c.tp321c ? `<span class="tp-cel" title="${esc(CEL_NEV[c.tp321c] || '')}">${esc(c.tp321c)}</span>` : ''}</div></td>
         <td class="tp-tel">${esc(c.phone || '—')}</td><td>${!idop(c) && c.resPenz === 'ok' ? '<span class="tp-nincsnapt" title="A 3-2-1-ben elérve, de a naptárban még nincs rögzített időpont">elérve · nincs időpont</span>' : ''}${idop(c) ? `<span class="tp-idop" title="${esc(idop(c).cim || '')}">📅 ${esc(new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}${esc(c.tp321j || '') || (idop(c) ? '' : '<span class="tp-ures">—</span>')}</td><td>${esc(c.tp321t || '') || '<span class="tp-ures">—</span>'}</td>
         <td class="het-e">${resBadge(c.resPenz || 'pending')}</td></tr>`;
+    // heti pillanatkép az Eredmények fülhöz
+    try {
+        const idoSzo = c => new Date(idop(c).at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        const tg = {}; vanTag.forEach(t => { tg[t.uid] = { nev: String(t.nev).replace(/ \(te\)$/, ''), pot: t.l.length, kont: t.l.filter(c => c.resPenz === 'ok' || c.resPenz === 'no' || idop(c)).length, ok: t.ok, no: t.no, cel: t.cel ? t.cel.ossz : 0,
+            idok: t.l.filter(c => idop(c)).map(c => `${c.name || ''} · ${idoSzo(c)}`) }; });
+        const hk = ctrlNapK(abl.tol);
+        if(ossz) tpEredRogzit(hk, { kw, ablak: ablSzo, ossz: { pot: ossz, kont: kontakt, ok, no, meg: ossz - ok - no, cel: celOssz }, tagok: tg, mentve: Date.now() });
+    } catch(e){ console.warn(e); }
+    const fulGomb = `<div class="seg tp-ful"><button type="button" data-tpful="akt" class="${tpFul === 'akt' ? 'active' : ''}">Aktuális</button><button type="button" data-tpful="eredm" class="${tpFul === 'eredm' ? 'active' : ''}">Eredmények</button></div>`;
+    const fulKot = () => host.querySelectorAll('[data-tpful]').forEach(b => b.addEventListener('click', () => { if(tpFul !== b.dataset.tpful){ tpFul = b.dataset.tpful; renderTelefonparty(); } }));
+    if(tpFul === 'eredm'){
+        host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A korábbi hetek eredményei</p></div>${fulGomb}</div></div><div class="tp-gorg tp-e-gorg"><div class="card pg-loading">Betöltés…</div></div>`;
+        fulKot(); tpMagassag();
+        const lista = await tpEredBetolt();
+        if(tpFul !== 'eredm' || !host.isConnected) return;
+        const tart = host.querySelector('.tp-e-gorg'); if(!tart) return;
+        const rajz = () => { tart.innerHTML = tpEredHtml(lista);
+            tart.querySelectorAll('[data-tpered]').forEach(r => r.addEventListener('click', () => { const k = r.dataset.tpered; tpEredNyit.has(k) ? tpEredNyit.delete(k) : tpEredNyit.add(k); rajz(); })); };
+        rajz(); return;
+    }
     const gorgVolt = (host.querySelector('.tp-gorg') || {}).scrollTop || 0;
-    host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)}) · lebeszéltnek számít a naptárban ${esc(ablSzo)} között rögzített időpont</p></div></div>
+    host.innerHTML = `<div class="tp-fix"><div class="pg-hero"><div class="pg-hero-txt"><h2>Telefonparty</h2><p>A csapat TP-s ügyfelei – sikerült-e időpontot egyeztetni a következő hétre (KW ${kw} · ${esc(hetSzo)}) · lebeszéltnek számít a naptárban ${esc(ablSzo)} között rögzített időpont</p></div>${fulGomb}</div>
         <div class="tp-kpik">
             ${kpi('TP ügyfél potenciál', ossz, `${vanTag.filter(t => t.l.length).length} munkatársnál`, '#1f5fd0')}
             ${kpi('Kontaktus', kontakt, `felhívva${ossz ? ' · ' + pct(kontakt, ossz) + '% a TP-sekből' : ''}`, '#0891b2')}
@@ -15924,7 +15989,7 @@ async function renderTelefonparty(){
             </section>`; }).join('') : `<div class="card"><div class="card-body hv-ures-sz">Még senkinél nincs TP-vel jelölt ügyfél.</div></div>`}</div>
         ${uresTag.length ? `<p class="tp-lab">Nincs TP-s ügyfele és jövő heti terve: ${uresTag.map(t => esc(t.nev)).join(', ')}</p>` : ''}
         ${kint.size ? `<div class="tp-kint">Nincs jelen (kivéve a héten):${[...kint].map(uid => `<button type="button" data-tpbe="${esc(uid)}" title="Visszavétel">↩ ${esc(nevek.get(uid) || 'Ismeretlen')}</button>`).join('')}</div>` : ''}</div>`;
-    tpMagassag();
+    tpMagassag(); fulKot();
     const gorgUj = host.querySelector('.tp-gorg'); if(gorgUj && gorgVolt) gorgUj.scrollTop = gorgVolt;
     const kiMent = () => { store.save(kiKulcs, [...kint]); renderTelefonparty(); };
     host.querySelectorAll('[data-tpki]').forEach(b => b.addEventListener('click', () => { kint.add(b.dataset.tpki); kiMent(); }));
@@ -35226,6 +35291,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return addActivityNap(owner.uid, owner.name || owner.email || "", ho, nap, d);
     };
     // Telefonparty: a csapat ügyfeleinek friss állapota (a 3-2-1 eredményei) – csak ehhez az oldalhoz, a többi lista érintetlen
+    // Telefonparty eredmények: heti pillanatképek a vezető saját dokumentumában (activity_timers/{uid}_tp_{év})
+    window.sfTpEredMent = function(ev, het, adat){ const u = window.sfCurrentUser; if (!isConfigured || !u || !u.uid) return Promise.resolve();
+        return saveActivityTimer(`${u.uid}_tp_${ev}`, { uid: u.uid, col: "tp", period: String(ev), hetek: { [het]: adat }, updatedAt: Date.now() }); };
+    window.sfTpEredOlvas = function(ev){ const u = window.sfCurrentUser; return isConfigured && u && u.uid ? getActivityTimer(`${u.uid}_tp_${ev}`) : Promise.resolve(null); };
     window.sfTpCsapatTolt = async function(){ if (isConfigured) window.sfTpCsapat = await getClients(); };
     window.sfPreziKuld = function(ho, nap, kulcs, nev, darab, sec){
         const owner = window.sfCurrentUser;
