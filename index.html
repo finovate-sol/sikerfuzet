@@ -2929,6 +2929,10 @@
         .sb-m-fej { margin:0; padding:12px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .sb-m-fej > div { flex:1; min-width:0; display:flex; flex-direction:column; } .sb-m-fej b { font-size:17px; color:#111827; } .sb-m-fej em { font-style:normal; font-size:11.5px; color:var(--muted); }
         .sb-m-gombok { display:flex; gap:6px; flex-wrap:wrap; }
+        .sb-ml-cs { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 6px 2px; }
+        .sb-ml-cs.kozos { color:#1d4ed8; border-top:1px solid #eef0f4; margin-top:6px; padding-top:10px; }
+        .sb-ml-megj { margin:8px 6px 2px; font-size:11.5px; color:var(--muted); }
+        .sb-kozos-c { display:inline-flex; align-items:center; font-size:12px; font-weight:800; color:#1d4ed8; background:#dbeafe; border-radius:999px; padding:4px 11px; }
         .sb-vissza { display:none; border:0; background:#eef2f8; color:#0b2a55; font:inherit; font-weight:700; border-radius:999px; padding:6px 12px; cursor:pointer; }
         @media (max-width:999px){
             .sb-m-lay.mob-lista > .sb-jobb { display:none; }
@@ -13675,13 +13679,36 @@ const SB_ALAP = [
     { id: 't3', tip: 'telefon', n: 'Gyakori ellenvetések', sz: '„NINCS RÁ IDŐM.”\n– Megértem, épp ezért javaslom, hogy egy rövid, félórás beszélgetéssel kezdjük. Reggel vagy inkább munka után lenne jobb?\n\n„MÁR VAN TANÁCSADÓM / BIZTOSÍTÁSOM.”\n– Nagyszerű, annál könnyebb lesz összevetni. Egy második vélemény sosem árt – ha minden rendben, azt is jó tudni.\n\n„NINCS RÁ PÉNZEM.”\n– Pont ezért érdemes átnézni: sokszor a meglévő kiadások átrendezésével is lehet spórolni.\n\n„MÉG GONDOLKODOM RAJTA.”\n– Persze, ez fontos döntés. Mi az, amin még gondolkodik? Segítek tisztázni.' },
 ];
 let sbValaszt = store.load('sf_sb_valaszt', {}), sbKitolt = store.load('sf_sb_kitolt', {});
+// Közös sablonok: az admin e-mail sablonjai és hívás-segédletei mindenkinél megjelennek (config/sablonok_kozos);
+// a többiek csak olvassák, a „Másolat” gombbal vehetik át a sajátjaik közé.
+let sbKozos = store.load('sf_sb_kozos', []) || [], sbKozosVolt = 0, sbKozosKuldott = '';
+async function sbKozosFrissit(d){
+    if(typeof window.sfGetConfigDoc !== 'function') return;
+    if(window.sfIsAdmin){
+        if(prvNemFriss('sablonok') || typeof window.sfSaveConfigDoc !== 'function') return;
+        const lista = d.lista.map(x => ({ id: x.id, tip: x.tip, n: x.n || '', sz: x.sz || '', ...(x.targy != null ? { targy: x.targy } : {}) }));
+        const j = JSON.stringify(lista); if(j === sbKozosKuldott) return;
+        sbKozosKuldott = j;
+        window.sfSaveConfigDoc('sablonok_kozos', { lista, nev: (window.sfCurrentUser && window.sfCurrentUser.name) || '', frissitve: Date.now() }).catch(e => { sbKozosKuldott = ''; console.warn('Közös sablonok mentése sikertelen:', e); });
+        return;
+    }
+    if(Date.now() - sbKozosVolt < 60000) return;
+    sbKozosVolt = Date.now();
+    try { const v = await window.sfGetConfigDoc('sablonok_kozos');
+        sbKozos = ((v && v.lista) || []).map(x => ({ ...x, id: 'k:' + x.id, kozos: 1, gazda: (v && v.nev) || '' }));
+        store.save('sf_sb_kozos', sbKozos);
+    } catch(e){ console.warn('Közös sablonok betöltése sikertelen:', e); }
+}
 async function sbSablonok(){
     const d = await prvBetolt('sablonok');
     if(!Array.isArray(d.lista)) d.lista = [];
     // első használatkor induló példák (átírhatók, törölhetők) – csak ha a szerver állapota már ismert
     if(!d.alap && !prvNemFriss('sablonok')){ d.lista = [...SB_ALAP.map(x => ({ ...x })), ...d.lista]; d.alap = 1; prvMent('sablonok'); }
+    await sbKozosFrissit(d);
     return d;
 }
+// a közös sablonok közül azok, amelyek nem egyeznek egy sajáttal (pl. a mindenkinél meglévő induló példák)
+const sbKozosLista = (d, tip) => window.sfIsAdmin ? [] : sbKozos.filter(x => x.tip === tip && !d.lista.some(y => y.tip === x.tip && (y.n || '') === (x.n || '') && (y.sz || '') === (x.sz || '') && (y.targy || '') === (x.targy || '')));
 const sbHelyek = t => [...new Set(String(t || '').match(/\{[^{}\n]{1,30}\}/g) || [])].map(x => x.slice(1, -1));
 const sbKitoltott = t => String(t || '').replace(/\{([^{}\n]{1,30})\}/g, (m, k) => (sbKitolt[k] || '').trim() || m);
 const sbElonezet = t => esc(String(t || '')).replace(/\{([^{}\n]{1,30})\}/g, (m, k) => (sbKitolt[k] || '').trim() ? `<b class="sb-ph-ki">${esc(sbKitolt[k].trim())}</b>` : `<mark class="sb-ph">{${k}}</mark>`);
@@ -13694,19 +13721,24 @@ const sbForgatokonyv = t => String(t || '').split('\n').map(sor => {
     return `<div class="sb-fk-sor">${h}</div>`;
 }).join('');
 function sbMentettHtml(d, tip){
-    const l = d.lista.filter(x => x.tip === tip), akt = l.find(x => x.id === sbValaszt[tip]) || l[0];
+    const sajat = d.lista.filter(x => x.tip === tip), koz = sbKozosLista(d, tip), l = [...sajat, ...koz];
+    const akt = l.find(x => x.id === sbValaszt[tip]) || l[0];
     const email = tip === 'email';
+    const elem = x => `<button type="button" class="sb-ml-e${akt && x.id === akt.id ? ' on' : ''}" data-sbvalaszt="${esc(x.id)}">
+            <b>${esc(x.n || 'Névtelen')}</b><em>${esc((email ? x.targy : '') || String(x.sz || '').split('\n').find(s => s.trim()) || '')}</em></button>`;
     const lista = `<section class="card sb-ml">
         <div class="sb-ml-fej"><b>${email ? 'E-mail sablonok' : 'Hívás-segédletek'}</b><button type="button" class="sb-masol" data-sbuj="${tip}">+ Új</button></div>
-        ${l.length ? l.map(x => `<button type="button" class="sb-ml-e${akt && x.id === akt.id ? ' on' : ''}" data-sbvalaszt="${esc(x.id)}">
-            <b>${esc(x.n || 'Névtelen')}</b><em>${esc((email ? x.targy : '') || String(x.sz || '').split('\n').find(s => s.trim()) || '')}</em></button>`).join('')
-            : `<p class="sb-tipp" style="padding:4px 4px 8px">Még nincs ${email ? 'e-mail sablonod' : 'segédleted'}. Az <b>+ Új</b> gombbal vehetsz fel egyet.</p>`}
+        ${koz.length && sajat.length ? '<div class="sb-ml-cs">Sajátjaim</div>' : ''}
+        ${sajat.length ? sajat.map(elem).join('')
+            : `<p class="sb-tipp" style="padding:4px 4px 8px">Még nincs saját ${email ? 'e-mail sablonod' : 'segédleted'}. Az <b>+ Új</b> gombbal vehetsz fel egyet.</p>`}
+        ${koz.length ? `<div class="sb-ml-cs kozos">Közös${koz[0].gazda ? ' · ' + esc(koz[0].gazda) : ''}</div>${koz.map(elem).join('')}` : ''}
+        ${window.sfIsAdmin ? '<p class="sb-ml-megj">A sablonjaid a csapat többi tagjánál is megjelennek (közösként).</p>' : ''}
     </section>`;
     if(!akt) return `<div class="sb-m-lay">${lista}<div></div></div>`;
     const helyek = sbHelyek((email ? akt.targy + '\n' : '') + akt.sz);
     const reszlet = `<div class="sb-jobb">
         <section class="card sb-m-fej"><button type="button" class="sb-vissza" data-sbvissza aria-label="Vissza a listához">‹ Vissza</button><div><b>${esc(akt.n || 'Névtelen')}</b><em>${email ? 'E-mail' : 'Telefonos segédlet'}</em></div>
-            <span class="sb-m-gombok"><button type="button" class="sb-g2" data-sbszerk="${esc(akt.id)}">Szerkesztés</button><button type="button" class="sb-g2" data-sbmasolat="${esc(akt.id)}">Másolat</button><button type="button" class="sb-g2 piros" data-sbtorol="${esc(akt.id)}">Törlés</button></span></section>
+            <span class="sb-m-gombok">${akt.kozos ? `<span class="sb-kozos-c" title="Közös sablon – csak a másolatát szerkesztheted">Közös${akt.gazda ? ' · ' + esc(akt.gazda) : ''}</span><button type="button" class="sb-g2" data-sbmasolat="${esc(akt.id)}">Másolat a sajátjaim közé</button></span>` : `<button type="button" class="sb-g2" data-sbszerk="${esc(akt.id)}">Szerkesztés</button><button type="button" class="sb-g2" data-sbmasolat="${esc(akt.id)}">Másolat</button><button type="button" class="sb-g2 piros" data-sbtorol="${esc(akt.id)}">Törlés</button></span>`}</section>
         ${helyek.length ? `<section class="card sb-ph-k"><span class="c">Kitöltendő mezők</span><div class="sb-ph-racs">${helyek.map(k => `<label><span>${esc(k)}</span><input type="text" class="sb-in" data-sbph="${esc(k)}" value="${esc(sbKitolt[k] || '')}" maxlength="120"></label>`).join('')}</div>
             <button type="button" class="ez-link sb-ph-tor" data-sbphtor>Mezők ürítése</button></section>` : ''}
         <section class="card sb-v sb-elo" data-sbelo>${sbElonezetBlokk(akt)}</section>
@@ -15269,16 +15301,16 @@ document.addEventListener('click', async e => {
         return; }
     // mentett sablonok
     const d = PRV.sablonok; if(!d) return;
-    const of = id => d.lista.find(x => x.id === id);
+    const of = id => d.lista.find(x => x.id === id) || sbKozos.find(x => x.id === id);
     const vl = e.target.closest('[data-sbvalaszt]'); if(vl){ sbValaszt[sbFo] = vl.dataset.sbvalaszt; store.save('sf_sb_valaszt', sbValaszt); sbMobReszlet = true; renderSablonok(); window.scrollTo({ top: 0 }); return; }
     if(e.target.closest('[data-sbvissza]')){ sbMobReszlet = false; renderSablonok(); window.scrollTo({ top: 0 }); return; }
     const uj = e.target.closest('[data-sbuj]'); if(uj){ sbSzerkModal(d, { tip: uj.dataset.sbuj }); return; }
-    const sz = e.target.closest('[data-sbszerk]'); if(sz){ const x = of(sz.dataset.sbszerk); if(x) sbSzerkModal(d, x); return; }
+    const sz = e.target.closest('[data-sbszerk]'); if(sz){ const x = of(sz.dataset.sbszerk); if(x && !x.kozos) sbSzerkModal(d, x); return; }
     const mo = e.target.closest('[data-sbmasolat]');
-    if(mo){ const x = of(mo.dataset.sbmasolat); if(!x) return; const y = { ...x, id: 's' + Date.now().toString(36), n: x.n + ' (másolat)' };
+    if(mo){ const x = of(mo.dataset.sbmasolat); if(!x) return; const y = { ...x, id: 's' + Date.now().toString(36), n: x.kozos ? x.n : x.n + ' (másolat)' }; delete y.kozos; delete y.gazda;
         d.lista = [...d.lista, y]; sbValaszt[sbFo] = y.id; store.save('sf_sb_valaszt', sbValaszt); prvMent('sablonok'); renderSablonok(); return; }
     const tr = e.target.closest('[data-sbtorol]');
-    if(tr){ const x = of(tr.dataset.sbtorol); if(!x || !confirm(`Törlöd a(z) „${x.n}” sablont?`)) return; d.lista = d.lista.filter(z => z !== x); prvMent('sablonok'); renderSablonok(); return; }
+    if(tr){ const x = of(tr.dataset.sbtorol); if(!x || x.kozos || !confirm(`Törlöd a(z) „${x.n}” sablont?`)) return; d.lista = d.lista.filter(z => z !== x); prvMent('sablonok'); renderSablonok(); return; }
     if(e.target.closest('[data-sbphtor]')){ const akt = of((document.querySelector('#page-sablonok [data-sbmszoveg]') || {}).dataset?.sbmszoveg);
         if(akt) sbHelyek((akt.targy || '') + '\n' + akt.sz).forEach(k => delete sbKitolt[k]); store.save('sf_sb_kitolt', sbKitolt); renderSablonok(); return; }
     const mt = e.target.closest('[data-sbmtargy]'); if(mt){ const x = of(mt.dataset.sbmtargy); if(x) sbJelzes(mt, await sbMasol(sbKitoltott(x.targy || ''))); return; }
