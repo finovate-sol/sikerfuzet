@@ -35291,7 +35291,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=88";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=89";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -36266,12 +36266,21 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         }, 60000);
     }
 
-    function showConnect(grid, msg){
-        grid.innerHTML = `<div class="ag-empty">${msg || "A naptár megjelenítéséhez kösd össze a Google Naptárad."}<br><button class="btn" id="calConnectBtn" style="margin-top:12px;">Naptár összekötése</button></div>`;
+    function showConnect(grid, msg, tartalek){
+        grid.innerHTML = `<div class="ag-empty">${msg || "A naptár megjelenítéséhez kösd össze a Google Naptárad."}<br><button class="btn" id="calConnectBtn" style="margin-top:12px;">${tartalek ? "Újra" : "Naptár összekötése"}</button>${tartalek ? `<button class="btn primary" id="calConnectTart" style="margin:12px 0 0 8px;">Összekötés másik módon</button>` : ""}</div>`;
         const btn = document.getElementById("calConnectBtn");
         if (btn) btn.addEventListener("click", async () => {
             try { const t = await reconnectCalendar(); if (t) initCalendar(); }
-            catch(e){ alert("Nem sikerült összekötni a naptárat: " + (e.message||e)); }
+            catch(e){
+                // ha a Google kódos ablaka nem működik, felkínáljuk a tartalék (Firebase-es) összekötést – új kattintással, hogy a böngésző ne tiltsa le
+                if (e && e.ablak) showConnect(grid, `${escM(e.message || "")}<br><small style="color:var(--muted)">Próbáld újra, vagy kösd össze a másik módon. Ha a Google-ablakban hibaüzenetet látsz, küldd el róla a képet.</small>`, true);
+                else alert("Nem sikerült összekötni a naptárat: " + (e.message||e));
+            }
+        });
+        const tb = document.getElementById("calConnectTart");
+        if (tb) tb.addEventListener("click", async () => {
+            try { const t = await reconnectCalendarTartalek(); if (t) initCalendar(); }
+            catch(e){ alert("Nem sikerült összekötni a naptárat: " + (e.code === "auth/popup-closed-by-user" ? "a Google-ablakot bezártad." : (e.message||e))); }
         });
     }
 

@@ -872,7 +872,7 @@ async function kodosOsszekotes() {
             include_granted_scopes: true,
             login_hint: (user && user.email) || "",
             callback: r => r && r.code ? resolve(r.code) : reject(new Error((r && (r.error_description || r.error)) || "Az összekötés megszakadt.")),
-            error_callback: e => reject(new Error(e && e.type === "popup_closed" ? "Az összekötő ablakot bezártad." : ((e && (e.message || e.type)) || "Az összekötés megszakadt.")))
+            error_callback: e => { const err = new Error(e && e.type === "popup_closed" ? "A Google összekötő ablaka bezárult, mielőtt a hozzáférést megadtad volna." : e && e.type === "popup_failed_to_open" ? "A böngésző nem engedte megnyitni a Google összekötő ablakát (felugró ablak tiltva)." : ((e && (e.message || e.type)) || "Az összekötés megszakadt.")); err.ablak = !!(e && /popup/.test(e.type || "")); reject(err); }
         });
         client.requestCode();
     });
@@ -947,6 +947,21 @@ export async function reconnectCalendar() {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential && credential.accessToken;
     if (token) { tokMent(token); }
+    return token;
+}
+
+// --- Tartalék összekötés: a Firebase saját Google-ablakával (ha a kódos ablak nem működik) ---
+// Rövid életű (kb. 1 órás) hozzáférést ad; a tartós kapcsolathoz később újra az elsődleges út kell.
+export async function reconnectCalendarTartalek() {
+    if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
+    const provider = new GoogleAuthProvider();
+    provider.addScope(CALENDAR_SCOPE); provider.addScope(TASKS_SCOPE);
+    if (hasCalListGrant()) provider.addScope(CALLIST_SCOPE);
+    provider.setCustomParameters({ include_granted_scopes: "true", prompt: "consent" });
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential && credential.accessToken;
+    if (token) { tokMent(token); scopeMent([CALENDAR_SCOPE, TASKS_SCOPE].join(" ")); }
     return token;
 }
 
