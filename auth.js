@@ -829,6 +829,7 @@ const GCAL_SCOPE_KULCS = "sf_gcal_scope";
 let srvNincs = false;   // a függvények nincsenek kitelepítve (ebben a munkamenetben)
 let srvUres = false;    // a szerveren nincs tárolt kapcsolat ehhez a fiókhoz
 let srvFut = null;
+let srvAtiranyit = false; // a szerver már fogadja az átirányításos összekötést
 const nincsKitelepitve = e => e && (e.code === "functions/not-found" || (e.code === "functions/internal" && /^internal$/i.test(e.message || "")));
 async function gcalHiv(nev, adat) { return (await httpsCallable(functions, nev, { timeout: 30000 })(adat || {})).data; }
 function scopeMent(sc) {
@@ -845,6 +846,7 @@ export async function serverCalendarToken() {
     srvFut = (async () => {
         try {
             const r = await gcalHiv("gcalToken");
+            if (r && r.atiranyit) srvAtiranyit = true;
             if (r && r.access_token) { tokMent(r.access_token, r.expires_in); scopeMent(r.scope); return r.access_token; }
             if (r && r.nincs) srvUres = true;
             return null;
@@ -888,6 +890,41 @@ async function kodosOsszekotes() {
         throw e;
     }
 }
+// Átirányításos összekötés: felugró ablak nélkül – a Google a jóváhagyás után visszaküld az app címére
+// (?code=…&state=…), és a szerver ebből tartós kapcsolatot csinál. Ehhez az app címét a Google Cloudban
+// az OAuth-kliens „Authorized redirect URIs” listájára fel kell venni.
+const GCAL_ALLAPOT = "gcalAllapot";
+export function gcalVisszateroCim() { return location.origin + location.pathname.replace(/index\.html$/, ""); }
+function gcalAtiranyit() {
+    const st = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { sessionStorage.setItem(GCAL_ALLAPOT, st); localStorage.setItem(GCAL_ALLAPOT, st); } catch (e) {}
+    const user = auth && auth.currentUser;
+    const q = new URLSearchParams({ client_id: googleClientId, redirect_uri: gcalVisszateroCim(), response_type: "code",
+        scope: [CALENDAR_SCOPE, TASKS_SCOPE, CALLIST_SCOPE].join(" "), access_type: "offline", prompt: "consent",
+        include_granted_scopes: "true", state: st, login_hint: (user && user.email) || "" });
+    location.assign("https://accounts.google.com/o/oauth2/v2/auth?" + q.toString());
+}
+// Betöltéskor (belépés után): ha a Google visszaküldött, a kódot a szerver tartós kapcsolatra cseréli.
+// null: nincs teendő · { ok: true } · { hiba: "…" }
+export async function gcalVisszateresFeldolgoz() {
+    const q = new URLSearchParams(location.search);
+    const code = q.get("code"), st = q.get("state"), err = q.get("error");
+    if (!code && !err) return null;
+    let var1 = null; try { var1 = sessionStorage.getItem(GCAL_ALLAPOT) || localStorage.getItem(GCAL_ALLAPOT); } catch (e) {}
+    if (!var1 && !err) return null;   // nem a mi összekötésünk
+    try { ["code", "state", "scope", "error", "authuser", "prompt", "hd", "iss"].forEach(k => q.delete(k));
+        history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q.toString() : "") + location.hash); } catch (e) {}
+    try { sessionStorage.removeItem(GCAL_ALLAPOT); localStorage.removeItem(GCAL_ALLAPOT); } catch (e) {}
+    if (err) return { hiba: err === "access_denied" ? "A hozzáférést nem adtad meg." : "A Google hibát jelzett: " + err };
+    if (var1 !== st) return { hiba: "Az összekötés megszakadt – próbáld újra." };
+    try {
+        const r = await gcalHiv("gcalCsatol", { code, redirect_uri: gcalVisszateroCim() });
+        srvUres = false; srvNincs = false;
+        tokMent(r.access_token, r.expires_in); scopeMent(r.scope);
+        return { ok: true };
+    } catch (e) { return { hiba: (e && e.message) || String(e) }; }
+}
+
 // Leválasztás: a szerveren (és a Google-nél) is visszavonja a tartós kapcsolatot.
 export async function disconnectCalendar() {
     if (isConfigured && functions && !srvNincs) await gcalHiv("gcalLevalaszt");
@@ -935,9 +972,11 @@ export async function silentCalendarToken() {
 }
 
 // --- Naptár újra-összekötése (friss access token kérése popup-pal) ---
-export async function reconnectCalendar() {
+export async function reconnectCalendar(atiranyit) {
     if (!isConfigured || !auth) throw new Error("A Firebase nincs beállítva.");
     const srv = await serverCalendarToken(); if (srv) return srv;
+    // gombnyomásra, ha a szerver már tudja: átirányításos összekötés (nincs felugró ablak, amit a böngésző elnyelhet)
+    if (atiranyit && srvAtiranyit && googleClientId && functions && !srvNincs) { gcalAtiranyit(); return new Promise(() => {}); }
     const kod = await kodosOsszekotes(); if (kod) return kod;
     const provider = new GoogleAuthProvider();
     provider.addScope(CALENDAR_SCOPE);

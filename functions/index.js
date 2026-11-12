@@ -416,8 +416,11 @@ exports.gcalCsatol = onCall(GCAL_OPTS, async req => {
     const uid = await engedelyezett(req);
     const code = String((req.data && req.data.code) || '');
     if(!code || code.length > 512) throw new HttpsError('invalid-argument', 'Hibás Google-kód.');
-    // A Google Identity Services felugró ablakos kódjánál a redirect_uri „postmessage”.
-    const t = await googleToken({ code, grant_type: 'authorization_code', redirect_uri: 'postmessage' });
+    // A Google Identity Services felugró ablakos kódjánál a redirect_uri „postmessage”; az átirányításos
+    // összekötésnél (a böngészők a felugró ablak visszajelzését gyakran letiltják) az app saját címe.
+    const kert = String((req.data && req.data.redirect_uri) || '');
+    const redirect_uri = /^https:\/\/finovate-sol\.github\.io\/[A-Za-z0-9_\-\/]*$/.test(kert) || /^https:\/\/finovate-sol-sikerfuzet\.web\.app\/[A-Za-z0-9_\-\/]*$/.test(kert) ? kert : 'postmessage';
+    const t = await googleToken({ code, grant_type: 'authorization_code', redirect_uri });
     const ref = db.doc(`gcal_token/${uid}`);
     const regi = await ref.get();
     const refresh = t.refresh_token || (regi.exists ? regi.data().refresh_token : '');
@@ -437,13 +440,14 @@ exports.gcalToken = onCall(GCAL_OPTS, async req => {
     }
     const ref = db.doc(`gcal_token/${uid}`);
     const snap = await ref.get();
-    if(!snap.exists) return { nincs: true };
+    // atiranyit: ez a szerver-verzió már fogadja az átirányításos összekötést
+    if(!snap.exists) return { nincs: true, atiranyit: true };
     try {
         const t = await googleToken({ grant_type: 'refresh_token', refresh_token: snap.data().refresh_token });
         if(t.scope && t.scope !== snap.data().scope) await ref.set({ scope: t.scope }, { merge: true });
-        return { access_token: t.access_token, expires_in: t.expires_in || 3600, scope: t.scope || snap.data().scope || '' };
+        return { access_token: t.access_token, expires_in: t.expires_in || 3600, scope: t.scope || snap.data().scope || '', atiranyit: true };
     } catch(e){
-        if(e.lejart){ await ref.delete(); return { nincs: true }; }   // visszavonták: újra össze kell kötni
+        if(e.lejart){ await ref.delete(); return { nincs: true, atiranyit: true }; }   // visszavonták: újra össze kell kötni
         throw e;
     }
 });
