@@ -17413,14 +17413,14 @@ function renderHaviBody(){
             <label><span>Célom pénzben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celPenz" value="${esc(haviData.celPenz)}"${dis}><em>Ft</em></div></label>
             <label><span>Célom ES-ben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celES" value="${esc(haviData.celES)}"${dis}><em>EH</em></div></label>
         </div>
-        <div class="hv-k-fej hv-k-al"><h3>Havi képlet</h3><span class="hv-megj">A heti célok ebből számolódnak, egyenletesen elosztva a hetekre.</span></div>
-        <div class="hv-keplet">`+HAVI_METRICS.map((m,i)=>`<label class="hv-kb">${hvKbFej(i)}<input type="text" inputmode="numeric" data-hformula="${i}" value="${esc(haviData.formula[i])}"${dis}></label>`).join('')+`</div></section>`;
+        <div class="hv-k-fej hv-k-al"><h3>Havi képlet</h3><span class="hv-megj" id="hvTortMegj">${haviTortMegj()}</span></div>
+        <div class="hv-keplet">`+HAVI_METRICS.map((m,i)=>`<label class="hv-kb">${hvKbFej(i)}<input type="text" inputmode="numeric" data-hformula="${i}" value="${esc(haviData.formula[i])}"${dis}><small class="hv-kb-tort" id="hvtort-${i}">${haviTortErtek(i)}</small></label>`).join('')+`</div></section>`;
 
     // --- Heti áttekintés · CÉL / VAN / Diff ---
     const tabla=`<div class="card havi-weekscard" id="haviTabla">${haviTablaHtml(ranges, weekStartOf, cwIdx)}</div>`;
 
     // --- Történelmi teljesítményképlet + alakulás (számolt) ---
-    const tort=`<section class="card hv-k" id="haviTort">${haviTortHtml()}</section>`;
+    const tort='';   // a Történelmi teljesítményképlet a Havi képlet csempéiben látszik (⌀ sor)
 
     // Erfolgsjournal gomb a fejlécben: jelzi, ha új bővítmény érhető el
     document.querySelectorAll('.hv-ej-g').forEach(g => { const uj = !!(ejBovVerzio() && ejVerzioRegi(ejBovVerzio())); g.classList.toggle('uj', uj); g.title = uj ? 'Új bővítmény érhető el – a gombra nyomva frissítheted.' : 'Megnyitja az Erfolgsjournalt Chrome-ban, és a bővítmény beírja a hónap összes számát'; });
@@ -17689,6 +17689,19 @@ function haviAlakHtml(anc){
         <div class="chips hv-tm">${chips}</div>${grafikon}`;
 }
 // Történelmi teljesítményképlet – a Havi terven (a megnyitott hónap előtti 12 hónap átlaga)
+// Történelmi teljesítményképlet: az elmúlt (max. 12) hónap tényleges Van-átlaga, metrikánként
+function haviTortAtl(){
+    const y = haviAnchor.getFullYear(), m = haviAnchor.getMonth(), elozo = [];
+    for(let k = 1; k <= 12; k++){ const s = haviHoVan(new Date(y, m - k, 1)); if(s) elozo.push(s); }
+    return elozo.length ? { n: elozo.length, a: HAVI_METRICS.map((x, i) => Math.round(elozo.reduce((a, s) => a + s[i], 0) / elozo.length)) } : null;
+}
+function haviTortErtek(i){ const t = haviTortAtl(); return t ? `<span>Történelmi</span><b>${t.a[i]}</b>` : ''; }
+function haviTortMegj(){ const t = haviTortAtl(); return t ? `Alattuk a történelmi képlet: az elmúlt ${t.n} hónap tényleges (Van) átlaga.` : 'A heti célok ebből számolódnak, egyenletesen elosztva a hetekre.'; }
+function haviTortFrissit(){
+    HAVI_METRICS.forEach((x, i) => { const el = document.getElementById(`hvtort-${i}`); if(el) el.innerHTML = haviTortErtek(i); });
+    const mj = document.getElementById('hvTortMegj'); if(mj) mj.innerHTML = haviTortMegj();
+    haviSorMagassag();
+}
 function haviTortHtml(){
     const y = haviAnchor.getFullYear(), m = haviAnchor.getMonth();
     const elozo = [];
@@ -17714,16 +17727,16 @@ async function haviTortBetolt(){
     if(!kerek.length) return;
     const jott = await Promise.all(kerek);
     if(!jott.some(Boolean) || uid !== haviViewedUid() || anc !== haviAnchor) return;
-    const el = document.getElementById('haviTort'); if(el) el.innerHTML = haviTortHtml();
+    haviTortFrissit();
 }
 // a heti sorok magassága: amennyire a képernyő engedi (az alsó kártyák is beférjenek), 44–96 px között
 function haviSorMagassag(){
     const t = document.querySelector('#page-havi table.hv-ev'); if(!t || matchMedia('(max-width:1000px)').matches) return;
-    t.style.setProperty('--hv-sor', '34px');
-    const sorok = t.querySelectorAll('tbody tr.hv-het-sor:not(.hv-rejt)'); if(!sorok.length) return;
+    t.style.setProperty('--hv-sor', '40px');
+    const sorok = t.querySelectorAll('tbody tr.hv-sor-van:not(.hv-rejt)'); if(!sorok.length) return;
     const pg = document.getElementById('page-havi'), alja = pg.getBoundingClientRect().bottom + window.scrollY;
     const tobblet = window.innerHeight - (alja - window.scrollY) - 18;   // ennyi hely maradt a képernyő aljáig
-    const uj = Math.max(34, Math.min(60, 34 + tobblet / sorok.length));
+    const uj = Math.max(40, Math.min(72, 40 + tobblet / sorok.length));
     t.style.setProperty('--hv-sor', Math.round(uj) + 'px');
 }
 addEventListener('resize', () => { const hv = document.getElementById('page-havi'); if(hv && !hv.hidden && haviNezet === 'ho') haviSorMagassag(); });
@@ -17922,9 +17935,9 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
             + `<td class="hv-szv-c"><input type="text" inputmode="numeric" data-hszv="${w}" value="${esc(wk.szv)}" placeholder="–"${haviAutoHint(auto[8], 8)}></td></tr>`;
     }
     sorok += `<tr class="hv-het-koz" aria-hidden="true"><td colspan="${HAVI_METRICS.length + 2}"></td></tr>`;
-    sorok += `<tr class="ev-tot hv-tot-b"><td class="ev-month">Összesen</td>${HAVI_METRICS.map((m, i) => `<td class="ev-td-e${alt(i)}" id="hvtotvan-${i}"><span class="ev-val" id="htotvan-${i}"></span><span class="hv-tot-per"> / <span id="htotcel-${i}"></span></span></td>`).join('')}<td class="hv-szv-c"><span id="htotszv"></span></td></tr>`;
+    sorok += `<tr class="ev-tot hv-tot-b"><td class="ev-month">Összesen <span class="hv-info" title="A Van a célhoz képest színeződik: zöld = megvan, sárga = 80% felett, piros = alatta. Dőlt szám = a Sikerfüzetből számolt javaslat (Enterrel kerül be).">ⓘ</span></td>${HAVI_METRICS.map((m, i) => `<td class="ev-td-e${alt(i)}" id="hvtotvan-${i}"><span class="ev-val" id="htotvan-${i}"></span><span class="hv-tot-per"> / <span id="htotcel-${i}"></span></span></td>`).join('')}<td class="hv-szv-c"><span id="htotszv"></span></td></tr>`;
     return `<div class="hv-ev-w"><table class="eves hv-ev"><thead>${h1}</thead><tbody>${sorok}</tbody></table></div>
-        <p class="hv-megj hv-tabla-megj2">A Van a célhoz képest színeződik: <b style="color:var(--green)">zöld</b> = megvan, <b style="color:var(--amber)">sárga</b> = 80% felett, <b style="color:var(--red)">piros</b> = alatta. Dőlt szám = a Sikerfüzetből számolt javaslat (Enterrel kerül be).</p>`;
+`;
 }
 // Teljesítés szerinti árnyalat (Van / Cél): halványtól a telt kékig, 100%-tól a legsötétebb.
 function haviArnyal(td, van, cel){
@@ -46349,6 +46362,43 @@ Vállalkozás nyitásának átbeszélése`, '']
         html body #page-havi .card.hv-k { background:#fff; }
         html body #page-havi .hv-celok-r label { background:linear-gradient(180deg,#f7faff,#eef4fd) !important; border:0 !important; }
 
+        /* B: kontraszt – a sorok és értékek ne olvadjanak bele a háttérbe */
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td { background:#f6f8fc !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td input { color:#334155 !important; font-size:13.5px !important; font-weight:800 !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td.ev-alt { background-image:linear-gradient(rgba(31,95,208,.035), rgba(31,95,208,.035)) !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td + td { box-shadow:inset 1px 0 0 #edf1f7 !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td input { border:1.5px solid #cdd7e5 !important; background:#fff !important; font-size:15px !important; font-weight:800 !important; box-shadow:0 1px 2px rgba(15,23,42,.06); }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td input::placeholder { color:#94a3b8; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td input:focus { border-color:#2563eb !important; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td.ev-month .hv-het-kis { color:#475569; font-size:10.5px; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td.hv-szv-c input { border-color:#ecd9a0 !important; }
+        html body #page-havi .hv-ev-w { background:#eaf0f8 !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-fejsor td { background:#fff !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-fejsor:hover td { background:#f4f7fb !important; }
+        /* Egy képernyőre: tömörebb célok, képlet és hét-kártyák */
+        html body #page-havi .havi-layout .card.hv-k { padding:10px 16px !important; }
+        html body #page-havi .hv-k-fej { margin-bottom:6px !important; } html body #page-havi .hv-k-al { margin-top:4px !important; }
+        html body #page-havi .hv-k-fej h3 { font-size:14.5px !important; }
+        html body #page-havi .hv-celok-r { gap:10px !important; }
+        html body #page-havi .hv-celok-r label { padding:6px 12px !important; flex-direction:row !important; align-items:center !important; gap:12px !important; }
+        html body #page-havi .hv-celok-r label > span { min-width:max-content; }
+        html body #page-havi .hv-celok-r select, html body #page-havi .hv-celok-r .hv-mezo { height:28px !important; font-size:17px !important; flex:1 !important; }
+        html body #page-havi .hv-keplet .hv-kb.hv-kb { padding:6px 4px 6px !important; }
+        html body #page-havi .hv-keplet .hv-kb input, html body #page-havi .hv-keplet .hv-kb b { padding:2px 4px 0 !important; font-size:20px !important; }
+        html body #page-havi .hv-keplet .hv-kb .hv-kb-fej { padding:0 4px !important; }
+        .hv-info { cursor:help; opacity:.6; font-weight:600; margin-left:4px; }
+        .hv-kb-tort { display:flex; justify-content:center; align-items:baseline; gap:5px; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.04em; }
+        .hv-kb-tort:empty { display:none; }
+        html body #page-havi .hv-keplet .hv-kb .hv-kb-tort b { font-size:13px !important; padding:0 !important; color:#7c3aed; display:inline; }
+        html body #page-havi .hv-lay .hl-left { gap:10px !important; }
+        html body #page-havi table.eves.hv-ev thead th { padding:6px 4px 6px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-koz td { height:6px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-fejsor .hv-het-fej { padding:5px 12px; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td { padding-top:4px !important; padding-bottom:0 !important; height:24px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td { padding-top:2px !important; padding-bottom:6px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td input { padding:4px 2px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-tot-b td { padding:8px 4px !important; }
+        html body #page-havi .hv-tabla-megj2 { margin:4px 0 0 !important; }
         /* B: Havi képlet különálló, halvány csempékben */
         html body #page-havi .hv-keplet.hv-keplet { border:0 !important; background:transparent !important; gap:10px !important; overflow:visible; }
         html body #page-havi .hv-keplet .hv-kb.hv-kb { background:#fff !important; border:1px solid #e3e9f2 !important; border-radius:14px !important; padding:10px 6px 4px !important; }
