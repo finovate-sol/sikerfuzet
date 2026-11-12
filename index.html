@@ -10838,6 +10838,8 @@
         .s3-mult .s3-sor { display:flex; align-items:center; gap:10px; } .s3-mult .s3-n { flex:1; min-width:0; }
         .s3-mult .s3-al { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted); } .s3-mult .s3-al em { font-style:italic; }
         .s3-mult .chip { font-size:10px; font-weight:700; border-radius:999px; padding:0 7px; line-height:16px; background:#eef2f7; color:#334155; } .s3-mult .chip.tip { background:#fff; border:1px dashed #94a3b8; }
+        .s3-at { border:1px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; font:inherit; font-size:11.5px; font-weight:700; border-radius:999px; padding:3px 10px; cursor:pointer; flex:none; } .s3-at:hover { background:#dbeafe; }
+        .s3-at.mind { margin-left:8px; } .s3-at-k { font-size:11px; color:#15803d; font-weight:700; flex:none; }
         .s3m { width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-weight:800; background:#f1f5f9; color:#94a3b8; flex:none; } .s3m.ok { background:#16a34a; color:#fff; } .s3m.no { background:#dc2626; color:#fff; }
         .sf-teendok { margin:0 0 12px; padding:6px 10px 8px; border-radius:16px; }
         .sf-teendok-f { display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent; font:inherit; cursor:pointer; padding:6px 4px; text-align:left; }
@@ -12235,6 +12237,9 @@ function rcNyitFelre(hol){
 }
 function persistReg(i){
     const r = registry[i];
+    // a TP-jelölés ideje (a heti ciklushoz: a szerdán/csütörtökön jelöltek átkerülnek a következő hétre)
+    if(r){ if(r.tp){ if(!r.tpIdo) r.tpIdo = Date.now(); } else if(r.tpIdo) delete r.tpIdo;
+        if(r.karrierTp){ if(!r.karrierTpIdo) r.karrierTpIdo = Date.now(); } else if(r.karrierTpIdo) delete r.karrierTpIdo; }
     if(!r || !r.id || typeof window.sfSaveClient !== 'function') return;
     window.sfSaveClient(r.id, regClientPayload(r));
 }
@@ -17722,12 +17727,13 @@ function hetLep(d){
 // ===== Heti TP-ciklus: csütörtök 20:00-kor a hét 3-2-1 listája elmentődik, a TP-jelölések lenullázódnak =====
 // Így az „Aktuális hét” (és a 3-2-1) mindig csak az adott ciklusban felvezetett embereket mutatja; a korábbi hetek
 // listája a Havi terv „Aktuális hét” nézetében visszalapozva olvasható. Tárolás: privat/{uid}_tp_hetek.
-const TP_RESET_ORA = 20;   // csütörtök 20:00
+const TP_RESET_ORA = 12;   // csütörtök 12:00 (a szerdától jelöltek már a következő héthez tartoznak, nem törlődnek)
+const TP_IDO = { penz: 'tpIdo', karr: 'karrierTpIdo' };
 function tpCiklusKezd(d){ const x = new Date(d || Date.now()); const k = new Date(x); k.setHours(TP_RESET_ORA, 0, 0, 0);
     k.setDate(k.getDate() - ((k.getDay() - 4 + 7) % 7)); if(k > x) k.setDate(k.getDate() - 7); return k; }
 const tpCiklusKulcs = d => { const k = tpCiklusKezd(d); return `${k.getFullYear()}-${String(k.getMonth() + 1).padStart(2, '0')}-${String(k.getDate()).padStart(2, '0')}`; };
-// az OVB-hét (szombattól) ciklusa: a hétfője előtti csütörtök este indult
-const tpHetCiklus = (ho, w) => { const s = hetKezd(ho, w), het = new Date(s); het.setDate(s.getDate() + 2); het.setHours(12); return tpCiklusKulcs(het); };
+// egy (múltbeli) OVB-hét (szombattól) ciklusa: amelyikbe a hét szerdája esik
+const tpHetCiklus = (ho, w) => { const s = hetKezd(ho, w), sze = new Date(s); sze.setDate(s.getDate() + 4); sze.setHours(12); return tpCiklusKulcs(sze); };
 let tpCiklusFut = false;
 window.sfTpCiklusEllenoriz = async function(){
     if(tpCiklusFut || typeof prvBetolt !== 'function' || !window.sfCurrentUser) return;
@@ -17737,14 +17743,20 @@ window.sfTpCiklusEllenoriz = async function(){
         const d = await prvBetolt('tp_hetek'); if(prvNemFriss('tp_hetek')) return;
         d.hetek = d.hetek || {};
         const most = tpCiklusKulcs();
+        // egyszeri átállás: a korábban jelöltek „régi” jelölésnek számítanak
+        if(!d.idoMig){ ['penz', 'karr'].forEach(l => hetSorok(l).forEach(({ r, gi }) => { if(!r[TP_IDO[l]]){ r[TP_IDO[l]] = 1; persistReg(gi); } })); d.idoMig = 1; prvMent('tp_hetek'); }
         if(!d.ciklus){ d.ciklus = most; prvMent('tp_hetek'); return; }   // első indulás: a mostani lista marad a ciklus végéig
         if(d.ciklus === most) return;
         // lezárult ciklus: mentés, majd a jelölések törlése
-        const sor = (l, r) => { const m = HET_MEZO[l]; return { name: r.name || '', phone: r.phone || '', c: r[m.c] || '', t: r[m.t] || '', j: r[m.j] || '', e: r[m.e] || 'pending' }; };
-        const pill = { penz: hetSorok('penz').map(({ r }) => sor('penz', r)), karr: hetSorok('karr').map(({ r }) => sor('karr', r)), mentve: Date.now() };
+        // a lezárt ciklus vége előtti szerda 0:00 után jelöltek már a következő hétre szólnak: ők maradnak
+        const veg = new Date(d.ciklus + 'T12:00:00'); veg.setDate(veg.getDate() + 7); veg.setHours(TP_RESET_ORA, 0, 0, 0);
+        const hatar = new Date(veg); hatar.setDate(hatar.getDate() - 1); hatar.setHours(0, 0, 0, 0);
+        const uj = (l, r) => (r[TP_IDO[l]] || 0) >= hatar.getTime();
+        const sor = (l, r) => { const m = HET_MEZO[l]; return { id: r.id || '', name: r.name || '', phone: r.phone || '', c: r[m.c] || '', t: r[m.t] || '', j: r[m.j] || '', e: r[m.e] || 'pending' }; };
+        const pill = { penz: hetSorok('penz').filter(({ r }) => !uj('penz', r)).map(({ r }) => sor('penz', r)), karr: hetSorok('karr').filter(({ r }) => !uj('karr', r)).map(({ r }) => sor('karr', r)), mentve: Date.now() };
         if(pill.penz.length || pill.karr.length) d.hetek[d.ciklus] = pill;
         ['penz', 'karr'].forEach(l => { const m = HET_MEZO[l];
-            hetSorok(l).forEach(({ r, gi }) => { r[m.tp] = false; delete r[m.e]; delete r[m.j]; delete r[m.t]; delete r[m.c]; persistReg(gi); }); });
+            hetSorok(l).forEach(({ r, gi }) => { if(uj(l, r)) return; r[m.tp] = false; delete r[m.e]; delete r[m.j]; delete r[m.t]; delete r[m.c]; persistReg(gi); }); });
         store.save('sf_registry', registry);
         d.ciklus = most; prvMent('tp_hetek');
         if(typeof renderMoney === 'function'){ renderMoney(); renderCareer(); }
@@ -17754,21 +17766,39 @@ window.sfTpCiklusEllenoriz = async function(){
     finally { tpCiklusFut = false; }
 };
 setInterval(() => { try { window.sfTpCiklusEllenoriz(); } catch(e){} }, 10 * 60000);
+// előző hétről áthozás: a kiválasztott (vagy az összes) ember újra TP-jelölést kap a mostani hétre
+document.addEventListener('click', e => {
+    const b = e.target.closest('[data-tpat]'); if(!b) return;
+    const [l, id, ...nr] = b.dataset.tpat.split(':'), nev = nr.join(':'), m = HET_MEZO[l];
+    const ck = tpHetCiklus(hetHo, hetIdx), pill = ((PRV.tp_hetek || {}).hetek || {})[ck]; if(!pill) return;
+    const cel = id === '*' ? pill[l] : pill[l].filter(x => (id && x.id === id) || (!id && x.name === nev));
+    let db = 0;
+    cel.forEach(x => { const gi = registry.findIndex(r => r && ((x.id && r.id === x.id) || (!x.id && regNevKulcs(r.name) === regNevKulcs(x.name))));
+        if(gi < 0 || registry[gi][m.tp]) return; const r = registry[gi]; r[m.tp] = true; r[TP_IDO[l]] = Date.now(); if(x.c) r[m.c] = x.c; persistReg(gi); db++; });
+    if(!db) return;
+    store.save('sf_registry', registry); if(typeof renderMoney === 'function'){ renderMoney(); renderCareer(); }
+    renderHet();
+});
 document.addEventListener('visibilitychange', () => { if(!document.hidden) try { window.sfTpCiklusEllenoriz(); } catch(e){} });
 // egy korábbi hét elmentett listája (csak olvasható)
 function hetMultHtml(l, cim, pill){
     const lista = (pill && pill[l]) || [], db = { ok: 0, no: 0 }; lista.forEach(x => { if(x.e === 'ok') db.ok++; else if(x.e === 'no') db.no++; });
     const jel = { ok: '<span class="s3m ok">✓</span>', no: '<span class="s3m no">✕</span>', pending: '<span class="s3m">–</span>' };
-    return `<section class="card hv-k het-lista sav-321 s3-havi s3-mult"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} fő · ✓ ${db.ok} · ✕ ${db.no}</span></div>
+    const m = HET_MEZO[l], talal = x => registry.findIndex(r => r && ((x.id && r.id === x.id) || (!x.id && regNevKulcs(r.name) === regNevKulcs(x.name))));
+    const athozhato = x => { const gi = talal(x); return gi >= 0 && !registry[gi][m.tp]; };
+    const vanAt = pill && lista.some(athozhato);
+    return `<section class="card hv-k het-lista sav-321 s3-havi s3-mult"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} fő · ✓ ${db.ok} · ✕ ${db.no}</span>${vanAt ? `<button type="button" class="s3-at mind" data-tpat="${l}:*">Mind áthozása</button>` : ''}</div>
         <div class="het-tbl-w"><table class="het-tbl"><tbody>${lista.length ? lista.map(x => `<tr><td><div class="s3-sor"><div class="s3-n"><strong>${esc(x.name || '(névtelen)')}</strong>
-            <div class="s3-al">${x.phone ? `<span class="s3-tel">${esc(x.phone)}</span>` : ''}${x.c ? `<span class="chip">${esc(x.c)}</span>` : ''}${x.t ? `<span class="chip tip">${esc(x.t)}</span>` : ''}${x.j ? `<em>${esc(x.j)}</em>` : ''}</div></div>${jel[x.e] || jel.pending}</div></td></tr>`).join('')
+            <div class="s3-al">${x.phone ? `<span class="s3-tel">${esc(x.phone)}</span>` : ''}${x.c ? `<span class="chip">${esc(x.c)}</span>` : ''}${x.t ? `<span class="chip tip">${esc(x.t)}</span>` : ''}${x.j ? `<em>${esc(x.j)}</em>` : ''}</div></div>${pill && athozhato(x) ? `<button type="button" class="s3-at" data-tpat="${l}:${esc(x.id || '')}:${esc(x.name || '')}" title="Felvétel a mostani hét listájára">Áthozás</button>` : (pill && talal(x) >= 0 && registry[talal(x)][m.tp] ? '<span class="s3-at-k">a mostani listán</span>' : '')}${jel[x.e] || jel.pending}</div></td></tr>`).join('')
             : `<tr><td class="hv-ures-sz" style="padding:14px 6px">${pill ? 'Ezen a héten nem volt TP-vel jelölt.' : 'Erről a hétről nincs mentett lista (a mentés 2026. novemberében indult).'}</td></tr>`}</tbody></table></div></section>`;
 }
 function hetListaHtml(l, cim){
     // múltbeli hét: az elmentett lista; jövőbeli: üres; a folyó ciklus: az élő lista
-    const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs();
-    if(ck < most){ const d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null; return hetMultHtml(l, cim, d && d.hetek ? d.hetek[ck] : null); }
-    if(ck > most) return hetMultHtml(l, cim, { penz: [], karr: [] }).replace('Ezen a héten nem volt TP-vel jelölt.', 'Ez a hét még nem kezdődött el – csütörtök este indul.');
+    // a folyó OVB-hét mindig az élő listát mutatja
+    const mw = currentHaviWeek(), folyo = mw.monthDate.getFullYear() === hetHo.getFullYear() && mw.monthDate.getMonth() === hetHo.getMonth() && mw.weekIdx === hetIdx;
+    const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs(), kezd = hetKezd(hetHo, hetIdx), ma = new Date();
+    if(!folyo && kezd < ma){ const d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null; return hetMultHtml(l, cim, d && d.hetek ? d.hetek[ck] : null); }
+    if(!folyo) return hetMultHtml(l, cim, { penz: [], karr: [] }).replace('Ezen a héten nem volt TP-vel jelölt.', 'Ez a hét még nem kezdődött el – csütörtök este indul.');
     const lista = hetSorok(l), f = sav321Fej(l, lista);
     const sorok = f.lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('');
     const ures = l === 'penz' ? 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.' : 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.';
