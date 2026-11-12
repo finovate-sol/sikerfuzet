@@ -45909,6 +45909,12 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-drop .sf-ikl { margin:0 auto 9px; }
 .tv-hiba { margin-top:10px; background:#fdecec; color:#b91c1c; border-radius:10px; padding:9px 12px; font-size:13px; }
 .tv-mezok { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px 12px; }
+        .tv-bx { margin:4px 0 10px; border:1px solid var(--border); border-radius:12px; padding:8px 12px; background:var(--card, #fff); }
+        .tv-bx summary { cursor:pointer; font-weight:700; font-size:13px; color:var(--navy, #0b2a55); } .tv-bx summary small { font-weight:600; color:var(--muted); }
+        .tv-bx-b { margin-top:10px; display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:start; } .tv-bx-b > b { padding-top:20px; font-size:13px; }
+        .tv-bx-b label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:700; } .tv-bx-b label small { font-weight:500; color:var(--muted); }
+        .tv-bx-b textarea { font:inherit; font-size:12.5px; font-weight:500; border:1px solid var(--border); border-radius:8px; padding:6px 8px; resize:vertical; }
+        @media (max-width:760px){ .tv-bx-b { grid-template-columns:1fr; } .tv-bx-b > b { padding-top:0; } }
         .tv-elemzo-c { margin:14px 0 6px; font-size:12.5px; font-weight:800; color:#0b2a55; } .tv-elemzo-c small { font-weight:600; color:var(--muted); }
 .tv-mezok label { display:flex; flex-direction:column; gap:4px; font-size:11.5px; font-weight:650; color:#64748b; }
 .tv-mezok input, .tv-mezok select, .tv-elony { border:1px solid var(--border); border-radius:9px; padding:8px 10px; font:inherit; font-size:13.5px; color:#16243a; background:#fff; min-width:0; }
@@ -46118,6 +46124,12 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp .bz-be { font-size:11px; line-height:1.55; color:#28364a; margin:-6px 0 12px; }
 .tvp .bz-cs { margin-bottom:12px; } .tvp .bz-cs > b { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#009999; margin-bottom:7px; }
 .tvp .bz-st { display:flex; flex-wrap:wrap; gap:8px; }
+.tvp .bz.tomor .bz-st > div { flex:1 1 calc(33.3% - 8px); padding:5px 9px; } .tvp .bz.tomor .bz-st strong { font-size:14px; } .tvp .bz.tomor .bz-st span { font-size:9.8px; }
+.tvp .bz.tomor .bz-cs { margin-bottom:9px; }
+.tvp .bz-dij { display:flex; flex-wrap:wrap; gap:8px; }
+.tvp .bz-dij > div { flex:1 1 calc(50% - 8px); display:flex; gap:9px; align-items:center; background:#fff8e6; border:1px solid #f3d27a; border-radius:8px; padding:7px 10px; }
+.tvp .bz-dij i { font-style:normal; font-size:16px; flex:none; } .tvp .bz-dij span { font-size:11px; font-weight:700; color:#003366; line-height:1.35; }
+.tvp .bz-info { margin:0; padding-left:16px; } .tvp .bz-info li { font-size:11px; color:#28364a; line-height:1.5; margin-bottom:3px; }
 .tvp .bz-st > div { flex:1 1 calc(50% - 8px); background:#f4f6f9; border-left:4px solid var(--bz); padding:7px 11px; }
 .tvp .bz-st strong { display:block; font-size:16.5px; font-weight:800; color:#003366; line-height:1.2; }
 .tvp .bz-st span { display:block; font-size:10.5px; color:#6b7280; margin-top:2px; line-height:1.35; }
@@ -46392,11 +46404,29 @@ const tvPortLap = (a, top) => { const p = TV_PORT[a.biztosito], b = TV_BIZT_LAP[
         <div class="pt-ket"><div><div class="pt-c">Díjarányos bónusz</div><table class="pt-b"><tr><th>Éves rendszeres díj</th><th>Bónusz</th></tr>${p.bonusz.map(([t, ig, m]) => { const on = ev >= t && ev < ig;
             return `<tr class="${on ? 'on' : ''}"><td>${ig === Infinity ? `${tvFt(t)} Ft felett` : t ? `${tvFt(t)} – ${tvFt(ig - 1)} Ft` : `${tvFt(ig)} Ft alatt`}${on ? ' <em>← Ön</em>' : ''}</td><td>${m}</td></tr>`; }).join('')}</table></div>
         <div class="pt-e">${p.egyeb.map(([c, x]) => `<div><b>${c}</b><span>${x}</span></div>`).join('')}</div></div></div>`; };
+// A biztosítói oldal kiegészítése: díjak / elismerések és további tudnivalók – soronként, a Tartalom lépésben szerkeszthető.
+// Az admin szerkesztése közös (config/tv_bizt_extra), a többieknél csak helyben módosítható.
+const TV_BIZT_EXTRA_ALAP = { 'Generali': { dijak: 'Biztosításszakmai Nívódíj – 2024 és 2025 (a biztosítói összteljesítmény elismerése)', info: '' } };
+let tvBiztExtra = store.load('sf_tv_bizt_extra', null) || JSON.parse(JSON.stringify(TV_BIZT_EXTRA_ALAP)), tvBiztExtraT = null, tvBiztExtraToltve = false;
+async function tvBiztExtraBetolt(){
+    if(tvBiztExtraToltve || typeof window.sfGetConfigDoc !== 'function') return; tvBiztExtraToltve = true;
+    try { const v = await window.sfGetConfigDoc('tv_bizt_extra');
+        if(v && v.adat){ const helyi = store.load('sf_tv_bizt_extra', null); if(!(window.sfIsAdmin && helyi)){ tvBiztExtra = v.adat; store.save('sf_tv_bizt_extra', tvBiztExtra); if(typeof renderTervezet === 'function') renderTervezet(); } } } catch(e){}
+}
+function tvBiztExtraMent(){
+    store.save('sf_tv_bizt_extra', tvBiztExtra);
+    if(!window.sfIsAdmin || typeof window.sfSaveConfigDoc !== 'function') return;
+    clearTimeout(tvBiztExtraT); tvBiztExtraT = setTimeout(() => window.sfSaveConfigDoc('tv_bizt_extra', { adat: JSON.parse(JSON.stringify(tvBiztExtra)), frissitve: Date.now() }).catch(e => console.warn('Biztosítói kiegészítés mentése sikertelen:', e)), 1200);
+}
+const tvSorok = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
 const tvBiztLap = (nev, top) => { const b = TV_BIZT_LAP[nev]; if(!b) return '';
+    const ex = tvBiztExtra[nev] || {}, dij = tvSorok(ex.dijak), inf = tvSorok(ex.info);
     // a biztosító logója a jobb felső körben (a UNIQA-nál, amíg nincs logófájl, a név a márkaszínnel)
     const logo = b.logo ? `<span class="blogo" data-kep="${b.logo}" style="background-image:url('${b.logo}')"></span>` : `<span class="blogo szo" style="color:${b.szin}">${esc(nev)}</span>`;
-    return `<div class="tvp">${tvFej(top, esc(nev), logo)}<div class="bz" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>${b.bevezeto ? `<p class="bz-be">${esc(b.bevezeto)}</p>` : ''}
+    return `<div class="tvp">${tvFej(top, esc(nev), logo)}<div class="bz${dij.length || inf.length ? ' tomor' : ''}" style="--bz:${b.szin}"><div class="bz-al">${esc(b.alcim)}</div>${b.bevezeto ? `<p class="bz-be">${esc(b.bevezeto)}</p>` : ''}
         ${b.csop.map(([c, st]) => `<div class="bz-cs"><b>${esc(c)}</b><div class="bz-st">${st.map(([n, f]) => `<div><strong>${esc(n)}</strong><span>${esc(f)}</span></div>`).join('')}</div></div>`).join('')}
+        ${dij.length ? `<div class="bz-cs"><b>Díjak, elismerések</b><div class="bz-dij">${dij.map(d => `<div><i>🏆</i><span>${esc(d)}</span></div>`).join('')}</div></div>` : ''}
+        ${inf.length ? `<div class="bz-cs"><b>További tudnivalók</b><ul class="bz-info">${inf.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>` : ''}
         ${b.szoveg ? `<div class="kiem"><span class="chev">»</span><p>${esc(b.szoveg)}</p></div>` : ''}</div>`; };
 // UNIQA BodyGuard VIP Pro: a hivatalos csomagtábla képként, a választott csomag oszlopa keretezve
 // (az oszlophatárok a kép szélességének %-ában)
@@ -46678,6 +46708,7 @@ function tvLapok(){
 
 // ---- az oldal (űrlap + élő előnézet) ----
 function renderTervezet(){
+    tvBiztExtraBetolt();
     const host = document.getElementById('tervezetBody'); if(!host) return;
     if(!document.getElementById('tvBetu')){ const l = document.createElement('link'); l.id = 'tvBetu'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700;800;900&display=swap'; document.head.appendChild(l); }
     const o = tvAlap.opc, t = tvAlap.tan;
@@ -46729,6 +46760,10 @@ function renderTervezet(){
                 ${tvAlap.oszTema[k] !== false ? `<span class="tv-osz-aj">Ajánlott:</span><span class="tv-csomag">${l.slice(0, 3).map(({ a, i }) => `<button type="button" data-tvoszaj="${k}" data-i="${i}" class="${tvOszAjanl[k] && tvOszAjanl[k] === a._kid ? 'on' : ''}">${esc(tvAj.filter(x => x.biztosito === a.biztosito).length > 1 ? a.biztosito + ' ' + a.termek : a.biztosito)}</button>`).join('')}<button type="button" data-tvoszaj="${k}" data-i="-1" class="${!tvOszAjanl[k] ? 'on' : ''}">nincs</button></span>` : ''}</div>`).join('') : ''); })()}
         ${kap('kesobb', '„Ha később indítja”', vanKesobb ? 'a kalkulációból' : 'ez a kalkuláció nem tartalmazza', !vanKesobb)}
         ${kap('bizt', 'Biztosító bemutatása', 'Generali, Signal Iduna, UNIQA')}
+        ${o.bizt ? `<details class="tv-bx"><summary>Biztosítói oldal kiegészítése – díjak, elismerések, további tudnivalók${window.sfIsAdmin ? ' <small>(közös: mindenkinél megjelenik)</small>' : ''}</summary>
+            ${Object.keys(TV_BIZT_LAP).map(n => { const ex = tvBiztExtra[n] || {}; return `<div class="tv-bx-b"><b>${esc(n)}</b>
+                <label>Díjak, elismerések <small>soronként egy – pl. „Az Év Biztosítója – 2024”</small><textarea rows="3" data-tvbx="${esc(n)}|dijak">${esc(ex.dijak || '')}</textarea></label>
+                <label>További tudnivalók <small>soronként egy pont</small><textarea rows="3" data-tvbx="${esc(n)}|info">${esc(ex.info || '')}</textarea></label></div>`; }).join('')}</details>` : ''}
         ${kap('port', 'Portfólió, eszközalapok, bónuszok', 'Generali Kabala, Signal Iduna, UNIQA Premium Life')}
         ${kap('eszp', 'Prémium Egészségpénztár')}
         ${kap('baleset', 'Balesetvédelem', 'UNIQA BodyGuard VIP Pro és / vagy SIGNAL Exkluzív Védelem Plusz – tételes összehasonlítással')}
@@ -46975,6 +47010,7 @@ document.addEventListener('input', e => {
 
     else if(t.dataset.tvalap) { tvAlap[t.dataset.tvalap] = t.value; tvMent(); }
     else if(t.dataset.tvtan) { tvAlap.tan[t.dataset.tvtan] = t.value; tvMent(); }
+    else if(t.dataset.tvbx) { const [n, k] = t.dataset.tvbx.split('|'); (tvBiztExtra[n] = tvBiztExtra[n] || {})[k] = t.value; tvBiztExtraMent(); }
     else if(t.dataset.tvelem) {
         tvAlap.elemzo[t.dataset.tvelem] = t.value;
         // munkatárs kiválasztásakor az e-mail címét kitöltjük
