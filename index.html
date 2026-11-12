@@ -17434,6 +17434,7 @@ function renderHaviBody(){
     recomputeHaviClients();
     haviTortBetolt();
     haviEsemTolt(haviAnchor);
+    requestAnimationFrame(haviSorMagassag);
 }
 // ===== Nincs havi terv → teljes képernyős zár, „Havi terv beállítása” varázslóval =====
 // Csak a saját fiókra, az aktuális (OVB) hónapra és a Sikerfüzet részre vonatkozik; csak akkor zár,
@@ -17698,11 +17699,22 @@ async function haviTortBetolt(){
     if(!jott.some(Boolean) || uid !== haviViewedUid() || anc !== haviAnchor) return;
     const el = document.getElementById('haviTort'); if(el) el.innerHTML = haviTortHtml();
 }
+// a heti sorok magassága: amennyire a képernyő engedi (az alsó kártyák is beférjenek), 44–96 px között
+function haviSorMagassag(){
+    const t = document.querySelector('#page-havi table.hv-ev'); if(!t || matchMedia('(max-width:1000px)').matches) return;
+    t.style.setProperty('--hv-sor', '44px');
+    const sorok = t.querySelectorAll('tbody tr.hv-het-sor'); if(!sorok.length) return;
+    const pg = document.getElementById('page-havi'), alja = pg.getBoundingClientRect().bottom + window.scrollY;
+    const tobblet = window.innerHeight - (alja - window.scrollY) - 18;   // ennyi hely maradt a képernyő aljáig
+    const uj = Math.max(44, Math.min(96, 44 + tobblet / sorok.length));
+    t.style.setProperty('--hv-sor', Math.round(uj) + 'px');
+}
+addEventListener('resize', () => { const hv = document.getElementById('page-havi'); if(hv && !hv.hidden && haviNezet === 'ho') haviSorMagassag(); });
 function haviTablaFrissit(){
     const host = document.getElementById('haviTabla'); if(!host) return;
     const ranges = haviWeekRanges(haviAnchor), k = haviKezdet(haviAnchor.getFullYear(), haviAnchor.getMonth());
     host.innerHTML = haviTablaHtml(ranges, w => { const d = new Date(k); d.setDate(d.getDate() + w * 7); return d; }, haviCurWeekIndex());
-    recomputeHavi();
+    recomputeHavi(); haviSorMagassag();
 }
 // ===== AKTUÁLIS HÉT (az Erfolgsjournal hetes oldala) =====
 // A hét fejléce, alatta a 3-2-1: ugyanaz a Pénzem / Karrierem lista, ami a
@@ -46183,9 +46195,30 @@ Vállalkozás nyitásának átbeszélése`, '']
         .hv-tabla-megj2 { margin:6px 2px 0; font-size:11.5px; }
         /* Heti terv: ugyanaz a táblastílus */
         #page-havi .hv-lay-het .het-ket { grid-template-columns:minmax(0,1fr) !important; }
+        /* ===== Tervezés: nincs jobb oldali sáv – a navigátor, az Erfolgsjournal és az aktuális teljesítmény alul, egy sorban;
+           a táblázat a teljes szélességet és a képernyő magasságát kitölti ===== */
+        #page-havi .havi-layout.hv-lay, #page-havi .havi-layout.hv-lay-het { grid-template-columns:minmax(0,1fr) !important; }
+        #page-havi .hv-oldal { order:2; display:grid !important; grid-template-columns:minmax(0,3fr) minmax(0,.9fr) minmax(0,1.4fr); gap:12px; align-items:stretch; }
+        #page-havi .hv-lay-het > .hv-nav { order:2; }
+        #page-havi .card.hv-nav { display:grid; grid-template-columns:130px repeat(3, minmax(0,1fr)); gap:4px 12px; align-items:start; margin:0; }
+        #page-havi .card.hv-nav .hv-nav-het, #page-havi .card.hv-nav .hv-nav-het span, #page-havi .card.hv-nav .hv-nav-hofej b, #page-havi .card.hv-nav .hv-nav-hofej button { white-space:nowrap; }
+        #page-havi .card.hv-nav .hv-nav-het span { font-size:10.5px; overflow:hidden; text-overflow:ellipsis; }
+        #page-havi .card.hv-nav .hv-nav-hofej { flex-wrap:nowrap; }
+        #page-havi .hv-oldal .card.hv-nav .hv-nav-hofej button { font-size:0; } #page-havi .hv-oldal .card.hv-nav .hv-nav-hofej button::after { content:'→'; font-size:13px; }
+        #page-havi .card.hv-nav .hv-nav-q { grid-row:1 / span 2; }
+        #page-havi .hv-nav-ho { margin:0; }
+        #page-havi .hv-oldal .havi-side-card { margin:0; }
+        #page-havi .ej-kartya .btn { width:100%; }
+        @media (max-width:1000px){ #page-havi .hv-oldal { grid-template-columns:minmax(0,1fr); } #page-havi .card.hv-nav { grid-template-columns:minmax(0,1fr); } #page-havi .hv-oldal, #page-havi .hv-lay-het > .hv-nav { order:2; } }
+        /* szellősebb tábla a teljes szélességben */
+        #page-havi table.eves.hv-ev input { width:min(64px, 100%); padding:6px 2px; font-size:13px; }
+        #page-havi table.eves.hv-ev td, #page-havi table.eves.hv-ev th { padding:6px 4px; }
+        #page-havi table.eves.hv-ev .ev-grp-in { font-size:11px; } #page-havi table.eves.hv-ev th.ev-sh { font-size:10px; }
+        #page-havi table.eves.hv-ev td.ev-month { min-width:120px; }
+        #page-havi table.eves.hv-ev tbody tr.hv-het-sor td { height:var(--hv-sor, 52px); }
         .sav-321 table.eves.het-ev thead { display:table-header-group; } .sav-321 table.eves.het-ev { table-layout:auto; }
         table.eves.het-ev thead th { position:sticky; top:0; z-index:1; background:color-mix(in srgb, #1f5fd0 9%, #fff); }
-        table.eves.het-ev { min-width:0; } table.eves.het-ev th:nth-child(2), table.eves.het-ev td:nth-child(2) { width:40%; } table.eves.het-ev td select { min-width:96px; } table.eves.het-ev th { padding:6px 8px; } table.eves.het-ev td { padding:5px 8px; text-align:left; }
+        table.eves.het-ev { min-width:0; } table.eves.het-ev th:nth-child(2), table.eves.het-ev td:nth-child(2) { width:40%; } table.eves.het-ev td:nth-child(3) select { min-width:96px; } table.eves.het-ev td select.h321-cel { width:auto; min-width:0; padding:0 6px; font-size:11px; } table.eves.het-ev th { padding:6px 8px; } table.eves.het-ev td { padding:5px 8px; text-align:left; }
         table.eves.het-ev td input { width:100%; text-align:left; } table.eves.het-ev td select { font:inherit; font-size:12px; border:1px solid var(--border); border-radius:7px; padding:3px 6px; background:var(--card, #fff); }
         table.eves.het-ev td.het-e { text-align:center; } table.eves.het-ev tbody tr:nth-child(even) td { background:rgba(31,95,208,.03); }
         /* ===== Heti terv: tömör fejléc, ugyanaz a kártyastílus ===== */
