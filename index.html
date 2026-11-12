@@ -35295,7 +35295,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=90";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=91";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -35510,6 +35510,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (!isConfigured || !owner || !owner.uid) return Promise.reject(new Error("nincs belépve"));
         return addPreziNap(owner.uid, owner.name || owner.email || "", ho, nap, kulcs, nev, darab, sec);
     };
+    // Tervezet-jóváhagyás: írás a saját kulcs alá (a szabály csak a gazdát engedi), lista típus szerint
+    window.sfTvjIr = function(kulcs, adat){ const u = window.sfCurrentUser; if (!isConfigured || !u || !u.uid) return Promise.reject(new Error("nincs belépve"));
+        return saveActivityTimer(u.uid + "_" + kulcs, Object.assign({ uid: u.uid }, adat)); };
+    window.sfTvjLista = function(col){ return isConfigured ? listActivityByCol(col) : Promise.resolve([]); };
     window.sfAktivitasOlvas = function(key){ return isConfigured ? getActivityTimer(key) : Promise.resolve(null); };
     window.sfSaveTimer = function(col, periodKey, seconds){
         if (!isConfigured) return;
@@ -45238,7 +45242,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 return `<button type="button" class="adm-hk" data-hkuid="${emp.uid}">
                     <span class="adm-hk-av">${monogram(emp.name || emp.email)}</span>
                     <span class="adm-hk-t"><b>${escM(emp.name || '(névtelen)')}</b><small>${escM(emp.email)}</small>
-                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'}</small></span>
+                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${((((currentConfig && currentConfig.szintek) || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')) === 'vezeto' ? 'Vezető' : 'Munkatárs'}</small></span>
                     <span class="adm-hk-all ${db ? 'van' : 'nincs'}">${db ? `${db} / ${lapok.length} oldal` : 'Nincs hozzáférés'}</span><em>›</em></button>`; };
             const fuggo = email => `<div class="adm-hk fuggo"><span class="adm-hk-av">${monogram(email)}</span><span class="adm-hk-t"><b>${escM(email)}</b><small>Meghívva, még nem lépett be – belépés után állítható</small></span></div>`;
             cont.innerHTML = `<div class="card"><div class="card-body">
@@ -45268,6 +45272,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <div class="adm-role-name" data-uid="${emp.uid}"><div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
                 <div class="adm-role-email">${escM(emp.email)}${emp.googleName ? ` · Google-név: ${escM(emp.googleName)}` : ''}</div></div></div>
             <label class="adm-hr-mezo"><span>Felettese</span><select class="adm-role-sel" data-af="manager"><option value="">— nincs felettese —</option>${mgrOpts}</select></label>
+            ${(() => { const sz = ((currentConfig && currentConfig.szintek) || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'Munkatárs';
+                return `<label class="adm-hr-mezo"><span>Szint</span><select class="adm-role-sel" data-af="szint"><option value=""${sz ? '' : ' selected'}>Automatikus (most: ${auto})</option><option value="mt"${sz === 'mt' ? ' selected' : ''}>Munkatárs – a tervezetét a vezető hagyja jóvá</option><option value="vezeto"${sz === 'vezeto' ? ' selected' : ''}>Vezető – nem kell jóváhagyás, ő hagyhat jóvá</option></select></label>`; })()}
             <div class="adm-hr-lbl"><b>Hozzáférések</b><span data-hkdb>${db ? `${db} / ${lapok.length} oldal bekapcsolva` : 'Semmi nincs bekapcsolva – a munkatárs csak a „vezetőd megadja a hozzáféréseket” üzenetet látja.'}</span>
                 <span class="adm-hr-gyors"><button type="button" class="btn" data-hkmind="be">Mind be</button><button type="button" class="btn" data-hkmind="ki">Mind ki</button></span></div>
             <div class="adm-role-pages">${csoportok}</div>
@@ -45298,6 +45304,13 @@ Vállalkozás nyitásának átbeszélése`, '']
             box.querySelector('.adm-nev-ok').addEventListener('click', nevMent);
             box.querySelector('.adm-nev-x').addEventListener('click', () => renderAdmRoles(cont));
             inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); nevMent(); } if(e.key === 'Escape') renderAdmRoles(cont); });
+        });
+        const szSel = cont.querySelector('[data-af="szint"]');
+        if (szSel) szSel.addEventListener('change', async () => {
+            const cur = (currentConfig && currentConfig.szintek) || {}, next = Object.assign({}, cur);
+            if (szSel.value) next[emp.uid] = szSel.value; else delete next[emp.uid];
+            try { await saveAppConfig({ szintek: next }); currentConfig = Object.assign({}, currentConfig, { szintek: next }); window._admCfg = currentConfig; }
+            catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); }
         });
         const sel = cont.querySelector('[data-af="manager"]');
         sel.addEventListener('change', async () => {
@@ -45909,6 +45922,18 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-drop .sf-ikl { margin:0 auto 9px; }
 .tv-hiba { margin-top:10px; background:#fdecec; color:#b91c1c; border-radius:10px; padding:9px 12px; font-size:13px; }
 .tv-mezok { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px 12px; }
+        .tvj { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-radius:12px; padding:10px 14px; margin:0 0 10px; border:1px solid; }
+        .tvj b { font-size:13.5px; } .tvj span { flex:1 1 260px; font-size:12.5px; color:var(--muted); }
+        .tvj.nincs { background:#eff6ff; border-color:#bfdbfe; } .tvj.nincs b { color:#1d4ed8; }
+        .tvj.var { background:#fffbeb; border-color:#fcd34d; } .tvj.var b { color:#b45309; }
+        .tvj.ok { background:#f0fdf4; border-color:#bbf7d0; } .tvj.ok b { color:#15803d; }
+        .tvj.vissza { background:#fef2f2; border-color:#fecaca; } .tvj.vissza b { color:#b91c1c; }
+        #tvjAll.rezeg .tvj { animation:tvjRez .45s; } @keyframes tvjRez { 0%,100% { transform:none; } 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+        .tvj-zar-c { font-size:12.5px; font-weight:700; color:#b45309; background:#fffbeb; border-radius:999px; padding:5px 12px; }
+        html body #page-home .tvj-sav { border:1px solid #bbf7d0 !important; border-left:4px solid #16a34a !important; background:#f0fdf4 !important; } #page-home .tvj-sav > i { background:#16a34a; }
+        .tvj-m .modal-body { display:flex; flex-direction:column; gap:8px; }
+        .tvj-elem { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; border:1px solid var(--border); background:var(--card, #fff); border-radius:12px; padding:10px 14px; cursor:pointer; font:inherit; position:relative; }
+        .tvj-elem:hover { background:#f6f9ff; } .tvj-elem b { font-size:14px; color:var(--navy, #0b2a55); } .tvj-elem span { font-size:12px; color:var(--muted); } .tvj-elem em { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-style:normal; font-weight:700; color:#1d4ed8; font-size:12.5px; }
         .tv-bx { margin:4px 0 10px; border:1px solid var(--border); border-radius:12px; padding:8px 12px; background:var(--card, #fff); }
         .tv-bx summary { cursor:pointer; font-weight:700; font-size:13px; color:var(--navy, #0b2a55); } .tv-bx summary small { font-weight:600; color:var(--muted); }
         .tv-bx-b { margin-top:10px; display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:start; } .tv-bx-b > b { padding-top:20px; font-size:13px; }
@@ -46709,6 +46734,7 @@ function tvLapok(){
 // ---- az oldal (űrlap + élő előnézet) ----
 function renderTervezet(){
     tvBiztExtraBetolt();
+    if(tvjKell()) tvjFrissit().then(tvjAllapotRajz);
     const host = document.getElementById('tervezetBody'); if(!host) return;
     if(!document.getElementById('tvBetu')){ const l = document.createElement('link'); l.id = 'tvBetu'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700;800;900&display=swap'; document.head.appendChild(l); }
     const o = tvAlap.opc, t = tvAlap.tan;
@@ -46792,6 +46818,7 @@ function renderTervezet(){
         ${tvSorrend.length ? '<button type="button" class="btn" data-tvsorvissza>↺ Eredeti sorrend</button>' : ''}</div>
       <div class="tv-lapok tv-racs" id="tvLapok"></div>` : `<div class="tv-lay tv-n-lepes tv-egy"><div>${bal}</div>
     <div class="tv-elo" hidden><div class="tv-lapok" id="tvLapok"></div>`}
+      <div id="tvjAll">${tvjAllapotHtml()}</div>${''}
       <div class="tv-gombok"><button type="button" class="btn" id="tvMegnez"${tvVan() ? '' : ' disabled'}>Előnézet</button><button type="button" class="btn primary" id="tvLetolt"${tvVan() ? '' : ' disabled'}>PDF letöltése</button></div><div class="tv-allapot" id="tvAllapot"></div></div></div>`;
     tvElonezet(); tvEloMeret();
 }
@@ -46893,8 +46920,8 @@ function tvPdfMegjelenit(blob, fajlnev, db, letolt){
     const ov = document.createElement('div'); ov.className = 'modal-overlay tv-pdf-ov';
     ov.innerHTML = `<div class="tv-pdf-d" role="dialog" aria-modal="true" aria-label="Tervezet előnézete">
         <div class="tv-pdf-f"><b>${esc(fajlnev)}</b><span>${db} oldal</span>
-            <a class="btn" href="${url}" target="_blank" rel="noopener">Megnyitás új lapon</a>
-            <button type="button" class="btn primary" data-tvpdfle>PDF letöltése</button><button type="button" class="tv-pdf-x" data-tvpdfx title="Bezárás">✕</button></div>
+            ${letolt ? `<a class="btn" href="${url}" target="_blank" rel="noopener">Megnyitás új lapon</a>
+            <button type="button" class="btn primary" data-tvpdfle>PDF letöltése</button>` : '<span class="tvj-zar-c">🔒 Letöltés a vezetői jóváhagyás után</span>'}<button type="button" class="tv-pdf-x" data-tvpdfx title="Bezárás">✕</button></div>
         <div class="tv-pdf-lapok"><div class="tv-pdf-tolt"><div class="tv-spin"></div>Oldalak betöltése…</div></div></div>`;
     document.body.appendChild(ov); document.body.classList.add('ugy-m-nyitva');
     // az oldalak kirajzolása a beépített PDF-olvasóval (minden böngészőben, telefonon is egyformán)
@@ -46917,6 +46944,128 @@ function tvPdfMegjelenit(blob, fajlnev, db, letolt){
     document.addEventListener('keydown', esc_);
     ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-tvpdfx]')) zar(); else if(e.target.closest('[data-tvpdfle]')) letolt(); });
 }
+// ===== VEZETŐI JÓVÁHAGYÁS =====
+// A munkatárs (szint: Munkatárs, van felettese) tervezetét PDF-be csak akkor töltheti le, ha egy, a láncában
+// fölötte álló vezető az adott változatot jóváhagyta. Változtatás után új jóváhagyás kell (a változatot a lapok
+// tartalmából számolt ujjlenyomat azonosítja). Tárolás: activity_timers – kérés {uid}_tvjk_{hash} (+ oldalképek
+// {uid}_tvjkp_{hash}_{n}), döntés {vezető}_tvjd_{mt}_{hash}; mindenki csak a saját kulcsa alá ír.
+let tvjKuldes = false, tvjDontesek = [], tvjKeresek = [], tvjToltve = 0, tvjFut = null;
+const tvjMap = () => window.sfAccessMap || {};
+const tvjSzint = uid => { const sz = ((window._admCfg && window._admCfg.szintek) || {})[uid]; return sz || (Object.values(tvjMap()).includes(uid) ? 'vezeto' : 'mt'); };
+const tvjLanc = uid => { const m = tvjMap(), l = []; let f = m[uid], n = 0; while(f && !l.includes(f) && n++ < 20){ l.push(f); f = m[f]; } return l; };
+const tvjEn = () => (window.sfCurrentUser || {}).uid;
+const tvjKell = () => { const u = tvjEn(); return !!(u && tvjMap()[u] && tvjSzint(u) === 'mt'); };
+const tvjJovahagyok = uid => tvjLanc(uid).filter(l => tvjSzint(l) === 'vezeto' || !tvjMap()[l]);
+function tvjHash(){
+    // a mai dátum (borító, lábléc) nem számít változtatásnak – a jóváhagyás másnap is érvényes marad
+    const ma1 = tvDat(), ma2 = new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }), datTelen = x => String(x).split(ma1).join('').split(ma2).join('');
+    const lapok = tvLapok().filter(l => !l.ki), sz = JSON.stringify([lapok.map(l => datTelen(l.html)), tvAj.map(a => [a.nev || a.fajl || '', (a.bytes && (a.bytes.byteLength || a.bytes.length)) || 0]), (typeof tvSzb !== 'undefined' ? tvSzb : []).map(x => [x.id, x.meretek && x.meretek.length])]);
+    let h = 5381; for(let i = 0; i < sz.length; i++) h = ((h << 5) + h + sz.charCodeAt(i)) >>> 0;
+    let h2 = 52711; for(let i = sz.length - 1; i >= 0; i--) h2 = ((h2 << 5) + h2 ^ sz.charCodeAt(i)) >>> 0;
+    return h.toString(36) + h2.toString(36);
+}
+const tvjNev = uid => { const e = (window.sfEmployeesList || window.sfViewAsEmployees || []).find(x => x.uid === uid); return e ? (e.name || e.email) : (uid === tvjEn() ? ((window.sfCurrentUser || {}).name || '') : ''); };
+async function tvjFrissit(eroltet){
+    if(typeof window.sfTvjLista !== 'function') return;
+    if(!eroltet && Date.now() - tvjToltve < 30000) return;
+    if(tvjFut) return tvjFut;
+    tvjFut = (async () => { try { [tvjDontesek, tvjKeresek] = await Promise.all([window.sfTvjLista('tvjd'), window.sfTvjLista('tvjk')]); tvjToltve = Date.now(); } catch(e){ console.warn('Jóváhagyások betöltése:', e); } finally { tvjFut = null; } })();
+    return tvjFut;
+}
+// az aktuális változat állapota: null (nem kell) | { all: 'nincs'|'var'|'ok'|'vissza', d, h }
+function tvjAllapot(){
+    if(!tvjKell()) return null;
+    const u = tvjEn(), h = tvjHash(), jo = new Set(tvjJovahagyok(u));
+    const d = tvjDontesek.filter(x => x.mt === u && x.hash === h && jo.has(x.uid)).sort((a, b) => (b.ido || 0) - (a.ido || 0))[0];
+    if(d) return { all: d.ok ? 'ok' : 'vissza', d, h };
+    if(tvjKeresek.some(x => x.uid === u && x.hash === h)) return { all: 'var', h };
+    return { all: 'nincs', h };
+}
+const tvjZarolt = () => { const a = tvjAllapot(); return !!(a && a.all !== 'ok'); };
+function tvjAllapotHtml(){
+    if(!tvjKell()) return '';
+    const a = tvjAllapot(); if(!a) return '';
+    const nap = t => t ? new Date(t).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    if(a.all === 'ok') return `<div class="tvj ok"><b>✓ Jóváhagyva</b><span>${esc(tvjNev(a.d.uid) || 'a vezetőd')} · ${nap(a.d.ido)} – a PDF letölthető.</span></div>`;
+    if(a.all === 'var') return `<div class="tvj var"><b>⏳ Jóváhagyásra vár</b><span>A vezetőd (${esc(tvjJovahagyok(tvjEn()).map(tvjNev).filter(Boolean).join(', '))}) még nem nézte meg ezt a változatot.</span><button type="button" class="btn" data-tvjfrissit>Frissítés</button></div>`;
+    if(a.all === 'vissza') return `<div class="tvj vissza"><b>↩ Visszaküldve</b><span>${esc(tvjNev(a.d.uid) || 'A vezetőd')}: „${esc(a.d.megj || 'nincs megjegyzés')}” – javítsd, majd küldd újra.</span><button type="button" class="btn primary" data-tvjkuld>Újraküldés</button></div>`;
+    return `<div class="tvj nincs"><b>🔒 Vezetői jóváhagyás szükséges</b><span>A PDF-et a vezetőd jóváhagyása után töltheted le. Ha a tervezet kész, küldd el neki – az előnézetet közben is megnézheted.</span><button type="button" class="btn primary" data-tvjkuld>Jóváhagyásra küldés</button></div>`;
+}
+function tvjAllapotRajz(){ const h = document.getElementById('tvjAll'); if(h) h.innerHTML = tvjAllapotHtml();
+    const g = document.getElementById('tvLetolt'); if(g) g.textContent = (tvjZarolt() ? '🔒 ' : '') + 'PDF letöltése'; }
+function tvjFigyelmeztet(){ tvjAllapotRajz(); const h = document.getElementById('tvjAll'); if(h){ h.scrollIntoView({ block: 'center', behavior: 'smooth' }); h.classList.remove('rezeg'); void h.offsetWidth; h.classList.add('rezeg'); } }
+async function tvjKuld(){ tvjKuldes = true; try { await tvLetolt(true); } finally { tvjKuldes = false; } }
+// a kész PDF oldalait képként (pdf.js) feltöltjük, hogy a vezető pontosan azt lássa, ami a PDF-be kerül
+async function tvjFeltolt(blob, db){
+    const all = document.getElementById('tvAllapot'); const ir = t => { if(all) all.textContent = t; };
+    try {
+        const h = tvjHash(), pdfjs = await regPdfJs(), pdf = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+        for(let n = 1; n <= pdf.numPages; n++){
+            ir(`Küldés a vezetődnek… ${n} / ${pdf.numPages}`);
+            const page = await pdf.getPage(n), v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 1100 / v0.width });
+            const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+            let q = .72, kep = cv.toDataURL('image/jpeg', q); while(kep.length > 900000 && q > .3){ q -= .12; kep = cv.toDataURL('image/jpeg', q); }
+            await window.sfTvjIr(`tvjkp_${h}_${n}`, { col: 'tvjkp', hash: h, n, kep });
+        }
+        const ugyfel = tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '';
+        await window.sfTvjIr(`tvjk_${h}`, { col: 'tvjk', hash: h, db: pdf.numPages, ugyfel, nev: (window.sfCurrentUser || {}).name || '', ido: Date.now() });
+        ir('Elküldve jóváhagyásra.');
+        await tvjFrissit(true); tvjAllapotRajz();
+    } catch(e){ ir(''); alert('Nem sikerült elküldeni: ' + (e.message || e)); }
+}
+// ---- vezetői oldal: kezdőlapi sáv + jóváhagyó ablak ----
+function tvjVaroLista(){
+    const u = tvjEn(); if(!u) return [];
+    return tvjKeresek.filter(k => k.uid !== u && tvjSzint(k.uid) === 'mt' && tvjJovahagyok(k.uid).includes(u)
+        && !tvjDontesek.some(d => d.mt === k.uid && d.hash === k.hash && tvjJovahagyok(k.uid).includes(d.uid)))
+        .sort((a, b) => (b.ido || 0) - (a.ido || 0));
+}
+async function tvjSav(){
+    const u = tvjEn(); if(!u || !Object.values(tvjMap()).includes(u)) return;
+    await tvjFrissit();
+    const l = tvjVaroLista(), h = document.getElementById('page-home');
+    let sv = document.getElementById('tvjSav');
+    if(!l.length || !h){ if(sv) sv.remove(); return; }
+    if(!sv){ sv = document.createElement('div'); sv.id = 'tvjSav'; sv.className = 'card hv-sav tvj-sav'; h.prepend(sv); }
+    sv.innerHTML = `<i>${typeof sfIkon === 'function' ? sfIkon('pipa') : '✓'}</i><span><b>${l.length} tervezet vár jóváhagyásra</b><small>${esc(l.slice(0, 3).map(k => `${k.nev || tvjNev(k.uid)} – ${k.ugyfel || 'ügyfél'}`).join(' · '))}${l.length > 3 ? ' …' : ''}</small></span><button type="button" class="btn primary" data-tvjlista>Megnézem</button>`;
+}
+setTimeout(function tvjIdozit(){ try { tvjSav(); } catch(e){} setTimeout(tvjIdozit, 300000); }, 6000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) { tvjToltve = 0; tvjSav(); } });
+function tvjListaAblak(){
+    const l = tvjVaroLista();
+    const ov = document.createElement('div'); ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal tvj-m"><div class="modal-head">Jóváhagyásra váró tervezetek</div><div class="modal-body">${l.length ? l.map(k => `<button type="button" class="tvj-elem" data-tvjnyit="${esc(k.uid)}|${esc(k.hash)}"><b>${esc(k.ugyfel || 'Ügyfél')}</b><span>${esc(k.nev || tvjNev(k.uid))} · ${k.db || '?'} oldal · ${k.ido ? new Date(k.ido).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span><em>Megnyitás ›</em></button>`).join('') : '<p class="sb-tipp">Nincs jóváhagyásra váró tervezet.</p>'}</div>
+        <div class="modal-foot"><button type="button" class="btn" data-tvjx>Bezárás</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-tvjx]')) return ov.remove();
+        const b = e.target.closest('[data-tvjnyit]'); if(b){ const [mt, h] = b.dataset.tvjnyit.split('|'); ov.remove(); tvjNezo(mt, h); } });
+}
+async function tvjNezo(mt, h){
+    const k = tvjKeresek.find(x => x.uid === mt && x.hash === h) || {};
+    const ov = document.createElement('div'); ov.className = 'modal-overlay tv-pdf-ov';
+    ov.innerHTML = `<div class="tv-pdf-d" role="dialog" aria-modal="true"><div class="tv-pdf-f"><b>${esc(k.ugyfel || 'Tervezet')}</b><span>${esc(k.nev || tvjNev(mt))} · ${k.db || ''} oldal</span>
+        <button type="button" class="btn" data-tvjnem>↩ Visszaküldés</button><button type="button" class="btn primary" data-tvjok>✓ Jóváhagyás</button><button type="button" class="tv-pdf-x" data-tvjzar title="Bezárás">✕</button></div>
+        <div class="tv-pdf-lapok"><div class="tv-pdf-tolt"><div class="tv-spin"></div>Oldalak betöltése…</div></div></div>`;
+    document.body.appendChild(ov); document.body.classList.add('ugy-m-nyitva');
+    const zar = () => { ov.remove(); document.body.classList.remove('ugy-m-nyitva'); };
+    (async () => { const host = ov.querySelector('.tv-pdf-lapok'); const db = k.db || 0, kepek = [];
+        for(let n = 1; n <= (db || 40); n++){ const d = await window.sfAktivitasOlvas(`${mt}_tvjkp_${h}_${n}`); if(!d){ if(!db) break; continue; } kepek.push(d.kep); }
+        if(!ov.isConnected) return;
+        host.innerHTML = kepek.length ? kepek.map((src, i) => `<div class="tv-pdf-lap"><img src="${src}" alt="" style="width:min(720px, 100%);display:block"><span>${i + 1} / ${kepek.length}</span></div>`).join('') : '<p class="sb-tipp" style="padding:20px">Az oldalak nem tölthetők be.</p>'; })();
+    const dont = async (ok) => {
+        let megj = '';
+        if(!ok){ megj = prompt('Mit javítson a munkatárs? (megjegyzés a visszaküldéshez)', ''); if(megj === null) return; }
+        try { await window.sfTvjIr(`tvjd_${mt}_${h}`, { col: 'tvjd', mt, hash: h, ok, megj, ugyfel: k.ugyfel || '', ido: Date.now() });
+            await tvjFrissit(true); zar(); tvjSav(); }
+        catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); }
+    };
+    ov.addEventListener('click', e => { if(e.target.closest('[data-tvjzar]')) return zar(); if(e.target.closest('[data-tvjok]')) return dont(true); if(e.target.closest('[data-tvjnem]')) return dont(false); });
+}
+document.addEventListener('click', e => {
+    if(e.target.closest('[data-tvjlista]')){ tvjFrissit(true).then(tvjListaAblak); return; }
+    if(e.target.closest('[data-tvjfrissit]')){ tvjFrissit(true).then(tvjAllapotRajz); return; }
+});
 async function tvLetolt(megnez){
     const all = document.getElementById('tvAllapot'), gomb = document.getElementById(megnez ? 'tvMegnez' : 'tvLetolt');
     // töltőképernyő: a PDF összeállítása alatt (oldalanként haladásjelzővel)
@@ -46968,7 +47117,8 @@ async function tvLetolt(megnez){
         const letolt = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${nev}_Tervezet.pdf`; document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
         tolt.remove(); ir(`Kész: ${lapok.length} oldal`);
-        if(megnez){ tvPdfMegjelenit(blob, `${nev}_Tervezet.pdf`, lapok.length, letolt); return; }
+        if(tvjKuldes){ tolt.remove(); await tvjFeltolt(blob, lapok.length); return; }
+        if(megnez){ tvPdfMegjelenit(blob, `${nev}_Tervezet.pdf`, lapok.length, tvjZarolt() ? null : letolt); return; }
         letolt();
     } catch(e){ ir(''); tolt.remove(); alert('Nem sikerült a PDF: ' + (e.message || e)); }
     finally { if(gomb) gomb.disabled = false; tolt.remove(); }
@@ -47047,7 +47197,8 @@ document.addEventListener('click', e => {
     const oa = e.target.closest('[data-tvoszaj]'); if(oa){ const k = oa.dataset.tvoszaj, a = tvAj[+oa.dataset.i]; if(a && !a._kid) a._kid = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         tvOszAjanl[k] = a ? a._kid : ''; renderTervezet(); return; }
     const sx = e.target.closest('[data-tvszbx]'); if(sx){ tvSzb = tvSzb.filter(x => x.id !== sx.dataset.tvszbx); renderTervezet(); return; }
-    if(e.target.closest('#tvLetolt')) tvLetolt();
+    if(e.target.closest('#tvLetolt')){ if(tvjZarolt()){ tvjFigyelmeztet(); return; } tvLetolt(); }
+    if(e.target.closest('[data-tvjkuld]')){ tvjKuld(); return; }
     if(e.target.closest('#tvMegnez')) tvLetolt(true);
 });
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches && e.target.matches('[data-tvelin]')){ e.preventDefault(); document.querySelector(`[data-tveluj="${e.target.dataset.tvelin}"]`)?.click(); } });
