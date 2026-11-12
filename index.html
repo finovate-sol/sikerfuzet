@@ -45242,7 +45242,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                 return `<button type="button" class="adm-hk" data-hkuid="${emp.uid}">
                     <span class="adm-hk-av">${monogram(emp.name || emp.email)}</span>
                     <span class="adm-hk-t"><b>${escM(emp.name || '(névtelen)')}</b><small>${escM(emp.email)}</small>
-                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${((((currentConfig && currentConfig.szintek) || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')) === 'vezeto' ? 'Vezető' : 'Munkatárs'}</small></span>
+                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${({ mt: 'MT', tanacsado: 'Tanácsadó', vezeto: 'Vezető' })[(((currentConfig && currentConfig.szintek) || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')] || 'MT'}</small></span>
                     <span class="adm-hk-all ${db ? 'van' : 'nincs'}">${db ? `${db} / ${lapok.length} oldal` : 'Nincs hozzáférés'}</span><em>›</em></button>`; };
             const fuggo = email => `<div class="adm-hk fuggo"><span class="adm-hk-av">${monogram(email)}</span><span class="adm-hk-t"><b>${escM(email)}</b><small>Meghívva, még nem lépett be – belépés után állítható</small></span></div>`;
             cont.innerHTML = `<div class="card"><div class="card-body">
@@ -45272,8 +45272,8 @@ Vállalkozás nyitásának átbeszélése`, '']
                 <div class="adm-role-name" data-uid="${emp.uid}"><div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
                 <div class="adm-role-email">${escM(emp.email)}${emp.googleName ? ` · Google-név: ${escM(emp.googleName)}` : ''}</div></div></div>
             <label class="adm-hr-mezo"><span>Felettese</span><select class="adm-role-sel" data-af="manager"><option value="">— nincs felettese —</option>${mgrOpts}</select></label>
-            ${(() => { const sz = ((currentConfig && currentConfig.szintek) || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'Munkatárs';
-                return `<label class="adm-hr-mezo"><span>Szint</span><select class="adm-role-sel" data-af="szint"><option value=""${sz ? '' : ' selected'}>Automatikus (most: ${auto})</option><option value="mt"${sz === 'mt' ? ' selected' : ''}>Munkatárs – a tervezetét a vezető hagyja jóvá</option><option value="vezeto"${sz === 'vezeto' ? ' selected' : ''}>Vezető – nem kell jóváhagyás, ő hagyhat jóvá</option></select></label>`; })()}
+            ${(() => { const sz = ((currentConfig && currentConfig.szintek) || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'MT';
+                return `<label class="adm-hr-mezo"><span>Szint</span><select class="adm-role-sel" data-af="szint"><option value=""${sz ? '' : ' selected'}>Automatikus (most: ${auto})</option><option value="mt"${sz === 'mt' ? ' selected' : ''}>MT – a tervezetét a vezető hagyja jóvá</option><option value="tanacsado"${sz === 'tanacsado' ? ' selected' : ''}>Tanácsadó – nem kell jóváhagyás</option><option value="vezeto"${sz === 'vezeto' ? ' selected' : ''}>Vezető – nem kell jóváhagyás, ő hagyja jóvá az MT-két</option></select></label>`; })()}
             <div class="adm-hr-lbl"><b>Hozzáférések</b><span data-hkdb>${db ? `${db} / ${lapok.length} oldal bekapcsolva` : 'Semmi nincs bekapcsolva – a munkatárs csak a „vezetőd megadja a hozzáféréseket” üzenetet látja.'}</span>
                 <span class="adm-hr-gyors"><button type="button" class="btn" data-hkmind="be">Mind be</button><button type="button" class="btn" data-hkmind="ki">Mind ki</button></span></div>
             <div class="adm-role-pages">${csoportok}</div>
@@ -46945,7 +46945,8 @@ function tvPdfMegjelenit(blob, fajlnev, db, letolt){
     ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-tvpdfx]')) zar(); else if(e.target.closest('[data-tvpdfle]')) letolt(); });
 }
 // ===== VEZETŐI JÓVÁHAGYÁS =====
-// A munkatárs (szint: Munkatárs, van felettese) tervezetét PDF-be csak akkor töltheti le, ha egy, a láncában
+// Szintek: MT (jóváhagyás kell) · Tanácsadó (nem kell, nem hagy jóvá) · Vezető (nem kell, jóváhagyhat).
+// Az MT (van felettese) tervezetét PDF-be csak akkor töltheti le, ha egy, a láncában
 // fölötte álló vezető az adott változatot jóváhagyta. Változtatás után új jóváhagyás kell (a változatot a lapok
 // tartalmából számolt ujjlenyomat azonosítja). Tárolás: activity_timers – kérés {uid}_tvjk_{hash} (+ oldalképek
 // {uid}_tvjkp_{hash}_{n}), döntés {vezető}_tvjd_{mt}_{hash}; mindenki csak a saját kulcsa alá ír.
