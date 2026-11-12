@@ -146,6 +146,13 @@ export async function addPreziNap(uid, name, ho, nap, kulcs, nev, darab, sec){
     if(!Object.keys(x).length) return;
     await setDoc(doc(db, "activity_timers", `${uid}_prezi_${ho}`), { uid, name: name || "", col: "prezi", period: ho, nevek: { [kulcs]: nev || "" }, napok: { [nap]: { [kulcs]: x } }, updatedAt: Date.now() }, { merge: true });
 }
+// Oldalhasználat (Control): activity_timers/{uid}_lap_{YYYY-MM} = { napok: { 'YYYY-MM-DD': { lap: db } } } – növeléssel
+export async function addLapNap(uid, name, ho, nap, d){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const n = {}; for(const [k, v] of Object.entries(d || {})) if(v > 0 && /^[a-z0-9]+$/.test(k)) n[k] = increment(Math.round(v));
+    if(!Object.keys(n).length) return;
+    await setDoc(doc(db, "activity_timers", `${uid}_lap_${ho}`), { uid, name: name || "", col: "lap", period: ho, napok: { [nap]: n }, updatedAt: Date.now() }, { merge: true });
+}
 // Tervezet-jóváhagyás (és más) bejegyzések listája típus szerint (activity_timers, col mező)
 export async function listActivityByCol(col){
     if(!isConfigured || !db) return [];
