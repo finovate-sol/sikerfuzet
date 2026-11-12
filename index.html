@@ -35367,6 +35367,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         initCalendar();
         window.sfUserName = user.displayName || user.email || "";
         window.sfCurrentUser = { uid: user.uid, email: user.email || "", name: user.displayName || user.email || "" };
+        setTimeout(() => { try { calFelhoBetolt(); } catch(e){} }, 0);
         window.sfIsAdmin = isAdmin(user); document.body.classList.toggle('sf-adm', !!window.sfIsAdmin);   // már itt kell (pl. a Pénzügyek kategória-szűrője), nem csak a hozzáférés-térkép után
         getAppConfig().then(cfg => {
             currentConfig = cfg || {};
@@ -38373,6 +38374,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             sel.addEventListener("change", () => {
                 calOwnId = sel.value || "";
                 try { localStorage.setItem("sf_cal_id", calOwnId); } catch(e){}
+                calFelhoMent();
                 initCalendar();
             });
         }
@@ -38386,7 +38388,31 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     let calListaHiba = "";         // "jog" = nincs engedély · egyéb hibaüzenet
     let calLathato = {};
     try { calLathato = JSON.parse(localStorage.getItem("sf_cal_lathato") || "{}") || {}; } catch(e){ calLathato = {}; }
-    const calLathatoMent = () => { try { localStorage.setItem("sf_cal_lathato", JSON.stringify(calLathato)); } catch(e){} };
+    // A bekapcsolt naptárak (és az aktív naptár) a fiókhoz is mentődnek (privat/{uid}_naptar),
+    // így új böngészőben, inkognitóban vagy adattörlés után is megmaradnak.
+    const calFelhoMent = () => {
+        try { if (typeof prvBetolt !== "function" || !window.sfCurrentUser) return;
+            prvBetolt("naptar").then(d => { d.lathato = Object.assign({}, calLathato); d.aktiv = calOwnId || ""; if (calLista && calLista.length) d.lista = calLista; prvMent("naptar"); }).catch(() => {});
+        } catch(e){}
+    };
+    const calLathatoMent = () => { try { localStorage.setItem("sf_cal_lathato", JSON.stringify(calLathato)); } catch(e){} calFelhoMent(); };
+    let calFelhoKesz = false;
+    async function calFelhoBetolt(){
+        if (calFelhoKesz || typeof prvBetolt !== "function" || !window.sfCurrentUser) return;
+        calFelhoKesz = true;
+        try {
+            const d = await prvBetolt("naptar");
+            let valt = false;
+            if (d && d.lathato && typeof d.lathato === "object"){
+                for (const [k, v] of Object.entries(d.lathato)) if (!(k in calLathato)){ calLathato[k] = !!v; valt = true; }
+                if (valt) try { localStorage.setItem("sf_cal_lathato", JSON.stringify(calLathato)); } catch(e){}
+            }
+            if (d && d.aktiv && !calOwnId){ calOwnId = d.aktiv; try { localStorage.setItem("sf_cal_id", calOwnId); } catch(e){} valt = true; }
+            if (d && Array.isArray(d.lista) && d.lista.length && !calListaMentett()){ calLista = d.lista; try { localStorage.setItem(calListaKulcs(), JSON.stringify(calLista)); } catch(e){} valt = true; }
+            if (valt) initCalendar();
+            else if (Object.keys(calLathato).length) calFelhoMent();   // ezen az eszközön van beállítás, a fiókban még nincs: feltöltjük
+        } catch(e){ calFelhoKesz = false; }
+    }
     // A naptárlista eszközönként és felhasználónként elmentve: induláskor ebből dolgozunk,
     // így a bekapcsolt naptárak akkor is rögtön látszanak, ha a lista lekérése (lejárt
     // token, lassú hálózat) csak később sikerül.
@@ -38425,6 +38451,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             })).sort((a, b) => (b.primary - a.primary) || a.nev.localeCompare(b.nev, "hu"));
             calListaFriss = true;
             try { localStorage.setItem(calListaKulcs(), JSON.stringify(calLista)); } catch(e){}
+            calFelhoBetolt();
         } catch(e){ calListaHiba = "A naptárlista nem tölthető be."; }
         return calLista;
     }
