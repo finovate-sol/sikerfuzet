@@ -17409,7 +17409,7 @@ function renderHaviBody(){
             <label><span>Célom ES-ben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celES" value="${esc(haviData.celES)}"${dis}><em>EH</em></div></label>
         </div>
         <div class="hv-k-fej hv-k-al"><h3>Havi képlet</h3><span class="hv-megj">A heti célok ebből számolódnak, egyenletesen elosztva a hetekre.</span></div>
-        <div class="hv-keplet">`+HAVI_METRICS.map((m,i)=>`<label class="hv-kb"><span>${m === 'Egység' ? 'ES' : m}</span><input type="text" inputmode="numeric" data-hformula="${i}" value="${esc(haviData.formula[i])}"${dis}></label>`).join('')+`</div></section>`;
+        <div class="hv-keplet">`+HAVI_METRICS.map((m,i)=>`<label class="hv-kb"><span>${({ 'Egység': 'ES', 'EL időpont': 'EL időp.', 'TA időpont': 'TA időp.', 'Tanácsadás': 'Tanácsad.', 'Lezárt ÜF': 'Lezárt', 'Ajánlások': 'Ajánl.', 'Kontaktus': 'Kont.' })[m] || m}</span><input type="text" inputmode="numeric" data-hformula="${i}" value="${esc(haviData.formula[i])}"${dis}></label>`).join('')+`</div></section>`;
 
     // --- Heti áttekintés · CÉL / VAN / Diff ---
     const tabla=`<div class="card havi-weekscard" id="haviTabla">${haviTablaHtml(ranges, weekStartOf, cwIdx)}</div>`;
@@ -17855,21 +17855,21 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
         const cur = w === cwIdx, wk = haviData.weeks[w], auto = haviAutoErtek(haviAnchor, w);
         const ures = auto.some((v, i) => v && String((i < 8 ? wk.van[i] : wk.szv) ?? '').trim() === '');
         const csuk = !cur && window.matchMedia && matchMedia('(max-width:760px)').matches;
-        t += `<div class="hweek-block${cur ? ' current' : ''}${csuk ? ' collapsed' : ''}"><div class="hweek-title${cur ? ' current' : ''}" data-wk-toggle="${w}">${w + 1}. hét <span>KW ${haviWeekKW(haviAnchor, w)} · ${ranges[w]}</span>
+        t += `<div class="hweek-block${cur ? ' current' : ''}${csuk ? ' collapsed' : ''}${w ? ' hv-fejtelen' : ''}"><div class="hweek-title${cur ? ' current' : ''}" data-wk-toggle="${w}">${w + 1}. hét <span>KW ${haviWeekKW(haviAnchor, w)} · ${ranges[w]}</span>
             <div class="hweek-title-right">${cur && w >= 1 ? `<button type="button" class="hv-gorg-gomb${haviGorgNyit.has(w) ? ' on' : ''}" data-hvgorg="${w}" title="Az előző hetek eredményeivel újraszámolja, mennyi kell ezen a héten, hogy tartható legyen a havi terv">↻ Görgetés</button>` : ''}${ures ? `<button type="button" class="hv-auto" data-hvauto="${w}" title="Az üres Van mezőkbe beírja a Sikerfüzetből számolt értékeket">Számoltak beírása</button>` : ''}${cur ? '<span class="hweek-badge">Aktuális</span>' : ''}${chev}</div></div>
             <div class="havi-table-wrap"><table class="havi"><thead>${thRow}</thead><tbody>`
             + `<tr><td class="hlblcol">Cél</td>${HAVI_METRICS.map((m, i) => {
                 const szamolt = String(haviData.formula[i] ?? '').trim() !== '';
                 return `<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="cel" data-hm="${i}" value="${esc(wk.cel[i])}"${szamolt ? ' readonly class="hcel-szamolt" title="A havi képletből számolva"' : ''}></td>`;
             }).join('')}<td class="hszv"><span class="hszv-nincs">—</span></td></tr>`
-            + `<tr><td class="hlblcol">Van</td>${HAVI_METRICS.map((m, i) => `<td><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(wk.van[i])}"${haviAutoHint(auto[i], i)}></td>`).join('')}<td class="hszv"><input type="text" inputmode="numeric" data-hszv="${w}" value="${esc(wk.szv)}"${haviAutoHint(auto[8], 8)}></td></tr>`
+            + `<tr class="hv-van-sor"><td class="hlblcol">Van</td>${HAVI_METRICS.map((m, i) => `<td id="hvvan-${w}-${i}"><input type="text" inputmode="numeric" data-hw="${w}" data-hrow="van" data-hm="${i}" value="${esc(wk.van[i])}"${haviAutoHint(auto[i], i)}></td>`).join('')}<td class="hszv"><input type="text" inputmode="numeric" data-hszv="${w}" value="${esc(wk.szv)}"${haviAutoHint(auto[8], 8)}></td></tr>`
             + `<tr class="hdiffrow"><td class="hlblcol">Diff +/-</td>${HAVI_METRICS.map((m, i) => `<td><span class="havi-diff" id="hdiff-${w}-${i}"></span></td>`).join('')}<td class="hszv"></td></tr>`
             + (haviGorgNyit.has(w) ? `<tr class="hgorrow"><td class="hlblcol" title="A havi célból a már lezárt hetek után hiányzó rész, elosztva a hátralévő hetekre">Görgetett</td>${HAVI_METRICS.map((m, i) => `<td><span class="hgor" id="hgor-${w}-${i}"></span></td>`).join('')}<td class="hszv"></td></tr>` : '')
             + `</tbody></table></div></div>`;
     }
-    t += `<div class="hweek-block"><div class="hweek-title">Összesen</div><div class="havi-table-wrap"><table class="havi hsum"><thead>${thRow}</thead><tbody>`
+    t += `<div class="hweek-block hv-fejtelen hv-ossz-b"><div class="hweek-title">Összesen</div><div class="havi-table-wrap"><table class="havi hsum"><thead>${thRow}</thead><tbody>`
         + `<tr><td class="hlblcol">Cél</td>${HAVI_METRICS.map((m, i) => `<td><span id="htotcel-${i}"></span></td>`).join('')}<td class="hszv">—</td></tr>`
-        + `<tr><td class="hlblcol">Van</td>${HAVI_METRICS.map((m, i) => `<td><span id="htotvan-${i}"></span></td>`).join('')}<td class="hszv"><span id="htotszv"></span></td></tr>`
+        + `<tr class="hv-van-sor"><td class="hlblcol">Van</td>${HAVI_METRICS.map((m, i) => `<td id="hvtotvan-${i}"><span id="htotvan-${i}"></span></td>`).join('')}<td class="hszv"><span id="htotszv"></span></td></tr>`
         + `<tr class="hdiffrow"><td class="hlblcol">Diff +/-</td>${HAVI_METRICS.map((m, i) => `<td><span class="havi-diff" id="htotdiff-${i}"></span></td>`).join('')}<td class="hszv"></td></tr>`
         + `</tbody></table></div></div>`;
     return t;
@@ -17877,6 +17877,12 @@ function haviTablaHtml(ranges, weekStartOf, cwIdx){
 // Teljesítés szerinti árnyalat (Van / Cél): halványtól a telt kékig, 100%-tól a legsötétebb.
 function haviArnyal(td, van, cel){
     if(!td) return;
+    // hőtérkép: a teljes cella színe a teljesítés szerint (zöld ≥100%, világoszöld ≥80%, sárga ≥50%, piros alatta)
+    if(td.closest && td.closest('.hv-van-sor')){
+        td.classList.remove('hh0', 'hh1', 'hh2', 'hh3');
+        if(van == null || !cel) return;
+        const p = van / cel; td.classList.add(p >= 1 ? 'hh0' : p >= .8 ? 'hh1' : p >= .5 ? 'hh2' : 'hh3'); return;
+    }
     if(!cel){ td.style.removeProperty('--hv-a'); td.classList.add('hv-nincs'); return; }
     td.classList.remove('hv-nincs');
     const p = Math.max(0, Math.min(1, van / cel));
@@ -17952,7 +17958,7 @@ function recomputeHavi(){
             tc+=c; tv+=v;
             const d=v-c, el=document.getElementById(`hdiff-${w}-${i}`);
             if(el){ el.textContent=(d>0?'+':'')+d; el.className='havi-diff '+(d<0?'neg':'pos'); }
-            haviArnyal(document.getElementById(`hvvan-${w}-${i}`), v, c);
+            haviArnyal(document.getElementById(`hvvan-${w}-${i}`), String(haviData.weeks[w].van[i] ?? '').trim() === '' ? null : v, c);
         }
         const dc=document.getElementById(`htotcel-${i}`); if(dc) dc.textContent=tc;
         const dv=document.getElementById(`htotvan-${i}`); if(dv) dv.textContent=tv;
@@ -46139,6 +46145,53 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-drop .sf-ikl { margin:0 auto 9px; }
 .tv-hiba { margin-top:10px; background:#fdecec; color:#b91c1c; border-radius:10px; padding:9px 12px; font-size:13px; }
 .tv-mezok { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px 12px; }
+        /* ===== Havi terv: kompakt, egy képernyőn ===== */
+        #page-havi .havi-layout .card.hv-k { padding:10px 14px; }
+        #page-havi .hv-k-fej { margin-bottom:6px; }
+        #page-havi .hv-celok-r { gap:8px; } #page-havi .hv-celok-r label > span { margin-bottom:2px; }
+        #page-havi .hv-celok-r select, #page-havi .hv-mezo { height:30px; font-size:13.5px; }
+        #page-havi .hv-k-fej.hv-k-al { margin:8px 0 4px; }
+        #page-havi .hv-keplet .hv-kb { flex-direction:row; justify-content:space-between; padding:3px 6px 3px 8px; gap:4px; }
+        #page-havi .hv-keplet .hv-kb span { text-align:left; font-size:10.5px; line-height:1.15; }
+        #page-havi .hv-keplet .hv-kb input { max-width:46px; font-size:13px; padding:2px; }
+        #page-havi .havi-layout .card.havi-weekscard { padding:6px 10px; }
+        #page-havi .hv-tabla-megj { margin:0 0 4px; font-size:11px; }
+        #page-havi .havi-weekscard .hweek-block { margin-bottom:5px; border-radius:9px; }
+        #page-havi .havi-weekscard .hweek-title { padding:3px 10px; font-size:12.5px; min-height:0; }
+        #page-havi .hweek-title .hv-auto, #page-havi .hweek-title .hv-gorg-gomb { padding:1px 9px; font-size:11px; }
+        #page-havi .hweek-badge { padding:1px 8px; font-size:10.5px; }
+        #page-havi .hv-fejtelen table.havi thead { display:none; }
+        #page-havi table.havi th { padding:3px 4px; font-size:10px; }
+        #page-havi table.havi td { padding:0 4px; height:22px; font-size:12px; }
+        #page-havi .hv-tabla-megj { display:none; }
+        #page-havi .hv-celok-r label { display:flex; align-items:center; gap:8px; } #page-havi .hv-celok-r label > span { margin:0; white-space:nowrap; } #page-havi .hv-celok-r label > select, #page-havi .hv-celok-r label > .hv-mezo { flex:1 1 0; min-width:0; width:auto; }
+        #page-havi .hv-celok-r .hv-mezo input { min-width:0; width:100%; }
+        #page-havi .hv-celok-r { grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr) minmax(0,1fr); }
+        #page-havi .hv-k-fej.hv-k-al .hv-megj { display:none; }
+        #page-havi table.havi input { width:52px; padding:1px 3px; font-size:12px; }
+        #page-havi .havi-diff { padding:0 8px; min-width:34px; font-size:11.5px; }
+        #page-havi table.havi td.hlblcol { width:78px; }
+        #page-havi .hv-ossz-b .hweek-title { background:#0b2a55; color:#fff; }
+        /* hőtérkép a Van sorban: a teljes cella színes, a beviteli mező átlátszó */
+        #page-havi tr.hv-van-sor td.hh0 { background:#16a34a; } #page-havi tr.hv-van-sor td.hh1 { background:#86efac; }
+        #page-havi tr.hv-van-sor td.hh2 { background:#fde68a; } #page-havi tr.hv-van-sor td.hh3 { background:#fca5a5; }
+        #page-havi tr.hv-van-sor td[class^="hh"] input, #page-havi tr.hv-van-sor td[class*=" hh"] input { background:transparent; border-color:transparent; font-weight:800; }
+        #page-havi tr.hv-van-sor td.hh0, #page-havi tr.hv-van-sor td.hh0 input { color:#fff; } #page-havi tr.hv-van-sor td.hh1, #page-havi tr.hv-van-sor td.hh1 input { color:#14532d; }
+        #page-havi tr.hv-van-sor td.hh2, #page-havi tr.hv-van-sor td.hh2 input { color:#78350f; } #page-havi tr.hv-van-sor td.hh3, #page-havi tr.hv-van-sor td.hh3 input { color:#7f1d1d; }
+        #page-havi tr.hv-van-sor td[class*="hh"] input:focus { background:#fff; color:#0f172a; border-color:var(--blue); }
+        #page-havi tr.hv-van-sor td.hh0 span, #page-havi tr.hv-van-sor td.hh1 span, #page-havi tr.hv-van-sor td.hh2 span, #page-havi tr.hv-van-sor td.hh3 span { font-weight:800; }
+        #page-havi #haviTort .hv-keplet .hv-kb { padding:3px 8px; }
+        /* jobb oszlop: tömörebb navigátor és aktuális teljesítmény */
+        #page-havi .havi-layout .card.hv-nav { padding:8px; }
+        #page-havi .hv-nav-q { margin-bottom:4px; } #page-havi .hv-nav-q span { margin-bottom:3px; } #page-havi .hv-nav-q select { height:28px; font-size:12.5px; }
+        #page-havi .hv-nav-ho { margin-bottom:2px; } #page-havi .hv-nav-hofej { padding:1px 6px 1px; }
+        #page-havi .hv-nav-het { padding:1px 8px; } #page-havi .hv-nav-het b { font-size:12px; } #page-havi .hv-nav-het span { font-size:11px; }
+        #page-havi .hv-oldal .card.havi-side-card { padding:8px 12px; }
+        #page-havi .hv-oldal .hact-row { grid-template-columns:78px minmax(0,1fr) 34px 30px; gap:0 6px; margin-bottom:4px; }
+        #page-havi .hact-row > * { grid-row:1; }
+        #page-havi .hact-row .hact-lbl { grid-column:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        #page-havi .hact-row .hact-bar { grid-column:2; height:6px; } #page-havi .hact-row .hact-frac { grid-column:3; } #page-havi .hact-row .hact-pct { grid-column:4; text-align:right; font-size:10px; }
+        #page-havi .hv-oldal .hcard-title2 { margin-bottom:6px; }
         .tvj { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-radius:12px; padding:10px 14px; margin:0 0 10px; border:1px solid; }
         .tvj b { font-size:13.5px; } .tvj span { flex:1 1 260px; font-size:12.5px; color:var(--muted); }
         .tvj.nincs { background:#eff6ff; border-color:#bfdbfe; } .tvj.nincs b { color:#1d4ed8; }
