@@ -3,9 +3,9 @@
 //   Így a frissítés ugyanúgy azonnal megjön (az index.html build-ellenőrzése is működik), de térerő nélkül is megnyílik.
 // - Statikus fájlok (js, képek, ikonok, betűk, CDN-könyvtárak): gyorsítótárból azonnal, háttérben frissítve.
 // - Firebase / Google API hívásokat nem érinti.
-const VER = 'sf-v2';
+const VER = 'sf-v3';
 const STATIKUS = /\.(?:js|css|png|jpe?g|webp|svg|gif|ico|woff2?|ttf|json)$/i;
-const CDN = /^https:\/\/(?:cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com)\//;
+const CDN = /^https:\/\/(?:cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|www\.gstatic\.com\/firebasejs)\//;
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -26,6 +26,18 @@ self.addEventListener('fetch', e => {
     if(sajat && url.searchParams.has('nc')) return;
     if(req.cache === 'no-store' || req.cache === 'reload') return;
 
+    // A SZEM-app úgy indul, mint egy natív app: azonnal a gyorsítótárból, a háttérben frissítve (a következő indításkor már az új).
+    if(req.mode === 'navigate' && sajat && /\/szem\.html$/.test(url.pathname)){
+        e.respondWith((async () => {
+            const kulcs = new Request(url.origin + url.pathname);
+            const halo = fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' }).then(r => tarol(kulcs, r)).catch(() => null);
+            const c = await caches.match(kulcs);
+            if(c){ e.waitUntil(halo); return c; }
+            const r = await halo; if(r) return r;
+            return fetch(req);
+        })());
+        return;
+    }
     if(req.mode === 'navigate' && sajat){
         e.respondWith((async () => {
             const kulcs = new Request(url.origin + url.pathname);

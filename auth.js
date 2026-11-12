@@ -1060,7 +1060,10 @@ export async function connectCalendarList() {
 // nem villan fel a naptár / a SZEM indulóképernyője a login előtt.
 const belepJel = be => { try { be ? localStorage.setItem("sf_belepve", "1") : localStorage.removeItem("sf_belepve"); } catch (e) {} };
 // a ?app=… (Sikerfüzet / SZEM) megmarad a login és az app közti oda-vissza úton
-const appKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
+const appKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); if (/szem\.html$/.test(location.pathname)) q.set("cel", "szem"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
+// a belépés utáni céloldal: a SZEM-appból érkezve oda térünk vissza
+export const celOldal = () => { try { return new URLSearchParams(location.search).get("cel") === "szem" ? "szem.html" : "index.html"; } catch (e) { return "index.html"; } };
+const celKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); q.delete("cel"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
 export async function logout() {
     belepJel(false);
     tokTorol();
@@ -1104,7 +1107,7 @@ export function redirectIfLoggedIn() {
     if (!isConfigured || !auth) return;
     onAuthStateChanged(auth, async (user) => {
         if (!user) return;
-        try { if (await isEmailAllowed(user.email)){ belepJel(true); window.location.replace("index.html" + appKer()); } }
+        try { if (await isEmailAllowed(user.email)){ belepJel(true); window.location.replace(celOldal() + celKer()); } }
         catch (e) {
             // Hálózati hiba – maradjon a login oldalon, a gomb újra megnyomható.
             console.warn("Hozzáférés-ellenőrzés sikertelen (hálózati hiba):", e);

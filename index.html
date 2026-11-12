@@ -11101,6 +11101,10 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 <span class="nav-label">Ma</span>
             </a>
+            <a href="szem.html" data-ter="priv" class="nav-szemapp" title="SZEM app – gyors napló és költés, telefonra">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+                <span class="nav-label">SZEM app</span><span class="nav-kulso-j">↗</span>
+            </a>
             <a href="#" data-ter="priv" data-page="penzugyek" title="Pénzügyek">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
                 <span class="nav-label">Pénzügyek</span>
@@ -23093,7 +23097,12 @@ function pzAdatToltes(){
 window.sfShowPenzugyek = function(){
     pzCacheEllenor();
     pzView = 'attek';        // a lap megnyitásakor mindig az Áttekintés jön be
-    pzAdatToltes().then(() => { if(pzAdatAllapot === 'ok') renderPzView(); });
+    pzAdatToltes().then(async () => {
+        if(pzAdatAllapot !== 'ok') return;
+        renderPzView();
+        // a SZEM-appban (szem.html) rögzített tételek a Tervező havi összegeibe is bekerülnek
+        try { for(const h of [pzMaHo(), pzHoLep(pzMaHo(), -1)]){ await pzLoadTranz(h); if(!pzTranzNemFriss(h)) pzSyncTervezo(h); } } catch(e){ console.warn('Tervező-szinkron:', e); }
+    });
     renderPzView();          // a helyi adattal azonnal, a szerverről jövővel újra
 };
 (function(){
@@ -35661,7 +35670,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=92";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=93";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -46415,7 +46424,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         @media (min-width:1001px){ html body.sf-adm .sidebar.collapsed .nav-grp.ng > .nav-link-kez { display:none !important; } }
         body.sf-adm:not(.sf-privat) .nav-grp-link[hidden] { display:flex !important; }
         .nav-linkek { display:contents; }
-        .nav a[data-kulso] .nav-kulso-j { margin-left:auto; opacity:.5; font-size:12px; }
+        .nav a.nav-szemapp .nav-kulso-j, .nav a[data-kulso] .nav-kulso-j { margin-left:auto; opacity:.5; font-size:12px; }
         .lk-ov { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
         .lk-m { width:min(640px, 100%); max-height:90vh; overflow:auto; padding:18px 20px !important; display:flex; flex-direction:column; gap:12px; }
         .lk-fej { display:flex; align-items:center; justify-content:space-between; } .lk-fej h3 { margin:0; font-size:17px; color:var(--navy); }
