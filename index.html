@@ -17732,11 +17732,11 @@ async function haviTortBetolt(){
 // a heti sorok magassága: amennyire a képernyő engedi (az alsó kártyák is beférjenek), 44–96 px között
 function haviSorMagassag(){
     const t = document.querySelector('#page-havi table.hv-ev'); if(!t || matchMedia('(max-width:1000px)').matches) return;
-    t.style.setProperty('--hv-sor', '40px');
+    t.style.setProperty('--hv-sor', '36px');
     const sorok = t.querySelectorAll('tbody tr.hv-sor-van:not(.hv-rejt)'); if(!sorok.length) return;
     const pg = document.getElementById('page-havi'), alja = pg.getBoundingClientRect().bottom + window.scrollY;
     const tobblet = window.innerHeight - (alja - window.scrollY) - 18;   // ennyi hely maradt a képernyő aljáig
-    const uj = Math.max(40, Math.min(72, 40 + tobblet / sorok.length));
+    const uj = Math.max(36, Math.min(72, 36 + tobblet / sorok.length));
     t.style.setProperty('--hv-sor', Math.round(uj) + 'px');
 }
 addEventListener('resize', () => { const hv = document.getElementById('page-havi'); if(hv && !hv.hidden && haviNezet === 'ho') haviSorMagassag(); });
@@ -17840,10 +17840,13 @@ function hetMultHtml(l, cim, pill){
 function hetListaHtml(l, cim){
     // múltbeli hét: az elmentett lista; jövőbeli: üres; a folyó ciklus: az élő lista
     // a folyó OVB-hét mindig az élő listát mutatja
-    const mw = currentHaviWeek(), folyo = mw.monthDate.getFullYear() === hetHo.getFullYear() && mw.monthDate.getMonth() === hetHo.getMonth() && mw.weekIdx === hetIdx;
-    const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs(), kezd = hetKezd(hetHo, hetIdx), ma = new Date();
-    if(!folyo && kezd < ma){ const d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null; return hetMultHtml(l, cim, d && d.hetek ? d.hetek[ck] : null); }
-    if(!folyo) return hetMultHtml(l, cim, { penz: [], karr: [] }).replace('Ezen a héten nem volt TP-vel jelölt.', 'Ez a hét még nem kezdődött el – csütörtök este indul.');
+    // a TP-ciklus dönt (csütörtök 12:00): a lezárt ciklus hetén az elmentett lista + eredmények maradnak láthatók,
+    // akkor is, ha az OVB-hét (péntekig) még tart; az élő lista a folyó ciklus hetén látszik
+    const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs(), d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null;
+    // ha a ciklusváltás még nem futott le (pl. offline), a „lezárt” hét még az élő listát mutatja
+    const elo = ck === most || (ck < most && d && d.ciklus === ck);
+    if(!elo && ck < most) return hetMultHtml(l, cim, d && d.hetek ? d.hetek[ck] : null);
+    if(!elo) return hetMultHtml(l, cim, { penz: [], karr: [] }).replace('Ezen a héten nem volt TP-vel jelölt.', 'Ez a hét még nem kezdődött el – csütörtök 12:00-kor indul.');
     const lista = hetSorok(l), f = sav321Fej(l, lista);
     const sorok = f.lat.map(({ r, gi }) => het321SorHtml(l, r, gi, false)).join('');
     const ures = l === 'penz' ? 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.' : 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.';
@@ -17862,7 +17865,8 @@ function hetFejHtml(){
     const sav = Array.from({ length: evHetei }, (x, i) => `<i class="${i + 1 < kw ? 'mult' : i + 1 === kw ? 'most' : ''}"></i>`).join('');
     return `<div class="het-fej-k"><span class="het-fej-q">Q${Math.floor(hetHo.getMonth() / 3) + 1} ${hetHo.getFullYear()} · ${HU_MONTHS_FULL[hetHo.getMonth()]} · ${kw}. hét / ${evHetei}</span>
         <div class="het-fej-c"><button type="button" class="btn icon-btn" data-hetlep="-1" aria-label="Előző hét">‹</button><h2>KW ${kw}</h2><span>${ho(s)} ${s.getDate()}. – ${ho(e)} ${e.getDate()}.</span><button type="button" class="btn icon-btn" data-hetlep="1" aria-label="Következő hét">›</button></div>
-        <div class="het-sav">${sav}</div></div>`;
+        <div class="het-sav">${sav}</div>${(() => { const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs(), d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null;
+            return ck < most && (!d || d.ciklus !== ck) && e >= new Date(new Date().setHours(0, 0, 0, 0)) ? `<div class="het-lezart">🔒 Ez a hét csütörtök 12:00-kor lezárult – az ügyfelek és az eredmények elmentve, itt maradnak. Az új jelölések a következő héten látszanak <button type="button" class="hv-mini" data-hetlep="1">Következő hét ›</button></div>` : ''; })()}</div>`;
 }
 function renderHet(){
     const body = document.getElementById('haviBody'); if(!body) return;
@@ -46386,19 +46390,28 @@ Vállalkozás nyitásának átbeszélése`, '']
         html body #page-havi .hv-keplet .hv-kb.hv-kb { padding:6px 4px 6px !important; }
         html body #page-havi .hv-keplet .hv-kb input, html body #page-havi .hv-keplet .hv-kb b { padding:2px 4px 0 !important; font-size:20px !important; }
         html body #page-havi .hv-keplet .hv-kb .hv-kb-fej { padding:0 4px !important; }
+        .het-lezart { margin-top:10px; padding:8px 12px; border-radius:12px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12.5px; font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .hv-info { cursor:help; opacity:.6; font-weight:600; margin-left:4px; }
         .hv-kb-tort { display:flex; justify-content:center; align-items:baseline; gap:5px; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.04em; }
         .hv-kb-tort:empty { display:none; }
         html body #page-havi .hv-keplet .hv-kb .hv-kb-tort b { font-size:13px !important; padding:0 !important; color:#7c3aed; display:inline; }
-        html body #page-havi .hv-lay .hl-left { gap:10px !important; }
-        html body #page-havi table.eves.hv-ev thead th { padding:6px 4px 6px !important; }
-        html body #page-havi table.eves.hv-ev tbody tr.hv-het-koz td { height:6px !important; }
-        html body #page-havi table.eves.hv-ev tbody tr.hv-het-fejsor .hv-het-fej { padding:5px 12px; }
+        html body #page-havi .hv-lay .hl-left { gap:8px !important; }
+        html body #page-havi table.eves.hv-ev thead th { padding:4px 4px 5px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-koz td { height:5px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-fejsor .hv-het-fej { padding:4px 12px; }
         html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td { padding-top:4px !important; padding-bottom:0 !important; height:24px !important; }
         html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td { padding-top:2px !important; padding-bottom:6px !important; }
         html body #page-havi table.eves.hv-ev tbody tr.hv-sor-van td input { padding:4px 2px !important; }
-        html body #page-havi table.eves.hv-ev tbody tr.hv-tot-b td { padding:8px 4px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-tot-b td { padding:6px 4px !important; }
         html body #page-havi .hv-tabla-megj2 { margin:4px 0 0 !important; }
+        /* Cél sor: nincs kék–fehér váltakozás; a cél is „doboz”, mint a Van, csak telt szürkéskék */
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td, html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td.ev-alt { background:#fff !important; background-image:none !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor td.hv-szv-c { background:#fff !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td { height:28px !important; padding-top:5px !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td input { width:min(64px, 100%) !important; height:26px !important; padding:0 2px !important; border-radius:8px !important;
+            background:#e8eef7 !important; border:0 !important; color:#1e3a5f !important; font-size:13.5px !important; font-weight:800 !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-sor-cel td input:not([readonly]) { background:#fff !important; border:1.5px dashed #b9c6d8 !important; }
+        html body #page-havi table.eves.hv-ev tbody tr.hv-het-sor.ev-most td { background:#fff !important; }
         /* B: Havi képlet különálló, halvány csempékben */
         html body #page-havi .hv-keplet.hv-keplet { border:0 !important; background:transparent !important; gap:10px !important; overflow:visible; }
         html body #page-havi .hv-keplet .hv-kb.hv-kb { background:#fff !important; border:1px solid #e3e9f2 !important; border-radius:14px !important; padding:10px 6px 4px !important; }
