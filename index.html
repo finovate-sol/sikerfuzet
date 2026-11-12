@@ -11070,6 +11070,8 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8.5l4 4V20a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="m9 15.5 2-2.5 2 1.5 2.5-3.5"/></svg>
                 <span class="nav-label">Tervezet-készítő</span>
             </a>
+            <div class="nav-grp nav-grp-link" data-ter="ovb" data-navcsop="link">Linkek</div>
+            <div id="navLinkek" class="nav-linkek"></div>
             <div class="nav-grp" data-ter="ovb" data-navcsop="vez">Vezetői</div>
             <a href="#" data-ter="ovb" data-vizsgak data-navcs="vez" title="Vizsgák" id="navVizsgak" hidden>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
@@ -12771,6 +12773,7 @@ if(store.load('sf_side_collapsed', false)){
         ugyf:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
         csap:'<path d="M3 20h18"/><rect x="5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="7" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="13" rx="1"/>',
         eszk:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+        link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
         vez:'<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
         fejl:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
         test:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
@@ -16554,6 +16557,70 @@ document.addEventListener('click', e => {
     // más menüpontra lépve a Vizsgák jelölése lekerül
     const na = e.target.closest('.nav a[data-page]'); if(na && !['idd', 'gst'].includes(na.dataset.page)){ const v = document.getElementById('navVizsgak'); if(v) v.classList.remove('active'); }
 });
+
+// ===== Egyedi link-gombok (Admin állítja be; Hozzáférés fülön munkatársanként ki-be kapcsolhatók) =====
+// Tárolás: config/linkek { lista:[{ id, n, url }] } – mindenki olvassa, csak az admin írja.
+// A menüben <a data-page="lk_<id>"> elemek: így a hozzáférés-lista és a tiltás automatikusan rájuk is vonatkozik.
+let sfLinkek = (() => { try { return JSON.parse(localStorage.getItem('sf_linkek') || '[]'); } catch(_) { return []; } })();
+const LINK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+function linkUrl(u){ u = String(u || '').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u = 'https://' + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch(_) { return ''; } }
+function linkekRajz(){
+    const box = document.getElementById('navLinkek'); if(!box) return;
+    // a csoportfejlécet a menü-építő újraírja, ezért a kezelő-gombot utólag tesszük bele
+    const g = document.querySelector('.nav-grp-link'); if(g && !g.querySelector('[data-linkkez]')) g.insertAdjacentHTML('beforeend', '<button type="button" class="nav-link-kez" data-linkkez title="Linkek kezelése" aria-label="Linkek kezelése">⚙</button>');
+    box.innerHTML = sfLinkek.filter(l => linkUrl(l.url)).map(l => `<a href="${esc(linkUrl(l.url))}" target="_blank" rel="noopener" data-ter="ovb" data-page="lk_${esc(l.id)}" data-navcs="link" data-kulso title="${esc(l.n)}">${LINK_SVG}<span class="nav-label">${esc(l.n)}</span><span class="nav-kulso-j">↗</span></a>`).join('');
+    if(typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess();
+}
+async function linkekBetolt(){
+    linkekRajz();
+    if(typeof window.sfGetConfigDoc !== 'function') return;
+    try { const d = await window.sfGetConfigDoc('linkek'); sfLinkek = (d && Array.isArray(d.lista)) ? d.lista : []; try { localStorage.setItem('sf_linkek', JSON.stringify(sfLinkek)); } catch(_) {} linkekRajz(); }
+    catch(e){ console.warn('Linkek betöltése sikertelen:', e); }
+}
+async function linkekMent(){
+    try { localStorage.setItem('sf_linkek', JSON.stringify(sfLinkek)); } catch(_) {}
+    linkekRajz();
+    if(typeof window.sfSaveConfigDoc === 'function') await window.sfSaveConfigDoc('linkek', { lista: sfLinkek, mentve: Date.now() });
+}
+// a külső link nem lapot vált: a menü saját kattintás-kezelője nem fut rá (az csak a betöltéskor meglévő elemekre figyel)
+document.addEventListener('click', e => {
+    const k = e.target.closest('.nav a[data-kulso]');
+    if(k && window.sfBlockedPages && window.sfBlockedPages.has(k.dataset.page)){ e.preventDefault(); return; }
+    if(e.target.closest('[data-linkkez]')){ e.preventDefault(); e.stopPropagation(); linkKezelo(); }
+});
+function linkKezelo(){
+    if(!window.sfIsAdmin) return;
+    document.getElementById('linkKezOv')?.remove();
+    const ov = document.createElement('div'); ov.id = 'linkKezOv'; ov.className = 'lk-ov';
+    const sor = (l, i) => `<div class="lk-sor" data-i="${i}"><input type="text" class="lk-n" placeholder="Gomb neve" value="${esc(l.n || '')}"><input type="text" class="lk-u" placeholder="https://…" value="${esc(l.url || '')}">
+        <button type="button" class="lk-mini" data-lkfel="${i}" title="Feljebb"${i ? '' : ' disabled'}>↑</button><button type="button" class="lk-mini lk-tor" data-lktor="${i}" title="Törlés">✕</button></div>`;
+    const rajz = () => { ov.querySelector('.lk-lista').innerHTML = sfLinkek.length ? sfLinkek.map(sor).join('') : '<p class="lk-ures">Még nincs link. Adj hozzá egyet lent.</p>'; };
+    ov.innerHTML = `<div class="lk-m card"><div class="lk-fej"><h3>Linkek kezelése</h3><button type="button" class="lk-mini" data-lkzar aria-label="Bezárás">✕</button></div>
+        <p class="lk-megj">A gombok a menü <b>Linkek</b> csoportjában jelennek meg, és új lapon nyitják meg a címet (pl. Google Sheet, Drive-mappa, űrlap). Hogy ki látja, az <b>Admin → Hozzáférés</b> fülön állítható munkatársanként, ugyanúgy, mint az oldalaknál.</p>
+        <div class="lk-lista"></div>
+        <button type="button" class="btn" data-lkuj>+ Új link</button>
+        <div class="lk-lab"><span class="lk-hiba"></span><button type="button" class="btn" data-lkzar>Mégse</button><button type="button" class="btn primary" data-lkment>Mentés</button></div></div>`;
+    document.body.appendChild(ov);
+    const olvas = () => { ov.querySelectorAll('.lk-sor').forEach(r => { const l = sfLinkek[+r.dataset.i]; l.n = r.querySelector('.lk-n').value.trim(); l.url = r.querySelector('.lk-u').value.trim(); }); };
+    sfLinkek = sfLinkek.map(l => ({ ...l }));
+    rajz();
+    ov.addEventListener('click', async e => {
+        if(e.target === ov || e.target.closest('[data-lkzar]')){ ov.remove(); linkekBetolt(); return; }
+        if(e.target.closest('[data-lkuj]')){ olvas(); sfLinkek.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), n: '', url: '' }); rajz(); const u = ov.querySelectorAll('.lk-n'); u[u.length - 1]?.focus(); return; }
+        const f = e.target.closest('[data-lkfel]'); if(f){ olvas(); const i = +f.dataset.lkfel; [sfLinkek[i - 1], sfLinkek[i]] = [sfLinkek[i], sfLinkek[i - 1]]; rajz(); return; }
+        const t = e.target.closest('[data-lktor]'); if(t){ olvas(); const i = +t.dataset.lktor; if(sfLinkek[i].n && !confirm(`Törlöd a(z) „${sfLinkek[i].n}” linket?`)) return; sfLinkek.splice(i, 1); rajz(); return; }
+        if(e.target.closest('[data-lkment]')){
+            olvas(); const hiba = ov.querySelector('.lk-hiba');
+            sfLinkek = sfLinkek.filter(l => l.n || l.url);
+            const rossz = sfLinkek.find(l => !l.n || !linkUrl(l.url));
+            if(rossz){ hiba.textContent = 'Minden linknek kell név és érvényes cím.'; rajz(); return; }
+            sfLinkek.forEach(l => l.url = linkUrl(l.url));
+            try { await linkekMent(); ov.remove(); } catch(err){ hiba.textContent = 'Nem sikerült menteni: ' + (err.message || err); }
+        }
+    });
+}
+window.sfLinkekBetolt = linkekBetolt;
+linkekRajz();
 window.sfApplyPageAccess = function(map){
     // A térkép és az admin-jelző két külön betöltésből érkezik, versenyben –
     // ezért megjegyezzük az utoljára kapott térképet, és mindkét ág újra hívja.
@@ -35680,6 +35747,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             renderCalPicker();
             if (calOwnId) initCalendar();
             if (typeof window.sfApplyPageAccess === "function") window.sfApplyPageAccess(cfg && cfg.pageAccess);
+            if (typeof window.sfLinkekBetolt === "function") window.sfLinkekBetolt();
             window.sfRankRates = (cfg && cfg.ranks) || DEFAULT_RANKS;
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
@@ -46338,6 +46406,28 @@ Vállalkozás nyitásának átbeszélése`, '']
         html body #evesBody table.eves tbody input[data-ef="t"]:focus { background:#fff; border-color:#2563eb; }
         html body #evesBody table.eves tbody input[data-ef="e"] { border:1.5px solid #cdd7e5; font-weight:800; border-radius:8px; box-shadow:0 1px 2px rgba(15,23,42,.06); }
         html body #evesBody table.eves tbody input::placeholder { color:#94a3b8; }
+
+        /* ===== Egyedi link-gombok ===== */
+        .nav-grp-link { display:flex; align-items:center; }
+        .nav-link-kez { display:none; margin-left:auto; border:0; background:transparent; color:inherit; opacity:.65; cursor:pointer; font-size:13px; padding:0 4px; }
+        .nav-link-kez:hover { opacity:1; }
+        html body.sf-adm .nav.lapos .nav-grp.ng > .nav-link-kez { display:inline-block !important; pointer-events:auto; }
+        @media (min-width:1001px){ html body.sf-adm .sidebar.collapsed .nav-grp.ng > .nav-link-kez { display:none !important; } }
+        body.sf-adm:not(.sf-privat) .nav-grp-link[hidden] { display:flex !important; }
+        .nav-linkek { display:contents; }
+        .nav a[data-kulso] .nav-kulso-j { margin-left:auto; opacity:.5; font-size:12px; }
+        .lk-ov { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
+        .lk-m { width:min(640px, 100%); max-height:90vh; overflow:auto; padding:18px 20px !important; display:flex; flex-direction:column; gap:12px; }
+        .lk-fej { display:flex; align-items:center; justify-content:space-between; } .lk-fej h3 { margin:0; font-size:17px; color:var(--navy); }
+        .lk-megj { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
+        .lk-lista { display:flex; flex-direction:column; gap:8px; }
+        .lk-sor { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) auto auto; gap:6px; align-items:center; }
+        .lk-sor input { min-width:0; border:1px solid var(--border); border-radius:10px; padding:8px 10px; font:inherit; font-size:13.5px; background:var(--card); color:var(--text); }
+        .lk-mini { border:1px solid var(--border); background:var(--card); border-radius:8px; width:32px; height:32px; cursor:pointer; color:var(--text); }
+        .lk-mini:disabled { opacity:.35; cursor:default; } .lk-tor:hover { color:#dc2626; border-color:#fecaca; }
+        .lk-ures { margin:0; font-size:13px; color:var(--muted); font-style:italic; }
+        .lk-lab { display:flex; gap:8px; align-items:center; justify-content:flex-end; } .lk-hiba { margin-right:auto; color:#dc2626; font-size:12.5px; }
+        @media (max-width:560px){ .lk-sor { grid-template-columns:minmax(0,1fr) auto auto; } .lk-sor .lk-u { grid-column:1 / -1; grid-row:2; } }
         /* ===== Havi terv – „B” dizájn: minden hét külön kártya ===== */
         html body #page-havi table.eves.hv-ev { border-collapse:separate !important; border-spacing:0 !important; background:transparent !important; }
         html body #page-havi .hv-ev-w { background:#f4f7fc; border-radius:18px; padding:6px 12px 12px; border:0 !important; box-shadow:none !important; }
