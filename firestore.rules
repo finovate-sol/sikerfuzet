@@ -123,29 +123,24 @@ service cloud.firestore {
 
     match /structures/{userId}    { allow read, write: if canAccess(userId); }
     match /karrier_letra/{userId} { allow read, write: if canAccess(userId); }
-    match /penzugyek/{userId}     { allow read, write: if canAccess(userId); }
-    match /celok/{userId}         { allow read, write: if canAccess(userId); }
-    // Önismeret (Vezetői életkerék, Hawkins-skála) – a Sikerfüzet része, a célokhoz
-    // hasonlóan a vezető is ránézhet.
-    match /onismeret/{userId}     { allow read, write: if canAccess(userId); }
+    // A SZEM (privát rész) adatai: SZIGORÚAN a gazdáé – a vezető és az admin sem lát bele.
+    // (Korábban a vezetői ránézés és a Csendes PG olvasta őket; ez megszűnt.)
+    match /penzugyek/{userId}     { allow read, write: if isUser() && uid() == userId; }
+    match /celok/{userId}         { allow read, write: if isUser() && uid() == userId; }
+    // Önismeret (régi hely; az adat már a privat/{uid}_onismeret dokumentumban van).
+    match /onismeret/{userId}     { allow read, write: if isUser() && uid() == userId; }
 
     // A célfal képei. Külön dokumentumban, mert a Firestore-ban egy dokumentum
     // legfeljebb 1 MB, és a célok betöltésekor nem akarjuk az összes képet
-    // lehozni. (A Firebase Storage fizetős csomagot igényelne, ezért kerültek
-    // ide – lásd a note_images-nél írtakat.)
-    //
-    // A JEGYZET-KÉPEKKEL ELLENTÉTBEN itt a felettes és az admin is olvashat:
-    // a célfal a vezetői "ránézés" része, ugyanúgy, mint maga a celok
-    // dokumentum. Ezért canAccess(), nem szigorú uid-egyezés.
-    //
+    // lehozni. A célokhoz hasonlóan SZIGORÚAN a gazdáé.
     // Az ownerUid-ot írásnál mindkét oldalon nézzük: a régin (hogy máséba ne
     // lehessen belenyúlni) és az újon is (hogy ne lehessen másra átíratni).
     match /cel_images/{imgId} {
-      allow read:   if canAccess(resource.data.ownerUid);
-      allow create: if canAccess(request.resource.data.ownerUid);
-      allow update: if canAccess(resource.data.ownerUid)
-                    && canAccess(request.resource.data.ownerUid);
-      allow delete: if canAccess(resource.data.ownerUid);
+      allow read:   if isUser() && uid() == resource.data.ownerUid;
+      allow create: if isUser() && uid() == request.resource.data.ownerUid;
+      allow update: if isUser() && uid() == resource.data.ownerUid
+                    && uid() == request.resource.data.ownerUid;
+      allow delete: if isUser() && uid() == resource.data.ownerUid;
     }
 
     // A feladatok plusz mezői (prioritás, időpont, jegyzet). SZIGORÚAN a gazdáé:

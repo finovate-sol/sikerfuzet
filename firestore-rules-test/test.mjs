@@ -73,37 +73,36 @@ await T('az admin írja a hozzáférés-térképet', setDoc(doc(mark,'config','a
 
 // ---------- 3. Személyes adatok + a felettes-lánc ----------
 await T('saját pénzügyeit olvassa', getDoc(doc(zsolt,'penzugyek',ZSOLT)), 'ok');
-await T('a KÖZVETLEN felettes olvassa (Ádám → Zsolt)', getDoc(doc(adam,'penzugyek',ZSOLT)), 'ok');
-await T('a felettes felettese is olvassa (Márk → Ádám → Zsolt)', getDoc(doc(mark,'penzugyek',ZSOLT)), 'ok');
+await T('a felettes SEM olvassa (SZEM privát)', getDoc(doc(adam,'penzugyek',ZSOLT)), 'fail');
+await T('az admin SEM olvassa (SZEM privát)', getDoc(doc(mark,'penzugyek',ZSOLT)), 'fail');
 await T('idegen munkatárs NEM olvassa', getDoc(doc(other,'penzugyek',ZSOLT)), 'fail');
 await T('a BEOSZTOTT nem olvassa a felettese pénzügyeit', getDoc(doc(zsolt,'penzugyek',MARK)), 'fail');
 await T('a felettes ránézésben szerkeszthet is', setDoc(doc(adam,'structures',ZSOLT),{tree:{a:1}}), 'ok');
 await T('célok: saját olvasható', getDoc(doc(zsolt,'celok',ZSOLT)), 'ok');
-await T('célok: a felettes is olvassa', getDoc(doc(adam,'celok',ZSOLT)), 'ok');
+await T('célok: a felettes SEM olvassa (SZEM privát)', getDoc(doc(adam,'celok',ZSOLT)), 'fail');
 await T('célok: IDEGEN munkatárs NEM olvassa', getDoc(doc(other,'celok',ZSOLT)), 'fail');
 await T('célok: a beosztott nem olvassa a felettesét', getDoc(doc(zsolt,'celok',ADAM)), 'fail');
-await T('célok: a felettes ránézésben szerkeszthet', setDoc(doc(adam,'celok',ZSOLT),{vizio:{y1:'x'}},{merge:true}), 'ok');
+await T('célok: a felettes nem írhat', setDoc(doc(adam,'celok',ZSOLT),{vizio:{y1:'x'}},{merge:true}), 'fail');
 await T('célok: idegen nem írhat', setDoc(doc(other,'celok',ZSOLT),{vizio:{}},{merge:true}), 'fail');
 
-// A célfal képei a celok dokumentummal EGYEZŐ láthatóságúak: a felettes és az
-// admin is látja (ránézés), az idegen munkatárs nem. Ez tudatosan más, mint a
-// jegyzet-képeknél, ahol a felettes sem lát bele.
+// A célfal képei a celok dokumentummal EGYEZŐ láthatóságúak: a SZEM privát,
+// így csak a gazdájuk látja – a felettes és az admin sem.
 await T('célfal-kép: sajátot létrehoz',
     setDoc(doc(zsolt,'cel_images','ci1'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'AAAA' }), 'ok');
 await T('célfal-kép: sajátot olvas',          getDoc(doc(zsolt,'cel_images','ci1')), 'ok');
-await T('célfal-kép: a felettes is olvassa',  getDoc(doc(adam,'cel_images','ci1')), 'ok');
-await T('célfal-kép: az admin is olvassa',    getDoc(doc(mark,'cel_images','ci1')), 'ok');
+await T('célfal-kép: a felettes SEM olvassa',  getDoc(doc(adam,'cel_images','ci1')), 'fail');
+await T('célfal-kép: az admin SEM olvassa',    getDoc(doc(mark,'cel_images','ci1')), 'fail');
 await T('célfal-kép: IDEGEN munkatárs nem olvassa', getDoc(doc(other,'cel_images','ci1')), 'fail');
-await T('célfal-kép: a felettes ránézésben feltölt',
-    setDoc(doc(adam,'cel_images','ci2'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'BBBB' }), 'ok');
+await T('célfal-kép: a felettes nem tölt fel a nevére',
+    setDoc(doc(adam,'cel_images','ci2'), { ownerUid: ZSOLT, mime:'image/jpeg', data:'BBBB' }), 'fail');
 await T('célfal-kép: idegen nem tölt fel a nevére',
     setDoc(doc(other,'cel_images','ci3'), { ownerUid: ZSOLT, data:'x' }), 'fail');
 await T('célfal-kép: a gazdája nem írathatja át idegenre',
     updateDoc(doc(zsolt,'cel_images','ci1'), { ownerUid: OTHER }), 'fail');
 await T('célfal-kép: kívülálló (nem allowlistás) nem fér hozzá', getDoc(doc(out,'cel_images','ci1')), 'fail');
 await T('célfal-kép: idegen nem törli',  deleteDoc(doc(other,'cel_images','ci1')), 'fail');
+await T('célfal-kép: a felettes nem töröl', deleteDoc(doc(adam,'cel_images','ci1')), 'fail');
 await T('célfal-kép: a gazdája törli',   deleteDoc(doc(zsolt,'cel_images','ci1')), 'ok');
-await T('célfal-kép: a felettes is törli', deleteDoc(doc(adam,'cel_images','ci2')), 'ok');
 await T('idegen nem szerkesztheti a struktúrát', setDoc(doc(other,'structures',ZSOLT),{tree:{}}), 'fail');
 await T('karrier-létra: saját', setDoc(doc(adam,'karrier_letra',ADAM),{miert:{pozicio:'x'}},{merge:true}), 'ok');
 await T('karrier-létra: idegen tiltva', getDoc(doc(other,'karrier_letra',ADAM)), 'fail');
@@ -137,7 +136,7 @@ await T('A MUNKATÁRS NEM OLVASHATJA A RÓLA SZÓLÓ PG-JEGYZETET', getDoc(doc(z
 await T('a PG-t a vezetője olvassa', getDoc(doc(adam,'pg','pg1')), 'ok');
 await T('idegen vezető sem olvassa', getDoc(doc(other,'pg','pg1')), 'fail');
 await T('a nem-admin nagyfelettes SEM olvassa más PG-jegyzetét', getDoc(doc(adam,'pg','pgz1')), 'fail');
-await T('a nagyfelettes viszont a pénzügyeket látja (2 szint mélyen is)', getDoc(doc(adam,'penzugyek',JUNIOR)), 'ok');
+await T('a nagyfelettes a pénzügyeket SEM látja (SZEM privát)', getDoc(doc(adam,'penzugyek',JUNIOR)), 'fail');
 await T('az admin mindent lát (a saját Firebase-projektje)', getDoc(doc(mark,'pg','pg1')), 'ok');
 await T('szűrt listázás (leaderUid) megy', getDocs(query(collection(adam,'pg'), where('leaderUid','==',ADAM))), 'ok');
 await T('SZŰRETLEN listázás tiltott', getDocs(collection(adam,'pg')), 'fail');

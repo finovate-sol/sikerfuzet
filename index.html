@@ -11101,6 +11101,10 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 <span class="nav-label">Ma</span>
             </a>
+            <a href="#" data-ter="priv" id="navSzemHozz" class="nav-adm-csak" title="Ki használhatja a SZEM-et">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                <span class="nav-label">SZEM hozzáférés</span>
+            </a>
             <a href="#" data-ter="priv" data-page="penzugyek" title="Pénzügyek">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
                 <span class="nav-label">Pénzügyek</span>
@@ -12962,6 +12966,8 @@ window.addEventListener('popstate', e => {
     const utolso = Object.assign({}, ALAP, store.load('sf_ter_lap', {}));
     function alkalmaz(){
         window.sfTer = ter;
+        // a SZEM privát: belépéskor visszaállunk a saját nézetre (a vezetői ránézés csak a Sikerfüzetben van)
+        if(ter === 'priv' && typeof window.sfViewAsSajat === 'function') window.sfViewAsSajat();
         document.body.classList.toggle('sf-privat', ter === 'priv');
         // A telefon státuszsora a lap tetejének színét kapja (a színes sáv legfelső árnyalata).
         const teteje = ter === 'priv' ? (window.sfTemaTeteje ? window.sfTemaTeteje() : '#e6ddfa') : (window.sfOvbTemaTeteje ? window.sfOvbTemaTeteje() : '#f0f3f7');   // OVB: sima háttér, nincs színes sáv
@@ -16522,7 +16528,7 @@ const SF_PAGES = [
 window.sfLapLista = function(){
     const l = [], volt = new Set();
     document.querySelectorAll('.nav a[data-page][data-ter]').forEach(a => {
-        const k = a.dataset.page; if(k === 'home' || k === 'admin' || volt.has(k)) return; volt.add(k);
+        const k = a.dataset.page; if(k === 'home' || k === 'admin' || a.dataset.ter === 'priv' || volt.has(k)) return; volt.add(k);
         const n = (a.querySelector('.nav-label') || a).textContent.trim() || a.title || k;
         l.push([k, n, a.dataset.ter === 'priv' ? 'priv' : a.dataset.ter === 'ovb' ? 'ovb' : 'mind']);
     });
@@ -16530,6 +16536,37 @@ window.sfLapLista = function(){
 };
 window.sfBlockedPages = new Set();
 window.sfPageAccessMap = null;
+// ===== SZEM-hozzáférés: a SZEM-et csak az használhatja, akit az admin a SZEM-ben felvesz (config/szem.uids) =====
+// Független a Sikerfüzet Admin → Hozzáférés beállításaitól; az admin mindig használhatja.
+window.sfSzemCfg = (() => { try { return JSON.parse(localStorage.getItem('sf_szem_cfg') || 'null'); } catch(_) { return null; } })();
+// amíg a lista még nem jött meg (első indulás, nincs helyi másolat), nem zárunk ki senkit – a betöltés után dől el
+window.sfSzemOk = () => !window.sfCurrentUser || !!window.sfIsAdmin || !window.sfSzemCfg || !!(Array.isArray(window.sfSzemCfg.uids) && window.sfSzemCfg.uids.includes(window.sfCurrentUser.uid));
+window.sfSzemCfgBetolt = async function(){
+    if(typeof window.sfGetConfigDoc !== 'function') return;
+    try { const d = await window.sfGetConfigDoc('szem'); window.sfSzemCfg = d || { uids: [] }; try { localStorage.setItem('sf_szem_cfg', JSON.stringify(window.sfSzemCfg)); } catch(_) {} }
+    catch(e){ console.warn('SZEM-hozzáférés betöltése sikertelen:', e); }
+    if(typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess();
+};
+function szemHozzKezelo(){
+    if(!window.sfIsAdmin) return;
+    const emps = (window.sfEmployeesList || []).filter(e => e.uid && e.uid !== (window.sfCurrentUser || {}).uid).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), 'hu'));
+    const be = new Set((window.sfSzemCfg && window.sfSzemCfg.uids) || []);
+    document.getElementById('szemHozzOv')?.remove();
+    const ov = document.createElement('div'); ov.id = 'szemHozzOv'; ov.className = 'lk-ov';
+    ov.innerHTML = `<div class="lk-m card"><div class="lk-fej"><h3>Ki használhatja a SZEM-et?</h3><button type="button" class="lk-mini" data-szhzar aria-label="Bezárás">✕</button></div>
+        <p class="lk-megj">A SZEM privát: a vezetők sem látnak bele, és itt dől el, kinek jelenik meg egyáltalán. Te mindig használhatod. Akit bekapcsolsz, annál megjelenik a SZEM kapcsoló – az adatait akkor is csak ő látja.</p>
+        <div class="szh-lista">${emps.length ? emps.map(e => `<label class="szh-sor"><span><b>${esc(e.name || e.email)}</b>${e.name && e.email ? `<em>${esc(e.email)}</em>` : ''}</span><input type="checkbox" data-szhuid="${esc(e.uid)}"${be.has(e.uid) ? ' checked' : ''}></label>`).join('') : '<p class="lk-ures">Még nincs munkatárs.</p>'}</div>
+        <div class="lk-lab"><span class="lk-hiba"></span><button type="button" class="btn" data-szhzar>Mégse</button><button type="button" class="btn primary" data-szhment>Mentés</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', async e => {
+        if(e.target === ov || e.target.closest('[data-szhzar]')){ ov.remove(); return; }
+        if(!e.target.closest('[data-szhment]')) return;
+        const uids = [...ov.querySelectorAll('[data-szhuid]:checked')].map(x => x.dataset.szhuid);
+        try { await window.sfSaveConfigDoc('szem', { uids, mentve: Date.now() }); window.sfSzemCfg = { uids }; try { localStorage.setItem('sf_szem_cfg', JSON.stringify(window.sfSzemCfg)); } catch(_) {} ov.remove(); }
+        catch(err){ ov.querySelector('.lk-hiba').textContent = 'Nem sikerült menteni: ' + (err.message || err); }
+    });
+}
+document.addEventListener('click', e => { if(e.target.closest('#navSzemHozz')){ e.preventDefault(); szemHozzKezelo(); } });
 // a Havi Terv menüpontra (kézzel) kattintva mindig a havi nézet nyílik
 document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('.nav a[data-page="havi"]'); if(a && e.isTrusted && typeof haviNezet !== 'undefined') haviNezet = 'ho'; }, true);
 // ===== Összevont menüpontok: Vizsgák (IDD + GST), Éves terv a Havi tervben =====
@@ -16635,10 +16672,14 @@ window.sfApplyPageAccess = function(map){
     const applyTo = isOther ? viewed : (window.sfIsAdmin ? '' : own);
     // bejegyzés nélküli (új) munkatárs: az átállás után alapból minden ki van kapcsolva
     const mindenLap = [...document.querySelectorAll('.nav a[data-page]')].map(a => a.dataset.page).filter(p => p !== 'home' && p !== 'admin');
-    const blocked = new Set(applyTo && m && !m[applyTo] && m._ujAlapTiltva ? [...mindenLap, '_privkapcs'] : ((applyTo && m && m[applyTo]) || []));
+    const privLapok = new Set([...document.querySelectorAll('.nav a[data-ter="priv"][data-page]')].map(a => a.dataset.page));
+    const blocked = new Set((applyTo && m && !m[applyTo] && m._ujAlapTiltva ? [...mindenLap, '_privkapcs'] : ((applyTo && m && m[applyTo]) || [])).filter(p => !privLapok.has(p)));
+    // a SZEM-oldalak: csak a saját nézetben, és csak akinek van SZEM-hozzáférése
+    if(isOther || !window.sfSzemOk()) privLapok.forEach(p => blocked.add(p));
     window.sfBlockedPages = blocked;
     // ha egyetlen oldal sincs bekapcsolva: a kezdőlapon üzenet a bedolgozásról
-    const semmi = !!applyTo && mindenLap.length > 0 && mindenLap.every(p => blocked.has(p));
+    const ovbLapok = mindenLap.filter(p => !privLapok.has(p));
+    const semmi = !!applyTo && ovbLapok.length > 0 && ovbLapok.every(p => blocked.has(p));
     document.body.classList.toggle('sf-nincs-hozz', semmi);
     let uzi = document.getElementById('sfNincsHozz');
     if(semmi && !uzi){ const h = document.getElementById('page-home');
@@ -16663,7 +16704,7 @@ window.sfApplyPageAccess = function(map){
     // sem kell. Ha mégis privát állásban van (saját nézetben), visszaváltunk.
     const vanPriv = [...document.querySelectorAll('.nav a[data-ter="priv"][data-page]')].some(a => !a.hidden);
     // A Hozzáférés fülön a kapcsoló külön is elrejthető (_privkapcs) – ez az adminra is vonatkozik.
-    const kapcsRejt = !!(m && (m[viewed] || []).includes('_privkapcs'));
+    const kapcsRejt = !window.sfSzemOk() || isOther;
     const terBox = document.getElementById('sfTerBox');
     if(terBox) terBox.hidden = !vanPriv || kapcsRejt;
     if(!vanPriv && !isOther && window.sfTer === 'priv' && typeof window.sfTerValt === 'function') window.sfTerValt('ovb');
@@ -35753,6 +35794,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             if (calOwnId) initCalendar();
             if (typeof window.sfApplyPageAccess === "function") window.sfApplyPageAccess(cfg && cfg.pageAccess);
             if (typeof window.sfLinkekBetolt === "function") window.sfLinkekBetolt();
+            if (typeof window.sfSzemCfgBetolt === "function") window.sfSzemCfgBetolt();
             window.sfRankRates = (cfg && cfg.ranks) || DEFAULT_RANKS;
             updateInfoCard((cfg && cfg.infoDates) || []);
             updateImportantInfos((cfg && cfg.importantInfos) || []);
@@ -35937,12 +35979,15 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         };
         const nyit = open => { wrap.hidden = !open; btn.setAttribute("aria-expanded", open ? "true" : "false"); };
         const applyView = (uid) => {
+            // a SZEM privát: ott nincs ránézés, csak a saját nézet
+            if (uid && window.sfTer === 'priv') uid = '';
             window.sfViewedUid = uid || own;
             rajz(); nyit(false);
             loadAndDistributeClients();
             if (typeof window.sfOnViewSwitch === "function") window.sfOnViewSwitch();
             initCalendar();
         };
+        window.sfViewAsSajat = () => { if ((window.sfViewedUid || own) !== own) applyView(''); };
         rajz(); nyit(false);
         // Újrahíváskor a kezelők is cserélődnek (onclick, ill. a korábbi levétele),
         // hogy mindig a friss munkatárslistával dolgozzanak.
@@ -40178,13 +40223,12 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     async function pgLoadLive(){
         const uid = pgOwnUid();
         if(!uid || !isConfigured){ pgLive = { off:true }; return; }
-        const [tree, karrier, penz, celok] = await Promise.all([
+        // a SZEM adatai (pénzügyek, célok) privátak – a Csendes PG nem olvassa őket
+        const [tree, karrier] = await Promise.all([
             getStructure(uid).catch(()=>null),
             getKarrierLetra(uid).catch(()=>null),
-            getPenzugyek(uid).catch(()=>null),
-            getCelok(uid).catch(()=>null),
         ]);
-        pgLive = { tree, karrier: karrier || {}, penz: penz || null, celok: celok || {} };
+        pgLive = { tree, karrier: karrier || {} };
     }
     function pgStrPoints(tree){
         if(!tree || !tree.children) return 0;
@@ -40247,9 +40291,6 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             ${box('2–3. Struktúra', 'struktura', `<div class="pg-live-nums">
                 <span><b>${pgStrCount(pgLive.tree)}</b>első szint</span><span><b>${pgStrPoints(pgLive.tree)}</b>struktúra pont</span><span><b>${pgThis}/${pgNext}</b>PG e héten / jövő héten</span></div>`)}
             ${box('5. Következő karrierpozíció', 'struktura', karrierHtml)}
-            ${box(`6. Költségvetés – ${PG_MONTHS_HU[pm]} ${py}`, 'penzugyek', `<div class="pg-live-nums">
-                <span><b>${ft(pr.bev)}</b>bevétel</span><span><b>${ft(pr.kolt)}</b>költség</span><span><b>${ft(megmaradt)}</b>megmaradt</span><span><b>${ft(pr.fel)}</b>félretett</span></div>`)}
-            ${box('8. Motivációs célok', 'celok', vizioHtml)}
         </div>`;
     }
 
@@ -46420,6 +46461,12 @@ Vállalkozás nyitásának átbeszélése`, '']
         @media (min-width:1001px){ html body.sf-adm .sidebar.collapsed .nav-grp.ng > .nav-link-kez { display:none !important; } }
         body.sf-adm:not(.sf-privat) .nav-grp-link[hidden] { display:flex !important; }
         .nav-linkek { display:contents; }
+        body:not(.sf-adm) .nav-adm-csak { display:none !important; }
+        body.sf-privat #viewAsBtn, body.sf-privat #sidebarViewAs { display:none !important; }
+        .szh-lista { display:flex; flex-direction:column; gap:2px; max-height:50vh; overflow:auto; }
+        .szh-sor { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 4px; border-bottom:1px solid var(--border); cursor:pointer; }
+        .szh-sor span { display:flex; flex-direction:column; } .szh-sor em { font-style:normal; font-size:12px; color:var(--muted); }
+        .szh-sor input { width:20px; height:20px; accent-color:var(--blue, #2563eb); }
         .nav a[data-kulso] .nav-kulso-j { margin-left:auto; opacity:.5; font-size:12px; }
         .lk-ov { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
         .lk-m { width:min(640px, 100%); max-height:90vh; overflow:auto; padding:18px 20px !important; display:flex; flex-direction:column; gap:12px; }
