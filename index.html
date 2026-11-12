@@ -45907,6 +45907,7 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tv-drop .sf-ikl { margin:0 auto 9px; }
 .tv-hiba { margin-top:10px; background:#fdecec; color:#b91c1c; border-radius:10px; padding:9px 12px; font-size:13px; }
 .tv-mezok { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px 12px; }
+        .tv-elemzo-c { margin:14px 0 6px; font-size:12.5px; font-weight:800; color:#0b2a55; } .tv-elemzo-c small { font-weight:600; color:var(--muted); }
 .tv-mezok label { display:flex; flex-direction:column; gap:4px; font-size:11.5px; font-weight:650; color:#64748b; }
 .tv-mezok input, .tv-mezok select, .tv-elony { border:1px solid var(--border); border-radius:9px; padding:8px 10px; font:inherit; font-size:13.5px; color:#16243a; background:#fff; min-width:0; }
 .tv-mezok label.szeles { grid-column:1 / -1; }
@@ -46161,6 +46162,8 @@ Vállalkozás nyitásának átbeszélése`, '']
 .tvp tr.dij td { font-weight:800; border-top:2px solid #003366; }
 .tvp .z-sav { position:absolute; right:0; top:0; width:90px; height:150px; background-size:100% 100%; }
 .tvp .nevj { display:flex; gap:12px; align-items:center; margin-top:auto; border-top:1px solid #e5e5e5; padding-top:14px; }
+.tvp .nevj .nevk { display:flex; gap:12px; align-items:center; min-width:0; flex:1; }
+.tvp .nevj.ketto .av { width:40px; height:40px; font-size:13px; flex:none; }
 .tvp .nevj .av { width:46px; height:46px; border-radius:50%; background:#003366; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; }
 .tvp .nevj b { display:block; color:#003366; font-size:14px; } .tvp .nevj span { display:block; font-size:10.5px; color:#6b7280; }
 </style>
@@ -46177,6 +46180,8 @@ let tvSorrend = [];   // az oldalak kézi sorrendje (oldalkulcsok) – az Előn�
 let tvAlap = store.load('sf_tv_alap', null) || { ugyfel: '', hely: 'Budapest', tan: { nev: '', mnb: '', tel: '', email: '' },
     opc: { eloszo: true, kesobb: true, bizt: true, eszp: false, baleset: false, zarszo: true }, csomag: 'Standard' };
 if(tvAlap.opc.bizt == null) tvAlap.opc.bizt = true;
+// elemző (munkatárs): ha a tanácsadást ketten tartják (a vezető besegít az MT-nek) – nem kötelező
+if(!tvAlap.elemzo) tvAlap.elemzo = { nev: '', mnb: '', tel: '', email: '' };
 if(tvAlap.opc.port == null) tvAlap.opc.port = true;
 if(tvAlap.opc.osz == null) tvAlap.opc.osz = true;
 if(!tvAlap.oszTema) tvAlap.oszTema = { megt: true, nyugd: true };
@@ -46584,7 +46589,7 @@ function tvLapok(){
     L.push({ nev: 'Borító', html: `<div class="tvp c5${ny ? ' nyo' : ''}"><div class="kor" style="background-image:url('${kep}')"></div><div class="gy"></div>
         <span class="star" style="background-image:url('${csillag(ny ? '#003366' : '#fff')}')"></span>
         <div class="tx">${o.egyedi ? '<span class="egyedi">EGYEDI AJÁNLAT</span>' : ''}<small>SZEMÉLYES</small><h1>Pénzügyi Tervezet</h1><div class="nev">${esc(nev)} részére</div></div><div class="chev">»»</div>
-        <div class="ft"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}<br>${esc(tvAlap.hely ? tvAlap.hely + ', ' : '')}${new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>${tvOvb(ny ? '#003366' : '#fff')}</div></div>` });
+        <div class="ft"><span>${esc(t.nev || '')}${t.nev ? ' · pénzügyi tanácsadó' : ''}${tvAlap.elemzo && tvAlap.elemzo.nev ? `${t.nev ? '<br>' : ''}${esc(tvAlap.elemzo.nev)} · elemző` : ''}<br>${esc(tvAlap.hely ? tvAlap.hely + ', ' : '')}${new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>${tvOvb(ny ? '#003366' : '#fff')}</div></div>` });
     const kiem = x => `<b class="km">${x}</b>`;
     if(o.eloszo) L.push({ nev: 'Előszó', html: `<div class="tvp eb">${tvFej('BEVEZETŐ', `Tisztelt <b>${esc(nev)}</b>!`)}<div class="szov">
         <p>Nagy örömömre szolgál, hogy az előzetes felmérés során felvett adatok alapján átnyújthatom Önnek a kiértékelésünk eredményét, személyes pénzügyi tervezetét.</p>
@@ -46650,7 +46655,9 @@ function tvLapok(){
         <p>E tervezet összeállítása az Ön számára természetesen díjmentes volt. Most az Ön segítőkészségét és együttműködését kérem, hogy meghozza a számára felelősségteljes döntést.</p>
         <div class="kiem"><span class="chev">»</span><p>Az én díjazásom <b>ajánlásokból</b> tevődik össze, illetve pozitív döntés esetén a jutalékból. A jutalék fogja fedezni a költségeimet, az Ön ajánlásai pedig a valódi bevételeimet.</p></div>
         <p>Az Ön elvárásai velem szemben már körvonalazódtak abban a kiértékelésben, amit jelenleg a kezében tart. Az én elvárásom Ön felé mindössze már csak a <b>döntés</b> lenne, ami innentől fogva csak Önön múlik.</p></div>
-        ${t.nev ? `<div class="nevj"><div class="av">${esc(t.nev.split(' ').map(x => x[0]).join('').slice(0, 2))}</div><div><b>${esc(t.nev)}</b><span>pénzügyi tanácsadó${t.mnb ? ' · MNB ' + esc(t.mnb) : ''}</span><span>${esc([t.tel, t.email].filter(Boolean).join(' · '))}</span></div></div>` : ''}
+        ${(() => { const e = tvAlap.elemzo || {}, kartya = (x, szerep) => `<div class="nevk"><div class="av">${esc(x.nev.split(' ').map(y => y[0]).join('').slice(0, 2))}</div><div><b>${esc(x.nev)}</b><span>${szerep}${x.mnb ? ' · MNB ' + esc(x.mnb) : ''}</span><span>${esc([x.tel, x.email].filter(Boolean).join(' · '))}</span></div></div>`;
+            const k = [t.nev ? kartya(t, 'pénzügyi tanácsadó') : '', e.nev ? kartya(e, 'elemző') : ''].filter(Boolean);
+            return k.length ? `<div class="nevj${k.length > 1 ? ' ketto' : ''}">${k.join('')}</div>` : ''; })()}
         ${tvLab(sz())}</div>` });
     // oldalkulcs (ismétlődő név esetén sorszámmal), kihagyás jelölése, oldalszámok
     const db = {}; let n = 0;
@@ -46700,7 +46707,11 @@ function renderTervezet(){
         <label>Ügyfél neve<input data-tvalap="ugyfel" value="${esc(tvAlap.ugyfel || (tvAj[0] && tvAj[0].ugyfel) || '')}"></label>
         <label>Helyszín<input data-tvalap="hely" value="${esc(tvAlap.hely)}"></label>
         <label>Tanácsadó<input data-tvtan="nev" value="${esc(t.nev)}"></label><label>MNB reg. szám<input data-tvtan="mnb" value="${esc(t.mnb)}"></label>
-        <label>Telefon<input data-tvtan="tel" value="${esc(t.tel)}"></label><label>E-mail<input data-tvtan="email" value="${esc(t.email)}"></label></div></div>`;
+        <label>Telefon<input data-tvtan="tel" value="${esc(t.tel)}"></label><label>E-mail<input data-tvtan="email" value="${esc(t.email)}"></label></div>
+        <div class="tv-elemzo-c">Elemző (munkatárs) <small>– ha a tanácsadást ketten tartjátok, nem kötelező</small></div>
+        <div class="tv-mezok">${(() => { const e = tvAlap.elemzo || {}; return `<label>Elemző neve<input data-tvelem="nev" value="${esc(e.nev || '')}" placeholder="pl. a munkatárs neve" list="tvElemzoLista"></label><label>MNB reg. szám<input data-tvelem="mnb" value="${esc(e.mnb || '')}"></label>
+        <label>Telefon<input data-tvelem="tel" value="${esc(e.tel || '')}"></label><label>E-mail<input data-tvelem="email" value="${esc(e.email || '')}"></label>`; })()}</div>
+        <datalist id="tvElemzoLista">${(window.sfEmployeesList || window.sfViewAsEmployees || []).map(x => `<option value="${esc(x.name || '')}">`).join('')}</datalist></div>`;
     const K3 = `<div class="tv-kartya"><h3><i>3</i>Mi kerüljön bele?</h3>
         <div class="tv-kap" style="cursor:default"><div><b>Fedlap</b><small>ugyanaz az elrendezés – a nyomtatási fehér alapon, kevesebb tintával</small></div></div>
         <div class="tv-csomag">${[['sima', 'Sima'], ['nyomtatasi', 'Nyomtatási']].map(([k, n]) => `<button type="button" data-tvfedlap="${k}" class="${tvFedlap() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
@@ -46962,6 +46973,12 @@ document.addEventListener('input', e => {
 
     else if(t.dataset.tvalap) { tvAlap[t.dataset.tvalap] = t.value; tvMent(); }
     else if(t.dataset.tvtan) { tvAlap.tan[t.dataset.tvtan] = t.value; tvMent(); }
+    else if(t.dataset.tvelem) {
+        tvAlap.elemzo[t.dataset.tvelem] = t.value;
+        // munkatárs kiválasztásakor az e-mail címét kitöltjük
+        if(t.dataset.tvelem === 'nev'){ const m = (window.sfEmployeesList || window.sfViewAsEmployees || []).find(x => (x.name || '') === t.value);
+            if(m && m.email && !tvAlap.elemzo.email){ tvAlap.elemzo.email = m.email; const em = document.querySelector('[data-tvelem="email"]'); if(em) em.value = m.email; } }
+        tvMent(); }
     else return;
     clearTimeout(tvElonezet._t); tvElonezet._t = setTimeout(tvElonezet, 350);
 });
