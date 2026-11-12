@@ -17830,7 +17830,16 @@ function renderHet(){
             <div class="het-ket">${hetListaHtml('penz', '3-2-1 · Saját PÉNZEM')}${hetListaHtml('karr', '3-2-1 · Saját KARRIEREM')}</div></div>
         <aside class="card hv-nav">${haviNavHtml()}</aside></div>`;
     recomputeHavi();
+    hetListaMagassag();
 }
+// az „Aktuális hét” listái a képernyő aljáig érnek, a további sorok a dobozon belül görgethetők
+function hetListaMagassag(){
+    const l = [...document.querySelectorAll('.hv-lay-het .het-lista .het-tbl-w')]; if(!l.length) return;
+    const tel = matchMedia('(max-width:760px)').matches;
+    l.forEach(w => { if(tel){ w.style.maxHeight = ''; w.style.overflowY = ''; return; }
+        w.style.maxHeight = Math.max(220, window.innerHeight - (w.getBoundingClientRect().top + window.scrollY) - 28) + 'px'; w.style.overflowY = 'auto'; });
+}
+addEventListener('resize', () => { const hv = document.getElementById('page-havi'); if(hv && !hv.hidden && haviNezet === 'het') hetListaMagassag(); });
 function hetNezetGomb(){
     document.querySelectorAll('#haviNezetSeg [data-hvnezet]').forEach(b => b.classList.toggle('active', b.dataset.hvnezet === haviNezet));
 }
