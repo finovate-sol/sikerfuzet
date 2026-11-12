@@ -10835,6 +10835,10 @@
         .hv-sav > em { font-style:normal; font-weight:700; font-size:13.5px; color:#1f5fd0; white-space:nowrap; }
         @media (max-width:600px){ .hv-sav { padding:10px 12px; gap:10px; } .hv-sav small { display:none; } }
         /* Teendők: a kezdőlap sávjai egy összecsukható dobozban */
+        .s3-mult .s3-sor { display:flex; align-items:center; gap:10px; } .s3-mult .s3-n { flex:1; min-width:0; }
+        .s3-mult .s3-al { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted); } .s3-mult .s3-al em { font-style:italic; }
+        .s3-mult .chip { font-size:10px; font-weight:700; border-radius:999px; padding:0 7px; line-height:16px; background:#eef2f7; color:#334155; } .s3-mult .chip.tip { background:#fff; border:1px dashed #94a3b8; }
+        .s3m { width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-weight:800; background:#f1f5f9; color:#94a3b8; flex:none; } .s3m.ok { background:#16a34a; color:#fff; } .s3m.no { background:#dc2626; color:#fff; }
         .sf-teendok { margin:0 0 12px; padding:6px 10px 8px; border-radius:16px; }
         .sf-teendok-f { display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent; font:inherit; cursor:pointer; padding:6px 4px; text-align:left; }
         .sf-teendok-f b { font-size:14px; color:var(--navy, #0b2a55); } .sf-teendok-f em { font-style:normal; font-size:12px; font-weight:800; color:#fff; background:#ef4444; border-radius:999px; padding:1px 8px; }
@@ -17715,7 +17719,56 @@ function hetLep(d){
     else if(w >= haviWeekRanges(ho).length){ ho = new Date(ho.getFullYear(), ho.getMonth() + 1, 1); w = 0; }
     window.sfHetMutat(ho, w);
 }
+// ===== Heti TP-ciklus: csütörtök 20:00-kor a hét 3-2-1 listája elmentődik, a TP-jelölések lenullázódnak =====
+// Így az „Aktuális hét” (és a 3-2-1) mindig csak az adott ciklusban felvezetett embereket mutatja; a korábbi hetek
+// listája a Havi terv „Aktuális hét” nézetében visszalapozva olvasható. Tárolás: privat/{uid}_tp_hetek.
+const TP_RESET_ORA = 20;   // csütörtök 20:00
+function tpCiklusKezd(d){ const x = new Date(d || Date.now()); const k = new Date(x); k.setHours(TP_RESET_ORA, 0, 0, 0);
+    k.setDate(k.getDate() - ((k.getDay() - 4 + 7) % 7)); if(k > x) k.setDate(k.getDate() - 7); return k; }
+const tpCiklusKulcs = d => { const k = tpCiklusKezd(d); return `${k.getFullYear()}-${String(k.getMonth() + 1).padStart(2, '0')}-${String(k.getDate()).padStart(2, '0')}`; };
+// az OVB-hét (szombattól) ciklusa: a hétfője előtti csütörtök este indult
+const tpHetCiklus = (ho, w) => { const s = hetKezd(ho, w), het = new Date(s); het.setDate(s.getDate() + 2); het.setHours(12); return tpCiklusKulcs(het); };
+let tpCiklusFut = false;
+window.sfTpCiklusEllenoriz = async function(){
+    if(tpCiklusFut || typeof prvBetolt !== 'function' || !window.sfCurrentUser) return;
+    if(window.sfViewedUid && window.sfViewedUid !== window.sfCurrentUser.uid) return;   // ránézésben nem nyúlunk más listájához
+    tpCiklusFut = true;
+    try {
+        const d = await prvBetolt('tp_hetek'); if(prvNemFriss('tp_hetek')) return;
+        d.hetek = d.hetek || {};
+        const most = tpCiklusKulcs();
+        if(!d.ciklus){ d.ciklus = most; prvMent('tp_hetek'); return; }   // első indulás: a mostani lista marad a ciklus végéig
+        if(d.ciklus === most) return;
+        // lezárult ciklus: mentés, majd a jelölések törlése
+        const sor = (l, r) => { const m = HET_MEZO[l]; return { name: r.name || '', phone: r.phone || '', c: r[m.c] || '', t: r[m.t] || '', j: r[m.j] || '', e: r[m.e] || 'pending' }; };
+        const pill = { penz: hetSorok('penz').map(({ r }) => sor('penz', r)), karr: hetSorok('karr').map(({ r }) => sor('karr', r)), mentve: Date.now() };
+        if(pill.penz.length || pill.karr.length) d.hetek[d.ciklus] = pill;
+        ['penz', 'karr'].forEach(l => { const m = HET_MEZO[l];
+            hetSorok(l).forEach(({ r, gi }) => { r[m.tp] = false; delete r[m.e]; delete r[m.j]; delete r[m.t]; delete r[m.c]; persistReg(gi); }); });
+        store.save('sf_registry', registry);
+        d.ciklus = most; prvMent('tp_hetek');
+        if(typeof renderMoney === 'function'){ renderMoney(); renderCareer(); }
+        if(typeof renderRegistry === 'function') renderRegistry();
+        const hv = document.getElementById('page-havi'); if(hv && !hv.hidden && haviNezet === 'het') renderHet();
+    } catch(e){ console.warn('TP-ciklus:', e); }
+    finally { tpCiklusFut = false; }
+};
+setInterval(() => { try { window.sfTpCiklusEllenoriz(); } catch(e){} }, 10 * 60000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) try { window.sfTpCiklusEllenoriz(); } catch(e){} });
+// egy korábbi hét elmentett listája (csak olvasható)
+function hetMultHtml(l, cim, pill){
+    const lista = (pill && pill[l]) || [], db = { ok: 0, no: 0 }; lista.forEach(x => { if(x.e === 'ok') db.ok++; else if(x.e === 'no') db.no++; });
+    const jel = { ok: '<span class="s3m ok">✓</span>', no: '<span class="s3m no">✕</span>', pending: '<span class="s3m">–</span>' };
+    return `<section class="card hv-k het-lista sav-321 s3-havi s3-mult"><div class="hv-k-fej"><h3>${cim}</h3><span class="het-db">${lista.length} fő · ✓ ${db.ok} · ✕ ${db.no}</span></div>
+        <div class="het-tbl-w"><table class="het-tbl"><tbody>${lista.length ? lista.map(x => `<tr><td><div class="s3-sor"><div class="s3-n"><strong>${esc(x.name || '(névtelen)')}</strong>
+            <div class="s3-al">${x.phone ? `<span class="s3-tel">${esc(x.phone)}</span>` : ''}${x.c ? `<span class="chip">${esc(x.c)}</span>` : ''}${x.t ? `<span class="chip tip">${esc(x.t)}</span>` : ''}${x.j ? `<em>${esc(x.j)}</em>` : ''}</div></div>${jel[x.e] || jel.pending}</div></td></tr>`).join('')
+            : `<tr><td class="hv-ures-sz" style="padding:14px 6px">${pill ? 'Ezen a héten nem volt TP-vel jelölt.' : 'Erről a hétről nincs mentett lista (a mentés 2026. novemberében indult).'}</td></tr>`}</tbody></table></div></section>`;
+}
 function hetListaHtml(l, cim){
+    // múltbeli hét: az elmentett lista; jövőbeli: üres; a folyó ciklus: az élő lista
+    const ck = tpHetCiklus(hetHo, hetIdx), most = tpCiklusKulcs();
+    if(ck < most){ const d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null; return hetMultHtml(l, cim, d && d.hetek ? d.hetek[ck] : null); }
+    if(ck > most) return hetMultHtml(l, cim, { penz: [], karr: [] }).replace('Ezen a héten nem volt TP-vel jelölt.', 'Ez a hét még nem kezdődött el – csütörtök este indul.');
     const lista = hetSorok(l), f = sav321Fej(l, lista);
     const sorok = f.lat.map(({ r, gi }) => het321SorHtml(l, r, gi, true)).join('');
     const ures = l === 'penz' ? 'Nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.' : 'Nincs TP-vel jelölt karrier-jelölt – a 2 órás füzetben jelölhető.';
@@ -17738,6 +17791,7 @@ function hetFejHtml(){
 }
 function renderHet(){
     const body = document.getElementById('haviBody'); if(!body) return;
+    if(typeof PRV !== 'undefined' && !PRV.tp_hetek && typeof prvBetolt === 'function' && window.sfCurrentUser){ prvBetolt('tp_hetek').then(() => { if(haviNezet === 'het') renderHet(); }).catch(() => {}); }
     if(!hetHo){ const m = currentHaviWeek(); hetHo = new Date(m.monthDate.getFullYear(), m.monthDate.getMonth(), 1); hetIdx = m.weekIdx; }
     haviAnchor = new Date(hetHo); haviValHet = hetIdx;
     haviData = loadHavi(haviAnchor); haviWeekCount = haviWeekRanges(haviAnchor).length;
@@ -35539,6 +35593,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 window.sfStrukturaKapcsolatok = kap;
             } catch(e){ window.sfStrukturaKapcsolatok = []; } })();
             await loadAndDistributeClients();
+            try { if (typeof window.sfTpCiklusEllenoriz === "function") window.sfTpCiklusEllenoriz(); } catch(e){}
             if (leader) setupViewAsSwitcher();
         });
     });
