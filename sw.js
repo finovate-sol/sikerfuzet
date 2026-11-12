@@ -26,18 +26,6 @@ self.addEventListener('fetch', e => {
     if(sajat && url.searchParams.has('nc')) return;
     if(req.cache === 'no-store' || req.cache === 'reload') return;
 
-    // A SZEM-app úgy indul, mint egy natív app: azonnal a gyorsítótárból, a háttérben frissítve (a következő indításkor már az új).
-    if(req.mode === 'navigate' && sajat && /\/szem\.html$/.test(url.pathname)){
-        e.respondWith((async () => {
-            const kulcs = new Request(url.origin + url.pathname);
-            const halo = fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' }).then(r => tarol(kulcs, r)).catch(() => null);
-            const c = await caches.match(kulcs);
-            if(c){ e.waitUntil(halo); return c; }
-            const r = await halo; if(r) return r;
-            return fetch(req);
-        })());
-        return;
-    }
     if(req.mode === 'navigate' && sajat){
         e.respondWith((async () => {
             const kulcs = new Request(url.origin + url.pathname);
