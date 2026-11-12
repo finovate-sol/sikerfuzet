@@ -7,11 +7,12 @@ fehér (fehér alap, éjkék rajz). Az alap a sötét.
 |------------------|------------|-------------------|--------------------------------|
 | `lepcso/`        | Sikerfüzet | Lépcső (alap)     | `manifest.json`                |
 | `lepcso-feher/`  | Sikerfüzet | Lépcső – fehér    | `manifest-lepcso-feher.json`   |
-| `monolit/`       | SZEM       | Monolit (alap)    | `manifest-monolit.json`        |
-| `monolit-feher/` | SZEM       | Monolit – fehér   | `manifest-monolit-feher.json`  |
+| `stoa/`          | Stoa       | Kapu (alap)       | `manifest-stoa.json`           |
+| `monolit/`       | Stoa       | Monolit           | `manifest-monolit.json`        |
+| `monolit-feher/` | Stoa       | Monolit – fehér   | `manifest-monolit-feher.json`  |
 
 A Sikerfüzet ikonját az Admin → Ikon fülön lehet átállítani (mindenkire
-érvényes, `config/app` → `appIcon`), a SZEM ikonját a SZEM beállításaiban
+érvényes, `config/app` → `appIcon`), a Stoa (korábban SZEM) ikonját a Stoa beállításaiban
 (eszközönként, `localStorage` → `sf_elet_icon`).
 
 ## Melyik fájl mire való

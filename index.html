@@ -29,14 +29,14 @@
     // tesszük ki: az iPhone Safari a kezdőképernyőhöz adáskor a nevet és a
     // kezdőcímet a betöltéskor látott manifestből veszi, a későbbi cserét nem követi.
     (function(){
-        var priv = false, ek = 'monolit', sk = null;
+        var priv = false, ek = 'stoa', sk = null;
         try {
             // A Szem új alapikonja a szem: a korábbi (Életfüzet-kori) választást egyszer elengedjük.
-            if(localStorage.getItem('sf_elet_icon_v') !== '3'){ localStorage.removeItem('sf_elet_icon'); localStorage.removeItem('sf_app_icon'); localStorage.setItem('sf_elet_icon_v', '3'); }
+            if(localStorage.getItem('sf_elet_icon_v') !== '4'){ localStorage.removeItem('sf_elet_icon'); localStorage.setItem('sf_elet_icon_v', '4'); }
             var q0 = new URLSearchParams(location.search);
             // ?app=siker: a Sikerfüzet-ikon (és a Dockhoz/kezdőképernyőhöz adás) mindig a Sikerfüzetet kapja
             priv = q0.get('app') !== 'siker' && (q0.get('app') === 'elet' || q0.has('ment') || q0.has('szoveg') || JSON.parse(localStorage.getItem('sf_ter') || 'null') === 'priv');
-            var x = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); if(x === 'monolit-feher') ek = x;
+            var x = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); if(x === 'monolit' || x === 'monolit-feher') ek = x;
             sk = JSON.parse(localStorage.getItem('sf_app_icon') || 'null');
         } catch(e){}
         var href = priv ? 'manifest-' + ek + '.json' : (sk === 'lepcso-feher' ? 'manifest-lepcso-feher.json' : 'manifest.json');
@@ -82,8 +82,8 @@
     // pedig ?app=elet-et kap – így ha innen adod a kezdőképernyőhöz, az ikon
     // mindig a privát részre nyílik (a ?app=elet induláskor privát módba tesz).
     // A Szem ikonja a privát beállításokban választható (eszközönként).
-    window.SF_ELET_ICONS = { 'monolit': 'Monolit', 'monolit-feher': 'Monolit – fehér' };
-    window.SF_ELET_DEFAULT = 'monolit';
+    window.SF_ELET_ICONS = { 'stoa': 'Stoa – kapu', 'monolit': 'Monolit', 'monolit-feher': 'Monolit – fehér' };
+    window.SF_ELET_DEFAULT = 'stoa';
     window.sfEletIkon = function(){
         var k = null; try { k = JSON.parse(localStorage.getItem('sf_elet_icon') || 'null'); } catch(e){}
         return window.SF_ELET_ICONS[k] ? k : window.SF_ELET_DEFAULT;
@@ -97,14 +97,14 @@
             set('meta[name="apple-mobile-web-app-title"]', 'content', 'Sikerfüzet');
             document.title = 'Sikerfüzet';
         } else {
-            var key = window.sfEletIkon(), base = 'icons/' + key + '/', v = '?v=3';
+            var key = window.sfEletIkon(), base = 'icons/' + key + '/', v = '?v=4';
             set('link[rel="manifest"]', 'href', 'manifest-' + key + '.json');
             set('link[rel="icon"][type="image/svg+xml"]', 'href', base + 'icon.svg' + v);
             set('link[rel="icon"][sizes="32x32"]', 'href', base + 'icon-32.png' + v);
             set('link[rel="icon"][sizes="16x16"]', 'href', base + 'icon-16.png' + v);
             set('link[rel="apple-touch-icon"]', 'href', base + 'icon-180.png' + v);
-            set('meta[name="apple-mobile-web-app-title"]', 'content', 'SZEM');
-            document.title = 'SZEM';
+            set('meta[name="apple-mobile-web-app-title"]', 'content', 'Stoa');
+            document.title = 'Stoa';
         }
         // a cím is jelezze, melyik app – a kezdőképernyőre ez a cím kerül
         try {
@@ -11000,7 +11000,7 @@ try {
 
     <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar" id="sidebar">
-        <div class="brand"><span class="brand-text"><span class="sf-ovb-csak">Sikerfüzet</span><span class="sf-priv-csak">SZEM</span><small class="sf-ovb-csak">A sikerhez vezető út</small><small class="sf-priv-csak">Személyes Élet-Menedzsment</small></span>
+        <div class="brand"><span class="brand-text"><span class="sf-ovb-csak">Sikerfüzet</span><span class="sf-priv-csak">Stoa</span><small class="sf-ovb-csak">A sikerhez vezető út</small><small class="sf-priv-csak">A saját életed egy tető alatt</small></span>
             <span class="brand-gombok"><button type="button" class="sidebar-collapse-btn sb-ker" id="navKereso" title="Keresés (Ctrl+K)" aria-label="Keresés"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
             <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Menü össze-/kinyitása"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button></span>
         </div>
@@ -11101,9 +11101,9 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 <span class="nav-label">Ma</span>
             </a>
-            <a href="#" data-ter="priv" id="navSzemHozz" class="nav-adm-csak" title="Ki használhatja a SZEM-et">
+            <a href="#" data-ter="priv" id="navSzemHozz" class="nav-adm-csak" title="Ki használhatja a Stoát">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-                <span class="nav-label">SZEM hozzáférés</span>
+                <span class="nav-label">Stoa hozzáférés</span>
             </a>
             <a href="#" data-ter="priv" data-page="penzugyek" title="Pénzügyek">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
@@ -13041,14 +13041,14 @@ window.addEventListener('popstate', e => {
         const m = document.createElement('div'); m.className = 'zb-beagy';
         const r = uzi => {
             m.innerHTML = `<div class="zb-ikonok">${Object.entries(window.SF_ELET_ICONS || {}).map(([k, n]) => `<button type="button" class="${window.sfEletIkon && window.sfEletIkon() === k ? 'on' : ''}" data-zbikon="${k}" aria-pressed="${window.sfEletIkon && window.sfEletIkon() === k}"><img src="icons/${k}/icon-192.png" alt="" width="64" height="64"><span>${esc(n)}</span></button>`).join('')}</div>
-                <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>SZEM</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
+                <p class="pv-megj zb-bev">Ha a privát részből adod a kezdőképernyőhöz („Hozzáadás a kezdőképernyőhöz”), külön <b>Stoa</b> appként kerül fel ezzel az ikonnal, és mindig a privát rész nyílik. Ikoncserénél a már kirakott ikont töröld, és add hozzá újra.</p>
                 <p class="zb-uzi" role="status">${esc(uzi || '')}</p>`;
         };
         r(); host.innerHTML = ''; host.appendChild(m);
         m.addEventListener('click', e => {
             const ik = e.target.closest('[data-zbikon]'); if(!ik) return;
             try { localStorage.setItem('sf_elet_icon', JSON.stringify(ik.dataset.zbikon)); } catch(_){}
-            if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A SZEM ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.');
+            if(window.sfEletMod) window.sfEletAlkalmaz(true); r('A Stoa ikonja: ' + (window.SF_ELET_ICONS[ik.dataset.zbikon] || '') + '.');
         });
     }
     window.sfSzemBeallit = beallit;
@@ -13241,7 +13241,7 @@ async function oiKuldKep(a){
     const { targy, adat: x } = oiKuldSzoveg(a);
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;left:-10000px;top:0;width:440px;padding:22px;background:#faf8ff;font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1f1235;';
-    el.innerHTML = `<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7c6a9a">SZEM · Havi vállalás</div>
+    el.innerHTML = `<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7c6a9a">Stoa · Havi vállalás</div>
         <div style="font-size:21px;font-weight:800;margin:4px 0 2px">${esc(targy.replace('Havi vállalásom – ', ''))}</div>
         <div style="font-size:14px;color:#6b7280;margin-bottom:14px">Összesen <b style="color:#6d28d9">${x.pct}%</b>${x.hlehet ? ` · a héten ${x.hossz}/${x.hlehet} pipa` : ''}</div>
         ${x.sor.map(s => { const t = prvTer((OI_VALL.find(v => v[0] === s.k) || [])[2]);
@@ -16553,8 +16553,8 @@ function szemHozzKezelo(){
     const be = new Set((window.sfSzemCfg && window.sfSzemCfg.uids) || []);
     document.getElementById('szemHozzOv')?.remove();
     const ov = document.createElement('div'); ov.id = 'szemHozzOv'; ov.className = 'lk-ov';
-    ov.innerHTML = `<div class="lk-m card"><div class="lk-fej"><h3>Ki használhatja a SZEM-et?</h3><button type="button" class="lk-mini" data-szhzar aria-label="Bezárás">✕</button></div>
-        <p class="lk-megj">A SZEM privát: a vezetők sem látnak bele, és itt dől el, kinek jelenik meg egyáltalán. Te mindig használhatod. Akit bekapcsolsz, annál megjelenik a SZEM kapcsoló – az adatait akkor is csak ő látja.</p>
+    ov.innerHTML = `<div class="lk-m card"><div class="lk-fej"><h3>Ki használhatja a Stoát?</h3><button type="button" class="lk-mini" data-szhzar aria-label="Bezárás">✕</button></div>
+        <p class="lk-megj">A Stoa privát: a vezetők sem látnak bele, és itt dől el, kinek jelenik meg egyáltalán. Te mindig használhatod. Akit bekapcsolsz, annál megjelenik a SZEM kapcsoló – az adatait akkor is csak ő látja.</p>
         <div class="szh-lista">${emps.length ? emps.map(e => `<label class="szh-sor"><span><b>${esc(e.name || e.email)}</b>${e.name && e.email ? `<em>${esc(e.email)}</em>` : ''}</span><input type="checkbox" data-szhuid="${esc(e.uid)}"${be.has(e.uid) ? ' checked' : ''}></label>`).join('') : '<p class="lk-ures">Még nincs munkatárs.</p>'}</div>
         <div class="lk-lab"><span class="lk-hiba"></span><button type="button" class="btn" data-szhzar>Mégse</button><button type="button" class="btn primary" data-szhment>Mentés</button></div></div>`;
     document.body.appendChild(ov);
@@ -16981,7 +16981,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                     const on = window.sfSotetMod() === k;
                     return `<button type="button" data-blsotet="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}"><i style="background:${bg}"><b style="background:${kt}"></b><b style="background:${kt}"></b></i><span>${n}</span></button>`; }).join('')}</div></section>`;
             // az app-ikonok is itt (korábban külön menüpont volt)
-            host.insertAdjacentHTML('beforeend', `<section class="card bl-k"><h3>App-ikon – SZEM</h3><p class="bl-megj">A privát rész ikonja – a saját eszközeiden.</p><div class="bl-beagy bl-szemikon"></div></section>${window.sfVanAdmin() ? '<div class="bl-sfikon"></div>' : ''}`);
+            host.insertAdjacentHTML('beforeend', `<section class="card bl-k"><h3>App-ikon – Stoa</h3><p class="bl-megj">A privát rész ikonja – a saját eszközeiden.</p><div class="bl-beagy bl-szemikon"></div></section>${window.sfVanAdmin() ? '<div class="bl-sfikon"></div>' : ''}`);
             if(window.sfSzemBeallit) await window.sfSzemBeallit(host.querySelector('.bl-szemikon'), 'ikon');
             if(window.sfVanAdmin() && typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio('ikon', host.querySelector('.bl-sfikon'));
         } else if(k === 'kapcs'){
@@ -34775,8 +34775,8 @@ window.sfShowEn = function(){
     const sav = szSavLista(), u = window.sfCurrentUser || {};
     const nev = (u.displayName || u.email || '').trim(), mon = nev.split(/\s+/).filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase() || 'SZ';
     const ik = p => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${p}"/></svg>`;
-    host.innerHTML = `<div class="en-profil card"><span class="en-av">${esc(mon)}</span><div class="en-pn"><b>${esc(nev || 'Saját fiók')}</b><span>${priv ? 'Privát mód · SZEM' : 'Sikerfüzet'}</span></div>
-            <div class="en-pg">${document.getElementById('sfTerBox')?.hidden ? '' : `<button type="button" data-szvalt title="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a SZEM-re (privát)'}" aria-label="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a SZEM-re'}">`}${document.getElementById('sfTerBox')?.hidden ? '' : `${ik('M7 7h13l-3-3M17 17H4l3 3')}</button>`}
+    host.innerHTML = `<div class="en-profil card"><span class="en-av">${esc(mon)}</span><div class="en-pn"><b>${esc(nev || 'Saját fiók')}</b><span>${priv ? 'Privát mód · Stoa' : 'Sikerfüzet'}</span></div>
+            <div class="en-pg">${document.getElementById('sfTerBox')?.hidden ? '' : `<button type="button" data-szvalt title="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a Stoára (privát)'}" aria-label="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a SZEM-re'}">`}${document.getElementById('sfTerBox')?.hidden ? '' : `${ik('M7 7h13l-3-3M17 17H4l3 3')}</button>`}
             <button type="button" data-szbeall title="Beállítások" aria-label="Beállítások">${ik('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z')}</button>
             <button type="button" data-szkilep title="Kijelentkezés" aria-label="Kijelentkezés">${ik('M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9')}</button></div></div>
         ${(() => { // vezetőknek: kinek a nézete (a menü „szem” listája)
@@ -34790,7 +34790,7 @@ window.sfShowEn = function(){
 };
 // a sáv a lapváltáskor és a privát módba lépéskor frissül
 (function(){
-    const nav = document.createElement('nav'); nav.className = 'szm-also'; nav.id = 'szAlso'; nav.setAttribute('aria-label', 'SZEM');
+    const nav = document.createElement('nav'); nav.className = 'szm-also'; nav.id = 'szAlso'; nav.setAttribute('aria-label', 'Stoa');
     const lap = document.createElement('div'); lap.className = 'szm-lap-h'; lap.id = 'szLap'; lap.hidden = true;
     lap.innerHTML = '<div class="szm-lap" role="dialog" aria-modal="true" aria-label="Rögzítés"><span class="sf-tobb-fogo" aria-hidden="true"></span><div class="szm-lap-b"></div></div>';
     const fatyol = document.createElement('div'); fatyol.className = 'szm-fatyol'; fatyol.setAttribute('aria-hidden', 'true');
@@ -45680,7 +45680,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid).map(e2 => `<option value="${e2.uid}"${e2.uid===mgrUid?' selected':''}>${escM(e2.name||e2.email)}</option>`).join('');
         const chip = ([key,label,teljes]) => `<button type="button" class="adm-page-chip${blocked.has(key)?'':' on'}" data-pgkey="${key}"
             title="${teljes ? escM(teljes) + ' – ' : ''}${blocked.has(key)?'Kikapcsolva – kattints a bekapcsoláshoz':'Bekapcsolva – kattints a kikapcsoláshoz'}">${escM(label)}</button>`;
-        const csoportok = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','SZEM']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
+        const csoportok = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','Stoa']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
             return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('')
             + `<div class="adm-page-csop"><span>Menü</span><div class="adm-page-chips">${chip(['_privkapcs', 'Privát mód kapcsoló'])}</div></div>`
             + (pziLista.length ? `<div class="adm-page-csop"><span>Prezentációk</span><div class="adm-page-chips">${pziLista.map(chip).join('')}</div></div>` : '');
