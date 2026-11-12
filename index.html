@@ -16619,8 +16619,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         return a < 1 ? `rgba(${R2},${G2},${B2},${+a.toFixed(3)})` : `rgb(${R2},${G2},${B2})`;
     }
     // OVB-ban az ügyfélnek szóló felületek kimaradnak: ezek szabályait nem színezzük, és a többi szabály sem hat bennük
-    const OVB_KIVETEL = /\.(ef|ak|ce|nyd)(?![\w-])|\.(ef|ak|ce|nyd|pzi|tal)-/;
-    const OVB_OR = ':not(:is(.ef, .ak, .pzi-vetito, .ef-pir2-vetit) *)';
+    // (a Tervezet-készítő lapjai – .tvp – is: a PDF-be kerülő oldal sötét módban is a világos színeivel látszik)
+    const OVB_KIVETEL = /\.(ef|ak|ce|nyd|tvp)(?![\w-])|\.(ef|ak|ce|nyd|pzi|tal)-/;
+    const OVB_OR = ':not(:is(.ef, .ak, .pzi-vetito, .ef-pir2-vetit, .tvp) *)';
     const orrel = x => { const m = x.match(/(::?(before|after|placeholder|marker|selection|-webkit-[\w-]+))+$/); return m ? x.slice(0, m.index) + OVB_OR + m[0] : x + OVB_OR; };
     const elotag = (sel, sc, ovb) => sel.split(/,(?![^(]*\))/).map(x => { x = x.trim();
         if(/^:root\b/.test(x)) return x.replace(':root', sc);
@@ -16669,7 +16670,8 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
     const EXTRA_OVB = {
         ejszaka: `body:not(.sf-privat){color-scheme:dark;color:#e5e9f2;--navy:#e5e9f2;--navy-fel:#1c2742}
             body:not(.sf-privat) :is(input,select,textarea):not([type=checkbox]):not([type=radio]):not([type=range])${OVB_OR}{background-color:#18213a;color:#e5e9f2;border-color:#2a3553}
-            body:not(.sf-privat) ::placeholder{color:#7d88a6}` };
+            body:not(.sf-privat) ::placeholder{color:#7d88a6}
+            body:not(.sf-privat) .tvp{color-scheme:light}` };
     let tag = null, tagOvb = null;
     const gyujt = (f, ki, sc, ovb) => { for(const sh of [...document.styleSheets]){ if(sh.ownerNode === tag || sh.ownerNode === tagOvb) continue; let rs; try { rs = sh.cssRules; } catch(e){ continue; } if(rs) szabalyok(rs, f, ki, sc, ovb); } };
     // Meleg természet stílus: a háttér, a kártyák és a fülsávok a meleg alapból indulnak, de a téma színe felé hajlanak
