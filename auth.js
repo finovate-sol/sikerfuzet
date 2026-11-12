@@ -1060,20 +1060,22 @@ export async function connectCalendarList() {
 // nem villan fel a naptár / a SZEM indulóképernyője a login előtt.
 const belepJel = be => { try { be ? localStorage.setItem("sf_belepve", "1") : localStorage.removeItem("sf_belepve"); } catch (e) {} };
 // a ?app=… (Sikerfüzet / SZEM) megmarad a login és az app közti oda-vissza úton
-const appKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); if (/szem\.html$/.test(location.pathname)) q.set("cel", "szem"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
+const appKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); if (/szem\.html$/.test(location.pathname)) q.set("cel", "szem"); else if (/\/stoa\//.test(location.pathname)) q.set("cel", "stoa"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
 // a belépés utáni céloldal: a SZEM-appból érkezve oda térünk vissza
-export const celOldal = () => { try { return new URLSearchParams(location.search).get("cel") === "szem" ? "szem.html" : "index.html"; } catch (e) { return "index.html"; } };
+export const celOldal = () => { try { const c = new URLSearchParams(location.search).get("cel"); return c === "stoa" ? "stoa/" : c === "szem" ? "szem.html" : "index.html"; } catch (e) { return "index.html"; } };
 const celKer = () => { try { const q = new URLSearchParams(location.search); q.delete("denied"); q.delete("cel"); const s = q.toString(); return s ? "?" + s : ""; } catch (e) { return ""; } };
-export async function logout() {
+export async function logout(loginUrl) {
     belepJel(false);
     tokTorol();
     if (isConfigured && auth) await signOut(auth);
-    window.location.href = "login.html";
+    window.location.href = typeof loginUrl === "string" ? loginUrl : "login.html";
 }
 
 // --- Védelem a dashboardon: nincs (engedélyezett) belépés → login oldal ---
 // onReady(user) callback fut le, ha van érvényes, engedélyezett felhasználó.
-export function requireAuth(onReady) {
+// opts.login: a belépő oldal címe a hívó oldalhoz képest (a stoa/ almappából: "../login.html")
+export function requireAuth(onReady, opts) {
+    const loginUrl = (opts && opts.login) || "login.html";
     if (!isConfigured) {
         // Amíg a Firebase nincs beállítva, a demó szabadon nyitva marad.
         console.warn("Firebase nincs beállítva – a védelem inaktív (demó mód).");
@@ -1081,7 +1083,7 @@ export function requireAuth(onReady) {
         return;
     }
     onAuthStateChanged(auth, async (user) => {
-        if (!user) { belepJel(false); window.location.replace("login.html" + appKer()); return; }
+        if (!user) { belepJel(false); window.location.replace(loginUrl + appKer()); return; }
         let allowed;
         try { allowed = await isEmailAllowed(user.email); }
         catch (e) {
@@ -1092,7 +1094,7 @@ export function requireAuth(onReady) {
             setTimeout(() => window.location.reload(), 2000);
             return;
         }
-        if (!allowed) { belepJel(false); await signOut(auth); window.location.replace("login.html?denied=1"); return; }
+        if (!allowed) { belepJel(false); await signOut(auth); window.location.replace(loginUrl + "?denied=1"); return; }
         belepJel(true);
         // Minden érvényes munkamenetnél (nemcsak a Google-popupos belépéskor)
         // – lásd ensureEmployeeProfile megjegyzését. Szándékosan nincs await
