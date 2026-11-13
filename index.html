@@ -19759,7 +19759,150 @@ async function pzSzamlaNez(sz){
     } catch(e){ ov.querySelector('.modal-body').innerHTML = `<div class="pz-hibaszo">${esc(e.message || String(e))}</div>`; }
 }
 
+// ===== Stoa: tétel rögzítése egyetlen alsó lapon (szem-design/handoff – „Tranzakció rögzítése”) =====
+let pzSt = null;
+const PZ_ST_TIP = [['ki', 'Kiadás'], ['bev', 'Bevétel'], ['atu', 'Átutalás']];
+async function pzStLap(elo = {}){
+    await Promise.all([pzLoadKat(), pzLoadTorzs(), pzLoadTranz(pzMaHo()), pzLoadTranz(pzHoLep(pzMaHo(), -1))]).catch(() => null);
+    const w = pzTorzsGet().penztarca;
+    pzSt = { t: elo.t || 'ki', o: '', d: pzMaStr(), m: '', k: '', a: '', p: elo.p || pzAktTarca() || (w[0] && w[0].id) || '', p2: '', nyit: 'osszeg', ker: '', mindKat: false };
+    document.getElementById('pzStLap')?.remove();
+    const ov = document.createElement('div'); ov.id = 'pzStLap'; ov.className = 'st-lap-hatter';
+    ov.innerHTML = '<div class="st-lap" role="dialog" aria-modal="true" aria-label="Tétel rögzítése"></div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('be'));
+    pzStRajz();
+}
+function pzStZar(){ const ov = document.getElementById('pzStLap'); if(!ov) return; ov.classList.remove('be'); setTimeout(() => ov.remove(), 220); pzSt = null; }
+function pzStLegutobbi(){
+    const l = [], lat = new Set();
+    const mind = Object.values(pzTranz).flat().filter(t => t && t.t === pzSt.t && t.m && t.t !== 'atu').sort((a, b) => String(b.d).localeCompare(String(a.d)) || String(b.ido || '').localeCompare(String(a.ido || '')));
+    for(const t of mind){ const k = pzNorm(pzNevTiszta(t.m)); if(lat.has(k)) continue; lat.add(k); l.push(t); if(l.length >= 4) break; }
+    return l;
+}
+function pzStHolJavas(){
+    const f = pzNorm(pzSt.ker || '').trim();
+    const db = new Map();
+    for(const t of Object.values(pzTranz).flat()){ if(!t || !t.m || t.t !== pzSt.t) continue;
+        const n = pzNevTiszta(t.m).trim(); if(!n) continue; const k = pzNorm(n);
+        const x = db.get(k) || { n, db: 0, t }; x.db++; if(String(t.d) >= String(x.t.d)) x.t = t; db.set(k, x); }
+    for(const x of pzSzolgJavas('', pzSt.t)) { const k = pzNorm(x.n); if(!db.has(k)) db.set(k, { n: x.n, db: x.db || 0, t: x.utolso || {} }); }
+    return [...db.entries()].filter(([k]) => !f || k.includes(f)).sort((a, b) => (f ? b[0].startsWith(f) - a[0].startsWith(f) : 0) || b[1].db - a[1].db).slice(0, 6).map(e => e[1]);
+}
+function pzStRajz(){
+    const lap = document.querySelector('#pzStLap .st-lap'); if(!lap || !pzSt) return;
+    const S = pzSt, w = pzTorzsGet().penztarca, atu = S.t === 'atu', bev = S.t === 'bev';
+    const o = +S.o || 0, jel = atu ? '' : bev ? '+' : '−';
+    const kat = S.k ? pzKatOf(S.t, S.k) : null;
+    const tarcaN = id => (pzTarcaOf(id) || {}).n || '';
+    const ma = pzMaStr(), teg = (() => { const x = new Date(); x.setDate(x.getDate() - 1); return pzNapStr(x); })();
+    const datumSzo = S.d === ma ? 'Ma' : S.d === teg ? 'Tegnap' : pzNapCim(S.d);
+    const sor = (kulcs, cim, ertek, tartalom) => `<div class="st-lsor${S.nyit === kulcs ? ' nyit' : ''}">
+        <button type="button" class="fej" data-pzstnyit="${kulcs}" aria-expanded="${S.nyit === kulcs}"><span class="c">${cim}</span><span class="v${ertek ? '' : ' ures'}">${ertek || 'Válassz'}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        ${S.nyit === kulcs ? `<div class="tart">${tartalom}</div>` : ''}</div>`;
+    const tarcaChipek = (mezo, kizart) => `<div class="st-lchip">${w.length ? w.map(x => `<button type="button" class="${S[mezo] === x.id ? 'on' : ''}" data-pzsttarca="${mezo}|${esc(x.id)}"${kizart === x.id ? ' disabled' : ''}>${esc(x.n)}</button>`).join('')
+        : '<span class="halk">Még nincs pénztárca.</span>'}${mezo === 'p' && !atu ? `<button type="button" class="${S.p ? '' : 'on'}" data-pzsttarca="p|">Nincs</button>` : ''}</div>`;
+    const mindKat = pzGyakoriKat(S.t), katL = S.mindKat ? mindKat : mindKat.slice(0, 10);
+    if(S.k && !katL.some(k => k.n === S.k) && kat) katL.push(kat);
+    const javas = S.nyit === 'hol' ? pzStHolJavas() : [];
+    const leg = !S.o && !S.m && !atu ? pzStLegutobbi() : [];
+    lap.innerHTML = `
+        <div class="st-lfej"><div class="st-ltip" role="group" aria-label="Típus">${PZ_ST_TIP.map(([k, n]) => `<button type="button" class="${S.t === k ? 'on' : ''}" data-pzsttip="${k}">${n}</button>`).join('')}</div>
+            <button type="button" class="x" data-pzstzar aria-label="Bezárás">✕</button></div>
+        ${leg.length ? `<div class="st-lleg"><span class="c">Legutóbbi · egy koppintás</span><div class="st-lchip">${leg.map((t, i) => `<button type="button" data-pzstleg="${i}">${esc(pzNevTiszta(t.m))} · ${pzFt(t.o)}</button>`).join('')}</div></div>` : ''}
+        <button type="button" class="st-losszeg${S.nyit === 'osszeg' ? ' akt' : ''} ${atu ? '' : bev ? 'be' : 'ki'}" data-pzstnyit="osszeg">${o ? jel + pzFt(o) : '0'} <small>Ft</small></button>
+        <div class="st-lsorok">
+            ${sor('datum', 'Dátum', datumSzo, `<div class="st-lchip"><button type="button" class="${S.d === ma ? 'on' : ''}" data-pzstdatum="${ma}">Ma</button><button type="button" class="${S.d === teg ? 'on' : ''}" data-pzstdatum="${teg}">Tegnap</button>
+                <label class="${S.d !== ma && S.d !== teg ? 'on' : ''}">Más nap<input type="date" id="pzStDatum" value="${esc(S.d)}" max="${ma}"></label></div>`)}
+            ${atu ? sor('honnan', 'Honnan', tarcaN(S.p), tarcaChipek('p', S.p2)) + sor('hova', 'Hová', tarcaN(S.p2), tarcaChipek('p2', S.p))
+                + sor('hol', 'Megjegyzés', esc(S.m), `<input type="text" class="st-linput" id="pzStHol" value="${esc(S.m)}" placeholder="pl. megtakarításba" maxlength="120">`)
+            : sor('hol', bev ? 'Kitől' : 'Hol', esc(S.m), `<input type="search" class="st-linput" id="pzStHol" value="${esc(S.ker || S.m)}" placeholder="${bev ? 'Kitől érkezett?' : 'Hol költötted?'}" maxlength="120" autocomplete="off">
+                    <div class="st-ljavas" id="pzStJavas">${pzStJavasHtml(javas)}</div>`)
+              + sor('kat', 'Kategória', S.k ? esc(S.k) + (S.a ? ' › ' + esc(S.a) : '') : '', `<div class="st-lkat">${katL.map(k => `<button type="button" class="${S.k === k.n ? 'on' : ''}" data-pzstkat="${esc(k.n)}">${pzIk(k.i, k.c)}<span>${esc(k.n)}</span></button>`).join('')}
+                    ${mindKat.length > 10 ? `<button type="button" class="tobb" data-pzstkatmind>${S.mindKat ? 'Kevesebb' : `+${mindKat.length - 10}`}</button>` : ''}</div>
+                    ${kat && (kat.al || []).length ? `<div class="st-lchip al">${kat.al.map(a => `<button type="button" class="${S.a === a ? 'on' : ''}" data-pzstal="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : ''}`)
+              + sor('mibol', bev ? 'Hová' : 'Miből', S.p ? esc(tarcaN(S.p)) : 'Nincs tárca', tarcaChipek('p'))}
+        </div>
+        ${S.nyit === 'osszeg' ? `<div class="st-lbill">${['1','2','3','4','5','6','7','8','9','000','0','⌫'].map(b => `<button type="button" data-pzstbill="${b}" aria-label="${b === '⌫' ? 'Törlés' : b}">${b}</button>`).join('')}</div>` : ''}
+        <div class="st-lalja"><button type="button" class="link" data-pzstreszl>Részletes űrlap</button>
+            <button type="button" class="ment" data-pzstment${o ? '' : ' disabled'}>Mentés${o ? ' · ' + jel + pzFt(o) + ' Ft' : ''}</button></div>
+        <div class="st-lhiba" id="pzStHiba"></div>`;
+}
+function pzStJavasHtml(javas){
+    const S = pzSt; const ker = (S.ker || '').trim();
+    return javas.map((x, i) => `<button type="button" data-pzstjav="${esc(x.n)}"><b>${esc(x.n)}</b><em>${x.t && x.t.k ? esc(x.t.k) + (x.t.a ? ' › ' + esc(x.t.a) : '') + ' · ' : ''}${x.db}×</em></button>`).join('')
+        + (ker && !javas.some(x => pzNorm(x.n) === pzNorm(ker)) ? `<button type="button" data-pzstjav="${esc(ker)}" class="uj"><b>+ „${esc(ker)}” felvétele</b></button>` : '');
+}
+async function pzStMent(){
+    const S = pzSt; if(!S) return;
+    const hiba = t => { const h = document.getElementById('pzStHiba'); if(h) h.textContent = t; };
+    const o = +S.o || 0; if(o <= 0) return hiba('Add meg az összeget.');
+    const ho = S.d.slice(0, 7); await pzLoadTranz(ho);
+    const id = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const ido = S.d === pzMaStr() ? pzMostIdo() : '';
+    let uj;
+    if(S.t === 'atu'){
+        if(!S.p || !S.p2) return hiba('Válaszd ki, honnan hová megy a pénz.');
+        uj = { id, t:'atu', d:S.d, ido, k:'', a:'', m:S.m.trim(), o, p:S.p, p2:S.p2 };
+    } else {
+        const k = S.k || (pzKatOf(S.t, 'Egyéb') ? 'Egyéb' : (pzLista(S.t)[0] || {}).n || 'Egyéb');
+        uj = { id, t:S.t, d:S.d, ido, k, a:S.k ? S.a : '', m:S.m.trim(), o, ...(S.p ? { p:S.p } : {}) };
+    }
+    if(!ido) delete uj.ido;
+    pzTranz[ho] = pzTranz[ho] || []; pzTranz[ho].push(uj); pzSaveTranz(ho);
+    let torzs = pzTarcaHat(uj, 1);
+    if(uj.m && uj.t !== 'atu' && typeof pzSzolgFelvesz === 'function'){ try { if(pzSzolgFelvesz(uj.m)) torzs = true; } catch(_){} }
+    if(torzs) pzSaveTorzs();
+    if(uj.t !== 'atu') pzSyncTervezo(ho);
+    if(uj.p){ pzGyTarca = uj.p; try { localStorage.setItem('sf_pz_tarca_' + pzUid(), uj.p); } catch(_){} }
+    pzStZar();
+    if(typeof stoaToast === 'function') stoaToast(`${uj.t === 'atu' ? 'Átutalás ' : uj.t === 'bev' ? '+' : '−'}${pzFt(o)} Ft${uj.k ? ' · ' + uj.k : ''}${uj.m ? ' · ' + uj.m : ''}`);
+    const pg = document.getElementById('page-penzugyek'); if(pg && !pg.hidden){ pzTHo = ho; pzFrissit(); }
+}
+document.addEventListener('click', e => {
+    const ov = document.getElementById('pzStLap'); if(!ov || !pzSt || !ov.contains(e.target)) return;
+    const S = pzSt;
+    if(e.target === ov || e.target.closest('[data-pzstzar]')) return pzStZar();
+    const g = sel => e.target.closest(sel);
+    let b;
+    if((b = g('[data-pzsttip]'))){ if(S.t !== b.dataset.pzsttip){ S.t = b.dataset.pzsttip; S.k = ''; S.a = ''; if(S.t === 'atu' && S.nyit === 'kat') S.nyit = 'osszeg'; } return pzStRajz(); }
+    if((b = g('[data-pzstleg]'))){ const t = pzStLegutobbi()[+b.dataset.pzstleg]; if(t){ Object.assign(S, { m: pzNevTiszta(t.m), k: t.k || '', a: t.a || '', p: t.p || S.p, o: String(t.o || '') }); } return pzStRajz(); }
+    if((b = g('[data-pzstnyit]'))){ const k = b.dataset.pzstnyit; S.nyit = S.nyit === k && k !== 'osszeg' ? 'osszeg' : k; if(k === 'hol') S.ker = S.m; pzStRajz();
+        if(S.nyit === 'hol') setTimeout(() => document.getElementById('pzStHol')?.focus(), 30); return; }
+    if((b = g('[data-pzstbill]'))){ const v = b.dataset.pzstbill; S.o = v === '⌫' ? S.o.slice(0, -1) : (S.o + v).replace(/^0+/, '').slice(0, 10); return pzStRajz(); }
+    if((b = g('[data-pzstdatum]'))){ S.d = b.dataset.pzstdatum; S.nyit = 'osszeg'; return pzStRajz(); }
+    if((b = g('[data-pzsttarca]'))){ const [m, id] = b.dataset.pzsttarca.split('|'); S[m] = id; S.nyit = 'osszeg'; return pzStRajz(); }
+    if((b = g('[data-pzstkat]'))){ S.k = b.dataset.pzstkat; S.a = ''; const kk = pzKatOf(S.t, S.k); if(!(kk && (kk.al || []).length)) S.nyit = 'osszeg'; return pzStRajz(); }
+    if(g('[data-pzstkatmind]')){ S.mindKat = !S.mindKat; return pzStRajz(); }
+    if((b = g('[data-pzstal]'))){ S.a = S.a === b.dataset.pzstal ? '' : b.dataset.pzstal; S.nyit = 'osszeg'; return pzStRajz(); }
+    if((b = g('[data-pzstjav]'))){ const n = b.dataset.pzstjav; S.m = n; S.ker = '';
+        const x = Object.values(pzTranz).flat().filter(t => t && t.t === S.t && t.m && pzNorm(pzNevTiszta(t.m)) === pzNorm(n)).sort((a, c) => String(c.d).localeCompare(String(a.d)))[0];
+        if(x){ if(x.k && pzKatOf(S.t, x.k)){ S.k = x.k; S.a = x.a || ''; } if(x.p && pzTarcaOf(x.p)) S.p = x.p; }
+        S.nyit = 'osszeg'; return pzStRajz(); }
+    if(g('[data-pzstment]')) return pzStMent();
+    if(g('[data-pzstreszl]')){ const elo = { t: S.t, ...(S.p ? { p: S.p } : {}), ...(S.k ? { k: S.k } : {}), ...(S.o ? { o: +S.o } : {}), ...(S.m ? { m: S.m } : {}), d: S.d, _regi: true }; pzStZar(); pzTHo = S.d.slice(0, 7); return pzTetelModal(null, elo); }
+});
+document.addEventListener('input', e => {
+    if(!pzSt) return;
+    if(e.target.id === 'pzStHol'){ if(pzSt.t === 'atu'){ pzSt.m = e.target.value; return; } pzSt.ker = e.target.value; const j = document.getElementById('pzStJavas'); if(j) j.innerHTML = pzStJavasHtml(pzStHolJavas()); }
+    if(e.target.id === 'pzStDatum' && e.target.value){ pzSt.d = e.target.value; }
+});
+document.addEventListener('change', e => { if(pzSt && e.target.id === 'pzStDatum' && e.target.value){ pzSt.d = e.target.value; pzSt.nyit = 'osszeg'; pzStRajz(); } });
+document.addEventListener('keydown', e => {
+    if(!pzSt || !document.getElementById('pzStLap')) return;
+    if(e.key === 'Escape') return pzStZar();
+    if(e.target.id === 'pzStHol' && e.key === 'Enter'){ e.preventDefault(); const v = e.target.value.trim(); if(pzSt.t === 'atu'){ pzSt.m = v; pzSt.nyit = 'osszeg'; return pzStRajz(); }
+        const b = document.querySelector('#pzStJavas [data-pzstjav]'); if(b) b.click(); else { pzSt.m = v; pzSt.nyit = 'osszeg'; pzStRajz(); } return; }
+    if(pzSt.nyit === 'osszeg' && !/INPUT|TEXTAREA/.test(e.target.tagName)){
+        if(/^[0-9]$/.test(e.key)){ pzSt.o = (pzSt.o + e.key).replace(/^0+/, '').slice(0, 10); pzStRajz(); }
+        else if(e.key === 'Backspace'){ pzSt.o = pzSt.o.slice(0, -1); pzStRajz(); }
+        else if(e.key === 'Enter' && +pzSt.o){ pzStMent(); }
+    }
+});
 function pzTetelModal(letezo, elotolt){
+    // Stoa: új tételhez az egyszerű alsó lap; a „Részletes űrlap” (és a szerkesztés) a régi ablak.
+    if(!letezo && !(elotolt && elotolt._regi) && window.stoaAktiv && window.stoaAktiv()) return pzStLap(elotolt || {});
+    if(elotolt && elotolt._regi){ elotolt = { ...elotolt }; delete elotolt._regi; }
     const e0 = elotolt || {};
     // új tétel: lépésenként vezetett rögzítés; a teljes űrlap a „Módosít” mögött (e0._teljes)
     if(!letezo && !e0._teljes) return pzVarazslo(e0);
@@ -47623,6 +47766,60 @@ body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla::before, body.sf-privat #pzTo
 body.sf-privat #pzTorzs :is(.pz-tarcak, .pz-torzs-m, .pz-sec) { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 body.sf-privat .st-pz-csik { display:flex; height:10px; border-radius:999px; overflow:hidden; gap:3px; margin:14px 0 0; }
 body.sf-privat .st-pz-csik i { display:block; height:100%; border-radius:999px; }
+/* Tétel rögzítése – alsó lap */
+.st-lap-hatter { --oc-bg:#eaf0f1; --oc-sf:#d8e3e6; --oc-tx:#14222a; --oc-ac:#2f6f8f; --oc-ac2:#e07a5f; --oc-n3:#b9cbd1; --oc-n7:#4d6670;
+    --oc-ac8:color-mix(in oklch, #2f6f8f 50%, black); --oc-ac2-8:color-mix(in oklch, #e07a5f 50%, black); --oc-ac7:color-mix(in oklch, #2f6f8f 68%, black);
+    position:fixed; inset:0; z-index:4000; background:rgba(20,34,42,0); display:flex; align-items:flex-end; justify-content:center; transition:background .2s; font-family:'DM Sans',sans-serif; }
+.st-lap-hatter.be { background:rgba(20,34,42,.42); }
+.st-lap { width:100%; max-width:520px; max-height:96vh; max-height:96dvh; overflow-y:auto; overscroll-behavior:contain; background:var(--oc-bg); color:var(--oc-tx); border-radius:36px 36px 0 0; padding:18px 20px calc(18px + env(safe-area-inset-bottom)); box-sizing:border-box; display:flex; flex-direction:column; gap:14px; transform:translateY(100%); transition:transform .22s cubic-bezier(.2,.8,.2,1); }
+.st-lap-hatter.be .st-lap { transform:none; }
+@media (min-width:761px){ .st-lap-hatter { align-items:center; } .st-lap { border-radius:36px; max-height:92vh; } }
+.st-lfej { display:flex; align-items:center; gap:10px; }
+.st-ltip { flex:1; display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--oc-sf); }
+.st-ltip button { flex:1; height:38px; border:0; border-radius:999px; background:transparent; color:var(--oc-n7); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+.st-ltip button.on { background:var(--oc-tx); color:var(--oc-bg); }
+.st-lfej .x { width:44px; height:44px; border:0; border-radius:999px; background:var(--oc-sf); color:var(--oc-tx); font-size:16px; cursor:pointer; flex:none; }
+.st-lleg .c { display:block; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--oc-n7); margin-bottom:6px; }
+.st-lchip { display:flex; gap:6px; flex-wrap:wrap; }
+.st-lchip button, .st-lchip label { height:36px; padding:0 14px; border:0; border-radius:999px; background:var(--oc-sf); color:var(--oc-tx); font:inherit; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.st-lchip button.on, .st-lchip label.on { background:var(--oc-tx); color:var(--oc-bg); }
+.st-lchip button:disabled { opacity:.35; cursor:default; }
+.st-lchip label input { border:0; background:transparent; color:inherit; font:inherit; font-size:12px; width:118px; outline:none; }
+.st-lchip .halk { font-size:13px; color:var(--oc-n7); }
+.st-lsor .tart .st-lchip button, .st-lsor .tart .st-lchip label { background:var(--oc-bg); }
+.st-lsor .tart .st-lchip button.on, .st-lsor .tart .st-lchip label.on { background:var(--oc-tx); }
+.st-lchip.al { margin-top:10px; } .st-lchip.al button { height:32px; font-size:12px; }
+.st-losszeg { border:0; background:none; padding:2px 0; text-align:left; font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-size:46px; line-height:1.05; color:var(--oc-tx); cursor:pointer; font-variant-numeric:tabular-nums; }
+.st-losszeg small { font-size:22px; color:var(--oc-n7); }
+.st-losszeg.ki { color:var(--oc-ac2-8); } .st-losszeg.be { color:var(--oc-ac8); }
+.st-lsorok { background:var(--oc-sf); border-radius:28px; padding:4px 8px; display:flex; flex-direction:column; }
+.st-lsor + .st-lsor { border-top:1px solid color-mix(in srgb, var(--oc-n3) 60%, transparent); }
+.st-lsor .fej { width:100%; height:52px; border:0; background:none; font:inherit; color:var(--oc-tx); display:flex; align-items:center; gap:10px; padding:0 8px; cursor:pointer; text-align:left; }
+.st-lsor .fej .c { font-size:13px; font-weight:700; color:var(--oc-n7); width:86px; flex:none; }
+.st-lsor .fej .v { flex:1; min-width:0; font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.st-lsor .fej .v.ures { color:var(--oc-n7); font-weight:500; }
+.st-lsor .fej svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.75; stroke-linecap:round; stroke-linejoin:round; transition:transform .2s; }
+.st-lsor.nyit .fej svg { transform:rotate(180deg); }
+.st-lsor .tart { padding:2px 8px 14px; }
+.st-linput { width:100%; box-sizing:border-box; height:44px; border:0; border-radius:999px; background:var(--oc-bg); padding:0 16px; font:inherit; font-size:14px; color:var(--oc-tx); outline:none; }
+.st-ljavas { display:flex; flex-direction:column; margin-top:6px; }
+.st-ljavas button { border:0; background:none; text-align:left; padding:9px 8px; border-radius:16px; font:inherit; color:var(--oc-tx); cursor:pointer; display:flex; justify-content:space-between; gap:10px; }
+.st-ljavas button:hover { background:var(--oc-bg); }
+.st-ljavas b { font-size:14px; } .st-ljavas em { font-style:normal; font-size:12px; color:var(--oc-n7); white-space:nowrap; } .st-ljavas .uj b { color:var(--oc-ac7); }
+.st-lkat { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px 4px; }
+.st-lkat button { border:0; background:none; font:inherit; color:var(--oc-tx); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0; border-radius:18px; min-width:0; }
+.st-lkat button span { font-size:11px; font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.st-lkat button .pz-ikon, .st-lkat button > i { width:44px; height:44px; border-radius:999px; }
+.st-lkat button.on { background:var(--oc-bg); box-shadow:inset 0 0 0 2px var(--oc-tx); }
+.st-lkat .tobb { height:44px; align-self:start; margin-top:4px; background:var(--oc-bg); border-radius:999px; font-weight:700; }
+.st-lbill { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.st-lbill button { height:46px; border:0; border-radius:999px; background:var(--oc-sf); color:var(--oc-tx); font:inherit; font-size:20px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+.st-lbill button:active { background:var(--oc-n3); }
+.st-lalja { display:flex; align-items:center; gap:12px; }
+.st-lalja .link { border:0; background:none; font:inherit; font-size:13px; font-weight:700; color:var(--oc-ac7); cursor:pointer; padding:0; }
+.st-lalja .ment { flex:1; height:52px; border:0; border-radius:999px; background:var(--oc-ac); color:#fff; font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+.st-lalja .ment:disabled { background:var(--oc-n3); color:var(--oc-n7); cursor:default; }
+.st-lhiba:empty { display:none; } .st-lhiba { font-size:13px; font-weight:700; color:var(--oc-ac2-8); }
 /* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
 body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 @media (max-width:760px){
