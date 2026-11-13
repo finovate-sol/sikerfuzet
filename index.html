@@ -21189,13 +21189,17 @@ const PZ_A_WIDGET = [
     ['kat', 'Kiadások kategóriánként', 2], ['fiz', 'Közelgő kifizetések', 1],
     ['vagyon', 'Vagyon megoszlása', 1], ['utolso', 'Legutóbbi tételek', 2],
 ];
+const PZ_A_STOA = [['kpi','fiz','aram','kat','vagyon','cel','utolso','tarca'], ['tarca'], { kpi:3, fiz:1, aram:2, kat:2, vagyon:1, cel:1, utolso:2, tarca:3 }];
+let pzAramSel = '';      // Stoa pénzáramlás: a kiemelt hónap
 const PZ_A_MERET = [[1, '⅓', 'Keskeny (a sor harmada)'], [2, '⅔', 'Közepes (a sor kétharmada)'], [3, '▬', 'Teljes szélesség']];
 let pzAEdit = false;
 // → [[kulcs, rejtett, méret], …] a mentett sorrendben; az újonnan hozzáadott
 // kártyák a végére kerülnek, a megszűntek kiesnek. A korábbi széles/keskeny
 // (szel) beállítás 3-ra / az alapméretre fordul.
 function pzAElrendezes(){
-    const t = pzTorzsGet(), m = t.attek || {};
+    const t = pzTorzsGet(), m0 = t.attek || {};
+    // Stoa: ha még nincs mentett elrendezés, a terv sorrendje (a tárcák a hős kártyán vannak).
+    const m = (!m0.rend && window.stoaAktiv && window.stoaAktiv()) ? { rend: PZ_A_STOA[0], rejt: PZ_A_STOA[1], meret: PZ_A_STOA[2] } : m0;
     const rend = (m.rend || []).filter(k => PZ_A_WIDGET.some(w => w[0] === k));
     for(const [k] of PZ_A_WIDGET) if(!rend.includes(k)) rend.push(k);
     const rejt = new Set(m.rejt || []), meret = m.meret || {}, szel = m.szel || {};
@@ -21212,6 +21216,44 @@ function pzAMent(el){
 }
 
 // csak: egyetlen kártya (data-pzw) frissül, a lap többi része – és a görgetés – marad.
+// Egységes hónapváltó (Stoa): az utolsó két hónap + „Ez a hónap”; régebbi hónapnál az előtte lévő, a kiválasztott és a mai.
+function pzHoValtoHtml(){
+    const ma = pzMaHo();
+    let l = [pzHoLep(ma, -2), pzHoLep(ma, -1), ma];
+    if(!l.includes(pzTHo)) l = [pzHoLep(pzTHo, -1), pzTHo, ma];
+    return `<div class="st-hovalto" role="group" aria-label="Hónap">${l.map(h =>
+        `<button type="button" data-pzmho="${h}"${h === pzTHo ? ' class="on" aria-current="true"' : ''}>${h === ma ? 'Ez a hónap' : PZ_HO_ROV[+h.slice(5, 7) - 1].replace(/^./, c => c.toUpperCase())}</button>`).join('')}
+        <button type="button" class="tobb" data-pzhovalaszt aria-label="Más hónap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>`;
+}
+// Okos jelzések (legfeljebb 2, ✕-szel elrejthetők): a legjobban fogyó keret ≥80%, és a 7 napon belüli terhelés.
+const pzJelzRejt = () => { try { return JSON.parse(localStorage.getItem('stoa_pz_jelz') || '[]'); } catch(e){ return []; } };
+function pzStoaJelzesek(ho, lista, fizet){
+    const l = [];
+    if(ho === pzMaHo()){
+        const kk = pzLista('ki').filter(k => k.k > 0).map(k => { const v = lista.filter(t => pzKi(t) && (t.k || 'Egyéb') === k.n).reduce((s, t) => s + (t.o || 0), 0); return [k.n, v / k.k, v - k.k]; })
+            .sort((a, b) => b[1] - a[1])[0];
+        if(kk && kk[1] >= .8) l.push({ id:'k-' + ho + kk[0], ik:'csuszka', szoveg: kk[1] > 1 ? `${kk[0]} keret túllépve ${pzFt(kk[2])} Ft-tal` : `${kk[0]} keret ${Math.round(kk[1] * 100)}%-nál tart`, akt:'Keretek', nez:'honap' });
+        const f = fizet.find(x => !x.kesz && x.h <= 7);
+        if(f) l.push({ id:'f-' + ho + pzSlug(f.n), ik:'ismetles', szoveg:`${f.n} ${pzHatraSzo(f.h)} terhel · ${pzFt(f.o)} Ft`, akt:'Részletek', nez:'elofiz' });
+    }
+    const rejt = pzJelzRejt();
+    return l.filter(x => !rejt.includes(x.id)).slice(0, 2).map(x => `<div class="st-jelzes">${pzSvg(x.ik)}<span>${esc(x.szoveg)}</span>
+        <button type="button" data-pzview="${x.nez}">${x.akt}</button><button type="button" class="x" data-pzjelzrejt="${esc(x.id)}" aria-label="Elrejtés">✕</button></div>`).join('');
+}
+document.addEventListener('click', e => {
+    const r = e.target.closest('[data-pzjelzrejt]');
+    if(r){ const l = pzJelzRejt(); l.push(r.dataset.pzjelzrejt); try { localStorage.setItem('stoa_pz_jelz', JSON.stringify(l.slice(-40))); } catch(_){} r.closest('.st-jelzes').remove(); return; }
+    const a = e.target.closest('[data-pzaramho]');
+    if(a){ pzAramSel = a.dataset.pzaramho; renderPzAttek('aram'); return; }
+    if(e.target.closest('[data-pzhovalaszt]')){
+        const inp = document.createElement('input'); inp.type = 'month'; inp.value = pzTHo;
+        inp.style.cssText = 'position:fixed;opacity:0;pointer-events:none;left:50%;top:50%';
+        document.body.appendChild(inp);
+        inp.addEventListener('change', () => { if(inp.value){ pzTHo = inp.value; pzAKat = ''; pzFrissit(); } inp.remove(); });
+        inp.addEventListener('blur', () => setTimeout(() => inp.remove(), 300));
+        try { inp.showPicker(); } catch(_){ inp.focus(); inp.click(); }
+    }
+});
 async function renderPzAttek(csak){
     const host = document.getElementById('pzAttek'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = sfVaz();
@@ -21347,15 +21389,81 @@ async function renderPzAttek(csak){
             : `<div class="pz-ures">Ebben a hónapban még nincs tétel.</div>`}
         </section>`,
     };
+    // ---- Stoa („Óceán”) Összkép: a terv szerinti kártyák ugyanazokkal a kulcsokkal,
+    // így az Elrendezés-szerkesztő (sorrend, méret, láthatóság) tovább működik. ----
+    const stoa = !!(window.stoaAktiv && window.stoaAktiv());
+    if(stoa){
+        const ft = n => (n < 0 ? '−' : '') + pzFt(Math.abs(n)) + ' Ft';
+        const rovHo = PZ_HO_ROV[+ho.slice(5,7) - 1];
+        const valt = (most, elo) => { if(!elo) return 'nincs előző havi adat';
+            const p = Math.round((most - elo) / Math.abs(elo) * 1000) / 10;
+            return `${p >= 0 ? '↑' : '↓'} ${String(Math.abs(p)).replace('.', ',')}% az előző hónaphoz`; };
+        W.kpi = `<div class="st-pz-kpi">
+            <div class="st-pz-k"><span class="c be"><i></i>Bevétel · ${rovHo}</span><b>${ft(be)}</b><span class="s">${valt(be, beE)}</span></div>
+            <div class="st-pz-k"><span class="c ki"><i></i>Kiadás · ${rovHo}</span><b>${ft(ki)}</b><span class="s">${valt(ki, kiE)}</span></div>
+            <div class="st-pz-k szeles"><span class="t"><span class="c">Megtakarítás</span><b>${ft(megt)}</b></span><span class="s">${be ? Math.round(megt / be * 100) : 0}% a bevételből</span></div>
+        </div>`;
+        W.fiz = `<section class="st-pz-kartya">
+            <div class="st-pz-fej"><h4>Közelgő kifizetések</h4><a href="#" data-pzview="elofiz">Összes</a></div>
+            ${fizet.length ? fizet.slice(0, 3).map(x => `
+                <div class="st-pz-li"><i class="av">${pzSvg('ismetles')}</i><span class="n"><b>${esc(x.n)}</b><em>${x.kesz ? (x.ev ? 'idén rögzítve' : 'ebben a hónapban rögzítve') : pzHatraSzo(x.h)} · ${x.nap}.${x.ev ? ' · éves' : ''}</em></span><b class="o">${pzFt(x.o)} Ft</b></div>`).join('')
+            : `<div class="pz-ures">Nincs előfizetés vagy törlesztő. <a class="link" href="#" data-pzview="elofiz">Felvétel ↗</a></div>`}
+        </section>`;
+        // Pénzáramlás: a kiválasztott hónappal végződő 6 hónap; egy hónapra koppintva kiemelődik.
+        const hat = []; for(let h = ho, i = 0; i < 6; i++, h = pzHoLep(h, -1)) hat.unshift(h);
+        const evSor = {}; const sorOf = h => { const y = +h.slice(0, 4); evSor[y] = evSor[y] || pzRows(y); return evSor[y][+h.slice(5, 7) - 1] || {}; };
+        const aram = hat.map(h => { const r = sorOf(h); return { h, be: r.bev || 0, ki: r.kolt || 0 }; });
+        const aMax = Math.max(1, ...aram.map(a => Math.max(a.be, a.ki)));
+        const sel = aram.find(a => a.h === pzAramSel) || aram[aram.length - 1];
+        const vonal = aram.map((a, i) => `${((i + .5) * 50).toFixed(1)},${(150 - Math.max(0, a.be - a.ki) / aMax * 150).toFixed(1)}`).join(' ');
+        const M = v => (Math.abs(v) >= 1e6 ? (Math.round(v / 1e4) / 100).toLocaleString('hu-HU') + ' M' : pzFt(v) + ' Ft');
+        W.aram = `<section class="st-pz-kartya pad">
+            <div class="st-pz-fej"><h4>Havi pénzáramlás</h4><span>${ev} · a naplóból és a tervezőből</span></div>
+            <div class="st-pz-jelm"><span><i class="be"></i>Bevétel</span><span><i class="ki"></i>Kiadás</span><span><i class="megt"></i>Megtakarítás</span></div>
+            <div class="st-pz-aram">
+                <div class="osz">${aram.map(a => `<button type="button" data-pzaramho="${a.h}" class="${a === sel ? 'on' : ''}" aria-pressed="${a === sel}" aria-label="${esc(pzHoNev(a.h))}">
+                    <i class="be" style="height:${(a.be / aMax * 100).toFixed(1)}%"></i><i class="ki" style="height:${(a.ki / aMax * 100).toFixed(1)}%"></i></button>`).join('')}</div>
+                <svg viewBox="0 0 300 150" preserveAspectRatio="none" aria-hidden="true"><polyline points="${vonal}"/></svg>
+            </div>
+            <div class="st-pz-honevek">${aram.map(a => `<span>${PZ_HO_ROV[+a.h.slice(5, 7) - 1].replace('.', '')}</span>`).join('')}</div>
+            <div class="st-pz-info"><span>${PZ_HO_ROV[+sel.h.slice(5, 7) - 1].replace('.', '')} ${sel.h.slice(0, 4)}</span><span class="be">+${M(sel.be)}</span><span class="ki">−${M(sel.ki)}</span><span>= ${sel.be - sel.ki < 0 ? '−' : ''}${M(Math.abs(sel.be - sel.ki))}</span></div>
+        </section>`;
+        const KATSZ = ['var(--oc-ac)', 'var(--oc-ac2)', 'var(--oc-ac7)', 'var(--oc-ac2-8)', 'var(--oc-tx)', 'var(--oc-ac4)', 'var(--oc-ac2-4)'];
+        const katMax = sorrend.length ? sorrend[0][1] : 1;
+        W.kat = `<section class="st-pz-kartya pad">
+            <div class="st-pz-fej"><h4>Kiadások kategóriánként</h4><span>${rovHo}</span></div>
+            ${sorrend.length ? sorrend.slice(0, pzAKat === '__mind' ? 99 : 6).map(([n, v], i) => `
+                <button type="button" class="st-pz-kat${pzAKat === n ? ' on' : ''}" data-pzakat="${esc(n)}" aria-expanded="${pzAKat === n}">
+                    <span class="sor"><span>${esc(n)} ›</span><b>${pzFt(v)} Ft</b></span>
+                    <span class="csik"><i style="width:${Math.max(2, v / katMax * 100).toFixed(1)}%;background:${KATSZ[i % KATSZ.length]}"></i></span></button>
+                ${pzAKat === n ? (() => { const m = new Map(); for(const t of lista.filter(t => pzKi(t) && (t.k || 'Egyéb') === n)){ const k = t.a || 'Nincs alkategória'; m.set(k, (m.get(k) || 0) + (t.o || 0)); }
+                    return `<div class="st-pz-al">${[...m.entries()].sort((a, b) => b[1] - a[1]).map(([an, av]) => `<div><span>${esc(an)}</span><b>${pzFt(av)} Ft</b></div>`).join('')}</div>`; })() : ''}`).join('')
+                + (sorrend.length > 6 && pzAKat !== '__mind' ? `<button type="button" class="st-pz-tobb" data-pzakat="__mind">Mind a ${sorrend.length} kategória</button>` : '')
+            : `<span class="st-pz-halk">Ebben a hónapban még nincs kiadás.</span>`}
+        </section>`;
+        W.vagyon = `<button type="button" class="st-pz-kartya st-pz-netto" data-pzview="vagyon">
+            <span class="t"><span class="c">Nettó vagyon</span><b>${ft(pzNetto())}</b></span><span class="r">Részletek ›</span></button>`;
+    }
     // Telefonos hős (RevC): középen nagyban a számlák (tárcák) összesített egyenlege –
     // a vagyon (ingatlan, befektetés, hitel) nem, az a Vagyon oldalon látszik –,
     // alatta a tárcák gombja, utána a hónapok.
     const tarcaDb = torzs.penztarca.length, szamlak = pzTarcaOssz();
-    const hos = `<div class="pz-a-mfej">
+    let hos = `<div class="pz-a-mfej">
         <div class="pz-a-hos"><span class="c">Számlák egyenlege</span>
             <b>${szamlak < 0 ? '−' : ''}${pzFt(Math.abs(szamlak))}<small> Ft</small></b>
             <button type="button" class="pz-a-hos-gomb" data-pzview="tarca">${pzSvg('bank')}${tarcaDb ? tarcaDb + ' tárca' : 'Tárca felvétele'}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
         ${pzMobHokHtml('pzAMhok')}</div>`;
+    if(stoa){
+        const sz = ['var(--oc-tx)', 'var(--oc-ac2-8)', 'var(--oc-ac7)', 'var(--oc-ac9)'];
+        hos = `<div class="st-pz-hos">
+            <i class="kor1"></i><i class="kor2"></i>
+            <span class="c">Számlák egyenlege</span>
+            <b>${szamlak < 0 ? '−' : ''}${pzFt(Math.abs(szamlak))} Ft</b>
+            <button type="button" data-pzview="tarca"><span class="p">${torzs.penztarca.slice(0, 4).map((w, i) => `<i style="background:${sz[i]}"></i>`).join('')}</span>${tarcaDb ? tarcaDb + ' tárca ›' : 'Tárca felvétele ›'}</button>
+        </div>
+        ${pzStoaJelzesek(ho, lista, fizet)}
+        ${pzHoValtoHtml()}`;
+    }
     const html = `${hos}
     ${pzAEdit ? `<div class="pz-a-edit-info">Húzd a kártyákat a fogantyúnál (⠿) a helyükre, vagy használd a nyilakat. A „Látszik” gombbal elrejted / megjeleníted, a ⅓ · ⅔ · ▬ gombokkal a szélességét állítod (a sor harmada, kétharmada vagy egésze).</div>` : ''}
 
@@ -21508,6 +21616,16 @@ function renderPzFej(){
         ...PZ_NYILV.filter(([k]) => hasz.includes(k)).map(([k, c]) => [k, c, nyOn(k)]),
         ...(tobbi.length ? [[tobbi.some(([k]) => k === pzNyilv) ? pzNyilv : tobbi[0][0], hasz.length ? 'Továbbiak' : 'Nyilvántartások', pzView === 'nyilv' && !hasz.includes(pzNyilv)]] : []),
         ['beall', 'Beállítások', pzView === 'beall']];
+    if(window.stoaAktiv && window.stoaAktiv()){
+        // Stoa: a terv fülsora – a Vagyon „Nettó vagyon” néven; a többi nyilvántartás a Továbbiak alatt.
+        const fo = [['tarca', 'Tárcák'], ['elofiz', 'Előfizetések'], ['vagyon', 'Nettó vagyon']];
+        const tov = PZ_NYILV.filter(([k]) => !fo.some(f => f[0] === k));
+        fulek.length = 0;
+        fulek.push(['attek', 'Összkép', pzView === 'attek'], ['honap', 'Hónap', pzView === 'honap'], ['naplo', 'Tranzakciók', pzView === 'naplo'],
+            ...fo.map(([k, c]) => [k, c, nyOn(k)]),
+            [tov.some(([k]) => k === pzNyilv) ? pzNyilv : tov[0][0], 'Továbbiak', pzView === 'nyilv' && tov.some(([k]) => k === pzNyilv)],
+            ['beall', 'Beállítások', pzView === 'beall']);
+    }
     // telefonon a "Több" lapon is a használtak állnak elöl
     { const racs = document.querySelector('#pzTobb .sf-tobb-racs');
       if(racs) hasz.slice().reverse().forEach(k => { const b = racs.querySelector(`[data-pzview="${k}"]`); if(b) racs.prepend(b); }); }
@@ -21530,7 +21648,7 @@ function renderPzFej(){
     pzMobHokGorget('pzFejMhok');
     sfMbCim('penzugyek', pzAloldalNev());
 }
-const pzAloldalNev = () => pzView === 'beall' ? 'Beállítások' : pzView === 'nyilv' ? (PZ_NYILV.find(([k]) => k === pzNyilv) || [, 'Nyilvántartások'])[1] : (PZ_TABS.find(([k]) => k === pzView) || [, 'Pénzügyek'])[1];
+const pzAloldalNev = () => (window.stoaAktiv && window.stoaAktiv() && pzView === 'attek') ? 'Összkép' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && pzNyilv === 'vagyon') ? 'Nettó vagyon' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && pzNyilv === 'tarca') ? 'Tárcák' : pzView === 'beall' ? 'Beállítások' : pzView === 'nyilv' ? (PZ_NYILV.find(([k]) => k === pzNyilv) || [, 'Nyilvántartások'])[1] : (PZ_TABS.find(([k]) => k === pzView) || [, 'Pénzügyek'])[1];
 // Telefonon a felső sáv helyett a lap saját fejlécében van a menügomb; a valódi gombot nyomja meg.
 const pzBurgerHtml = () => `<button type="button" class="pz-fej-burger" data-sfburger aria-label="Menü megnyitása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>`;
 document.addEventListener('click', e => { if(e.target.closest('[data-sfburger]')) document.getElementById('mobileMenuBtn')?.click(); });
@@ -34492,7 +34610,7 @@ const SZ_FUL_ROVID = { 'Bejegyzések': 'Lista', 'Statisztika': 'Stat', 'Tevéken
     'Pénztárcák': 'Tárcák', 'Előfizetések': 'Előfiz.', 'Áttekintés': 'Összkép', 'Hawkins-skála': 'Hawkins', 'Havi vállalás': 'Vállalás', 'Szabályaim': 'Szabályok',
     'Tudásbázis': 'Tudás', 'Bedolgozás': 'Bedolg.', 'Elemzések': 'Elemzés', 'Skoolposzt és komment': 'Skool', 'E-mail': 'E-mail', 'Telefonhívás-segédletek': 'Telefon',
     'Havi terv': 'Hónap', 'Aktuális hét': 'Hét', 'Akciótervek': 'Akciók' };
-const SZ_FUL_IK = [[/lista|bejegyz/i, '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'], [/stat|elemz/i, '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+const SZ_FUL_IK = [[/nettó|vagyon/i, '<path d="M22 7 13.5 15.5 8.5 10.5 2 17M16 7h6v6"/>'], [/további/i, '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>'], [/lista|bejegyz/i, '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'], [/stat|elemz/i, '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
     [/naptár|hónap|idővonal/i, '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'], [/tevék|címk/i, '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>'],
     [/áttek|összkép|galéria/i, '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],
     [/tranz/i, '<path d="M4 8h14l-3-3M20 16H6l3 3"/>'], [/nyilv|tudás|szabály/i, '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>'],
@@ -47145,7 +47263,8 @@ body.sf-privat { --oc-bg:#eaf0f1; --oc-sf:#d8e3e6; --oc-tx:#14222a; --oc-ac:#2f6
     html body.sf-privat .szm-also .szm-t.fav { color:color-mix(in srgb, var(--oc-bg) 70%, transparent); background:none !important; font-size:11px; font-weight:700; gap:4px; }
     html body.sf-privat .szm-also .szm-t.fav svg { width:22px; height:22px; stroke-width:2.25; }
     html body.sf-privat .szm-also .szm-t.fav.on { color:var(--oc-ac300); }
-    html body.sf-privat .szm-gomb:not([hidden]) { width:66px; height:66px; margin-left:-33px; bottom:calc(var(--szm-le) + 6px + 32px); background:var(--oc-ac) !important; color:#fff; border:5px solid var(--oc-bg); box-shadow:var(--oc-sh-md) !important; box-sizing:border-box; }
+    /* a ＋ a sáv közepén, a sávon belül (nem emelkedik ki) */
+    html body.sf-privat .szm-gomb:not([hidden]) { width:56px; height:56px; margin-left:-28px; bottom:calc(var(--szm-le) + 6px + 8px); background:var(--oc-ac) !important; color:#fff; border:0; box-shadow:none !important; box-sizing:border-box; }
     html body.sf-privat .szm-gomb svg { width:28px; height:28px; stroke-width:3; }
     /* fejléc: cím ▾ (→ Összes), kerek kereső; a ＋ a sáv közepén van */
     body.sf-privat .mobile-bar .mb-plusz { display:none !important; }
@@ -47206,6 +47325,93 @@ body.sf-privat .szr-k:active i, body.sf-privat .szr-nagy:active { transform:scal
 .stoa-toast.be { transform:translate(-50%, 0); }
 .stoa-toast i { width:44px; height:44px; border-radius:999px; background:#2f6f8f; display:grid; place-items:center; } .stoa-toast i svg { width:22px; height:22px; stroke:#fff; }
 .stoa-toast span { display:flex; flex-direction:column; } .stoa-toast em { font-style:normal; font-size:11px; font-weight:600; opacity:.7; } .stoa-toast b { font-size:14px; }
+/* ===== Stoa 3. szakasz: Pénzügyek – Összkép (szem-design/handoff/penzugyek.dc.html) ===== */
+body.sf-privat { --oc-ac4:color-mix(in oklch, #2f6f8f 70%, white); --oc-ac7:color-mix(in oklch, #2f6f8f 68%, black); --oc-ac8:color-mix(in oklch, #2f6f8f 50%, black); --oc-ac9:color-mix(in oklch, #2f6f8f 32%, black);
+    --oc-ac2-3:color-mix(in oklch, #e07a5f 40%, white); --oc-ac2-4:color-mix(in oklch, #e07a5f 70%, white); --oc-ac2-8:color-mix(in oklch, #e07a5f 50%, black); --oc-ac2-9:color-mix(in oklch, #e07a5f 32%, black);
+    --oc-sh-sm:0 1px 2px rgba(46,43,37,.14); --oc-hd:'Bricolage Grotesque','DM Sans',sans-serif; }
+body.sf-privat #pzAttek { display:flex; flex-direction:column; gap:14px; }
+body.sf-privat #pzAttek .pz-a-racs { gap:14px; }
+body.sf-privat .st-pz-hos { position:relative; overflow:hidden; background:var(--oc-ac200); color:var(--oc-tx); border-radius:36px; padding:22px; display:flex; flex-direction:column; gap:4px; }
+body.sf-privat .st-pz-hos .kor1 { position:absolute; right:-50px; top:-70px; width:180px; height:180px; border-radius:999px; background:var(--oc-ac300); }
+body.sf-privat .st-pz-hos .kor2 { position:absolute; right:40px; bottom:-60px; width:110px; height:110px; border-radius:999px; background:var(--oc-ac2-3); }
+body.sf-privat .st-pz-hos > :not(i) { position:relative; }
+body.sf-privat .st-pz-hos .c { font-size:13px; font-weight:600; color:var(--oc-ac9); }
+body.sf-privat .st-pz-hos b { font-family:var(--oc-hd); font-weight:400; font-size:40px; line-height:1.1; font-variant-numeric:tabular-nums; }
+body.sf-privat .st-pz-hos button { align-self:flex-start; margin-top:8px; height:36px; padding:0 14px; border:0; border-radius:999px; background:var(--oc-bg); color:var(--oc-tx); font:700 13px/1 inherit; font-family:inherit; cursor:pointer; display:flex; align-items:center; gap:8px; }
+body.sf-privat .st-pz-hos button .p { display:flex; gap:3px; } body.sf-privat .st-pz-hos button .p i { width:8px; height:8px; border-radius:999px; }
+body.sf-privat .st-jelzes { background:var(--oc-ac2-100); border-radius:24px; padding:10px 8px 10px 12px; display:flex; align-items:center; gap:10px; color:var(--oc-ac2-9); }
+body.sf-privat .st-jelzes > svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:2.75; }
+body.sf-privat .st-jelzes span { flex:1; font-size:13px; font-weight:700; line-height:1.35; }
+body.sf-privat .st-jelzes button { height:32px; padding:0 10px; border:0; border-radius:999px; background:var(--oc-bg); color:var(--oc-tx); font:inherit; font-size:12px; font-weight:700; cursor:pointer; flex:none; }
+body.sf-privat .st-jelzes button.x { width:32px; padding:0; background:transparent; color:inherit; font-size:14px; }
+body.sf-privat .st-hovalto { display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--oc-sf); }
+body.sf-privat .st-hovalto button { flex:1; height:38px; border:0; border-radius:999px; background:transparent; color:var(--oc-n7); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+body.sf-privat .st-hovalto button.on { background:var(--oc-bg); color:var(--oc-tx); box-shadow:var(--oc-sh-sm); }
+body.sf-privat .st-hovalto button.tobb { flex:0 0 38px; display:grid; place-items:center; padding:0; }
+body.sf-privat .st-hovalto button.tobb svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2.75; stroke-linecap:round; stroke-linejoin:round; }
+body.sf-privat .st-pz-kpi { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+body.sf-privat .st-pz-k { background:var(--oc-sf); border-radius:28px; padding:14px 16px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+body.sf-privat .st-pz-k .c { font-size:12px; font-weight:700; color:var(--oc-n7); display:flex; align-items:center; gap:6px; }
+body.sf-privat .st-pz-k .c i { width:8px; height:8px; border-radius:999px; flex:none; }
+body.sf-privat .st-pz-k .c.be { color:var(--oc-ac8); } body.sf-privat .st-pz-k .c.be i { background:var(--oc-ac); }
+body.sf-privat .st-pz-k .c.ki { color:var(--oc-ac2-8); } body.sf-privat .st-pz-k .c.ki i { background:var(--oc-ac2); }
+body.sf-privat .st-pz-k b { font-size:19px; font-weight:700; color:var(--oc-tx); font-variant-numeric:tabular-nums; }
+body.sf-privat .st-pz-k .s { font-size:11px; font-weight:600; color:var(--oc-n7); }
+body.sf-privat .st-pz-k.szeles { grid-column:1 / -1; flex-direction:row; align-items:center; gap:12px; }
+body.sf-privat .st-pz-k.szeles .t { flex:1; display:flex; flex-direction:column; gap:2px; } body.sf-privat .st-pz-k.szeles .s { font-size:12px; }
+body.sf-privat .st-pz-kartya { background:var(--oc-sf); border-radius:28px; padding:8px 8px 4px; display:flex; flex-direction:column; color:var(--oc-tx); height:100%; box-sizing:border-box; }
+body.sf-privat .st-pz-kartya.pad { padding:16px; gap:12px; }
+body.sf-privat .st-pz-fej { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:8px 8px 4px; }
+body.sf-privat .st-pz-kartya.pad .st-pz-fej { padding:0; }
+body.sf-privat .st-pz-fej h4 { margin:0; font-size:15px; font-weight:700; color:var(--oc-tx); font-family:inherit; }
+body.sf-privat .st-pz-fej span { font-size:12px; color:var(--oc-n7); text-align:right; }
+body.sf-privat .st-pz-fej a { font-size:13px; font-weight:700; color:var(--oc-ac7); text-decoration:none; }
+body.sf-privat .st-pz-li { display:flex; align-items:center; gap:12px; padding:8px; }
+body.sf-privat .st-pz-li .av { width:40px; height:40px; flex:none; border-radius:999px; background:var(--oc-bg); display:grid; place-items:center; color:var(--oc-tx); }
+body.sf-privat .st-pz-li .av svg { width:18px; height:18px; }
+body.sf-privat .st-pz-li .n { flex:1; min-width:0; display:flex; flex-direction:column; }
+body.sf-privat .st-pz-li .n b { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+body.sf-privat .st-pz-li .n em { font-style:normal; font-size:12px; color:var(--oc-n7); }
+body.sf-privat .st-pz-li .o { font-size:14px; font-weight:700; white-space:nowrap; }
+body.sf-privat .st-pz-jelm { display:flex; gap:12px; font-size:12px; font-weight:600; }
+body.sf-privat .st-pz-jelm span { display:flex; align-items:center; gap:5px; }
+body.sf-privat .st-pz-jelm i { width:10px; height:10px; border-radius:999px; } body.sf-privat .st-pz-jelm i.be { background:var(--oc-ac); } body.sf-privat .st-pz-jelm i.ki { background:var(--oc-ac2); }
+body.sf-privat .st-pz-jelm i.megt { width:14px; height:3px; border-radius:2px; background:var(--oc-tx); }
+body.sf-privat .st-pz-aram { position:relative; height:150px; }
+body.sf-privat .st-pz-aram .osz { position:absolute; inset:0; display:grid; grid-template-columns:repeat(6,1fr); align-items:end; }
+body.sf-privat .st-pz-aram .osz button { height:100%; border:0; padding:0 0 2px; background:transparent; border-radius:14px; cursor:pointer; display:flex; align-items:flex-end; justify-content:center; gap:3px; opacity:.5; }
+body.sf-privat .st-pz-aram .osz button.on { opacity:1; background:var(--oc-bg); }
+body.sf-privat .st-pz-aram .osz i { width:12px; min-height:2px; border-radius:999px 999px 4px 4px; }
+body.sf-privat .st-pz-aram .osz i.be { background:var(--oc-ac300); } body.sf-privat .st-pz-aram .osz i.ki { background:var(--oc-ac2-3); }
+body.sf-privat .st-pz-aram svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+body.sf-privat .st-pz-aram polyline { fill:none; stroke:var(--oc-tx); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+body.sf-privat .st-pz-honevek { display:grid; grid-template-columns:repeat(6,1fr); font-size:11px; font-weight:700; color:var(--oc-n7); text-align:center; text-transform:capitalize; }
+body.sf-privat .st-pz-info { background:var(--oc-bg); border-radius:18px; padding:10px 12px; display:flex; justify-content:space-between; gap:6px; font-size:12px; font-weight:700; text-transform:none; flex-wrap:wrap; }
+body.sf-privat .st-pz-info span:first-child { text-transform:capitalize; }
+body.sf-privat .st-pz-info .be { color:var(--oc-ac8); } body.sf-privat .st-pz-info .ki { color:var(--oc-ac2-8); }
+body.sf-privat .st-pz-kat { border:0; background:transparent; padding:4px 0; cursor:pointer; text-align:left; color:var(--oc-tx); display:flex; flex-direction:column; gap:5px; font:inherit; width:100%; }
+body.sf-privat .st-pz-kat .sor { display:flex; justify-content:space-between; gap:8px; font-size:13px; font-weight:700; }
+body.sf-privat .st-pz-kat .csik { height:8px; border-radius:999px; background:var(--oc-bg); display:block; }
+body.sf-privat .st-pz-kat .csik i { display:block; height:100%; border-radius:999px; }
+body.sf-privat .st-pz-al { background:var(--oc-bg); border-radius:18px; padding:6px 12px; display:flex; flex-direction:column; }
+body.sf-privat .st-pz-al div { display:flex; justify-content:space-between; gap:8px; padding:6px 0; font-size:12.5px; }
+body.sf-privat .st-pz-al div + div { border-top:1px solid var(--oc-sf); }
+body.sf-privat .st-pz-tobb { border:0; background:var(--oc-bg); color:var(--oc-tx); border-radius:999px; height:36px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+body.sf-privat .st-pz-halk { font-size:14px; color:var(--oc-n7); }
+body.sf-privat .st-pz-netto { width:100%; height:auto !important; border:0; cursor:pointer; text-align:left; padding:16px; flex-direction:row; align-items:center; gap:12px; font:inherit; }
+body.sf-privat .st-pz-netto .t { flex:1; display:flex; flex-direction:column; gap:2px; }
+body.sf-privat .st-pz-netto .c { font-size:12px; font-weight:700; color:var(--oc-n7); }
+body.sf-privat .st-pz-netto b { font-size:19px; font-weight:700; }
+body.sf-privat .st-pz-netto .r { font-size:13px; font-weight:700; color:var(--oc-ac7); }
+/* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
+body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
+@media (max-width:760px){
+    body.sf-privat #page-penzugyek[data-pzv="attek"] #pzFej .pz-fej-ho, body.sf-privat #page-penzugyek[data-pzv="attek"] #pzFej .pz-mhok { display:none !important; }
+    body.sf-privat #pzAttek .pz-a-w.m1, body.sf-privat #pzAttek .pz-a-w.m2 { grid-column:1 / -1; }
+}
+@media (min-width:761px){
+    body.sf-privat #page-penzugyek[data-pzv="attek"] #pzFej .pz-fej-ho { display:none !important; }
+}
 </style>
 <script>
 // ===== TERVEZET-KÉSZÍTŐ =====
