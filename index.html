@@ -34618,6 +34618,27 @@ document.addEventListener('keydown', e => {
     if(e.key === 'Enter' && e.target.matches && e.target.matches('#egBody [data-ezm]')){ e.preventDefault(); if(ezMeresMent()) renderEgeszseg(); }
 });
 
+document.addEventListener('click', async e => { if(!e.target.closest('[data-mastviz]')) return;
+    await nlEv(ezMa().slice(0, 4)).catch(() => null); maEgValt('viz', 1); renderPrivMa(); });
+// ===== Stoa illusztráció (szem-design/handoff/illu.dc.html): színes formák + Lucide ikon egy körben =====
+// mod: 'jelenet' (Ikon-jelenet, alap) | 'matrica'; tone: 'a' (kék) | 'a2' (korall); seed: 0–3 az elrendezés.
+const STOA_ILLU_ARR = [
+    [[0, .14, .7, .7, '999px', 0], [.58, 0, .36, .36, '999px', 1], [.4, .68, .54, .22, '999px', 2, -18], [.1, .06, .12, .12, '999px', 2]],
+    [[.08, .2, .84, .62, '50% 50% 42% 42% / 62% 62% 38% 38%', 0], [0, 0, .34, .34, '999px', 1], [.66, .62, .3, .3, '999px', 2], [.72, .1, .1, .1, '999px', 2]],
+    [[.04, .22, .6, .6, '999px', 0], [.38, .08, .56, .56, '999px', 3], [.64, .56, .18, .42, '999px', 2], [.16, .8, .12, .12, '999px', 1]],
+    [[.14, .12, .72, .86, '999px 999px 22% 22%', 0], [.6, 0, .32, .32, '999px', 2], [0, .68, .5, .18, '999px', 1, 12], [.8, .7, .1, .1, '999px', 1]]];
+const STOA_ILLU_MATR = [[.16, .2, .7, .7, '28%', 2, 8], [.1, .1, .7, .7, '28%', 4, -6, 'inset 0 0 0 3px var(--oc-tx)'], [.74, .02, .16, .16, '999px', 1]];
+window.stoaIllu = function(ik, o = {}){
+    const size = o.size || 92, seed = (o.seed || 0) % 4, a2 = o.tone === 'a2', matr = o.mod === 'matrica';
+    const C = a2 ? ['var(--oc-ac2-200)', 'var(--oc-ac300)', 'var(--oc-ac2)', 'var(--oc-ac2-100)', 'var(--oc-bg)']
+                 : ['var(--oc-ac200)', 'var(--oc-ac2-3)', 'var(--oc-ac)', 'var(--oc-ac100)', 'var(--oc-bg)'];
+    const pct = v => Math.round(v * 100) + '%';
+    const formak = (matr ? STOA_ILLU_MATR : STOA_ILLU_ARR[seed]).map(([x, y, w, h, r, c, rot, b]) =>
+        `<i style="left:${pct(x)};top:${pct(y)};width:${pct(w)};height:${pct(h)};border-radius:${r};background:${C[c]};${rot ? `transform:rotate(${rot}deg);` : ''}${b ? `box-shadow:${b};` : ''}"></i>`).join('');
+    const svg = (window.LUCIDE && window.LUCIDE[ik]) || ik || '';
+    const isz = Math.round(size * (matr ? .32 : .26));
+    return `<span class="st-illu${matr ? ' matr' : ''}${a2 ? ' a2' : ''}" style="width:${size}px;height:${size}px" aria-hidden="true">${formak}<span class="d"><svg viewBox="0 0 24 24" width="${isz}" height="${isz}">${svg}</svg></span></span>`;
+};
 // ===================== MA (privát kezdőlap) =====================
 // Mai szokások listaként: elöl a hátralévők, a végén (halványan) a kész ma; soronként pipa, név, sorozat.
 function maSzokSorok(sz, l, ma){
@@ -34741,6 +34762,27 @@ async function renderPrivMa(){
                 <div class="ma-eg-lep ma-eg-kozep"><b>${utM ? ezMKg(utM.kg) : '—'}<small> kg</small></b></div>
                 <div class="ma-eg-also"><label class="ma-suly-in"><input type="text" inputmode="decimal" data-ezm="kg" placeholder="mai súly" aria-label="Mai testsúly (kg)"><button type="button" data-mamer>Mentés</button></label></div></div></div>`, 'ma-eg-k'),
     };
+    const stoaMa = !!(window.stoaAktiv && window.stoaAktiv());
+    if(stoaMa){
+        // 4 csempe: Szokások · Víz · Ma elköltve · Testsúly
+        const viz = nlNapViz(ma);
+        K.gyuruk = `<section class="card pv-kartya st-ma-csempek"><div class="st-ma-cs">
+            <button type="button" class="${szAll.es && szKeszDb < szAll.es ? 'a2' : ''}" data-mamenj="szokasok"><span class="c">Szokások</span><b>${szAll.es ? `${szKeszDb} / ${szAll.es}` : '—'}</b></button>
+            <button type="button" data-mastviz aria-label="Egy pohár víz hozzáadása"><span class="c">Víz</span><b>${viz} pohár</b><em>+1 pohár</em></button>
+            <button type="button" data-mamenj="penzugyek"><span class="c">Ma elköltve</span><b>${pzFt(maOssz)} Ft</b></button>
+            <button type="button" data-mamenj="egeszseg"><span class="c">Testsúly</span><b>${utM ? ezMKg(utM.kg) + ' kg' : '—'}</b></button></div></section>`;
+        // szokások: pirula sorok – gyűrűs pipa, név, sorozat
+        const szSor = szl.map(h => { const on = szKesz(sz, h, ma), n = szSorozat(sz, h);
+            return `<button type="button" class="st-ma-szs${on ? ' on' : ''}" data-szpipa="${esc(h.id)}" data-sznap="${ma}" aria-pressed="${on}">
+                <i>${on ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</i><span>${esc(h.n)}</span><em>${szHeti(h) ? `${szHetDb(sz, h, ma)}/${h.het} a héten` : n >= 1 ? n + ' nap' : ''}</em></button>`; });
+        K.szokas = `<section class="card pv-kartya st-ma-szok"><div class="st-ma-fej"><h3>Szokások</h3><button type="button" data-mamenj="szokasok">Mind (${szl.length})</button></div>
+            ${szl.length ? `<div class="st-ma-szl">${szSor.slice(0, 5).join('')}</div>` : `<p class="pv-megj">Még nincs mára esedékes szokás.</p>`}</section>`;
+        // mai edzés: kicker, cím, meta, gombok
+        K.edzes = `<section class="card pv-kartya st-ma-edz"><span class="k">Mai edzés</span>${edz.length ? edz.slice(0, 2).map(e => { const er = ezEr(e, ma);
+            return `<div class="t"><b>${esc(e.n)}</b><span>${esc([e.ido, ezCel(e)].filter(Boolean).join(' · '))}</span></div>
+                <div class="g">${er.a === 'terv' ? `<button type="button" class="p" data-mamenj="edzes">Edzés indítása</button><button type="button" data-maedzok="${esc(e.id)}">Kész</button>` : `<span class="kesz">${ezAllCim(er)} ✓</span>`}</div>`; }).join('')
+            : `<div class="t"><b>${pih ? 'Pihenőnap' : 'Nincs betervezett edzés'}</b><span>${pih ? 'A regeneráció is az edzés része.' : 'Tervezz egyet az Edzés oldalon.'}</span></div><div class="g"><button type="button" data-mamenj="edzes">Edzés megnyitása</button></div>`}</section>`;
+    }
     const mb = maBeall(await prvBetolt('beall').catch(() => ({})));
     if(!prvLap('privma')) return;
     // szerkesztés közben minden kártya látszik (a rejtettek halványan, az épp üresek helykitöltővel)
@@ -34791,6 +34833,8 @@ async function renderPrivMa(){
             <span class="ma-csik kicsi"><i style="width:${Math.min(100, x.ar * 100).toFixed(0)}%" class="${x.ar >= 1 ? 'tul' : 'fig'}"></i></span></span></div>`).join('')}</div>` : '';
     const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
+        ${stoaMa ? `<div class="st-ma-hos"><div class="t"><span class="d">${PRV_NAP[dt.getDay()].replace(/^./, x => x.toUpperCase())}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><h2>Szia${nev ? ', ' + esc(nev) : ''}!</h2></div>
+            ${window.stoaIllu(ora < 18 && ora >= 6 ? 'sun' : 'moon', { size: 92, seed: 3 })}</div>` : ''}
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
             <span class="s">${osszesito.length ? esc(osszesito.join(' · ')) : 'Nyugodt nap – semmi sem sürget.'}</span>
             <button type="button" class="ma-rogzit" data-szplusz><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Rögzítés</button></div>
@@ -47820,6 +47864,52 @@ body.sf-privat .st-pz-csik i { display:block; height:100%; border-radius:999px; 
 .st-lalja .ment { flex:1; height:52px; border:0; border-radius:999px; background:var(--oc-ac); color:#fff; font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
 .st-lalja .ment:disabled { background:var(--oc-n3); color:var(--oc-n7); cursor:default; }
 .st-lhiba:empty { display:none; } .st-lhiba { font-size:13px; font-weight:700; color:var(--oc-ac2-8); }
+body.sf-privat #privMaBody .ma-figy { background:var(--oc-ac2-100) !important; border:0 !important; border-radius:24px !important; box-shadow:none !important; margin-bottom:14px; }
+body.sf-privat #privMaBody .ma-figy .pz-ikon { background:var(--oc-bg) !important; border-radius:999px !important; }
+/* Illusztráció */
+body.sf-privat { --oc-ac100:color-mix(in oklch, #2f6f8f 10%, white); --oc-ac2-200:color-mix(in oklch, #e07a5f 22%, white); }
+.st-illu { position:relative; display:inline-block; flex:none; }
+.st-illu > i { position:absolute; display:block; }
+.st-illu > .d { position:absolute; left:24%; top:24%; width:52%; height:52%; border-radius:999px; background:var(--oc-bg); box-shadow:0 1px 2px rgba(46,43,37,.14); display:grid; place-items:center; color:#1d4a60 !important; }
+.st-illu.a2 > .d { color:#8a3f2c !important; }
+.st-illu.matr > .d { left:10%; top:10%; width:70%; height:70%; background:transparent; box-shadow:none; color:var(--oc-tx); }
+.st-illu svg { fill:none; stroke:currentColor; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+/* Ma */
+body.sf-privat .st-ma-hos { display:flex; align-items:center; gap:12px; margin:0 0 16px; }
+body.sf-privat .st-ma-hos .t { flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
+body.sf-privat .st-ma-hos .d { font-size:14px; font-weight:600; color:color-mix(in oklch, #e07a5f 68%, black); }
+body.sf-privat .st-ma-hos h2 { font-family:var(--oc-hd); font-weight:400; font-size:42px; line-height:1; margin:0; color:var(--oc-tx); letter-spacing:-.01em; }
+body.sf-privat #privMaBody .ma-hos { display:none !important; }
+body.sf-privat #privMaBody .card.st-ma-csempek { background:none !important; padding:0 !important; box-shadow:none !important; border:0 !important; overflow:visible; }
+body.sf-privat #privMaBody .card.st-ma-csempek::before, body.sf-privat #privMaBody .card.st-ma-csempek::after { display:none !important; }
+body.sf-privat .st-ma-cs { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+body.sf-privat .st-ma-cs button { border:0; text-align:left; cursor:pointer; border-radius:28px; padding:14px 16px; background:var(--oc-sf); color:var(--oc-tx); display:flex; flex-direction:column; gap:4px; font:inherit; position:relative; }
+body.sf-privat .st-ma-cs button.a2 { background:var(--oc-ac2-100); }
+body.sf-privat .st-ma-cs .c { font-size:12px; font-weight:700; color:var(--oc-n7); } body.sf-privat .st-ma-cs button.a2 .c { color:var(--oc-ac2-8); }
+body.sf-privat .st-ma-cs b { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+body.sf-privat .st-ma-cs em { position:absolute; right:14px; top:14px; font-style:normal; font-size:11px; font-weight:700; color:var(--oc-ac7); }
+body.sf-privat #privMaBody .card.st-ma-szok { background:none !important; padding:0 !important; box-shadow:none !important; border:0 !important; }
+body.sf-privat .st-ma-fej { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+body.sf-privat .st-ma-fej h3 { font-family:var(--oc-hd); font-weight:400; font-size:22px; margin:0; color:var(--oc-tx); }
+body.sf-privat .st-ma-fej button { border:0; background:none; font:inherit; font-size:14px; font-weight:700; color:var(--oc-ac7); cursor:pointer; padding:8px 0; }
+body.sf-privat .st-ma-szl { display:flex; flex-direction:column; gap:8px; }
+body.sf-privat .st-ma-szs { display:flex; align-items:center; gap:12px; padding:10px 14px; border:0; border-radius:999px; background:var(--oc-sf); cursor:pointer; text-align:left; color:var(--oc-tx); font:inherit; }
+body.sf-privat .st-ma-szs i { width:28px; height:28px; flex:none; border-radius:999px; box-sizing:border-box; border:2.5px solid var(--oc-ac2-4); display:grid; place-items:center; color:#fff; }
+body.sf-privat .st-ma-szs.on i { background:var(--oc-ac); border-color:var(--oc-ac); }
+body.sf-privat .st-ma-szs i svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:3.25; stroke-linecap:round; stroke-linejoin:round; }
+body.sf-privat .st-ma-szs span { flex:1; font-size:15px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body.sf-privat .st-ma-szs.on span { opacity:.6; }
+body.sf-privat .st-ma-szs em { font-style:normal; font-size:12px; font-weight:600; color:var(--oc-n7); white-space:nowrap; }
+body.sf-privat #privMaBody .card.st-ma-edz { background:var(--oc-sf) !important; border-radius:28px !important; padding:18px !important; display:flex; flex-direction:column; gap:12px; }
+body.sf-privat .st-ma-edz .k { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--oc-ac7); }
+body.sf-privat .st-ma-edz .t { display:flex; flex-direction:column; gap:2px; }
+body.sf-privat .st-ma-edz .t b { font-family:var(--oc-hd); font-weight:400; font-size:22px; line-height:1.15; color:var(--oc-tx); }
+body.sf-privat .st-ma-edz .t span { font-size:13px; color:var(--oc-n7); }
+body.sf-privat .st-ma-edz .g { display:flex; gap:8px; flex-wrap:wrap; }
+body.sf-privat .st-ma-edz .g button { height:40px; padding:0 18px; border:0; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 2px var(--oc-n3); color:var(--oc-tx); font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+body.sf-privat .st-ma-edz .g button.p { background:var(--oc-ac); color:#fff; box-shadow:none; }
+body.sf-privat .st-ma-edz .kesz { font-size:13px; font-weight:700; color:var(--oc-ac8); background:var(--oc-ac200); padding:6px 12px; border-radius:999px; }
+@media (max-width:760px){ body.sf-privat:has(#page-privma:not([hidden])) .mobile-bar .mb-title { visibility:hidden; } body.sf-privat #page-privma .page-wrap { padding-top:0; } body.sf-privat .st-ma-hos { margin-top:-8px; } body.sf-privat:has(#page-privma:not([hidden])) .mobile-bar { height:auto; min-height:0; } }
 /* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
 body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 @media (max-width:760px){
