@@ -20915,7 +20915,49 @@ function pzTarcaModal(idx){
     setTimeout(() => ov.querySelector('[data-f="n"]').focus(), 30);
 }
 
+// ---- Stoa: Nettó vagyon = Vagyon + Hitelek egy oldalon ----
+function renderPzStNetto(){
+    const host = document.getElementById('pzTorzs'); if(!host) return;
+    const t = pzTorzsGet(), vagy = t.vagyon || [], hit = t.hitel || [];
+    const tarca = Math.max(0, pzTarcaOssz()), bef = vagy.filter(x => x.tipus === 'befektetes').reduce((s, x) => s + (x.o || 0), 0);
+    const egyeb = pzEszkoz() - tarca - bef, eszk = Math.max(1, tarca + bef + Math.max(0, egyeb));
+    const szel = [['Pénztárcák', tarca, 'var(--oc-ac)'], ['Befektetések', bef, 'var(--oc-ac2)'], ['Egyéb', Math.max(0, egyeb), 'var(--oc-ac7)']];
+    const R = 42, C = 2 * Math.PI * R; let ofs = 0;
+    const iv = szel.filter(x => x[1] > 0).map(([, v, sz]) => { const h = v / eszk * C; const el = `<circle cx="60" cy="60" r="${R}" stroke="${sz}" stroke-dasharray="${Math.max(.1, h - 2).toFixed(2)} ${(C - h + 2).toFixed(2)}" stroke-dashoffset="${(-ofs).toFixed(2)}"/>`; ofs += h; return el; }).join('');
+    const ft = n => (n < 0 ? '−' : '') + pzFt(Math.abs(n)) + ' Ft';
+    const tipNev = k => (PZ_VAGYON_TIP.find(x => x[0] === k) || ['', 'Egyéb'])[1];
+    const ik = k => pzSvg({ befektetes:'grafikon', keszpenz:'penz', ingatlan:'otthon' }[k] || 'doboz');
+    const valt = x => { if(!x.elozo) return ''; const p = Math.round((x.o - x.elozo) / Math.abs(x.elozo) * 1000) / 10;
+        return ` · <span class="${p >= 0 ? 'be' : 'ki'}">${p >= 0 ? '+' : '−'}${String(Math.abs(p)).replace('.', ',')}%</span>`; };
+    host.innerHTML = `<div class="st-netto">
+        <div class="st-nyfej"><span class="c">Nettó vagyon · eszközök − tartozás</span><b>${ft(pzNetto())}</b>
+            <span class="g"><button type="button" data-pzstnuj="vagyon">+ Vagyonelem</button><button type="button" data-pzstnuj="hitel">+ Tartozás</button></span></div>
+        <div class="st-pz-kartya pad st-fank">
+            <span class="f"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="${R}" class="h"/>${iv}</svg><span><em>eszközök</em><b>${pzRovid(tarca + bef + Math.max(0, egyeb))}</b></span></span>
+            <span class="l">${szel.map(([n, v, sz]) => `<span><i style="background:${sz}"></i>${n}<b>${Math.round(v / eszk * 100)}%</b></span>`).join('')}</span>
+        </div>
+        <section class="st-pz-kartya">
+            <div class="st-pz-fej"><h4>Vagyonelemek</h4><button type="button" class="lnk" data-pzstnuj="vagyon">+ Új</button></div>
+            ${vagy.length ? vagy.map((x, i) => `<button type="button" class="st-pz-li gomb" data-pzstnel="vagyon|${i}"><i class="av">${ik(x.tipus)}</i>
+                <span class="n"><b>${esc(x.n || '—')}</b><em>${esc(tipNev(x.tipus))}${valt(x)}</em></span><b class="o">${ft(x.o || 0)}</b></button>`).join('')
+            : `<div class="st-pz-ures">Még nincs vagyonelem (befektetés, ingatlan, autó…).</div>`}
+        </section>
+        <section class="st-pz-kartya">
+            <div class="st-pz-fej"><h4>Tartozások</h4><button type="button" class="lnk" data-pzstnuj="hitel">+ Új</button></div>
+            ${hit.length ? hit.map((x, i) => `<button type="button" class="st-pz-li gomb" data-pzstnel="hitel|${i}"><i class="av ki">${pzSvg('bank')}</i>
+                <span class="n"><b>${esc(x.n || '—')}</b><em>${x.torleszto ? `havi ${pzFt(x.torleszto)} Ft · ${x.nap || 1}.` : 'hitel'}</em></span><b class="o ki">−${pzFt(x.o || 0)} Ft</b></button>`).join('')
+            : `<div class="st-pz-ures">Nincs tartozás – így tovább!</div>`}
+        </section>
+    </div>`;
+}
+document.addEventListener('click', e => {
+    const u = e.target.closest('[data-pzstnuj]');
+    if(u){ pzNyilv = u.dataset.pzstnuj; pzTorzsModal(null); return; }
+    const el = e.target.closest('[data-pzstnel]');
+    if(el){ const [k, i] = el.dataset.pzstnel.split('|'); pzNyilv = k; pzTorzsModal(+i); }
+});
 function renderPzTorzs(){
+    if(window.stoaAktiv && window.stoaAktiv() && ['vagyon', 'hitel'].includes(pzNyilv)) return renderPzStNetto();
     const host = document.getElementById('pzTorzs'); if(!host) return;
     const d = PZ_TORZS_DEF[pzNyilv]; if(!d) return;
     const lista = pzTorzsGet()[pzNyilv] || [];
@@ -20949,6 +20991,14 @@ function renderPzTorzs(){
         <div class="pz-tm-ossz"><span>${esc(d.osszCim)}</span><b>${pzFt(d.ossz(lista))} Ft</b></div></div></section>`
     : `<section class="card pz-sec"><div class="pz-ures">Még nincs ${esc(d.egy)}. Kezdd a <b>+ Új ${esc(d.egy)}</b> gombbal.</div></section>`}`;
     pzMobHokGorget(host.querySelector('.pz-nyilvseg'));
+    if(pzNyilv === 'elofiz' && lista.length && window.stoaAktiv && window.stoaAktiv()){
+        // megoszlás-csík: a legnagyobb havi tételek színes szakaszokként
+        const SZ = ['var(--oc-tx)', 'var(--oc-ac7)', 'var(--oc-ac2-8)', 'var(--oc-ac2)', 'var(--oc-ac4)', 'var(--oc-n3)'];
+        const h = lista.map(x => pzElofizHaviResz(x)).sort((a, b) => b - a);
+        const hos = host.querySelector('.pz-t-mfej .pz-a-hos');
+        if(hos) hos.insertAdjacentHTML('beforeend', `<span class="st-pz-csik" aria-hidden="true">${h.map((v, i) => `<i style="flex:${Math.max(1, v)};background:${SZ[Math.min(i, SZ.length - 1)]}"></i>`).join('')}</span>`);
+        const hs = host.querySelector('.pz-t-mfej .pz-a-hos'); if(hs) hs.style.width = '100%';
+    }
 }
 
 function pzTorzsModal(idx, alap){
@@ -21619,10 +21669,10 @@ function renderPzFej(){
     if(window.stoaAktiv && window.stoaAktiv()){
         // Stoa: a terv fülsora – a Vagyon „Nettó vagyon” néven; a többi nyilvántartás a Továbbiak alatt.
         const fo = [['tarca', 'Tárcák'], ['elofiz', 'Előfizetések'], ['vagyon', 'Nettó vagyon']];
-        const tov = PZ_NYILV.filter(([k]) => !fo.some(f => f[0] === k));
+        const tov = PZ_NYILV.filter(([k]) => !fo.some(f => f[0] === k) && k !== 'hitel');
         fulek.length = 0;
         fulek.push(['attek', 'Összkép', pzView === 'attek'], ['honap', 'Hónap', pzView === 'honap'], ['naplo', 'Tranzakciók', pzView === 'naplo'],
-            ...fo.map(([k, c]) => [k, c, nyOn(k)]),
+            ...fo.map(([k, c]) => [k, c, nyOn(k) || (k === 'vagyon' && nyOn('hitel'))]),
             [tov.some(([k]) => k === pzNyilv) ? pzNyilv : tov[0][0], 'Továbbiak', pzView === 'nyilv' && tov.some(([k]) => k === pzNyilv)],
             ['beall', 'Beállítások', pzView === 'beall']);
     }
@@ -21648,7 +21698,7 @@ function renderPzFej(){
     pzMobHokGorget('pzFejMhok');
     sfMbCim('penzugyek', pzAloldalNev());
 }
-const pzAloldalNev = () => (window.stoaAktiv && window.stoaAktiv() && pzView === 'attek') ? 'Összkép' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && pzNyilv === 'vagyon') ? 'Nettó vagyon' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && pzNyilv === 'tarca') ? 'Tárcák' : pzView === 'beall' ? 'Beállítások' : pzView === 'nyilv' ? (PZ_NYILV.find(([k]) => k === pzNyilv) || [, 'Nyilvántartások'])[1] : (PZ_TABS.find(([k]) => k === pzView) || [, 'Pénzügyek'])[1];
+const pzAloldalNev = () => (window.stoaAktiv && window.stoaAktiv() && pzView === 'attek') ? 'Összkép' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && (pzNyilv === 'vagyon' || pzNyilv === 'hitel')) ? 'Nettó vagyon' : (window.stoaAktiv && window.stoaAktiv() && pzView === 'nyilv' && pzNyilv === 'tarca') ? 'Tárcák' : pzView === 'beall' ? 'Beállítások' : pzView === 'nyilv' ? (PZ_NYILV.find(([k]) => k === pzNyilv) || [, 'Nyilvántartások'])[1] : (PZ_TABS.find(([k]) => k === pzView) || [, 'Pénzügyek'])[1];
 // Telefonon a felső sáv helyett a lap saját fejlécében van a menügomb; a valódi gombot nyomja meg.
 const pzBurgerHtml = () => `<button type="button" class="pz-fej-burger" data-sfburger aria-label="Menü megnyitása"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>`;
 document.addEventListener('click', e => { if(e.target.closest('[data-sfburger]')) document.getElementById('mobileMenuBtn')?.click(); });
@@ -47531,6 +47581,48 @@ body.sf-privat #pzNaplo .st-hovalto { margin-top:12px; }
     body.sf-privat #pzNaplo .pz-ker-ik { display:inline-grid !important; place-items:center; width:44px; height:44px; padding:0 !important; border-radius:999px !important; background:var(--oc-sf) !important; border:0 !important; color:var(--oc-tx); }
     body.sf-privat #pzNaplo .pz-ker-ik.on { background:var(--oc-tx) !important; color:var(--oc-bg); }
     body.sf-privat #pzNaplo .st-chipek { order:6; } body.sf-privat #pzNaplo .st-naptar { order:7; } body.sf-privat #pzNaplo .pz-sz-panel { order:5; } body.sf-privat #pzNaplo .pz-sz-aktiv { order:8; margin-top:8px; } body.sf-privat #pzNaplo .pz-ker-info { order:9; } }
+/* Nettó vagyon */
+body.sf-privat .st-netto { display:flex; flex-direction:column; gap:14px; }
+body.sf-privat .st-nyfej { display:flex; flex-direction:column; gap:2px; }
+body.sf-privat .st-nyfej .c, body.sf-privat #pzTorzs .pz-t-mfej .pz-a-hos .c { font-size:13px; font-weight:600; color:var(--oc-n7); }
+body.sf-privat .st-nyfej > b { font-family:var(--oc-hd); font-weight:400; font-size:40px; line-height:1.05; color:var(--oc-tx); font-variant-numeric:tabular-nums; }
+body.sf-privat .st-nyfej .g { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+body.sf-privat .st-nyfej .g button { height:36px; padding:0 14px; border:0; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 2px var(--oc-n3); color:var(--oc-tx); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+body.sf-privat .st-nyfej .g button:first-child { background:var(--oc-ac); color:#fff; box-shadow:none; }
+body.sf-privat .st-fank { flex-direction:row; align-items:center; gap:18px; }
+body.sf-privat .st-fank .f { position:relative; width:120px; height:120px; flex:none; }
+body.sf-privat .st-fank svg { width:120px; height:120px; transform:rotate(-90deg); }
+body.sf-privat .st-fank circle { fill:none; stroke-width:16; } body.sf-privat .st-fank circle.h { stroke:var(--oc-bg); }
+body.sf-privat .st-fank .f > span { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+body.sf-privat .st-fank .f em { font-style:normal; font-size:10px; font-weight:600; color:var(--oc-n7); } body.sf-privat .st-fank .f b { font-size:13px; font-weight:700; }
+body.sf-privat .st-fank .l { flex:1; display:flex; flex-direction:column; gap:10px; }
+body.sf-privat .st-fank .l span { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+body.sf-privat .st-fank .l i { width:10px; height:10px; border-radius:999px; flex:none; } body.sf-privat .st-fank .l b { margin-left:auto; }
+body.sf-privat .st-pz-li.gomb { border:0; background:transparent; font:inherit; color:var(--oc-tx); text-align:left; cursor:pointer; width:100%; border-radius:20px; }
+body.sf-privat .st-pz-li.gomb:hover { background:color-mix(in srgb, var(--oc-bg) 60%, transparent); }
+body.sf-privat .st-pz-li .av.ki { color:var(--oc-ac2-8); } body.sf-privat .st-pz-li .o.ki, body.sf-privat .st-pz-li em .ki { color:var(--oc-ac2-8); } body.sf-privat .st-pz-li em .be { color:var(--oc-ac8); font-weight:700; }
+body.sf-privat .st-pz-ures { padding:6px 8px 14px; font-size:14px; color:var(--oc-n7); }
+/* Tárcák, Előfizetések, további nyilvántartások: balra zárt fejléc, pirula gombok */
+body.sf-privat #pzTorzs .pz-t-mfej .pz-a-hos { text-align:left; align-items:flex-start; padding:0; background:none !important; box-shadow:none !important; }
+body.sf-privat #pzTorzs .pz-t-mfej .pz-a-hos > b { font-family:var(--oc-hd); font-weight:400; font-size:40px; line-height:1.05; letter-spacing:0; }
+body.sf-privat #pzTorzs .pz-t-mfej .pz-a-hos > b small { font-size:inherit; font-weight:inherit; }
+body.sf-privat #pzTorzs .pz-egy-gombok { justify-content:flex-start; }
+body.sf-privat #pzTorzs .pz-a-hos-gomb { height:36px; padding:0 14px; border-radius:999px !important; background:transparent !important; box-shadow:inset 0 0 0 2px var(--oc-n3) !important; border:0 !important; color:var(--oc-tx) !important; font-size:13px; font-weight:700; }
+body.sf-privat #pzTorzs .pz-a-hos-gomb:first-child { background:transparent !important; }
+body.sf-privat #pzTorzs .pz-a-hos-gomb[data-pzegyeztet], body.sf-privat #pzTorzs .pz-a-hos-gomb[data-pzismkeres] { background:var(--oc-ac) !important; color:#fff !important; box-shadow:none !important; }
+body.sf-privat #pzTorzs .pz-a-hos-gomb svg { display:none; }
+body.sf-privat #pzTorzs :is(#pzTarcaUj3, #pzTorzsUj)::before { content:"+ "; white-space:pre; }
+body.sf-privat #pzTorzs .pz-t-nyil { display:none !important; }
+body.sf-privat #pzTorzs .pz-t-kartyak { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; overflow:visible !important; padding:0 !important; margin:14px 0 0 !important; }
+body.sf-privat #pzTorzs .pz-t-keret { display:block !important; }
+body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla { width:auto !important; min-width:0 !important; flex:none !important; min-height:118px; border-radius:28px !important; box-shadow:none !important; background:var(--oc-tx) !important; color:#fff !important; scroll-snap-align:none; }
+body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla:nth-child(4n+2) { background:var(--oc-ac2-8) !important; }
+body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla:nth-child(4n+3) { background:var(--oc-ac7) !important; }
+body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla:nth-child(4n+4) { background:var(--oc-ac9) !important; }
+body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla::before, body.sf-privat #pzTorzs .pz-t-kartyak .pz-a-szamla::after { background:rgba(255,255,255,.08) !important; }
+body.sf-privat #pzTorzs :is(.pz-tarcak, .pz-torzs-m, .pz-sec) { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
+body.sf-privat .st-pz-csik { display:flex; height:10px; border-radius:999px; overflow:hidden; gap:3px; margin:14px 0 0; }
+body.sf-privat .st-pz-csik i { display:block; height:100%; border-radius:999px; }
 /* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
 body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 @media (max-width:760px){
