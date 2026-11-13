@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="./image-slot.js"></script>
+</helmet>
+<div style="position:relative;width:{{ w }};height:{{ w }};flex:none">
+  <sc-if value="{{ showShapes }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;overflow:{{ frameOverflow }};border-radius:{{ frameRadius }};background:{{ frameBg }};transform:{{ flip }}">
+      <sc-for list="{{ shapes }}" as="s" hint-placeholder-count="4">
+        <div style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:{{ s.w }};height:{{ s.h }};border-radius:{{ s.r }};background:{{ s.c }};box-shadow:{{ s.b }};transform:rotate({{ s.rot }})"></div>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ hasIcon }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ disc.inset }};top:{{ disc.inset }};width:{{ disc.size }};height:{{ disc.size }};border-radius:999px;background:{{ disc.bg }};box-shadow:{{ disc.shadow }};display:grid;place-items:center;color:{{ iconColor }}">
+      <svg width="{{ iconSize }}" height="{{ iconSize }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"></path></svg>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isSlot }}" hint-placeholder-val="{{ false }}">
+    <image-slot id="{{ slot }}" shape="{{ slotShape }}" radius="22" placeholder="{{ ph }}" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:120,&quot;height&quot;:120},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Ikon-jelenet&quot;,&quot;Formák&quot;,&quot;Gyűrűk&quot;,&quot;Matrica&quot;,&quot;Konfetti&quot;,&quot;Táj&quot;,&quot;Ablak&quot;,&quot;Saját&quot;],&quot;default&quot;:&quot;Ikon-jelenet&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;icon&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:96,&quot;tsType&quot;:&quot;number&quot;},&quot;tone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;a&quot;,&quot;a2&quot;],&quot;default&quot;:&quot;a&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;seed&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;slot&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;illu&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;round&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;placeholder&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const ARR = [
+  [[0, .14, .7, .7, '999px', 0], [.58, 0, .36, .36, '999px', 1], [.4, .68, .54, .22, '999px', 2, -18], [.1, .06, .12, .12, '999px', 2]],
+  [[.08, .2, .84, .62, '50% 50% 42% 42% / 62% 62% 38% 38%', 0], [0, 0, .34, .34, '999px', 1], [.66, .62, .3, .3, '999px', 2], [.72, .1, .1, .1, '999px', 2]],
+  [[.04, .22, .6, .6, '999px', 0], [.38, .08, .56, .56, '999px', 3], [.64, .56, .18, .42, '999px', 2], [.16, .8, .12, .12, '999px', 1]],
+  [[.14, .12, .72, .86, '999px 999px 22% 22%', 0], [.6, 0, .32, .32, '999px', 2], [0, .68, .5, .18, '999px', 1, 12], [.8, .7, .1, .1, '999px', 1]]
+];
+const P = {
+  'Gyűrűk': { icon: 'bare', shapes: [[0, 0, 1, 1, '999px', 3], [.12, .12, .76, .76, '999px', 0], [.24, .24, .52, .52, '999px', 4], [.8, .06, .14, .14, '999px', 2]] },
+  'Matrica': { icon: 'bareDark', shapes: [[.16, .2, .7, .7, '28%', 2, 8], [.1, .1, .7, .7, '28%', 4, -6, 'inset 0 0 0 3px var(--color-text)'], [.74, .02, .16, .16, '999px', 1]] },
+  'Konfetti': { icon: 'disc', shapes: [[.04, .1, .12, .12, '999px', 2], [.8, .06, .1, .1, '999px', 1], [.86, .44, .14, .06, '999px', 2, 30], [.0, .56, .14, .06, '999px', 1, -25], [.14, .84, .1, .1, '999px', 0], [.74, .82, .14, .14, '999px', 0], [.44, .0, .08, .08, '999px', 1], [.5, .9, .1, .05, '999px', 2, 15], [.2, .2, .6, .6, '999px', 3]] },
+  'Táj': { frame: true, shapes: [[.58, .14, .24, .24, '999px', 2], [-.25, .55, .95, .95, '999px', 0], [.32, .64, 1, 1, '999px', 1], [.16, .22, .2, .07, '999px', 4], [.26, .3, .14, .06, '999px', 4]] },
+  'Ablak': { shapes: [[.14, .02, .72, .96, '999px 999px 20% 20%', 3], [.22, .1, .56, .8, '999px 999px 14% 14%', 0], [.38, .24, .24, .24, '999px', 2], [.22, .62, .56, .28, '0 0 14% 14%', 1], [.02, .78, .24, .1, '999px', 2]] }
+};
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const size = Number(p.size) || 96;
+    const mode = p.mode ?? 'Ikon-jelenet';
+    const seed = Number(p.seed) || 0;
+    const a2 = p.tone === 'a2';
+    const C = a2
+      ? ['var(--color-accent-2-200)', 'var(--color-accent-300)', 'var(--color-accent-2)', 'var(--color-accent-2-100)', 'var(--color-bg)']
+      : ['var(--color-accent-200)', 'var(--color-accent-2-300)', 'var(--color-accent)', 'var(--color-accent-100)', 'var(--color-bg)'];
+    const preset = mode === 'Formák' ? { shapes: ARR[seed % 4] } : mode === 'Ikon-jelenet' ? { shapes: ARR[seed % 4], icon: 'disc' } : P[mode] || { shapes: [] };
+    const pct = v => Math.round(v * 100) + '%';
+    const tiny = size < 50;
+    const iconKind = tiny && !preset.icon && mode !== 'Saját' ? 'disc' : preset.icon;
+    const discs = {
+      disc: { inset: '24%', size: '52%', bg: 'var(--color-bg)', shadow: 'var(--shadow-sm)' },
+      bare: { inset: '24%', size: '52%', bg: 'transparent', shadow: 'none' },
+      bareDark: { inset: '10%', size: '70%', bg: 'transparent', shadow: 'none' }
+    };
+    const darkIcon = a2 ? 'var(--color-accent-2-800)' : 'var(--color-accent-800)';
+    return {
+      w: size + 'px',
+      showShapes: mode !== 'Saját',
+      hasIcon: !!iconKind,
+      isSlot: mode === 'Saját',
+      frameOverflow: preset.frame ? 'hidden' : 'visible',
+      frameRadius: preset.frame ? '30%' : '0',
+      frameBg: preset.frame ? C[3] : 'transparent',
+      flip: seed % 2 && !preset.icon && mode !== 'Formák' ? 'scaleX(-1)' : 'none',
+      shapes: (preset.shapes || []).map(([x, y, w, h, r, c, rot, b]) => ({ x: pct(x), y: pct(y), w: pct(w), h: pct(h), r, c: C[c], rot: (rot || 0) + 'deg', b: b || 'none' })),
+      disc: discs[iconKind] || discs.disc,
+      icon: p.icon || '',
+      iconSize: Math.round(size * (iconKind === 'bareDark' ? 0.32 : 0.26)),
+      iconColor: iconKind === 'bareDark' ? 'var(--color-text)' : darkIcon,
+      slot: p.slot || 'illu',
+      slotShape: p.round ? 'circle' : 'rounded',
+      ph: p.placeholder || (size < 70 ? '' : 'Illusztráció')
+    };
+  }
+}
+</script>
+</body>
+</html>
