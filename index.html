@@ -21409,6 +21409,79 @@ function pzAMent(el){
 }
 
 // csak: egyetlen kártya (data-pzw) frissül, a lap többi része – és a görgetés – marad.
+// ===== Stoa al-képernyők: teljes képernyős panel vissza gombbal =====
+function stPanel(cim, html, opt = {}){
+    document.getElementById('stPanel')?.remove();
+    const p = document.createElement('div'); p.id = 'stPanel'; p.className = 'st-panel'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-modal', 'true');
+    p.innerHTML = `<div class="st-panel-b"><div class="st-panel-fej"><button type="button" class="vissza" data-stpanelzar aria-label="Vissza"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h2>${cim}</h2></div><div class="st-panel-t">${html}</div></div>`;
+    document.body.appendChild(p); requestAnimationFrame(() => p.classList.add('be'));
+    p._frissit = opt.frissit || null;
+    return p;
+}
+function stPanelZar(){ const p = document.getElementById('stPanel'); if(!p) return; p.classList.remove('be'); setTimeout(() => p.remove(), 200); }
+document.addEventListener('click', e => { if(e.target.closest('[data-stpanelzar]')) stPanelZar(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && document.getElementById('stPanel') && !document.querySelector('.modal-overlay')) stPanelZar(); });
+// Kategória-részletező: 6 havi oszlopdiagram, top szolgáltatók, tételek
+async function pzStKatReszl(kat){
+    const ho = pzTHo, hat = []; for(let h = ho, i = 0; i < 6; i++, h = pzHoLep(h, -1)) hat.unshift(h);
+    await Promise.all(hat.map(h => pzLoadTranz(h))).catch(() => null);
+    const sumOf = h => (pzTranz[h] || []).filter(t => pzKi(t) && (t.k || 'Egyéb') === kat).reduce((s, t) => s + (t.o || 0), 0);
+    const ert = hat.map(h => [h, sumOf(h)]), most = ert[5][1], max = Math.max(1, ...ert.map(x => x[1]));
+    const elozok = ert.slice(0, 5).filter(x => x[1] > 0), atl = elozok.length ? Math.round(elozok.reduce((s, x) => s + x[1], 0) / elozok.length) : 0;
+    const k = pzKatOf('ki', kat) || { i: 'cimke', c: 'szurke' };
+    const tet = (pzTranz[ho] || []).filter(t => pzKi(t) && (t.k || 'Egyéb') === kat).sort((a, b) => String(b.d).localeCompare(String(a.d)));
+    const szolg = new Map(); for(const t of tet){ const n = pzNevTiszta(t.m) || t.a || 'Egyéb'; szolg.set(n, (szolg.get(n) || 0) + (t.o || 0)); }
+    const al = new Map(); for(const t of tet) if(t.a) al.set(t.a, (al.get(t.a) || 0) + (t.o || 0));
+    const rov = v => v >= 1000 ? Math.round(v / 1000) + 'e' : String(v);
+    stPanel(esc(kat), `
+        <div class="st-kr-fej">${pzIk(k.i, k.c)}<div><b>${pzFt(most)} Ft</b><span>${k.k ? `keret ${pzFt(k.k)} Ft · ` : ''}6 havi átlag ${pzFt(atl)} Ft</span></div></div>
+        <section class="st-pz-kartya pad"><div class="st-pz-fej"><h4>Utolsó 6 hónap</h4></div>
+            <div class="st-kr-osz">${ert.map(([h, v], i) => `<div><em>${v ? rov(v) : ''}</em><i class="${i === 5 ? 'most' : ''}" style="height:${Math.max(3, v / max * 100).toFixed(1)}%"></i><span>${PZ_HO_ROV[+h.slice(5, 7) - 1].replace('.', '')}</span></div>`).join('')}</div></section>
+        ${al.size ? `<section class="st-pz-kartya pad"><div class="st-pz-fej"><h4>Alkategóriák</h4></div>${[...al.entries()].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<div class="st-kr-sor"><span>${esc(n)}</span><b>${pzFt(v)} Ft</b></div>`).join('')}</section>` : ''}
+        ${szolg.size ? `<section class="st-pz-kartya pad"><div class="st-pz-fej"><h4>Top szolgáltatók</h4></div>${[...szolg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, v]) => `<div class="st-kr-sor"><span>${esc(n)}</span><b>${pzFt(v)} Ft</b></div>`).join('')}</section>` : ''}
+        <section class="st-pz-kartya pad"><div class="st-pz-fej"><h4>Tételek</h4><span>${esc(pzHoNev(ho))}</span></div>
+            ${tet.length ? tet.map(t => `<button type="button" class="st-kr-sor gomb" data-pzstkrt="${esc(t.id)}"><span><b>${esc(pzNevTiszta(t.m) || t.a || kat)}</b><em>${esc(pzNapCim(t.d))}${t.p && pzTarcaOf(t.p) ? ' · ' + esc(pzTarcaOf(t.p).n) : ''}</em></span><b>−${pzFt(t.o)} Ft</b></button>`).join('')
+            : '<span class="st-pz-halk">Ebben a hónapban nincs tétel ebben a kategóriában.</span>'}</section>`);
+}
+// Előfizetés-részletező: havi / idei / éves összeg, ártörténet, lemondás-emlékeztető
+async function pzStElofizReszl(i){
+    const x = (pzTorzsGet().elofiz || [])[i]; if(!x) return;
+    const ma = pzMaHo(), ev = ma.slice(0, 4);
+    const hok = []; for(let h = ma, j = 0; j < 14; j++, h = pzHoLep(h, -1)) hok.push(h);
+    await Promise.all(hok.map(h => pzLoadTranz(h))).catch(() => null);
+    const slug = pzSlug(x.n), kicsi = pzNorm(x.n);
+    const tet = hok.flatMap(h => (pzTranz[h] || []).filter(t => pzKi(t) && (t.elo === slug || String(t.id).startsWith(`fix_elofiz_${slug}_`) || pzNorm(pzNevTiszta(t.m || '')) === kicsi)))
+        .sort((a, b) => String(a.d).localeCompare(String(b.d)));
+    const idei = tet.filter(t => String(t.d).startsWith(ev)).reduce((s, t) => s + (t.o || 0), 0);
+    const tort = []; for(const t of tet) if(!tort.length || tort[tort.length - 1].o !== t.o) tort.push(t);
+    const eves = pzElofizEves(x), havi = pzElofizHaviResz(x), h = pzHatra(x.nap || 1);
+    const rajz = () => { const p = document.getElementById('stPanel'); if(p) p.querySelector('.st-panel-t').innerHTML = belso(); };
+    const belso = () => `
+        <div class="st-kr-fej"><span class="st-ef-av">${pzNevLogo(x.n, 'pz-ikon') || esc((x.n || '?')[0].toUpperCase())}</span><div><b>${pzFt(x.o)} Ft / ${eves ? 'év' : 'hó'}</b>
+            <span>Terhelés ${eves ? `évente ${PZ_HO_ROV[(x.evho || 1) - 1]} ${x.nap || 1}.` : `minden hó ${x.nap || 1}.`}${eves ? '' : ` · következő: ${pzHatraSzo(h)}`}</span></div></div>
+        <div class="st-pz-kpi"><div class="st-pz-k"><span class="c">${ev}-ban eddig</span><b>${pzFt(idei)} Ft</b></div><div class="st-pz-k"><span class="c">Évente</span><b>${pzFt(Math.round(havi * 12))} Ft</b></div></div>
+        <section class="st-pz-kartya pad"><div class="st-pz-fej"><h4>Ártörténet</h4></div>
+            ${tort.length ? tort.map((t, j) => `<div class="st-kr-sor"><span>${esc(pzHoNev(String(t.d).slice(0, 7)))}</span><b>${pzFt(t.o)} Ft${j ? (d => ` <em class="${d > 0 ? 'ki' : 'be'}">${d > 0 ? '+' : '−'}${Math.abs(Math.round(d / tort[j - 1].o * 100))}%</em>`)(t.o - tort[j - 1].o) : ''}</b></div>`).join('')
+            : '<span class="st-pz-halk">Még nincs rögzített terhelés ehhez az előfizetéshez.</span>'}</section>
+        <section class="st-pz-kartya pad"><label class="st-kapcs"><span><b>Lemondás-emlékeztető</b><em>3 nappal a terhelés előtt szólunk az Összképen</em></span>
+            <input type="checkbox" data-pzstemlek${x.emlek ? ' checked' : ''}><i></i></label></section>
+        <div class="st-ef-g"><button type="button" data-pzstefszerk>Szerkesztés</button><button type="button" class="ki" data-pzstefvege>Megszűnt</button></div>`;
+    const p = stPanel(esc(x.n), belso());
+    p.addEventListener('change', e => { if(e.target.matches('[data-pzstemlek]')){ x.emlek = e.target.checked; if(!x.emlek) delete x.emlek; pzSaveTorzs(); } });
+    p.addEventListener('click', e => {
+        if(e.target.closest('[data-pzstefszerk]')){ pzNyilv = 'elofiz'; pzTorzsModal(i); return; }
+        if(e.target.closest('[data-pzstefvege]')){ if(!confirm(`Megszűnt a(z) „${x.n}” előfizetés? Kikerül a listából (a korábbi tételek maradnak).`)) return;
+            pzTorzsGet().elofiz.splice(i, 1); pzSaveTorzs(); stPanelZar(); if(pzView === 'nyilv') renderPzTorzs(); }
+    });
+}
+document.addEventListener('click', e => {
+    const r = e.target.closest('#pzTorzs [data-pztorzsi]');
+    if(r && pzNyilv === 'elofiz' && window.stoaAktiv && window.stoaAktiv() && !e.target.closest('[data-pztorzsdel]')){ e.stopPropagation(); e.preventDefault(); pzStElofizReszl(+r.dataset.pztorzsi); }
+}, true);
+document.addEventListener('click', e => {
+    const k = e.target.closest('[data-pzstkatr]'); if(k){ pzStKatReszl(k.dataset.pzstkatr); return; }
+    const t = e.target.closest('[data-pzstkrt]'); if(t){ const id = t.dataset.pzstkrt; const x = Object.values(pzTranz).flat().find(y => y && y.id === id); if(x) pzTetelModal(x); }
+});
 // Egységes hónapváltó (Stoa): az utolsó két hónap + „Ez a hónap”; régebbi hónapnál az előtte lévő, a kiválasztott és a mai.
 function pzHoValtoHtml(){
     const ma = pzMaHo();
@@ -21426,7 +21499,9 @@ function pzStoaJelzesek(ho, lista, fizet){
         const kk = pzLista('ki').filter(k => k.k > 0).map(k => { const v = lista.filter(t => pzKi(t) && (t.k || 'Egyéb') === k.n).reduce((s, t) => s + (t.o || 0), 0); return [k.n, v / k.k, v - k.k]; })
             .sort((a, b) => b[1] - a[1])[0];
         if(kk && kk[1] >= .8) l.push({ id:'k-' + ho + kk[0], ik:'csuszka', szoveg: kk[1] > 1 ? `${kk[0]} keret túllépve ${pzFt(kk[2])} Ft-tal` : `${kk[0]} keret ${Math.round(kk[1] * 100)}%-nál tart`, akt:'Keretek', nez:'honap' });
-        const f = fizet.find(x => !x.kesz && x.h <= 7);
+        const em = pzFixek(ho).filter(x => x.tip === 'elofiz' && (pzTorzsGet().elofiz[x.ei] || {}).emlek).map(x => ({ ...x, h: pzHatra(x.nap) })).find(x => x.h <= 3 && !pzFixTetel(x, ho));
+        if(em) l.push({ id:'em-' + ho + pzSlug(em.n), ik:'ismetles', szoveg:`Lemondanád? ${em.n} ${pzHatraSzo(em.h)} terhel · ${pzFt(em.o)} Ft`, akt:'Előfizetések', nez:'elofiz' });
+        const f = fizet.find(x => !x.kesz && x.h <= 7 && !(em && em.n === x.n));
         if(f) l.push({ id:'f-' + ho + pzSlug(f.n), ik:'ismetles', szoveg:`${f.n} ${pzHatraSzo(f.h)} terhel · ${pzFt(f.o)} Ft`, akt:'Részletek', nez:'elofiz' });
     }
     const rejt = pzJelzRejt();
@@ -21626,11 +21701,10 @@ async function renderPzAttek(csak){
         W.kat = `<section class="st-pz-kartya pad">
             <div class="st-pz-fej"><h4>Kiadások kategóriánként</h4><span>${rovHo}</span></div>
             ${sorrend.length ? sorrend.slice(0, pzAKat === '__mind' ? 99 : 6).map(([n, v], i) => `
-                <button type="button" class="st-pz-kat${pzAKat === n ? ' on' : ''}" data-pzakat="${esc(n)}" aria-expanded="${pzAKat === n}">
+                <button type="button" class="st-pz-kat" data-pzstkatr="${esc(n)}">
                     <span class="sor"><span>${esc(n)} ›</span><b>${pzFt(v)} Ft</b></span>
                     <span class="csik"><i style="width:${Math.max(2, v / katMax * 100).toFixed(1)}%;background:${KATSZ[i % KATSZ.length]}"></i></span></button>
-                ${pzAKat === n ? (() => { const m = new Map(); for(const t of lista.filter(t => pzKi(t) && (t.k || 'Egyéb') === n)){ const k = t.a || 'Nincs alkategória'; m.set(k, (m.get(k) || 0) + (t.o || 0)); }
-                    return `<div class="st-pz-al">${[...m.entries()].sort((a, b) => b[1] - a[1]).map(([an, av]) => `<div><span>${esc(an)}</span><b>${pzFt(av)} Ft</b></div>`).join('')}</div>`; })() : ''}`).join('')
+`).join('')
                 + (sorrend.length > 6 && pzAKat !== '__mind' ? `<button type="button" class="st-pz-tobb" data-pzakat="__mind">Mind a ${sorrend.length} kategória</button>` : '')
             : `<span class="st-pz-halk">Ebben a hónapban még nincs kiadás.</span>`}
         </section>`;
@@ -47912,6 +47986,39 @@ body.sf-privat .st-pz-csik i { display:block; height:100%; border-radius:999px; 
 .st-lhiba:empty { display:none; } .st-lhiba { font-size:13px; font-weight:700; color:var(--oc-ac2-8); }
 body.sf-privat #privMaBody .ma-figy { background:var(--oc-ac2-100) !important; border:0 !important; border-radius:24px !important; box-shadow:none !important; margin-bottom:14px; }
 body.sf-privat #privMaBody .ma-figy .pz-ikon { background:var(--oc-bg) !important; border-radius:999px !important; }
+/* Al-képernyők (teljes képernyős panel) */
+.st-panel { position:fixed; inset:0; z-index:3500; background:var(--oc-bg); overflow-y:auto; overscroll-behavior:contain; opacity:0; transform:translateX(24px); transition:opacity .2s, transform .2s; font-family:'DM Sans',sans-serif; color:var(--oc-tx); }
+.st-panel.be { opacity:1; transform:none; }
+.st-panel-b { max-width:640px; margin:0 auto; padding:calc(14px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:14px; }
+.st-panel-fej { display:flex; align-items:center; gap:10px; }
+.st-panel-fej .vissza { width:44px; height:44px; flex:none; border:0; border-radius:999px; background:var(--oc-sf); color:var(--oc-tx); display:grid; place-items:center; cursor:pointer; }
+.st-panel-fej .vissza svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.75; stroke-linecap:round; stroke-linejoin:round; }
+.st-panel-fej h2 { margin:0; font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-weight:400; font-size:30px; line-height:1.05; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.st-panel-t { display:flex; flex-direction:column; gap:14px; }
+.st-kr-fej { display:flex; align-items:center; gap:14px; }
+.st-kr-fej .pz-ikon, .st-kr-fej > i, .st-ef-av { width:52px !important; height:52px !important; border-radius:999px !important; flex:none; }
+.st-ef-av { display:grid; place-items:center; background:var(--oc-ac2); color:#fff; font-size:22px; font-weight:700; overflow:hidden; }
+.st-kr-fej > div { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.st-kr-fej b { font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-weight:400; font-size:36px; line-height:1.05; }
+.st-kr-fej span { font-size:13px; color:var(--oc-n7); }
+.st-kr-osz { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; height:150px; align-items:end; }
+.st-kr-osz > div { height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; }
+.st-kr-osz i { display:block; width:100%; max-width:40px; border-radius:12px; background:var(--oc-n3); }
+.st-kr-osz i.most { background:var(--oc-ac2); }
+.st-kr-osz em { font-style:normal; font-size:10px; font-weight:700; color:var(--oc-n7); } .st-kr-osz span { font-size:11px; font-weight:700; color:var(--oc-n7); text-transform:capitalize; }
+.st-kr-sor { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; font-size:13px; border:0; background:none; font:inherit; color:var(--oc-tx); text-align:left; width:100%; }
+.st-kr-sor + .st-kr-sor { border-top:1px solid color-mix(in srgb, var(--oc-n3) 60%, transparent); }
+.st-kr-sor.gomb { cursor:pointer; } .st-kr-sor > span { display:flex; flex-direction:column; min-width:0; } .st-kr-sor > span > em { font-style:normal; font-size:11px; color:var(--oc-n7); }
+.st-kr-sor b { font-weight:700; white-space:nowrap; } .st-kr-sor em.ki { color:var(--oc-ac2-8); font-style:normal; } .st-kr-sor em.be { color:var(--oc-ac8); font-style:normal; }
+.st-kapcs { display:flex; align-items:center; gap:12px; cursor:pointer; position:relative; }
+.st-kapcs > span { flex:1; display:flex; flex-direction:column; gap:2px; } .st-kapcs b { font-size:14px; } .st-kapcs em { font-style:normal; font-size:12px; color:var(--oc-n7); }
+.st-kapcs input { position:absolute; opacity:0; pointer-events:none; }
+.st-kapcs i { width:50px; height:28px; border-radius:999px; background:var(--oc-n3); position:relative; flex:none; transition:background .2s; }
+.st-kapcs i::after { content:''; position:absolute; left:3px; top:3px; width:22px; height:22px; border-radius:999px; background:#fff; transition:transform .2s; }
+.st-kapcs input:checked + i { background:var(--oc-ac); } .st-kapcs input:checked + i::after { transform:translateX(22px); }
+.st-ef-g { display:flex; gap:8px; } .st-ef-g button { flex:1; height:46px; border:0; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 2px var(--oc-n3); color:var(--oc-tx); font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+.st-ef-g button.ki { box-shadow:none; color:var(--oc-ac7); }
+body.sf-privat .st-panel .st-pz-kartya { height:auto; }
 /* Illusztráció */
 body.sf-privat { --oc-ac100:color-mix(in oklch, #2f6f8f 10%, white); --oc-ac2-200:color-mix(in oklch, #e07a5f 22%, white); }
 .st-illu { position:relative; display:inline-block; flex:none; }
