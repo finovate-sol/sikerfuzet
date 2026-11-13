@@ -16904,8 +16904,11 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         for(const r of lista){
             if(r.type === 1){   // stílusszabály
                 if(ovb && r.selectorText && OVB_KIVETEL.test(r.selectorText)) continue;
+                // a Stoa új elemei (st-…) eleve az Óceán színeit használják: nem színezzük át őket
+                if(!ovb && r.selectorText && /\.st-|#pzStLap|#stPanel/.test(r.selectorText)) continue;
                 const d = []; let van = false;
                 for(const [nev, v0, fontos] of dekl(r.style.cssText)){
+                    if(nev.startsWith('--oc-')) continue;
                     const tx = SZOVEG.test(nev) || (nev.startsWith('--') && /(^--(tx|text|muted|mu|ap-tx|ap-mu|rm-tx|rm-mu|pzk-tx|pzk-mu)$|-tx$|-mu$)/.test(nev));
                     // Sötét témában: a --navy főleg szövegszín, ezért világos lesz – a felületként használt helyei a --navy-fel-t kapják;
                     // a sablonokba írt pasztell --b háttér pedig a sötét alapba keveredik.
@@ -34790,6 +34793,7 @@ document.addEventListener('keydown', e => {
     if(e.key === 'Enter' && e.target.matches && e.target.matches('#egBody [data-ezm]')){ e.preventDefault(); if(ezMeresMent()) renderEgeszseg(); }
 });
 
+document.addEventListener('click', e => { if(e.target.closest('[data-stkeres]')) document.querySelector('.mobile-bar .mb-ker-g')?.click(); });
 document.addEventListener('click', async e => { if(!e.target.closest('[data-mastviz]')) return;
     await nlEv(ezMa().slice(0, 4)).catch(() => null); maEgValt('viz', 1); renderPrivMa(); });
 // ===== Stoa illusztráció (szem-design/handoff/illu.dc.html): színes formák + Lucide ikon egy körben =====
@@ -34844,7 +34848,7 @@ async function renderPrivMa(){
     ]);
     if(!prvLap('privma')) return;
     const dt = new Date(), ora = dt.getHours();
-    const nev = ((window.sfCurrentUser && window.sfCurrentUser.displayName) || '').trim().split(/\s+/).pop() || '';
+    const nev = (n => /@/.test(n) ? '' : n.split(/\s+/).pop())(((window.sfCurrentUser && (window.sfCurrentUser.name || window.sfCurrentUser.displayName)) || '').trim()) || '';
     const koszon = ora < 10 ? 'Jó reggelt' : ora < 18 ? 'Szép napot' : 'Jó estét';
     // szokások
     // a heti szokások, amelyek a heti célt már elérték (és ma nincsenek pipálva), a sor végére kerülnek
@@ -35006,7 +35010,8 @@ async function renderPrivMa(){
     const szGorg = host.querySelector('.ma-szok')?.scrollLeft || 0;
     host.innerHTML = `
         ${stoaMa ? `<div class="st-ma-hos"><div class="t"><span class="d">${PRV_NAP[dt.getDay()].replace(/^./, x => x.toUpperCase())}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><h2>Szia${nev ? ', ' + esc(nev) : ''}!</h2></div>
-            ${window.stoaIllu(ora < 18 && ora >= 6 ? 'sun' : 'moon', { size: 92, seed: 3 })}</div>` : ''}
+            ${window.stoaIllu(ora < 18 && ora >= 6 ? 'sun' : 'moon', { size: 92, seed: 3 })}
+            <button type="button" class="st-kerg" data-stkeres aria-label="Keresés"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>` : ''}
         <div class="sf-hos ma-hos"><span class="c">Ma · ${PRV_NAP[dt.getDay()]}, ${PRV_HO[dt.getMonth()]} ${dt.getDate()}.</span><b>${koszon}${nev ? ', ' + esc(nev) : ''}</b>
             <span class="s">${osszesito.length ? esc(osszesito.join(' · ')) : 'Nyugodt nap – semmi sem sürget.'}</span>
             <button type="button" class="ma-rogzit" data-szplusz><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Rögzítés</button></div>
@@ -35559,7 +35564,7 @@ window.sfShowEn = function(){
     sfMbCim('en', cim);
     queueMicrotask(() => { const t = document.getElementById('mbTitle'); if(t && !document.getElementById('page-en')?.hidden) t.textContent = cim; });
     const sav = szSavLista(), u = window.sfCurrentUser || {};
-    const nev = (u.displayName || u.email || '').trim(), mon = nev.split(/\s+/).filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase() || 'SZ';
+    const nev = (u.name || u.displayName || u.email || '').trim(), mon = nev.split(/\s+/).filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase() || 'SZ';
     const ik = p => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${p}"/></svg>`;
     host.innerHTML = `<div class="en-profil card"><span class="en-av">${esc(mon)}</span><div class="en-pn"><b>${esc(nev || 'Saját fiók')}</b><span>${priv ? 'Privát mód · Stoa' : 'Sikerfüzet'}</span></div>
             <div class="en-pg">${document.getElementById('sfTerBox')?.hidden ? '' : `<button type="button" data-szvalt title="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a Stoára (privát)'}" aria-label="${priv ? 'Váltás a Sikerfüzetre' : 'Váltás a SZEM-re'}">`}${document.getElementById('sfTerBox')?.hidden ? '' : `${ik('M7 7h13l-3-3M17 17H4l3 3')}</button>`}
@@ -35568,7 +35573,7 @@ window.sfShowEn = function(){
         ${(() => { // vezetőknek: kinek a nézete (a menü „szem” listája)
             const l = [...document.querySelectorAll('#viewAsLista [data-viewas]')]; if(priv || !l.length || document.getElementById('viewAsBtn')?.hidden) return '';
             return `<div class="en-va"><span>Kinek a nézete</span><div>${l.map(b => `<button type="button" data-szva="${esc(b.dataset.viewas)}" class="${b.classList.contains('on') ? 'on' : ''}">${esc((b.querySelector('span') || b).textContent.trim())}</button>`).join('')}</div></div>`; })()}
-        <div class="en-fej"><h2>${cim}</h2><button type="button" class="en-szerk${szSavSzerk ? ' on' : ''}" data-szszerk>${szSavSzerk ? 'Kész' : 'Kedvencek szerkesztése'}</button>
+        <div class="en-fej"><h2>${cim}</h2>${priv && !szSavSzerk ? '' : `<button type="button" class="en-szerk${szSavSzerk ? ' on' : ''}" data-szszerk>${szSavSzerk ? 'Kész' : 'Kedvencek szerkesztése'}</button>`}
             ${priv ? `<button type="button" class="st-fiok-g" data-stfiok aria-label="Fiók" aria-expanded="false">${esc(mon.slice(0, 1))}</button>
             <div class="st-fiok-m" hidden><div class="f"><span class="av">${esc(mon.slice(0, 1))}</span><span class="t"><b>${esc(u.email || nev || 'Saját fiók')}</b><em>Privát mód · Stoa</em></span></div>
                 <button type="button" data-szbeall>Beállítások</button>${document.getElementById('sfTerBox')?.hidden ? '' : '<button type="button" data-szvalt>Váltás a Sikerfüzetre</button>'}<button type="button" class="ki" data-szkilep>Kijelentkezés</button></div>` : ''}</div>
@@ -48169,7 +48174,7 @@ body.sf-privat { --oc-ac100:color-mix(in oklch, #2f6f8f 10%, white); --oc-ac2-20
 /* Ma */
 body.sf-privat .st-ma-hos { display:flex; align-items:center; gap:12px; margin:0 0 16px; }
 body.sf-privat .st-ma-hos .t { flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
-body.sf-privat .st-ma-hos .d { font-size:14px; font-weight:600; color:color-mix(in oklch, #e07a5f 68%, black); }
+body.sf-privat .st-ma-hos .d { font-size:14px; font-weight:600; color:#a34f38; }
 body.sf-privat .st-ma-hos h2 { font-family:var(--oc-hd); font-weight:400; font-size:42px; line-height:1; margin:0; color:var(--oc-tx); letter-spacing:-.01em; }
 body.sf-privat #privMaBody .ma-hos { display:none !important; }
 body.sf-privat #privMaBody .card.st-ma-csempek { background:none !important; padding:0 !important; box-shadow:none !important; border:0 !important; overflow:visible; }
@@ -48201,7 +48206,18 @@ body.sf-privat .st-ma-edz .g { display:flex; gap:8px; flex-wrap:wrap; }
 body.sf-privat .st-ma-edz .g button { height:40px; padding:0 18px; border:0; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 2px var(--oc-n3); color:var(--oc-tx); font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
 body.sf-privat .st-ma-edz .g button.p { background:var(--oc-ac); color:#fff; box-shadow:none; }
 body.sf-privat .st-ma-edz .kesz { font-size:13px; font-weight:700; color:var(--oc-ac8); background:var(--oc-ac200); padding:6px 12px; border-radius:999px; }
-@media (max-width:760px){ body.sf-privat:has(#page-privma:not([hidden])) .mobile-bar .mb-title { visibility:hidden; } body.sf-privat #page-privma .page-wrap { padding-top:0; } body.sf-privat .st-ma-hos { margin-top:-8px; } body.sf-privat:has(#page-privma:not([hidden])) .mobile-bar { height:auto; min-height:0; } }
+body.sf-privat .st-kerg { display:none; }
+@media (max-width:760px){
+    html body.sf-privat:is(:has(#page-privma:not([hidden])), :has(#page-en:not([hidden]))) .mobile-bar { display:none !important; }
+    body.sf-privat :is(#page-privma, #page-en) .page-wrap { padding-top:calc(env(safe-area-inset-top) + 14px) !important; }
+    body.sf-privat .st-ma-hos { align-items:flex-start; }
+    body.sf-privat .st-ma-hos .t { padding-top:8px; }
+    body.sf-privat .st-ma-hos .st-illu { margin-right:-6px; }
+    body.sf-privat .st-kerg { display:grid; place-items:center; width:44px; height:44px; flex:none; border:0; border-radius:999px; background:var(--oc-sf); color:var(--oc-tx); cursor:pointer; }
+    body.sf-privat .st-kerg svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.75; stroke-linecap:round; }
+    body.sf-privat #enBody .en-fej { justify-content:flex-start; margin-bottom:18px; }
+    body.sf-privat #enBody .en-fej h2 { display:block !important; flex:1; font-size:36px; line-height:1.05; margin:0; }
+}
 /* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
 body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 @media (max-width:760px){
