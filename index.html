@@ -30309,7 +30309,7 @@ const ezSabMeta = s => s.gyak && s.gyak.length ? `${s.gyak.length} gyakorlat · 
 const ezSabProg = s => s.prog ? EZ_PROGRAMOK.find(p => p.id === s.prog) || null : null;
 // csempe: színes fejléc a sportág színével (ikon, fő adat, teljes név), alatta a részletek és a gombok
 const ezSabKartya = s => { const m = ezSabMeta(s).split(' · '), fo = m.shift(), tobbi = [m.join(' · '), (s.leiras || '').split('\n')[0]].filter(x => x && x !== '—').join(' · ');
-    return `<div class="ez-sk" style="--sc:${ezSpSzin(s.sport)}">
+    return `<div class="ez-sk" style="--sc:${window.stoaAktiv && window.stoaAktiv() ? ezStSzin(s.sport) : ezSpSzin(s.sport)}">
         <button type="button" class="ez-sk-fej" data-ezsabnyit="${esc(s.id)}">${ezIk(s.sport)}${fo && fo !== '—' ? `<span class="ez-sk-ido">${esc(fo)}</span>` : ''}<b>${esc(s.n)}</b></button>
         <div class="ez-sk-tt"><p>${esc(tobbi || ezSp(s.sport)[0] || '')}</p>
             <div class="ez-sk-lab"><button type="button" class="ez-sk-terv" data-eztervez="${esc(s.id)}">Tervezés</button><button type="button" class="ez-kebab" data-ezsabmenu="${esc(s.id)}" aria-label="${esc(s.n)} – műveletek">⋯</button></div></div></div>`; };
@@ -48361,6 +48361,42 @@ body.sf-privat .st-ez-kapcs { display:flex; align-items:center; gap:14px; flex-w
 body.sf-privat .st-ez-kapcs span { display:flex; align-items:center; gap:6px; } body.sf-privat .st-ez-kapcs i { width:8px; height:8px; border-radius:999px; background:var(--oc-n3); } body.sf-privat .st-ez-kapcs i.on { background:var(--oc-ac); }
 body.sf-privat .st-ez-kapcs button { margin-left:auto; border:0; background:none; font:inherit; font-size:13px; font-weight:700; color:var(--oc-ac7); cursor:pointer; padding:0; }
 body.sf-privat .st-ez .eza-kapcs { background:var(--oc-sf) !important; border-radius:28px !important; border:0 !important; box-shadow:none !important; }
+/* Edzés – Áttekintés / Csúcsok / Sablonok / Versenyek */
+html body.sf-privat #edzBody .card:not(.eza-hero) { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
+html body.sf-privat #edzBody .ez-kpi { padding:14px 16px !important; }
+html body.sf-privat #edzBody .ez-kpi.gy { background:var(--oc-ac200) !important; }
+html body.sf-privat #edzBody .ez-kpi .ez-gyuru { display:none !important; }
+html body.sf-privat #edzBody .ez-kpi .c { font-size:11px !important; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--oc-n7) !important; }
+html body.sf-privat #edzBody .ez-kpi.gy .c, html body.sf-privat #edzBody .ez-kpi.gy span { color:var(--oc-ac9) !important; }
+html body.sf-privat #edzBody .ez-kpi b { font-family:var(--oc-hd); font-weight:600; font-size:26px !important; color:var(--oc-tx) !important; }
+html body.sf-privat #edzBody .ez-th-figy { background:var(--oc-ac2-100) !important; color:var(--oc-ac2-9) !important; border:0 !important; border-radius:24px !important; }
+html body.sf-privat #edzBody .ez-th-o path { fill:var(--oc-ac) !important; opacity:1 !important; }
+html body.sf-privat #edzBody .ez-th-o path[fill="#d97706"] { fill:var(--oc-ac2) !important; }
+html body.sf-privat #edzBody .ez-th-o.most path { fill:transparent !important; stroke:var(--oc-ac); stroke-width:2; }
+html body.sf-privat #edzBody .ez-th-f { fill:var(--oc-ac2-8) !important; }
+html body.sf-privat #edzBody :is(.ez-nap) { border-radius:12px !important; border:0 !important; background:var(--oc-bg) !important; box-shadow:none !important; }
+html body.sf-privat #edzBody .ez-nap.ez-n-ok { background:var(--oc-ac) !important; color:#fff !important; }
+html body.sf-privat #edzBody .ez-nap.ez-n-resz { background:var(--oc-ac2-3) !important; }
+html body.sf-privat #edzBody .ez-nap:is(.ez-n-ki, .ez-n-jel) { background:var(--oc-ac2-200) !important; color:var(--oc-ac2-9) !important; }
+html body.sf-privat #edzBody .ez-nap.ez-n-extra { background:var(--oc-ac7) !important; color:#fff !important; }
+html body.sf-privat #edzBody .ez-nap.ez-n-terv { box-shadow:inset 0 0 0 2px var(--oc-ac) !important; }
+html body.sf-privat #edzBody .ez-nap.ma { box-shadow:inset 0 0 0 2px var(--oc-tx) !important; }
+/* Sablonok: színátmenet nélkül, sportszínű ikon kör */
+html body.sf-privat #edzBody .ez-sk { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
+html body.sf-privat #edzBody .ez-sk:hover { transform:none; }
+html body.sf-privat #edzBody .ez-sk-fej { background:transparent !important; color:var(--oc-tx) !important; padding:16px 16px 4px !important; min-height:0 !important; }
+html body.sf-privat #edzBody .ez-sk-fej .ez-ik { width:40px !important; height:40px !important; border-radius:999px !important; background:color-mix(in srgb, var(--sc) 22%, var(--oc-bg)) !important; color:var(--sc) !important; }
+html body.sf-privat #edzBody .ez-sk-fej .ez-ik svg { stroke:currentColor !important; }
+html body.sf-privat #edzBody .ez-sk-ido { background:var(--oc-bg) !important; color:var(--oc-tx); right:14px; top:16px; }
+html body.sf-privat #edzBody .ez-sk-fej b { text-shadow:none; font-size:15px; font-weight:700; }
+html body.sf-privat #edzBody .ez-sk-tt { padding:4px 16px 16px !important; } html body.sf-privat #edzBody .ez-sk-tt p { color:var(--oc-n7) !important; }
+html body.sf-privat #edzBody .ez-sk-terv { border-radius:999px !important; background:var(--oc-ac) !important; height:38px; padding:0 !important; }
+html body.sf-privat #edzBody .ez-sk-lab .ez-kebab { border-radius:999px !important; background:var(--oc-bg) !important; }
+html body.sf-privat #edzBody .ez-sp-chip, html body.sf-privat #edzBody .ez-ful, html body.sf-privat #edzBody .pz-seg2 button { border-radius:999px !important; }
+html body.sf-privat #edzBody :is(.btn.primary, .ez-gb-kek) { background:var(--oc-ac) !important; border-color:var(--oc-ac) !important; color:#fff !important; border-radius:999px !important; }
+/* Versenyek */
+html body.sf-privat #edzBody .ez-vers-sor .btn, html body.sf-privat #edzBody .ez-vers-sor button { border-radius:999px !important; }
+html body.sf-privat #edzBody .ez-vers-hero { background:var(--oc-ac200) !important; }
 /* Edzés közben */
 .st-fut { position:fixed; inset:0; z-index:4200; background:#14222a; color:#eaf0f1; overflow-y:auto; font-family:'DM Sans',sans-serif; }
 .st-fut .b { max-width:520px; min-height:100%; margin:0 auto; box-sizing:border-box; padding:calc(16px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:18px; }
