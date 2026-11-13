@@ -16736,7 +16736,7 @@ window.sfApplyPageAccess = function(map){
 // futás közben készül egy „átszínezett” másolat, ami csak privát módban (body.sf-privat)
 // érvényes. Így minden oldal és minden jövőbeli elem is egyszerre vált.
 // Egy közös paletta: mindkét rész (Sikerfüzet és SZEM) bármelyik színt választhatja.
-window.SF_TEMA_LISTA = { erdo:['Erdő és vaj','#1f5c4a','#faf7ef'], kek:['Kék','#1f5fd0','#e8eef8'], lila:['Lila','#7c3aed','#e4dcfb'], ocean:['Óceán','#0891b2','#e3f4f8'], smaragd:['Smaragd','#0f8a6a','#e6f3ed'], zsalya:['Zsálya','#4f7a63','#f5f2ea'],
+window.SF_TEMA_LISTA = { grafitm:['Grafit és menta','#111111','#f2f2f0'], erdo:['Erdő és vaj','#1f5c4a','#faf7ef'], kek:['Kék','#1f5fd0','#e8eef8'], lila:['Lila','#7c3aed','#e4dcfb'], ocean:['Óceán','#0891b2','#e3f4f8'], smaragd:['Smaragd','#0f8a6a','#e6f3ed'], zsalya:['Zsálya','#4f7a63','#f5f2ea'],
     bordo:['Bordó','#9f1239','#f6eef0'], naplemente:['Naplemente','#ea580c','#fde6d8'], grafit:['Grafit','#334155','#eceef1'], ejszaka:['Éjszaka','#60a5fa','#0d1424'] };
 window.SF_TEMAK = window.SF_TEMA_LISTA;
 // A Sikerfüzet (OVB) rész témái – ugyanaz a motor, csak a body:not(.sf-privat) alatt érvényes.
@@ -16749,7 +16749,7 @@ window.sfSotetMost = () => { const m = window.sfSotetMod(); if(m === 'be') retur
 // A színek fixek (az app-ikonokhoz igazítva): Sikerfüzet – kék, SZEM – grafit; sötét módban mindkettő Éjszaka.
 window.sfOvbTema = () => window.sfSotetMost() ? 'ejszaka' : 'kek';
 window.sfOvbTemaTeteje = () => (window.SF_OVB_TEMAK[window.sfOvbTema()] || window.SF_OVB_TEMAK.kek)[2];
-window.sfTema = () => window.sfSotetMost() ? 'ejszaka' : 'erdo';   // Stoa: „Erdő és vaj” (lásd szem-design/)
+window.sfTema = () => window.sfSotetMost() ? 'ejszaka' : 'grafitm';   // Stoa: „Grafit és menta”
 window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK.lila)[2];
 (function(){
     const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s2 = 0; const l = (mx + mn) / 2;
@@ -16795,6 +16795,22 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                 if(s2 < .4 && l >= .8 && l < .97){ h = 45; s2 = .25; return [h, s2, l]; }               // kékes világos vonal → homok
             }
             if(!tx && s2 < .1 && l >= .9 && l < .995){ h = 44; s2 = .45; l = Math.max(l, .955); }       // semleges halvány felület → vaj
+            return [h, s2, l]; },
+        // Stoa – „Grafit és menta”: a lila/ibolya kiemelés szinte fekete, a lila felületek semleges szürkék,
+        // a sötétkék szöveg fekete, a kékes szürkék semlegesek. A jelzőszínek (zöld, piros, narancs, rózsa) maradnak.
+        grafitm(h, s2, l, tx){
+            const ibolya = h >= 238 && h <= 300;
+            if(ibolya && s2 > .12){
+                if(l >= .9){ h = 60; s2 = .05; l = Math.max(l, .945); }            // halvány lila felület → világosszürke
+                else if(l >= .72){ h = 60; s2 = .03; l = Math.min(l, .86); }       // világos lila → középszürke
+                else { h = 0; s2 = 0; l = Math.min(l * .25, .1); }                  // kiemelés → szinte fekete
+                return [h, s2, l]; }
+            if(h >= 200 && h < 238){
+                if(l < .3 && s2 > .15){ h = 0; s2 = 0; l = Math.min(l, .09); return [h, s2, l]; }   // sötétkék szöveg → fekete
+                if(s2 < .35 && l >= .3 && l < .8){ h = 0; s2 = 0; return [h, s2, l]; }            // kékes szürke → semleges
+                if(s2 < .45 && l >= .8 && l < .99){ h = 60; s2 = .04; return [h, s2, l]; }        // kékes világos → semleges
+            }
+            if(!tx && s2 < .12 && l >= .9 && l < .995){ h = 60; s2 = .05; }                    // halvány felület → hűvös világosszürke
             return [h, s2, l]; },
         naplemente(h, s2, l, tx){
             if(s2 > .15 && lila(h)) h = 18;
@@ -16879,7 +16895,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             body.sf-privat ::placeholder{color:#7d86a0}`,
         zsalya: '', ocean: '', naplemente: '',
         erdo: `body.sf-privat, body.sf-privat :is(button,input,select,textarea){font-family:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif}
-            body.sf-privat{background-color:#faf7ef;--stoa-erdo:#1f5c4a}` };
+            body.sf-privat{background-color:#faf7ef;--stoa-erdo:#1f5c4a}`,
+        grafitm: `body.sf-privat, body.sf-privat :is(button,input,select,textarea){font-family:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif}
+            body.sf-privat{background-color:#f2f2f0;color:#111111}` };
     const EXTRA_OVB = {
         ejszaka: `body:not(.sf-privat){color-scheme:dark;color:#e5e9f2;--navy:#e5e9f2;--navy-fel:#1c2742}
             body:not(.sf-privat) :is(input,select,textarea):not([type=checkbox]):not([type=radio]):not([type=range])${OVB_OR}{background-color:#18213a;color:#e5e9f2;border-color:#2a3553}
@@ -16897,7 +16915,7 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         const homok = false;
         const beall = (resz, kulcs, lista) => { const szin = (lista[kulcs] || [])[1] || '#7c3aed';
             if(homok && kulcs !== 'ejszaka'){ ['bg', 'k', 'f'].forEach(x => r.removeProperty(`--st-${x}-${resz}`)); return; }
-            const [bg, k, f] = kulcs === 'ejszaka' ? ['#0e1424', '#161e33', '#1f2942'] : kulcs === 'erdo' ? ['#faf7ef', '#ffffff', '#f0ece0']
+            const [bg, k, f] = kulcs === 'ejszaka' ? ['#0e1424', '#161e33', '#1f2942'] : kulcs === 'erdo' ? ['#faf7ef', '#ffffff', '#f0ece0'] : kulcs === 'grafitm' ? ['#f2f2f0', '#ffffff', '#e8e8e5']
                 : [keverHex('#eef0f3', szin, .08), keverHex('#fcfcfd', szin, .03), keverHex('#e3e6eb', szin, .12)];
             r.setProperty('--st-bg-' + resz, bg); r.setProperty('--st-k-' + resz, k); r.setProperty('--st-f-' + resz, f); };
         beall('priv', window.sfTema(), window.SF_TEMAK); beall('ovb', window.sfOvbTema(), window.SF_OVB_TEMAK);
@@ -31807,12 +31825,12 @@ const prvDatumSzo = s => { const d = ezD(s); return `${PRV_HO[d.getMonth()]} ${d
 // építkezik). n = rövid név, nt = teljes név, c = szín, b = háttér, tx = sötét szöveg,
 // hat = a Célok kártyáinak háttere, ik = ikon (SVG-útvonalak).
 const PRV_TER = [
-    { k:'eg', n:'Egészség', nt:'Egészség', c:'#b0532a', b:'#fde3d3', tx:'#8f3f1c', hat:'#fdebe0', ik:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>' },
-    { k:'sp', n:'Sport', nt:'Sport és regeneráció', c:'#23756d', b:'#d6efec', tx:'#1a5c55', hat:'#e2f3f0', ik:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>' },
-    { k:'pe', n:'Pénzügy', nt:'Pénzügy', c:'#2f6f55', b:'#e3ede6', tx:'#24563f', hat:'#e9f1eb', ik:'<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>' },
-    { k:'cs', n:'Család', nt:'Család és párkapcsolat', c:'#a8445a', b:'#f8dde2', tx:'#8a3448', hat:'#fae6ea', ik:'<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>' },
-    { k:'sz', n:'Személyes', nt:'Személyes fejlődés', c:'#5b4a9a', b:'#e9e4f5', tx:'#4a3c80', hat:'#efebf8', ik:'<path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5-6.5 4.5 2-7.5L2 9h7z"/>' },
-    { k:'ov', n:'Szakmai', nt:'Szakmai (OVB)', c:'#2f6593', b:'#dceaf6', tx:'#244f74', hat:'#e4eef8', ik:'<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6M3 12.5h18"/>' },
+    { k:'eg', n:'Egészség', nt:'Egészség', c:'#ea580c', b:'#ffedd5', tx:'#9a3412', hat:'#fff3e6', ik:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>' },
+    { k:'sp', n:'Sport', nt:'Sport és regeneráció', c:'#2563eb', b:'#dbeafe', tx:'#1e40af', hat:'#e8f0fe', ik:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>' },
+    { k:'pe', n:'Pénzügy', nt:'Pénzügy', c:'#0ea47a', b:'#d1fae5', tx:'#047857', hat:'#e3f9ef', ik:'<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>' },
+    { k:'cs', n:'Család', nt:'Család és párkapcsolat', c:'#db2777', b:'#fce7f3', tx:'#9d174d', hat:'#fdeef6', ik:'<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/>' },
+    { k:'sz', n:'Személyes', nt:'Személyes fejlődés', c:'#9333ea', b:'#f3e8ff', tx:'#6b21a8', hat:'#f7efff', ik:'<path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5-6.5 4.5 2-7.5L2 9h7z"/>' },
+    { k:'ov', n:'Szakmai', nt:'Szakmai (OVB)', c:'#0f766e', b:'#ccfbf1', tx:'#115e59', hat:'#e0f8f4', ik:'<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6M3 12.5h18"/>' },
 ];
 const prvTerIk = t => window.stoaIkon('ter', t.k) || `<svg viewBox="0 0 24 24" aria-hidden="true">${t.ik}</svg>`;
 const prvTer = k => PRV_TER.find(t => t.k === k) || PRV_TER.find(t => t.k === 'sz');
