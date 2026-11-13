@@ -22641,6 +22641,41 @@ function pzReszletLep(d){
 let pzGorgKulcs = '';
 // Napon belül az időpont szerint (ha mindkettőnek van); különben a rögzítési sorrend dönt.
 const pzIdoRend = (a, b) => a.ido && b.ido ? a.ido.localeCompare(b.ido) : 0;
+// ---- Stoa Tranzakciók: hónapváltó, Lista | Naptár váltó, kategória-chipek, naptár-hőtérkép ----
+let pzStNaptar = false, pzStNap = '';
+function pzStTranzFejHtml(katDb){
+    const ho = pzTHo, hossz = pzHoHossz(ho);
+    const nezet = `<div class="st-nezet" role="group" aria-label="Nézet">
+        <button type="button" data-pzstnezet="lista" class="${pzStNaptar ? '' : 'on'}" aria-pressed="${!pzStNaptar}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Lista</button>
+        <button type="button" data-pzstnezet="naptar" class="${pzStNaptar ? 'on' : ''}" aria-pressed="${pzStNaptar}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Naptár</button></div>`;
+    const kat = [...katDb.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k]) => k);
+    for(const k of pzSz.kat) if(!kat.includes(k)) kat.push(k);
+    const chipek = `<div class="st-chipek" role="group" aria-label="Kategória">
+        <button type="button" class="${pzSz.kat.length ? '' : 'on'}" data-pzstkatmind>Mind</button>
+        ${kat.map(k => `<button type="button" class="${pzSz.kat.includes(k) ? 'on' : ''}" data-pzszkat="${esc(k)}">${esc(k)}</button>`).join('')}</div>`;
+    let naptar = '';
+    if(pzStNaptar && pzKerHat === 'ho'){
+        const nap = {}; for(const t of (pzTranz[ho] || [])) if(pzKi(t)) nap[+String(t.d).slice(8, 10)] = (nap[+String(t.d).slice(8, 10)] || 0) + (t.o || 0);
+        const max = Math.max(1, ...Object.values(nap));
+        const elso = (new Date(+ho.slice(0, 4), +ho.slice(5, 7) - 1, 1).getDay() + 6) % 7;
+        const ma = pzMaStr();
+        const cellak = [...Array(elso).fill(0), ...Array.from({ length: hossz }, (_, i) => i + 1)].map(d => {
+            if(!d) return '<span></span>';
+            const v = nap[d] || 0, r = v / max, ds = `${ho}-${String(d).padStart(2, '0')}`;
+            return `<button type="button" data-pzstnap="${ds}" class="${pzStNap === ds ? 'on' : ''}${ds === ma ? ' ma' : ''}" style="${v ? `background:color-mix(in srgb, var(--oc-ac2) ${Math.round(15 + r * 70)}%, var(--oc-bg));${r > .6 ? 'color:#fff;' : ''}` : ''}" aria-label="${d}. – ${pzFt(v)} Ft kiadás"><b>${d}</b>${v ? `<em>${v >= 1000 ? Math.round(v / 1000) + 'e' : v}</em>` : ''}</button>`;
+        }).join('');
+        naptar = `<div class="st-naptar"><div class="fej">${['H','K','Sze','Cs','P','Szo','V'].map(n => `<span>${n}</span>`).join('')}</div><div class="racs">${cellak}</div>
+            <div class="info">${pzStNap ? `${+pzStNap.slice(8)}. · ${pzFt(nap[+pzStNap.slice(8)] || 0)} Ft kiadás · a lista erre a napra szűrve <button type="button" data-pzstnap="${pzStNap}">✕</button>` : 'Koppints egy napra, a lista arra szűrődik'}</div></div>`;
+    }
+    return pzHoValtoHtml() + nezet + chipek + naptar;
+}
+document.addEventListener('click', e => {
+    const n = e.target.closest('[data-pzstnezet]');
+    if(n){ pzStNaptar = n.dataset.pzstnezet === 'naptar'; if(!pzStNaptar) pzStNap = ''; if(pzStNaptar && pzKerHat !== 'ho') pzKerHat = 'ho'; renderPzNaplo(); return; }
+    const d = e.target.closest('[data-pzstnap]');
+    if(d){ pzStNap = pzStNap === d.dataset.pzstnap ? '' : d.dataset.pzstnap; renderPzNaplo(); return; }
+    if(e.target.closest('[data-pzstkatmind]')){ pzSz.kat = []; pzSz.al = []; renderPzNaplo(); }
+});
 async function renderPzNaplo(){
     const host = document.getElementById('pzNaplo'); if(!host) return;
     if(!host.innerHTML) host.innerHTML = sfVaz();
@@ -22684,7 +22719,9 @@ async function renderPzNaplo(){
         .filter(t => pzKerHat !== 'idoszak' || (t.d >= pzKerTol && t.d <= pzKerIg))
         .filter(t => pzKerIlleszk(t, szavak));
     const alSzuro = new Set(pzSz.al);
+    if(pzStNap && (!pzStNaptar || !pzStNap.startsWith(pzTHo) || pzKerHat !== 'ho')) pzStNap = '';
     const lista = alap
+        .filter(t => !pzStNap || t.d === pzStNap)
         .filter(t => !pzSz.kat.length || pzSz.kat.includes(t.k))
         .filter(t => !alSzuro.size || alSzuro.has(t.k + '|' + (t.a || '')))
         .filter(t => !(pzSz.tg || []).length || pzTg(t).some(n => pzSz.tg.includes(n)))
@@ -22875,7 +22912,7 @@ async function renderPzNaplo(){
                         <button type="button" class="pz-mcf-p ki${pzKerTip === 'ki' ? ' on' : ''}" data-pzkertip="${pzKerTip === 'ki' ? 'mind' : 'ki'}" aria-pressed="${pzKerTip === 'ki'}" title="Csak a kiadások"><i>−</i>${pzFt(ki)} Ft</button>
                     </div>
                 </div>
-                ${pzMobHokHtml('pzMhok')}
+                ${(window.stoaAktiv && window.stoaAktiv()) ? pzStTranzFejHtml(katDb) : pzMobHokHtml('pzMhok')}
                 ${pzAszt ? `<div class="pz-akpi">
                     <div><small>Cash-flow · ${esc(pzKerHat === 'ho' ? (PZ_MONTHS[+pzTHo.slice(5,7) - 1] || '').toLowerCase() : hatokor)}</small><b class="${be - ki < 0 ? 'pz-down' : 'pz-up'}">${be - ki < 0 ? '−' : '+'}${pzFt(Math.abs(be - ki))} Ft</b></div>
                     <div><small>Bevétel</small><b class="pz-up">${pzFt(be)} Ft</b></div>
@@ -47467,6 +47504,33 @@ body.sf-privat .st-hk-lista .pz-e-tetelek { margin:0 0 6px; }
 body.sf-privat #pzHonap :is(.pz-h-mfej, .pz-hb, .pz-hero-ures, .pz-hk-m) { display:none !important; }
 @media (min-width:761px){ body.sf-privat .st-honap { display:grid; grid-template-columns:1fr 1fr; align-items:center; } body.sf-privat .st-honap .st-hovalto, body.sf-privat .st-honap .st-hk-lista { grid-column:1 / -1; } body.sf-privat .st-hk-lista { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:16px; } body.sf-privat .st-hk-lista .st-pz-fej, body.sf-privat .st-hk-lista .pz-e-tetelek { grid-column:1 / -1; } body.sf-privat #pzHonap .pz-c-lay > div:first-child:not(.pz-rail) { display:none; } }
 body.sf-privat #page-penzugyek[data-pzv="honap"] #pzFej .pz-fej-ho { display:none !important; }
+/* Tranzakciók */
+body.sf-privat .st-nezet { display:inline-flex; gap:4px; padding:4px; border-radius:999px; background:var(--oc-sf); align-self:flex-start; margin:12px 0 0; }
+body.sf-privat .st-nezet button { height:34px; padding:0 16px; border:0; border-radius:999px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; background:transparent; color:var(--oc-n7); display:flex; align-items:center; gap:6px; }
+body.sf-privat .st-nezet button.on { background:var(--oc-tx); color:var(--oc-bg); }
+body.sf-privat .st-nezet svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2.75; stroke-linecap:round; stroke-linejoin:round; }
+body.sf-privat .st-chipek { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:12px -20px 0; padding:0 20px; }
+body.sf-privat .st-chipek::-webkit-scrollbar { display:none; }
+body.sf-privat .st-chipek button { flex:none; height:34px; padding:0 14px; border:0; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 2px var(--oc-n3); color:var(--oc-tx); font:inherit; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+body.sf-privat .st-chipek button.on { background:var(--oc-tx); color:var(--oc-bg); box-shadow:none; }
+body.sf-privat .st-naptar { margin-top:12px; background:var(--oc-sf); border-radius:28px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+body.sf-privat .st-naptar .fej, body.sf-privat .st-naptar .racs { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+body.sf-privat .st-naptar .fej span { text-align:center; font-size:11px; font-weight:700; color:var(--oc-n7); }
+body.sf-privat .st-naptar .racs button { aspect-ratio:1; border:0; border-radius:12px; background:var(--oc-bg); color:var(--oc-tx); font:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:0; min-width:0; }
+body.sf-privat .st-naptar .racs button b { font-size:12px; font-weight:700; } body.sf-privat .st-naptar .racs button em { font-style:normal; font-size:9.5px; font-weight:700; opacity:.85; }
+body.sf-privat .st-naptar .racs button.ma b { text-decoration:underline; text-underline-offset:2px; }
+body.sf-privat .st-naptar .racs button.on { box-shadow:0 0 0 2px var(--oc-tx); }
+body.sf-privat .st-naptar .info { font-size:12px; font-weight:600; color:var(--oc-n7); display:flex; align-items:center; gap:6px; }
+body.sf-privat .st-naptar .info button { border:0; background:var(--oc-bg); border-radius:999px; width:24px; height:24px; cursor:pointer; color:var(--oc-tx); }
+body.sf-privat #pzNaplo .st-hovalto { margin-top:12px; }
+@media (max-width:760px){ body.sf-privat #pzNaplo .pz-kereso { display:flex; flex-direction:column; } body.sf-privat #pzNaplo .pz-ker-fo { order:5; margin-top:12px; display:flex !important; gap:8px; align-items:center; }
+    body.sf-privat #pzNaplo .pz-ker-fo .pz-fej-burger, body.sf-privat #pzNaplo .pz-ker-fo .pz-ker-ik span { display:none !important; }
+    body.sf-privat #pzNaplo .pz-ker-mezo { flex:1; display:flex !important; align-items:center; gap:8px; height:44px; padding:0 14px; border-radius:999px; background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; }
+    body.sf-privat #pzNaplo .pz-ker-mezo input { border:0 !important; background:transparent !important; font:inherit; font-size:14px; flex:1; min-width:0; outline:none; box-shadow:none !important; padding:0 !important; }
+    body.sf-privat #pzNaplo .pz-ker-mezo svg { width:18px; height:18px; color:var(--oc-n7); }
+    body.sf-privat #pzNaplo .pz-ker-ik { display:inline-grid !important; place-items:center; width:44px; height:44px; padding:0 !important; border-radius:999px !important; background:var(--oc-sf) !important; border:0 !important; color:var(--oc-tx); }
+    body.sf-privat #pzNaplo .pz-ker-ik.on { background:var(--oc-tx) !important; color:var(--oc-bg); }
+    body.sf-privat #pzNaplo .st-chipek { order:6; } body.sf-privat #pzNaplo .st-naptar { order:7; } body.sf-privat #pzNaplo .pz-sz-panel { order:5; } body.sf-privat #pzNaplo .pz-sz-aktiv { order:8; margin-top:8px; } body.sf-privat #pzNaplo .pz-ker-info { order:9; } }
 /* a régi Áttekintés kártyái (célok, legutóbbi tételek, tárcák) a Stoa felületén */
 body.sf-privat #pzAttek .pz-a-kartya { background:var(--oc-sf) !important; border:0 !important; box-shadow:none !important; border-radius:28px !important; }
 @media (max-width:760px){
