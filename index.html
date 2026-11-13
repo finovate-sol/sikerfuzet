@@ -19880,7 +19880,7 @@ document.addEventListener('click', e => {
         if(x){ if(x.k && pzKatOf(S.t, x.k)){ S.k = x.k; S.a = x.a || ''; } if(x.p && pzTarcaOf(x.p)) S.p = x.p; }
         S.nyit = 'osszeg'; return pzStRajz(); }
     if(g('[data-pzstment]')) return pzStMent();
-    if(g('[data-pzstreszl]')){ const elo = { t: S.t, ...(S.p ? { p: S.p } : {}), ...(S.k ? { k: S.k } : {}), ...(S.o ? { o: +S.o } : {}), ...(S.m ? { m: S.m } : {}), d: S.d, _regi: true }; pzStZar(); pzTHo = S.d.slice(0, 7); return pzTetelModal(null, elo); }
+    if(g('[data-pzstreszl]')){ const elo = { t: S.t, ...(S.p ? { p: S.p } : {}), ...(S.k ? { k: S.k } : {}), ...(S.o ? { o: +S.o } : {}), ...(S.m ? { m: S.m } : {}), d: S.d, _regi: true, _teljes: true }; pzStZar(); pzTHo = S.d.slice(0, 7); return pzTetelModal(null, elo); }
 });
 document.addEventListener('input', e => {
     if(!pzSt) return;
@@ -19965,6 +19965,7 @@ function pzTetelModal(letezo, elotolt){
         </div>
         <div class="modal-foot">
             ${letezo ? `<button class="btn pz-uj-torol" id="pzfTorol">Törlés</button>` : ''}
+            ${letezo && letezo.t !== 'atu' && (letezo.o || 0) >= 2 && window.stoaAktiv && window.stoaAktiv() ? `<button type="button" class="btn" data-pzstfeloszt="${esc(letezo.id)}">Felosztás</button>` : ''}
             <button class="pz-uj-ment" id="pzfMent">${letezo ? 'Mentés' : 'Rögzítés'}</button>
         </div>
     </div>`;
@@ -21410,6 +21411,52 @@ function pzAMent(el){
 
 // csak: egyetlen kártya (data-pzw) frissül, a lap többi része – és a görgetés – marad.
 // ===== Stoa al-képernyők: teljes képernyős panel vissza gombbal =====
+// Felosztás: egy tétel több kategóriára bontása. A tétel helyére annyi tétel kerül, ahány sor van
+// (ugyanaz a dátum, hely, tárca), így minden összesítő, keret és tárca-egyenleg magától helyes marad.
+function pzStFeloszt(id){
+    const ho = Object.keys(pzTranz).find(h => (pzTranz[h] || []).some(t => t.id === id)); if(!ho) return;
+    const t0 = pzTranz[ho].find(t => t.id === id), tip = t0.t === 'bev' ? 'bev' : 'ki';
+    const katL = pzGyakoriKat(tip).map(k => k.n); if(!katL.length) return;
+    const masik = katL.find(n => n !== t0.k) || katL[0];
+    const sorok = [{ k: t0.k || katL[0], a: t0.a || '', o: t0.o }, { k: masik, a: '', o: 0 }];
+    const ossz = t0.o || 0;
+    const marad = () => ossz - sorok.reduce((a, x) => a + x.o, 0);
+    const belso = () => { const m = marad();
+        return `<div class="st-kr-fej"><div><span>${esc(pzNevTiszta(t0.m) || t0.k || 'Tétel')} · ${esc(pzNapCim(t0.d))}</span><b>${tip === 'bev' ? '+' : '−'}${pzFt(ossz)} Ft</b></div></div>
+        <section class="st-pz-kartya pad st-fo-l">${sorok.map((x, i) => { const k = pzKatOf(tip, x.k) || {};
+            return `<div class="st-fo"><button type="button" class="kat" data-pzstfokat="${i}" title="Koppints a következő kategóriához">${pzIk(k.i || 'cimke', k.c || 'szurke')}<span>${esc(x.k)}</span></button>
+                <button type="button" class="pm" data-pzstfopm="${i}|-1000" aria-label="−1000 Ft">−</button>
+                <button type="button" class="o" data-pzstfomar="${i}" title="Koppints: a maradék ide kerül">${pzFt(x.o)}</button>
+                <button type="button" class="pm" data-pzstfopm="${i}|1000" aria-label="+1000 Ft">+</button>
+                ${sorok.length > 2 ? `<button type="button" class="x" data-pzstfodel="${i}" aria-label="Sor törlése">✕</button>` : ''}</div>`; }).join('')}
+            <button type="button" class="st-fo-uj" data-pzstfouj>+ Új sor</button></section>
+        <div class="st-fo-all${m ? '' : ' ok'}">${m ? (m > 0 ? `Még <b>${pzFt(m)} Ft</b> felosztatlan` : `<b>${pzFt(-m)} Ft</b>-tal több a tételnél`) : 'Minden forint felosztva ✓'}</div>
+        <p class="st-pz-halk st-fo-tipp">Koppints a kategóriára a cseréhez, az összegre, hogy a maradék hozzáadódjon.</p>
+        <div class="st-ef-g"><button type="button" class="p" data-pzstfoment${m || sorok.some(x => x.o <= 0) ? ' disabled' : ''}>Felosztás mentése</button></div>`; };
+    const p = stPanel('Felosztás', belso());
+    const rajz = () => { p.querySelector('.st-panel-t').innerHTML = belso(); };
+    p.addEventListener('click', e => {
+        let b;
+        if((b = e.target.closest('[data-pzstfokat]'))){ const x = sorok[+b.dataset.pzstfokat]; x.k = katL[(katL.indexOf(x.k) + 1) % katL.length]; x.a = ''; return rajz(); }
+        if((b = e.target.closest('[data-pzstfopm]'))){ const [i, d] = b.dataset.pzstfopm.split('|').map(Number); sorok[i].o = Math.max(0, sorok[i].o + d); return rajz(); }
+        if((b = e.target.closest('[data-pzstfomar]'))){ const x = sorok[+b.dataset.pzstfomar]; x.o = Math.max(0, x.o + marad()); return rajz(); }
+        if((b = e.target.closest('[data-pzstfodel]'))){ sorok.splice(+b.dataset.pzstfodel, 1); return rajz(); }
+        if(e.target.closest('[data-pzstfouj]')){ sorok.push({ k: katL.find(n => !sorok.some(x => x.k === n)) || katL[0], a: '', o: Math.max(0, marad()) }); return rajz(); }
+        if(e.target.closest('[data-pzstfoment]')){
+            if(marad() || sorok.some(x => x.o <= 0)) return;
+            const { k, a, o, ...kozos } = t0;
+            const ujak = sorok.map((x, i) => ({ ...kozos, id: i ? t0.id + '_f' + i + Date.now().toString(36).slice(-3) : t0.id, k: x.k, a: x.a, o: x.o }));
+            if(pzTarcaHat(t0, -1)) pzSaveTorzs();
+            const idx = pzTranz[ho].indexOf(t0);
+            pzTranz[ho].splice(idx, 1, ...ujak);
+            let w = false; for(const u of ujak) if(pzTarcaHat(u, 1)) w = true; if(w) pzSaveTorzs();
+            pzSaveTranz(ho); pzSyncTervezo(ho);
+            stPanelZar(); pzFrissit(); if(typeof stoaToast === 'function') stoaToast(`${sorok.length} részre osztva · ${pzFt(ossz)} Ft`);
+        }
+    });
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-pzstfeloszt]'); if(!b) return;
+    b.closest('.modal-overlay')?.remove(); pzStFeloszt(b.dataset.pzstfeloszt); });
 function stPanel(cim, html, opt = {}){
     document.getElementById('stPanel')?.remove();
     const p = document.createElement('div'); p.id = 'stPanel'; p.className = 'st-panel'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-modal', 'true');
@@ -23479,7 +23526,48 @@ function pzTomegTorol(){
 /* ---- KERETEK SZERKESZTŐJE ----
    Az elmúlt 3 hónap átlaga mellé kerül, hogy reális keretet lehessen adni,
    ne hasraütéseset. */
-async function pzKeretModal(){
+// Stoa: Keretek szerkesztése – összkeret fejléc, kategóriánként csúszka (1000 Ft lépés), az előző havi tény referenciaként
+async function pzStKeretek(){
+    await pzLoadKat();
+    const elozo = pzHoLep(pzMaHo(), -1), hok = [1, 2, 3].map(d => pzHoLep(pzMaHo(), -d));
+    await Promise.all(hok.map(h => pzLoadTranz(h))).catch(() => null);
+    const tenyOf = (h, n) => (pzTranz[h] || []).filter(t => pzKi(t) && (t.k || 'Egyéb') === n).reduce((s, t) => s + (t.o || 0), 0);
+    const katok = pzLista('ki');
+    const ert = katok.map(k => k.k || 0);
+    const ref = katok.map(k => tenyOf(elozo, k.n));
+    const atl = katok.map(k => Math.round(hok.reduce((s, h) => s + tenyOf(h, k.n), 0) / 3));
+    const max = katok.map((k, i) => Math.max(50000, Math.ceil(Math.max((k.k || 0) * 2, ref[i] * 1.5, atl[i] * 2) / 10000) * 10000));
+    const hoNev = PZ_MONTHS[+elozo.slice(5, 7) - 1].toLowerCase();
+    const osszRef = ref.reduce((a, b) => a + b, 0);
+    const sor = i => { const k = katok[i], v = ert[i], r = ref[i], tul = v > 0 && r > v;
+        return `<div class="st-kk" data-i="${i}"><div class="f">${pzIk(k.i, k.c)}<b>${esc(k.n)}</b><span class="v">${v ? pzFt(v) + ' Ft' : 'nincs keret'}</span></div>
+            <input type="range" min="0" max="${max[i]}" step="1000" value="${v}" data-pzstkk="${i}" aria-label="${esc(k.n)} havi kerete">
+            <span class="r${tul ? ' tul' : ''}">${hoNev}ban ${pzFt(r)} Ft${tul ? ` · ${pzFt(r - v)} Ft-tal több a keretnél` : ''}${atl[i] ? ` · 3 havi átlag ${pzFt(atl[i])} Ft` : ''}</span></div>`; };
+    const fej = () => `<span class="c">Havi keret összesen</span><b>${pzFt(ert.reduce((a, b) => a + b, 0))} Ft</b><span class="s">${hoNev}ban ${pzFt(osszRef)} Ft volt a kiadás</span>`;
+    const p = stPanel('Havi keretek', `<div class="st-kk-fej" id="pzStKkFej">${fej()}</div>
+        <section class="st-pz-kartya pad st-kk-l">${katok.map((_, i) => sor(i)).join('')}</section>
+        <div class="st-ef-g"><button type="button" data-pzstkkatl>Átlagok az üresekbe</button><button type="button" class="p" data-pzstkkment>Mentés</button></div>
+        <button type="button" class="st-kk-regi" data-pzstkkregi>Pontos összegek beírása (régi űrlap) ›</button>`);
+    p.addEventListener('input', e => {
+        const r = e.target.closest('[data-pzstkk]'); if(!r) return;
+        const i = +r.dataset.pzstkk; ert[i] = +r.value;
+        const d = r.closest('.st-kk'), t = document.createElement('div'); t.innerHTML = sor(i);
+        d.querySelector('.v').textContent = t.querySelector('.v').textContent;
+        const rr = d.querySelector('.r'), ur = t.querySelector('.r'); rr.className = ur.className; rr.textContent = ur.textContent;
+        p.querySelector('#pzStKkFej').innerHTML = fej();
+    });
+    p.addEventListener('click', e => {
+        if(e.target.closest('[data-pzstkkatl]')){ katok.forEach((_, i) => { if(!ert[i] && atl[i]) ert[i] = Math.round(atl[i] / 1000) * 1000; });
+            p.querySelector('.st-kk-l').innerHTML = katok.map((_, i) => sor(i)).join(''); p.querySelector('#pzStKkFej').innerHTML = fej(); return; }
+        if(e.target.closest('[data-pzstkkregi]')){ stPanelZar(); pzKeretModal(true); return; }
+        if(e.target.closest('[data-pzstkkment]')){
+            katok.forEach((k0, i) => { const k = pzKatOf('ki', k0.n) || k0; if(ert[i] > 0) k.k = ert[i]; else delete k.k; });
+            pzSaveKat(); stPanelZar(); pzFrissit(); if(typeof stoaToast === 'function') stoaToast('Havi keretek elmentve');
+        }
+    });
+}
+async function pzKeretModal(regi){
+    if(!regi && window.stoaAktiv && window.stoaAktiv()) return pzStKeretek();
     await pzLoadKat();
     const hok = [1,2,3].map(d => pzHoLep(pzMaHo(), -d));
     await Promise.all(hok.map(h => pzLoadTranz(h)));
@@ -24510,6 +24598,16 @@ function pzOpenTranzImport(){
         </div>
     </div>`;
     document.body.appendChild(ov);
+    if(window.stoaAktiv && window.stoaAktiv()){
+        // Stoa: lépésjelző (1 fájl → 2 párosítás és előnézet → 3 importálás)
+        const lep = document.createElement('div'); lep.className = 'st-imp-lep';
+        lep.innerHTML = '<span class="on"><i></i>Fájl</span><span><i></i>Párosítás · előnézet</span><span><i></i>Importálás</span>';
+        ov.querySelector('.modal-body').prepend(lep);
+        const all = () => { const tart = ov.querySelector('#pzImTart'), go = ov.querySelector('#pzImGo');
+            const n = !tart || !tart.innerHTML.trim() ? 1 : go && !go.disabled ? 3 : 2;
+            lep.querySelectorAll('span').forEach((x, i) => x.classList.toggle('on', i < n)); };
+        new MutationObserver(all).observe(ov, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
+    }
     const zar = () => ov.remove();
     ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-pzx]')) zar(); });
 
@@ -48031,6 +48129,35 @@ html body.sf-privat .modal-overlay .btn { border-radius:999px !important; height
 html body.sf-privat .modal-overlay .btn.primary { background:var(--oc-ac) !important; color:#fff !important; }
 html body.sf-privat .modal-overlay :is(input[type="text"], input[type="number"], input[type="date"], input[type="search"], input:not([type]), select, textarea) { border-radius:16px; border:0 !important; background:var(--oc-sf) !important; color:var(--oc-tx); box-shadow:none !important; }
 html body.sf-privat .modal-overlay .pz-sec-note, html body.sf-privat .modal-overlay .pz-kr-szink { border-radius:20px; }
+/* Keretek szerkesztése */
+.st-kk-fej { background:var(--oc-ac200); border-radius:28px; padding:16px 18px; display:flex; flex-direction:column; gap:2px; }
+.st-kk-fej .c { font-size:12px; font-weight:700; color:var(--oc-ac9); } .st-kk-fej b { font-family:var(--oc-hd); font-weight:400; font-size:32px; line-height:1.05; } .st-kk-fej .s { font-size:12px; color:var(--oc-ac9); }
+.st-kk { display:flex; flex-direction:column; gap:6px; padding:10px 0; }
+.st-kk + .st-kk { border-top:1px solid color-mix(in srgb, var(--oc-n3) 60%, transparent); }
+.st-kk .f { display:flex; align-items:center; gap:10px; } .st-kk .f b { flex:1; font-size:14px; } .st-kk .f .v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+.st-kk .f .pz-ikon, .st-kk .f > i { width:32px !important; height:32px !important; }
+.st-kk input[type=range] { width:100%; accent-color:var(--oc-ac); height:28px; margin:0; }
+.st-kk .r { font-size:11px; font-weight:600; color:var(--oc-n7); } .st-kk .r.tul { color:var(--oc-ac2-8); }
+.st-kk-regi { border:0; background:none; font:inherit; font-size:13px; font-weight:700; color:var(--oc-ac7); cursor:pointer; align-self:center; }
+.st-ef-g button.p { background:var(--oc-ac); color:#fff; box-shadow:none; } .st-ef-g button:disabled { background:var(--oc-n3); color:var(--oc-n7); cursor:default; }
+/* Felosztás */
+.st-fo { display:flex; align-items:center; gap:6px; padding:8px 0; }
+.st-fo + .st-fo { border-top:1px solid color-mix(in srgb, var(--oc-n3) 60%, transparent); }
+.st-fo .kat { flex:1; min-width:0; display:flex; align-items:center; gap:8px; border:0; background:var(--oc-bg); border-radius:999px; padding:4px 12px 4px 4px; font:inherit; font-size:13px; font-weight:700; color:var(--oc-tx); cursor:pointer; text-align:left; }
+.st-fo .kat span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .st-fo .kat .pz-ikon, .st-fo .kat > i { width:30px !important; height:30px !important; flex:none; }
+.st-fo .pm, .st-fo .x { width:34px; height:34px; flex:none; border:0; border-radius:999px; background:var(--oc-bg); color:var(--oc-tx); font-size:18px; font-weight:700; cursor:pointer; }
+.st-fo .x { background:transparent; font-size:13px; color:var(--oc-n7); }
+.st-fo .o { min-width:78px; border:0; background:none; font:inherit; font-size:15px; font-weight:700; color:var(--oc-tx); cursor:pointer; text-align:center; font-variant-numeric:tabular-nums; }
+.st-fo-uj { border:0; background:none; font:inherit; font-size:13px; font-weight:700; color:var(--oc-ac7); cursor:pointer; align-self:flex-start; padding:8px 0 0; }
+.st-fo-all { background:var(--oc-ac2-100); color:var(--oc-ac2-9); border-radius:20px; padding:12px 16px; font-size:13px; font-weight:600; }
+.st-fo-all.ok { background:var(--oc-ac200); color:var(--oc-ac9); font-weight:700; }
+.st-fo-tipp { font-size:12px !important; margin:0; }
+/* CSV-import lépésjelző */
+.st-imp-lep { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:0 0 14px; }
+.st-imp-lep span { display:flex; flex-direction:column; gap:6px; font-size:11px; font-weight:700; color:var(--oc-n7); }
+.st-imp-lep i { display:block; height:6px; border-radius:999px; background:var(--oc-sf); }
+.st-imp-lep span.on { color:var(--oc-tx); } .st-imp-lep span.on i { background:var(--oc-ac); }
+html body.sf-privat .modal-overlay .pz-im-fajl { display:flex !important; align-items:center; justify-content:center; height:56px; border-radius:999px !important; background:var(--oc-sf) !important; border:2px dashed var(--oc-n3) !important; color:var(--oc-tx) !important; font-weight:700; cursor:pointer; }
 /* Illusztráció */
 body.sf-privat { --oc-ac100:color-mix(in oklch, #2f6f8f 10%, white); --oc-ac2-200:color-mix(in oklch, #e07a5f 22%, white); }
 .st-illu { position:relative; display:inline-block; flex:none; }
