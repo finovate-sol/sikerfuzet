@@ -36019,7 +36019,7 @@ document.addEventListener('click', e => {
         m.querySelector('.on')?.scrollIntoView({ block: 'center' }); return; }
     const v = e.target.closest('[data-sthoval]');
     if(v){ document.getElementById('stHoMenu')?.remove(); pzTHo = v.dataset.sthoval; pzKerHat = 'ho'; pzCNyitva = ''; pzAKat = ''; pzFrissit(); return; }
-    if(!e.target.closest('#stHoMenu')) document.getElementById('stHoMenu')?.remove();
+    if(!e.target.closest('#stHoMenu, [data-ezhetval]')) document.getElementById('stHoMenu')?.remove();
 });
 window.addEventListener('scroll', () => document.getElementById('stHoMenu')?.remove(), { passive: true });
 // az aktív fül chip: lenyíló az összes füllel
@@ -36033,13 +36033,17 @@ document.addEventListener('click', e => {
         return; }
     if(e.target.closest('#stFulMenu [data-szful]')) setTimeout(stFulMenuZar, 0);
     else if(!e.target.closest('#stFulMenu')) stFulMenuZar();
-    if(e.target.closest('[data-ezhetval]')){
-        const inp = document.createElement('input'); inp.type = 'date'; inp.value = ezStSel || ezMa();
-        inp.style.cssText = 'position:fixed;opacity:0;pointer-events:none;left:50%;top:50%'; document.body.appendChild(inp);
-        inp.addEventListener('change', () => { if(inp.value){ ezHet = ezHetfo(inp.value); ezStSel = inp.value; renderEdz(); } inp.remove(); });
-        inp.addEventListener('blur', () => setTimeout(() => inp.remove(), 300));
-        try { inp.showPicker(); } catch(_){ inp.focus(); inp.click(); }
-    }
+    // hét lenyíló (Edzés): iOS-en a rejtett dátummező nem nyílik meg, ezért saját lista
+    const hg = e.target.closest('[data-ezhetval]');
+    if(hg){ if(document.getElementById('stHoMenu')){ document.getElementById('stHoMenu').remove(); return; }
+        const most = ezHetfo(ezMa()), hsz = h => { const d = ezD(h); d.setDate(d.getDate() + 3); const j1 = new Date(d.getFullYear(), 0, 4); return 1 + Math.round(((d - j1) / 864e5 - 3 + ((j1.getDay() + 6) % 7)) / 7); };
+        const l = []; for(let i = 8; i >= -16; i--) l.push(ezPlusz(most, 7 * i)); if(!l.includes(ezHet)) l.push(ezHet);
+        const m = document.createElement('div'); m.id = 'stHoMenu'; m.className = 'szm-ful-menu hib st-fulmenu st-homenu'; m.setAttribute('role', 'menu');
+        m.innerHTML = l.map(h => `<button type="button" class="${h === ezHet ? 'on' : ''}" data-sthetval="${h}"><span>${h === most ? 'Ez a hét' : `${hsz(h)}. hét`} <em style="font-style:normal;opacity:.6;font-weight:600">· ${esc(ezHetCim(h))}</em></span>${h === ezHet ? '<svg class="pipa" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</button>`).join('');
+        document.body.appendChild(m); const r = hg.getBoundingClientRect(); m.style.top = (r.bottom + 8) + 'px'; m.style.right = Math.max(12, innerWidth - r.right) + 'px'; m.style.left = 'auto'; m.style.bottom = 'auto'; m.style.width = '250px'; m.style.maxHeight = Math.max(160, innerHeight - r.bottom - 100) + 'px';
+        m.querySelector('.on')?.scrollIntoView({ block: 'center' }); return; }
+    const hv = e.target.closest('[data-sthetval]');
+    if(hv){ document.getElementById('stHoMenu')?.remove(); ezHet = hv.dataset.sthetval; const ma = ezMa(); ezStSel = ezHet === ezHetfo(ma) ? ma : ezHet; renderEdz(); return; }
 });
 window.stFejFrissit = stFejFrissit;
 // Tranzakciók: görgetéskor a fejléc helyén vékony sáv (cím + összeg + kereső)
