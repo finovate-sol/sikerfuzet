@@ -35016,13 +35016,14 @@ async function stRInit(){
     if(['edzes', 'suly'].includes(S.tip)){ await Promise.all([ezBetolt('torzs'), ezEvekBetolt(ma)]).catch(() => null); }
     if(S.tip === 'edzes'){ const ut = stREdzUtolso(); S.sport = ut ? ut.sport : 'ero'; S.fok = ut ? ut.fok || '' : ''; S.perc = ut ? ut.perc || 45 : 45; S.erz = 'jo'; S.megj = ''; }
     if(S.tip === 'suly'){ const m = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), ut = m[m.length - 1]; S.kg = ut ? ut.kg : 75; S.elo = ut ? ut.kg : null; S.ehgy = true; }
-    if(S.tip === 'alvas'){ await nlEv(ma.slice(0, 4)).catch(() => null); const x = nlEg(ma); S.alv = nlNapAlv(ma) || 450; S.le = x.le || ''; S.fel = x.fel || ''; const q = nlNapAlvM(ma); S.q = q == null ? 85 : q >= 75 ? 85 : q >= 50 ? 60 : 35; }
+    if(S.tip === 'alvas'){ await nlEv(ma.slice(0, 4)).catch(() => null); const x = nlEg(ma); S.le = x.le || '23:00'; S.fel = x.fel || '07:00'; S.alv = stRAlvPerc(S.le, S.fel); const q = nlNapAlvM(ma); S.q = q == null ? 80 : q; }
     if(S.tip === 'szokas'){ S.sz = await prvBetolt('szokasok').catch(() => ({})); }
     if(S.tip === 'naplo'){ await nlEv(ma.slice(0, 4)).catch(() => null); S.B = await nlBeall().catch(() => ({ hang: [], tev: [] })); S.h = 0; S.tev = []; S.megj = ''; }
     if(S.tip === 'link'){ S.mt = await prvBetolt('mentesek').catch(() => ({ lista: [] })); S.u = S.u || ''; S.cimke = '';
         try { const c = await navigator.clipboard.readText(); if(/^https?:\/\//i.test((c || '').trim())){ S.u = c.trim(); S.vago = true; } } catch(_){} }
     if(S.tip === 'esemeny'){ S.em = await prvBetolt('emberek').catch(() => ({})); S.n = ''; S.d = ezPlusz(ma, 1); S.ido = '10:00'; S.elore = 0; S.ism = false; S.megj = ''; }
 }
+const stRAlvPerc = (le, fel) => { const m = t => { const [a, b] = String(t || '0:0').split(':').map(Number); return (a || 0) * 60 + (b || 0); }; let d = m(fel) - m(le); if(d <= 0) d += 1440; return Math.min(16 * 60, d); };
 const stREdzUtolso = () => { const ma = ezMa(); for(let i = 0; i < 60; i++){ const d = ezPlusz(ma, -i); const e = ezNapLista(d).filter(x => x.sport !== 'pih' && ['ok', 'resz'].includes(x.st)).pop(); if(e) return { sport: e.sport, fok: e.fok || '', perc: e.perc || e.tp || 45, n: e.n }; } return null; };
 const stRFt = n => pzFt(Math.abs(+n || 0));
 // --- panel váz ---
@@ -35093,9 +35094,15 @@ function stRRajz(){
                 gombok: `<button type="button" class="fo" data-stract="ment">Mentés</button>` }); }
     }
     else if(S.tip === 'alvas'){
-        const ora = Math.floor(S.alv / 60), perc = S.alv % 60;
-        h = stRVaz({ kicker: 'Alvás', cim: 'Tegnap éjjel', tart: `<div class="lepdoboz">${stRLep(`${ora} ó ${perc} p`, S.le && S.fel ? `${esc(S.le)} → ${esc(S.fel)}` : 'koppints a ± gombokra', 'alv')}</div>
-            <div class="chips">${[[85, 'Pihentető'], [60, 'Közepes'], [35, 'Rossz']].map(([q, n]) => stRChip(n, `data-strq="${q}"`, S.q === q)).join('')}</div>`,
+        const ora = Math.floor(S.alv / 60), perc = S.alv % 60, q = S.q, osz = nlAlvMOszt(q);
+        let onb = false; try { onb = !localStorage.getItem('stoa_alv_onb'); } catch(_){}
+        h = stRVaz({ kicker: 'Alvás', cim: 'Tegnap éjjel', tart: `
+            ${onb ? `<div class="onb"><b>Mit jelent az alvásminőség %?</b><span>Ha az órád vagy a telefonod méri (pl. Apple Watch, Oura, Sleep Cycle), írd be onnan a pontszámot. Ha nem, becsüld meg: <em>85+ pihentető</em>, <em>60 körül közepes</em>, <em>50 alatt gyenge</em>. Így látszik majd, mitől alszol jobban.</span><button type="button" data-stralvonb>Értem</button></div>` : ''}
+            <div class="alvido"><label><span>Lefekvés</span><input type="time" id="stRLe" value="${esc(S.le || '23:00')}"></label><i>→</i><label><span>Ébredés</span><input type="time" id="stRFel" value="${esc(S.fel || '07:00')}"></label></div>
+            <div class="alvossz"><b>${ora} ó ${perc} p</b><span>alvásidő</span></div>
+            <div class="alvq"><div class="f"><span>Minőség</span><b class="q-${osz}">${q}% · ${nlAlvMSzo(q)}</b></div>
+                <input type="range" id="stRQ" min="0" max="100" step="1" value="${q}" class="q-${osz}" aria-label="Alvásminőség százalékban">
+                <div class="chips">${[[90, 'Pihentető'], [65, 'Közepes'], [40, 'Rossz']].map(([v, n]) => stRChip(n, `data-strq="${v}"`, q === v)).join('')}</div></div>`,
             gombok: `<button type="button" class="fo" data-stract="ment">Mentés</button>` });
     }
     else if(S.tip === 'suly'){
@@ -35194,7 +35201,7 @@ async function stRMent(){
     }
     if(S.tip === 'alvas'){
         const y = ma.slice(0, 4), doc = await nlEv(y), eg = doc.eg || (doc.eg = {}), x = eg[ma] || (eg[ma] = {}), regi = { ...x };
-        x.alv = S.alv; x.alvM = S.q; if(!(S.le && S.fel)){ delete x.le; delete x.fel; }
+        x.alv = S.alv; x.alvM = S.q; x.le = S.le; x.fel = S.fel;
         prvMent(nlEvKulcs(y)); stRZar(); stRUtan();
         stRToast(`Alvás mentve · ${Math.floor(S.alv / 60)} ó ${S.alv % 60} p`, '', async () => { eg[ma] = regi; if(!Object.keys(regi).length) delete eg[ma]; prvMent(nlEvKulcs(y)); stRUtan(); });
         return;
@@ -35277,6 +35284,7 @@ document.addEventListener('click', async e => {
         if(m === 'kg') S.kg = Math.max(20, Math.min(400, Math.round((S.kg + n * .1) * 10) / 10));
         return stRRajz(); }
     if((b = g('[data-strq]'))){ S.q = +b.dataset.strq; return stRRajz(); }
+    if(g('[data-stralvonb]')){ try { localStorage.setItem('stoa_alv_onb', '1'); } catch(_){} return stRRajz(); }
     if(g('[data-strehgy]')){ S.ehgy = !S.ehgy; return stRRajz(); }
     if(g('[data-strmegj]')){ const v = prompt('Jegyzet:', S.megj || ''); if(v != null){ S.megj = v.trim(); stRRajz(); } return; }
     if((b = g('[data-strsz]'))){ szValt(S.sz, b.dataset.strsz, ma0()); stRRajz(); try { if(navigator.vibrate) navigator.vibrate(8); } catch(_){} return; }
@@ -35311,6 +35319,8 @@ document.addEventListener('input', e => {
     if(e.target.id === 'stREsN') stR.n = e.target.value;
     if(e.target.id === 'stRLink') stR.u = e.target.value;
 });
+document.addEventListener('change', e => { if(stR && (e.target.id === 'stRLe' || e.target.id === 'stRFel') && e.target.value){ stR[e.target.id === 'stRLe' ? 'le' : 'fel'] = e.target.value; stR.alv = stRAlvPerc(stR.le, stR.fel); stRRajz(); } });
+document.addEventListener('input', e => { if(stR && e.target.id === 'stRQ'){ stR.q = +e.target.value; const o = nlAlvMOszt(stR.q), b = e.target.closest('.alvq').querySelector('.f b'); b.textContent = `${stR.q}% · ${nlAlvMSzo(stR.q)}`; b.className = 'q-' + o; e.target.className = 'q-' + o; } });
 document.addEventListener('change', e => { if(stR && e.target.id === 'stRDat' && e.target.value){ stR.d = e.target.value; stR.n = (document.getElementById('stREsN') || {}).value ?? stR.n; if(stR.tip === 'koltes') stR.nyit = ''; stRRajz(); } });
 document.addEventListener('keydown', e => {
     if(!stR || !document.getElementById('stRog')) return;
@@ -35823,7 +35833,7 @@ document.addEventListener('click', e => {
         if(!l.includes(pzTHo)) l.push(pzTHo);
         const m = document.createElement('div'); m.id = 'stHoMenu'; m.className = 'szm-ful-menu hib st-fulmenu st-homenu'; m.setAttribute('role', 'menu');
         m.innerHTML = l.map(h => `<button type="button" class="${h === pzTHo ? 'on' : ''}" data-sthoval="${h}"><span>${h === ma ? 'Ez a hónap' : esc(pzHoNev(h))}</span>${h === pzTHo ? '<svg class="pipa" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</button>`).join('');
-        document.body.appendChild(m); const r = g.getBoundingClientRect(); m.style.top = (r.bottom + 8) + 'px'; m.style.right = Math.max(12, innerWidth - r.right) + 'px'; m.style.left = 'auto';
+        document.body.appendChild(m); const r = g.getBoundingClientRect(); m.style.top = (r.bottom + 8) + 'px'; m.style.right = Math.max(12, innerWidth - r.right) + 'px'; m.style.left = 'auto'; m.style.bottom = 'auto'; m.style.maxHeight = Math.max(160, innerHeight - r.bottom - 100) + 'px';
         m.querySelector('.on')?.scrollIntoView({ block: 'center' }); return; }
     const v = e.target.closest('[data-sthoval]');
     if(v){ document.getElementById('stHoMenu')?.remove(); pzTHo = v.dataset.sthoval; pzKerHat = 'ho'; pzCNyitva = ''; pzAKat = ''; pzFrissit(); return; }
@@ -35837,7 +35847,7 @@ document.addEventListener('click', e => {
     if(c){ if(document.getElementById('stFulMenu')) return stFulMenuZar();
         const m = document.createElement('div'); m.id = 'stFulMenu'; m.className = 'szm-ful-menu hib st-fulmenu'; m.setAttribute('role', 'menu');
         m.innerHTML = szFulok().map((f, i) => `<button type="button" class="${f.on ? 'on' : ''}" data-szful="${i}"><span>${esc(f.teljes)}</span>${f.on ? '<svg class="pipa" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</button>`).join('');
-        document.body.appendChild(m); const r = c.getBoundingClientRect(); m.style.top = (r.bottom + 8) + 'px'; m.style.left = Math.max(12, r.left) + 'px'; m.style.right = 'auto';
+        document.body.appendChild(m); const r = c.getBoundingClientRect(); m.style.top = (r.bottom + 8) + 'px'; m.style.left = Math.max(12, r.left) + 'px'; m.style.right = 'auto'; m.style.bottom = 'auto'; m.style.maxHeight = Math.max(160, innerHeight - r.bottom - 100) + 'px';
         return; }
     if(e.target.closest('#stFulMenu [data-szful]')) setTimeout(stFulMenuZar, 0);
     else if(!e.target.closest('#stFulMenu')) stFulMenuZar();
@@ -49256,7 +49266,8 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
     body.sf-privat .st-fejlec :is(.mn, .hop, .ker, .sor) { transition:font-size .24s ease, height .24s ease, width .24s ease, padding .24s ease, min-height .24s ease; }
     body.sf-privat.st-retegek .st-fejlec:not([hidden]) { transition:box-shadow .24s ease, padding .24s ease; }
     body.sf-privat .st-fejlec .sz-ker-sor:not([hidden]) { display:flex; }
-    body.sf-privat .st-fulmenu { position:fixed !important; z-index:70; width:240px; }
+    body.sf-privat .st-fulmenu { position:fixed !important; z-index:70; width:240px; height:auto !important; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; box-sizing:border-box; }
+    body.sf-privat .st-fulmenu::-webkit-scrollbar { display:none; }
     /* a tartalom a fix fejléc alatt kezdődik */
     body.sf-privat.st-retegek .main > .page:not([hidden]) { padding-top:var(--st-fej-h, 120px) !important; }
     /* fő szám blokk: a tartalom eleje, görgetődik */
@@ -49366,6 +49377,19 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 .st-rog .katr button.on > i { background:#14222a; color:#fff; } .st-rog .katr button.on span { color:#14222a; }
 .st-rog .alkat { border-top:1px solid #e3eaec; padding:10px 0 12px; display:flex; flex-direction:column; gap:8px; }
 .st-rog .alkat .ch { box-shadow:none; background:#eaf0f1; } .st-rog .alkat .ch.on { background:#14222a; }
+.st-rog .onb { background:#d3e4ec; border-radius:20px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; color:#1f4f66; }
+.st-rog .onb b { font-size:14px; } .st-rog .onb span { font-size:12.5px; line-height:1.45; } .st-rog .onb em { font-style:normal; font-weight:700; }
+.st-rog .onb button { align-self:flex-start; height:32px; padding:0 14px; border:0; border-radius:999px; background:#2f6f8f; color:#fff; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.st-rog .alvido { display:flex; align-items:center; gap:10px; }
+.st-rog .alvido label { flex:1 1 0; min-width:0; overflow:hidden; background:#fff; border-radius:20px; padding:10px 14px; display:flex; flex-direction:column; gap:2px; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); }
+.st-rog .alvido span { font-size:11px; font-weight:700; color:#4f6370; } .st-rog .alvido input { border:0; background:transparent; font:inherit; font-size:20px; min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; font-weight:700; color:#14222a; padding:0; outline:none; width:100%; }
+.st-rog .alvido > i { font-style:normal; color:#4f6370; font-weight:700; }
+.st-rog .alvossz { text-align:center; } .st-rog .alvossz b { display:block; font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-weight:600; font-size:36px; line-height:1.05; color:#2f6f8f; } .st-rog .alvossz span { font-size:12px; font-weight:700; color:#4f6370; }
+.st-rog .alvq { background:#fff; border-radius:22px; padding:12px 14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); }
+.st-rog .alvq .f { display:flex; justify-content:space-between; font-size:13px; font-weight:700; color:#4f6370; }
+.st-rog .alvq b.q-jo { color:#1f4f66; } .st-rog .alvq b.q-kozep { color:#8a6a1f; } .st-rog .alvq b.q-gyenge { color:#8a3b27; }
+.st-rog .alvq input[type=range] { width:100%; accent-color:#2f6f8f; height:28px; margin:0; } .st-rog .alvq input.q-gyenge { accent-color:#e07a5f; } .st-rog .alvq input.q-kozep { accent-color:#d9a441; }
+.st-rog .alvq .ch { box-shadow:none; background:#eaf0f1; } .st-rog .alvq .ch.on { background:#14222a; }
 /* visszavonható értesítés */
 .st-rtoast { position:fixed; left:16px; right:16px; bottom:calc(max(8px, calc(env(safe-area-inset-bottom) - 10px)) + 70px); z-index:4200; display:flex; align-items:center; gap:12px; padding:8px 8px 8px 10px; border-radius:24px; background:#14222a; color:#fff; box-shadow:0 12px 32px rgba(20,34,42,.3); transform:translateY(20px); opacity:0; transition:transform .25s, opacity .25s; font-family:'DM Sans',sans-serif; }
 .st-rtoast.be { transform:none; opacity:1; }
