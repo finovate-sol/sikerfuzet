@@ -16513,7 +16513,7 @@ document.addEventListener('click', e => {
     const kesz = () => { if(!fut) fut = requestAnimationFrame(() => setTimeout(igazit, 30)); };
     const indit = () => {
         const mo = new MutationObserver(kesz);
-        mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-stfej'] });
         document.querySelectorAll('.page').forEach(pg => mo.observe(pg, { attributes: true, attributeFilter: ['hidden'] }));
         document.querySelectorAll('meta[name="theme-color"]').forEach(m => mo.observe(m, { attributes: true, attributeFilter: ['content'] }));
         mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
@@ -34982,7 +34982,7 @@ async function renderPrivMa(){
     ]);
     if(!prvLap('privma')) return;
     const dt = new Date(), ora = dt.getHours();
-    const nev = (n => /@/.test(n) ? '' : n.split(/\s+/).pop())(((window.sfCurrentUser && (window.sfCurrentUser.name || window.sfCurrentUser.displayName)) || '').trim()) || '';
+    const nev = (n => /@/.test(n) ? '' : n.split(/\s+/)[0])(((window.sfCurrentUser && (window.sfCurrentUser.name || window.sfCurrentUser.displayName)) || '').trim()) || '';
     const koszon = ora < 10 ? 'Jó reggelt' : ora < 18 ? 'Szép napot' : 'Jó estét';
     // szokások
     // a heti szokások, amelyek a heti célt már elérték (és ma nincsenek pipálva), a sor végére kerülnek
@@ -35351,7 +35351,7 @@ function stFejFrissit(){
     const main = document.querySelector('.main'); if(!main) return;
     let fej = document.getElementById('stFej');
     const stoa = szTer() === 'priv' && matchMedia('(max-width:760px)').matches;
-    if(!stoa){ if(fej) fej.hidden = true; document.body.classList.remove('st-retegek');
+    if(!stoa){ if(fej) fej.hidden = true; document.body.classList.remove('st-retegek'); delete document.body.dataset.stfej;
         const sor = document.getElementById('szFulSor'), mb = main.querySelector(':scope > .mobile-bar');
         if(sor && mb && sor.parentElement !== main) mb.after(sor);
         return; }
@@ -35361,6 +35361,7 @@ function stFejFrissit(){
     fej.hidden = false; document.body.classList.add('st-retegek');
     const lap = szAktLap(), a = stFejAdat(lap);
     fej.dataset.szin = ST_FEJ_SZIN[lap] || 'a';
+    if(document.body.dataset.stfej !== fej.dataset.szin) document.body.dataset.stfej = fej.dataset.szin;
     const set = (sel, v) => { const el = fej.querySelector(sel); if(el.textContent !== v) el.textContent = v; el.hidden = !v; };
     set('.mn', a.modul || ''); set('.ki', a.kicker || ''); set('.fo', a.fo || '');
     // Összes: a kereső helyén a fiók gomb
@@ -48521,6 +48522,11 @@ body.sf-privat { --r-a:#2f6f8f; --r-ablob:#3d82a4; --r-alight:#7fb3cb; --r-atint
     html body.sf-privat .st-fej .sz-ful-sor.hib button.on { background:#fff !important; color:var(--r-ink) !important; }
     html body.sf-privat .st-fej .sz-ful-sor.hib button.tobb { flex:0 0 40px; width:40px; }
     html body.sf-privat .st-fej .sz-ful-sor.hib button.tobb.on { flex:1 1 auto; width:auto; }
+    /* státuszsor: a fejléc színe (az iOS a theme-color-t ebből a sávból veszi) */
+    html body.sf-privat.st-retegek::before { background:var(--r-a) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+    html body.sf-privat.st-retegek[data-stfej="c"]::before { background:var(--r-chero) !important; }
+    html body.sf-privat.st-retegek[data-stfej="ink"]::before { background:var(--r-ink) !important; }
+    html body.sf-privat.st-retegek :is(#page-privma, #page-en) .page-wrap { padding-top:8px !important; }
     /* lap: rácsúszik a fejlécre */
     body.sf-privat.st-retegek .main > .page:not([hidden]) { position:relative; z-index:1; margin-top:-36px; background:var(--r-bg); border-radius:36px 36px 0 0; padding-top:4px; min-height:70vh; }
     body.sf-privat.st-retegek .main > .page:not([hidden])::before { content:''; display:block; width:44px; height:5px; border-radius:999px; background:var(--r-line); margin:8px auto 4px; }
