@@ -35015,6 +35015,33 @@ document.addEventListener('click', async e => { if(!e.target.closest('[data-mast
 // Minden rögzítés a panelben menthető; mentés után a panel bezárul, alul visszavonható értesítés jelenik meg.
 let stR = null;
 const ST_R_IK = { koltes:'kartya', edzes:'sulyzo', bevetel:'trend', viz:'csepp', alvas:'hold', suly:'merleg', szokas:'pipadoboz', naplo:'jegyzet', link:'jobbra', esemeny:'naptar' };
+const ST_R_ALK = [['link', 'Link', '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>', 'c'],
+    ['esemeny', 'Esemény', '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>'],
+    ['@celok', 'Cél', '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>'],
+    ['@jegyzetek', 'Jegyzet', '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7M9 7h3"/></svg>'],
+    ['edzes', 'Edzés', '<svg viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>'],
+    ['@kiszemelt', 'Kiszemeltek', '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></svg>']];
+// a mai pénzmozgás egy sorban (kiadás − bevétel)
+function stRMaPenz(){ const ma = pzMaStr(), l = (pzTranz[pzMaHo()] || []).filter(t => t.d === ma && t.t !== 'atu'); if(!l.length) return 'Ma még nincs tétel';
+    const n = l.reduce((a, t) => a + (t.t === 'bev' ? 1 : -1) * (t.o || 0), 0); return `Ma ${n < 0 ? '−' : n > 0 ? '+' : ''}${pzFt(Math.abs(n))} Ft`; }
+// napi teendők: ami ma már rögzítve lett, zöld
+function stRNapi(){
+    const ma = ezMa(), S = stR || {}, viz = nlNapViz(ma), alv = nlNapAlv(ma), mer = (typeof ezMeresek === 'function' ? ezMeresek() : []).filter(m => m.d === ma).pop();
+    let sz = { es: 0, kesz: 0 }; try { if(S.sz) sz = szNapiAllas(S.sz, ma); } catch(_){}
+    const nb = (typeof nlNapBej === 'function' ? nlNapBej(ma) : []).length;
+    return [{ k: 'viz', n: 'Víz', v: `${viz} / ${NL_VIZ_CEL}`, ok: viz >= NL_VIZ_CEL },
+        { k: 'alvas', n: 'Alvás', v: alv ? `${Math.floor(alv / 60)}ó ${alv % 60}p` : 'nincs még', ok: !!alv },
+        { k: 'suly', n: 'Testsúly', v: mer ? `${ezMKg(mer.kg)} kg` : 'nincs még', ok: !!mer },
+        { k: 'szokas', n: 'Szokás', v: sz.es ? `${sz.kesz} / ${sz.es}` : 'nincs mára', ok: !!sz.es && sz.kesz >= sz.es },
+        { k: 'naplo', n: 'Napló', v: nb ? `${nb} bejegyzés` : 'nincs még', ok: nb > 0 }];
+}
+// alkalmanként használt modulok: a panel bezárul, a modul „új” felülete nyílik
+async function stRModul(lap){
+    stRZar(true); szMenj(lap);
+    if(lap === 'kiszemelt'){ const i = await szVarElem('#page-kiszemelt [data-kszbe]', 2500); if(i){ i.scrollIntoView({ block: 'center' }); i.focus(); } return; }
+    const sel = SZ_UJ[lap].split(',').map(x => `#page-${lap} ${x.trim()}`).join(', ');
+    const g = document.querySelector(sel) || await szVarElem(sel, 2500); if(g) g.click();
+}
 const ST_R_FO = [['bevetel', 'Bevétel', 'k'], ['viz', 'Víz +1', 'c'], ['alvas', 'Alvás', 'k'], ['suly', 'Testsúly', 'k'], ['szokas', 'Szokás', 'k'], ['naplo', 'Napló', 's'], ['link', 'Link', 'k'], ['esemeny', 'Esemény', 'k']];
 const stRIsm = () => { try { return JSON.parse(localStorage.getItem('stoa_rog_ism') || 'null'); } catch(e){ return null; } };
 const stRIsmMent = x => { try { localStorage.setItem('stoa_rog_ism', JSON.stringify(x)); } catch(e){} };
@@ -35044,6 +35071,7 @@ async function stRInit(){
     const S = stR, ma = ezMa();
     if(['koltes', 'bevetel'].includes(S.tip)){ await Promise.all([pzLoadKat(), pzLoadTorzs(), pzLoadTranz(pzMaHo()), pzLoadTranz(pzHoLep(pzMaHo(), -1))]).catch(() => null);
         const w = pzTorzsGet().penztarca; S.o = S.o ? String(S.o) : ''; S.p = S.p || pzAktTarca() || (w[0] && w[0].id) || ''; S.k = S.k || ''; S.a = S.a || ''; S.m = S.m || ''; S.ker = ''; S.d = S.d || pzMaStr(); S.megj = ''; S.nyit = ''; }
+    if(S.tip === 'fo'){ await Promise.all([nlEv(ma.slice(0, 4)), ezBetolt('torzs'), pzLoadTranz(pzMaHo()), prvBetolt('szokasok').then(x => { S.sz = x; })].map(x => Promise.resolve(x).catch(() => null))); }
     if(['edzes', 'suly'].includes(S.tip)){ await Promise.all([ezBetolt('torzs'), ezEvekBetolt(ma)]).catch(() => null); }
     if(S.tip === 'edzes'){ const ut = stREdzUtolso(); S.sport = ut ? ut.sport : 'ero'; S.fok = ut ? ut.fok || '' : ''; S.perc = ut ? ut.perc || 45 : 45; S.erz = 'jo'; S.megj = ''; }
     if(S.tip === 'suly'){ const m = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), ut = m[m.length - 1]; S.kg = ut ? ut.kg : 75; S.elo = ut ? ut.kg : null; S.ehgy = true; }
@@ -35081,18 +35109,21 @@ function stRRajz(){
         const ism = stRIsm();
         h = stRVaz({ cim: 'Mit rögzítesz?', tart: `
             ${ism ? `<button type="button" class="ism" data-strism><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/></svg></i><span>Ismét: ${esc(ism.cim)}</span><em>1 koppintás</em></button>` : ''}
-            <div class="nagy"><button type="button" class="a" data-strtip="koltes">${sfIkon('kartya')}<b>Költés</b></button><button type="button" class="c" data-strtip="edzes">${sfIkon('sulyzo')}<b>Edzés kész</b></button></div>
-            <div class="racs">${ST_R_FO.map(([k, n, f]) => `<button type="button" data-strtip="${k}"><i class="f-${f}">${sfIkon(ST_R_IK[k])}</i><span>${n}</span></button>`).join('')}</div>`, gombok: '' });
+            <button type="button" class="kb" data-strtip="koltes"><i>±</i><span><b>Költés / Bevétel</b><em>${stRMaPenz()}</em></span></button>
+            ${(() => { const nap = stRNapi(), kesz = nap.filter(x => x.ok).length; return `<div class="szek"><span>Minden nap</span><em>${kesz} / ${nap.length} kész</em></div>
+            <div class="napi">${nap.map(x => `<button type="button" class="${x.ok ? 'ok' : ''}" data-strtip="${x.k}">${x.ok ? '<s><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></s>' : ''}<i>${sfIkon(ST_R_IK[x.k])}</i><b>${x.n}</b><em>${x.v}</em></button>`).join('')}</div>`; })()}
+            <div class="szek"><span>Alkalmanként</span></div>
+            <div class="alk">${ST_R_ALK.map(([k, n, ik]) => `<button type="button" ${k.startsWith('@') ? `data-strmod="${k.slice(1)}"` : `data-strtip="${k}"`}><i>${ik}</i>${n}</button>`).join('')}</div>`, gombok: '' });
     }
     else if(S.tip === 'koltes' || S.tip === 'bevetel'){
         const be = S.tip === 'bevetel', osz = be ? 2 : 3, kick = (be ? 'Bevétel' : 'Költés') + ` · ${S.lep + 1}/${osz}`, o = +S.o || 0, jel = be ? '+' : '−';
         const w = pzTorzsGet().penztarca;
-        if(S.lep === 0) h = stRVaz({ kicker: kick, cim: be ? 'Mennyi jött?' : 'Mennyi?', lepes: [0, osz], tart: `<div class="osszeg${be ? ' be' : ''}">${o ? pzFt(o) : '0'} <small>Ft</small></div>${stRBill()}`, gombok: `<button type="button" class="fo" data-stract="tov"${o ? '' : ' disabled'}>Tovább</button>` });
+        if(S.lep === 0) h = stRVaz({ kicker: kick, cim: be ? 'Mennyi jött?' : 'Mennyi?', lepes: [0, osz], fejJobb: `<div class="irany">${[['koltes', 'Kiadás'], ['bevetel', 'Bevétel']].map(([k, t]) => `<button type="button" class="${S.tip === k ? 'on' : ''}" data-strirany="${k}">${t}</button>`).join('')}</div>`, tart: `<div class="osszeg${be ? ' be' : ''}">${o ? pzFt(o) : '0'} <small>Ft</small></div>${stRBill()}`, gombok: `<button type="button" class="fo" data-stract="tov"${o ? '' : ' disabled'}>Tovább</button>` });
         else if(!be && S.lep === 1){
             const jav = stRHolJavas();
             h = stRVaz({ kicker: kick, cim: 'Hol költötted?', vissza: true, lepes: [1, 3], tart: `<input type="search" class="inp" id="stRHol" value="${esc(S.ker || S.m)}" placeholder="Bolt, hely, szolgáltatás…" autocomplete="off">
                 <div class="jav" id="stRJav">${stRJavHtml(jav)}</div>`,
-                gombok: `<button type="button" class="fo" data-stract="tov">Tovább</button>` });
+                gombok: S.m && S.k && S.p ? `<button type="button" class="mas" data-stract="tov">Részletek</button><button type="button" class="fo" data-stract="ment">Mentés</button>` : `<button type="button" class="fo" data-stract="tov">Tovább</button>` });
         } else if(be && S.lep === 1){
             const kat = pzGyakoriKat('bev').slice(0, 8);
             h = stRVaz({ kicker: kick, cim: 'Honnan?', vissza: true, lepes: [1, 2], tart: `<span class="cim">Forrás</span><div class="chips">${kat.map(k => stRChip(esc(k.n), `data-strk="${esc(k.n)}"`, S.k === k.n)).join('')}</div>
@@ -35324,6 +35355,8 @@ document.addEventListener('click', async e => {
     if(e.target === ov || g('[data-strzar]')) return stRZar();
     if(g('[data-strvissza-l]')){ S.lep = Math.max(0, S.lep - 1); S.nyit = ''; return stRRajz(); }
     if((b = g('[data-strtip]'))){ const t = b.dataset.strtip; return t === 'viz' ? stRViz() : stRogNyit(t); }
+    if((b = g('[data-strmod]'))) return stRModul(b.dataset.strmod);
+    if((b = g('[data-strirany]'))){ const t = b.dataset.strirany; if(t !== S.tip){ S.tip = t; if(t === 'bevetel' && S.k && !pzKatOf('bev', S.k)) S.k = ''; } return stRRajz(); }
     if(g('[data-strism]')){ stRZar(true); return stRIsmetel(); }
     if(g('[data-stredzism]')){ const ut = stREdzUtolso(); if(ut){ Object.assign(S, { sport: ut.sport, fok: ut.fok, perc: ut.perc }); return stRMent(); } }
     if((b = g('[data-strbill]'))){ const v = b.dataset.strbill; S.o = v === '⌫' ? String(S.o || '').slice(0, -1) : (String(S.o || '') + v).replace(/^0+/, '').slice(0, 10); return stRRajz(); }
@@ -49388,7 +49421,7 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 /* ===== Gyors rögzítés: egységes fél képernyős panel ===== */
 .st-rog-h { position:fixed; inset:0; z-index:4100; background:rgba(20,34,42,0); display:flex; align-items:flex-end; justify-content:center; transition:background .2s; font-family:'DM Sans',sans-serif; }
 .st-rog-h.be { background:rgba(20,34,42,.45); }
-.st-rog { width:100%; max-width:520px; height:calc(50dvh + 90px); min-height:470px; max-height:94dvh; box-sizing:border-box; background:#eaf0f1; color:#14222a; border-radius:36px 36px 0 0; padding:8px 20px calc(14px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; transform:translateY(100%); transition:transform .24s cubic-bezier(.2,.8,.2,1); }
+.st-rog { width:100%; max-width:520px; height:calc(50dvh + 40px); min-height:440px; max-height:94dvh; box-sizing:border-box; background:#eaf0f1; color:#14222a; border-radius:36px 36px 0 0; padding:8px 20px calc(14px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; transform:translateY(100%); transition:transform .24s cubic-bezier(.2,.8,.2,1); }
 .st-rog-h.be .st-rog { transform:none; }
 @media (min-width:761px){ .st-rog-h { align-items:center; } .st-rog { border-radius:36px; height:min(560px, 90vh); } }
 .st-rog .fog { display:flex; justify-content:center; gap:5px; padding:4px 0 2px; }
@@ -49418,6 +49451,23 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 .st-rog .nagy button { position:relative; overflow:hidden; height:84px; border:0; border-radius:24px; color:#fff; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start; padding:12px 14px; font:inherit; cursor:pointer; text-align:left; }
 .st-rog .nagy button::after { content:''; position:absolute; right:-22px; top:-22px; width:76px; height:76px; border-radius:999px; background:rgba(255,255,255,.16); }
 .st-rog .nagy .a { background:#2f6f8f; } .st-rog .nagy .c { background:#b4553b; } .st-rog .nagy svg { width:22px; height:22px; } .st-rog .nagy b { font-size:16px; font-weight:700; }
+.st-rog .kb { position:relative; overflow:hidden; display:flex; align-items:center; gap:14px; width:100%; min-height:72px; border:0; border-radius:26px; background:#2f6f8f; color:#fff; padding:12px 16px; font:inherit; text-align:left; cursor:pointer; }
+.st-rog .kb::after { content:''; position:absolute; right:-28px; top:-30px; width:110px; height:110px; border-radius:999px; background:rgba(255,255,255,.13); }
+.st-rog .kb > i { width:40px; height:40px; flex:none; border-radius:999px; background:rgba(255,255,255,.18); display:grid; place-items:center; font-style:normal; font-size:20px; font-weight:700; }
+.st-rog .kb span { display:flex; flex-direction:column; gap:2px; } .st-rog .kb b { font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-size:19px; font-weight:600; } .st-rog .kb em { font-style:normal; font-size:13px; font-weight:600; opacity:.85; }
+.st-rog .szek { display:flex; align-items:baseline; justify-content:space-between; padding:4px 4px 0; } .st-rog .szek span { font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#4f6370; } .st-rog .szek em { font-style:normal; font-size:13px; font-weight:800; color:#2e7d55; }
+.st-rog .napi { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:7px; }
+.st-rog .napi button { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 2px 9px; border:0; border-radius:20px; background:#fff; box-shadow:0 10px 24px -14px rgba(20,34,42,.35); font:inherit; color:#14222a; cursor:pointer; min-width:0; }
+.st-rog .napi button.ok { background:#e2f0e6; box-shadow:inset 0 0 0 1.5px #b9dcc4; color:#2e6b48; }
+.st-rog .napi i { color:#2f6f8f; display:grid; place-items:center; height:24px; } .st-rog .napi button.ok i { color:#2e7d55; } .st-rog .napi i svg { width:22px; height:22px; }
+.st-rog .napi b { font-size:12.5px; font-weight:700; } .st-rog .napi em { font-style:normal; font-size:11px; font-weight:600; color:#4f6370; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; } .st-rog .napi button.ok em { color:#2e7d55; }
+.st-rog .napi s { position:absolute; right:5px; top:5px; width:18px; height:18px; border-radius:999px; background:#2e7d55; display:grid; place-items:center; } .st-rog .napi s svg { width:11px; height:11px; fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
+.st-rog .alk { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px 7px; }
+.st-rog .alk button { display:flex; align-items:center; gap:6px; height:46px; padding:0 9px; border:0; border-radius:999px; background:#fff; font:inherit; font-size:13px; letter-spacing:-.015em; font-weight:700; color:#14222a; cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; }
+.st-rog .alk i { flex:none; display:grid; place-items:center; color:#2f6f8f; } .st-rog .alk button:nth-child(1) i, .st-rog .alk button:nth-child(3) i, .st-rog .alk button:nth-child(5) i { color:#b4553b; }
+.st-rog .alk svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+.st-rog .fej .irany { display:flex; flex:none; padding:3px; border-radius:999px; background:#fff; box-shadow:0 6px 14px -8px rgba(20,34,42,.35); }
+.st-rog .fej .irany button { height:34px; padding:0 11px; border:0; border-radius:999px; background:none; font:inherit; font-size:12.5px; font-weight:700; color:#4f6370; cursor:pointer; } .st-rog .fej .irany button.on { background:#14222a; color:#fff; }
 .st-rog .racs { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px 8px; }
 .st-rog .racs button { border:0; background:none; display:flex; flex-direction:column; align-items:center; gap:5px; font:inherit; cursor:pointer; color:#14222a; padding:0; }
 .st-rog .racs i { position:relative; width:52px; height:52px; border-radius:18px; background:#fff; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); display:grid; place-items:center; color:#2f6f8f; }
