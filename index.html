@@ -29962,29 +29962,34 @@ function ezStMaHtml(){
         if(a.every(x => x === 'ki' || x === 'jel')) return `<span class="ko ki">${XX}</span>`;
         return `<span class="ko terv" style="--sz:${ezStSzin(ed[0].sport)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ezSp(ed[0].sport)[2]}"/></svg></span>`; };
     const hetsav = `<div class="st-ez-hf"><span><b>${ezHet === ezHetfo(ma) ? 'Ez a hét' : 'A hét'}</b> · ${esc(ezHetCim(ezHet))}</span>
-            <span class="g"><button type="button" data-ezlep="-1" aria-label="Előző hét">‹</button>${ezHet !== ezHetfo(ma) ? '<button type="button" data-ezlep="0">Ma</button>' : ''}<button type="button" data-ezlep="1" aria-label="Következő hét">›</button></span>
-            <em>${st.ok} / ${st.n} edzés kész</em></div>
+            ${ezHet !== ezHetfo(ma) ? '<span class="g"><button type="button" data-ezlep="0">Ma</button></span>' : ''}
+            <em>${st.ok} / ${st.n} kész</em></div>
         <div class="st-ez-het">${het.map((s, i) => `<button type="button" class="${s === sel ? 'on' : ''}${s === ma ? ' ma' : ''}" data-ezstnap="${s}"><span class="n">${EZ_NAP_R[i]}</span><b>${+s.slice(8)}</b>${korong(s)}</button>`).join('')}</div>`;
     const l = ezIdoRend(ezNapLista(sel)), ed = l.filter(e => e.sport !== 'pih');
     const fo = ed.find(e => ['terv', 'var', 'jel'].includes(ezAll(e, sel))) || ed[0] || null;
     const kicker = `${sel === ma ? 'Ma · ' : sel === ezPlusz(ma, 1) ? 'Holnap · ' : sel === ezPlusz(ma, -1) ? 'Tegnap · ' : ''}${EZ_NAP[ezNapIdx(sel)]}, ${EZ_HO_R[dS.getMonth()]} ${dS.getDate()}.`;
     let kartya;
     if(fo){
-        const er = ezEr(fo, sel), a = er.a, { l: lep, kor } = ezStLepesek(fo), lezart = ['ok', 'resz', 'ki'].includes(a);
-        const meta = [ezCel(fo) !== '—' ? ezCel(fo) : '', kor > 1 ? `${kor} kör` : ''].filter(Boolean).join(' · ');
-        const jel = (allas, cls, t) => `<button type="button" class="${cls}" data-ezjel="${allas}" data-ezd="${sel}" data-ezid="${esc(fo.id)}">${t}</button>`;
-        kartya = `<article class="st-ez-nap"><i class="dk"></i>
-            <div class="fej"><div class="t"><span class="k">${kicker}${fo.ido ? ' · ' + esc(fo.ido) : ''}</span><h3>${esc(fo.n)}</h3>${meta ? `<span class="m">${esc(meta)}</span>` : ''}</div>
-                <span class="all a-${a}">${EZ_ST_ALL[a] || ''}</span></div>
+        // a hős maga az edzés: a kártyában csak a gyakorlatok és a gombok; több edzésnél a kártyák nevet kapnak
+        const egyK = (e, nevvel) => {
+            const er = ezEr(e, sel), a = er.a, { l: lep, kor } = ezStLepesek(e), lezart = ['ok', 'resz'].includes(a), kihagyva = a === 'ki';
+            const jel = (allas, cls, t) => `<button type="button" class="${cls}" data-ezjel="${allas}" data-ezd="${sel}" data-ezid="${esc(e.id)}">${t}</button>`;
+            const ath = t => `<button type="button" class="${t ? 'pk' : ''}" data-ezstath="${sel}|${esc(e.id)}">${t || 'Áthelyezés'}</button>`;
+            const fej = nevvel ? `<div class="fej"><div class="t"><h3>${esc(e.n)}</h3><span class="m">${esc([e.ido, ezCel(e) !== '—' ? ezCel(e) : ''].filter(Boolean).join(' · '))}</span></div><span class="all a-${a}">${EZ_ST_ALL[a] || ''}</span></div>` : '';
+            const gb = kihagyva ? ath('Pótlás áthelyezéssel')
+                : lezart ? jel('terv', 'mas', 'Visszavonás')
+                : `${lep.length ? `<button type="button" class="p" data-ezstinditas="${sel}|${esc(e.id)}">▶ Indítás</button>` : ''}${jel('ok', lep.length ? 'mas' : 'p', '✓ Kész')}`;
+            const sz = kihagyva ? `${jel('ok', '', 'Mégis megvolt')}${jel('resz', '', 'Részben')}<button type="button" data-ezsttorol="${sel}|${esc(e.id)}">Törlés</button>`
+                : `${lezart ? '' : jel('ki', '', 'Kihagyom') + jel('resz', '', 'Részben')}${ath('')}<button type="button" data-ezszerk data-ezd="${sel}" data-ezid="${esc(e.id)}">Módosítás</button>`;
+            return `<article class="st-ez-nap${nevvel ? ' nevvel' : ''}${kihagyva ? ' ki' : ''}"><i class="dk"></i>${fej}
             ${lep.length ? `<div class="lep">${lep.map((x, i) => `<div><i>${i + 1}</i><span>${esc(x.n)}</span>${x.q ? `<em>${esc(x.q)}</em>` : ''}</div>`).join('')}${kor > 1 ? `<span class="kor">× ${kor} kör</span>` : ''}</div>` : ''}
-            <div class="gb">${lezart ? jel('terv', 'mas', 'Visszavonás') : `${lep.length ? `<button type="button" class="p" data-ezstinditas="${sel}|${esc(fo.id)}">▶ Indítás</button>` : ''}${jel('ok', lep.length ? 'mas' : 'p', '✓ Kész')}`}</div>
-            <div class="sz">${lezart ? '' : jel('ki', '', 'Kihagyom') + jel('resz', '', 'Részben')}<button type="button" data-ezstath="${sel}|${esc(fo.id)}">Áthelyezés</button><button type="button" data-ezszerk data-ezd="${sel}" data-ezid="${esc(fo.id)}">Módosítás</button>${ezNaplozhato(fo) ? `<button type="button" data-ezrog="${sel}|${esc(fo.id)}">Szettek</button>` : ''}</div>
-        </article>`;
+            <div class="gb">${gb}</div><div class="sz">${sz}</div></article>`; };
+        const tobb = ed.length > 1;
+        kartya = tobb ? ed.map(e => egyK(e, true)).join('') : egyK(fo, false);
+        const er = ezEr(fo, sel), a = er.a;
         const sv = er.src === 'strava' && er.akt && er.akt.length;
         kartya += `<div class="st-ez-sv${sv || a === 'ok' ? ' ok' : ''}"><i>S</i><span><b>Strava-ellenőrzés</b><em>${sv ? esc(er.akt.map(x => x.n).join(', ')) + ' · ' + esc(ezAktSzoveg({ perc: er.tp, km: er.tk })) : !ezStravaKapcs() ? 'Nincs összekötve – kézzel jelölöd' : `Még nincs egyező aktivitás · szinkron: ${esc(ezSzinkIdo())}`}</em></span>
             <button type="button" data-ezstszab aria-label="Szabály" aria-expanded="${ezStSzabaly}">i</button></div>${ezStSzabaly ? `<div class="st-ez-szab">${ezSzabaly(fo)}</div>` : ''}`;
-        const tobbi = ed.filter(e => e !== fo);
-        if(tobbi.length) kartya += `<section class="st-pz-kartya">${tobbi.map(e => { const er2 = ezEr(e, sel); return `<button type="button" class="st-pz-li gomb" data-ezszerk data-ezd="${sel}" data-ezid="${esc(e.id)}">${ezStIk(e.sport, 'av')}<span class="n"><b>${esc(e.n)}</b><em>${esc(ezCel(e))}</em></span><span class="all a-${er2.a}">${EZ_ST_ALL[er2.a] || ''}</span></button>`; }).join('')}</section>`;
     } else kartya = `<article class="st-ez-pih">${window.stoaIllu(l.length ? 'moon' : 'calendar', { size: 84, seed: 2, tone: l.length ? 'a' : 'a2' })}
         <div><span class="k">${kicker}</span><h3>${l.length ? 'Pihenőnap' : 'Nincs betervezett edzés'}</h3><span class="m">${l.length ? 'A regeneráció is az edzés része – a pihenőnap is a terv része.' : 'Válassz egyet a sablonjaid közül, vagy tervezd meg a hetet.'}</span></div></article>`;
     const tovabb = `<button type="button" class="st-ez-uj" data-ezuj="${sel}">+ ${fo ? 'Még egy edzés erre a napra' : 'Edzés hozzáadása'}</button>`;
@@ -30045,6 +30050,9 @@ document.addEventListener('click', async e => {
     const n = e.target.closest('[data-ezstnap]'); if(n && n.dataset.ezstnap){ ezStSel = n.dataset.ezstnap; renderEdz(); return; }
     if(e.target.closest('[data-ezstszab]')){ ezStSzabaly = !ezStSzabaly; renderEdz(); return; }
     if(e.target.closest('[data-ezstkapcs]')){ ezStKapcs = !ezStKapcs; renderEdz(); return; }
+    const tr = e.target.closest('[data-ezsttorol]'); if(tr){ const [d, id] = tr.dataset.ezsttorol.split('|'), regi = ezNapLista(d).slice(), x = regi.find(y => y.id === id); if(!x) return;
+        ezNapSet(d, regi.filter(y => y.id !== id)); ezMent(d.slice(0, 4)); renderEdz();
+        if(typeof stRToast === 'function') stRToast('Edzés törölve', x.n, () => { ezNapSet(d, regi); ezMent(d.slice(0, 4)); renderEdz(); }); return; }
     const at = e.target.closest('[data-ezstath]'); if(at){ const [d, id] = at.dataset.ezstath.split('|'); ezStAthelyez(d, id); return; }
     const ind = e.target.closest('[data-ezstinditas]'); if(ind){ const [d, id] = ind.dataset.ezstinditas.split('|'); ezStInditas(d, id); return; }
     if(!ezFut || !e.target.closest('#ezFutLap')) return;
@@ -30599,7 +30607,59 @@ function ezGyMenu(gomb, gid){
     ]);
 }
 
+// Stoa (2a): egy szegmens (Sablonok – a saját és az Edzéstár együtt –, Gyakorlatok, Programok), keresés + Új egy sorban,
+// sportág-szűrő, egy sablon egy sor; a naptár gomb tervez, a sorra koppintás a részleteket nyitja, hosszú nyomás a műveleteket
+let ezStSabMind = false;
+function ezStSablonHtml(){
+    const sab = ezAdat.torzs.sablonok, tar = EZ_TAR_LISTA.filter(t => !ezTarBenne(t)), gyDb = ezGyakLista().length, ossz = sab.length + tar.length;
+    const ful = ezSabFul === 'tar' ? 'sab' : ezSabFul;
+    const seg = `<div class="st-sab-seg" role="tablist">${[['sab', 'Sablonok', ossz], ['gy', 'Gyakorlatok', gyDb], ['prog', 'Programok', EZ_PROGRAMOK.length]].map(([k, n, db]) =>
+        `<button type="button" role="tab" class="${ful === k ? 'on' : ''}" aria-selected="${ful === k}" data-ezsabful="${k}">${n} <span>${db}</span></button>`).join('')}</div>`;
+    if(ful !== 'sab'){ ezSabFul = ful; const regi = ezSablonHtml(); return `<div class="st-sab">${seg}${regi.replace(/^<div class="ez-fulsor">[\s\S]*?<\/div>\s*<span class="ez-hely"><\/span>[\s\S]*?<\/div>/, '')}</div>`; }
+    const NAP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M12 12v6M9 15h6"/></svg>';
+    const sportok = Object.keys(EZ_SPORT).map(k => [k, sab.filter(x => x.sport === k).length + tar.filter(x => x.sport === k).length]).filter(([, n]) => n);
+    if(ezSabSport && !sportok.some(([k]) => k === ezSabSport)) ezSabSport = '';
+    const chip = (k, n, db) => `<button type="button" class="${ezSabSport === k ? 'on' : ''}" data-ezsabsport="${k}" aria-pressed="${ezSabSport === k}"><i style="--sc:${k ? ezStSzin(k) : 'currentColor'}"></i>${esc(n)} <span>${db}</span></button>`;
+    const ido = x => x.perc ? `${x.perc} p` : x.km ? `${ezKm(x.km)} km` : '';
+    const sor = (x, at, tv, al, rejt) => `<div class="st-sab-sor${rejt ? ' rejt' : ''}" data-ezstsabn="${esc(String(x.n).toLowerCase())}" ${at.replace('data-', 'data-ezsthosszu-')}>
+        <button type="button" class="f" ${at}><i class="ik" style="--sc:${ezStSzin(x.sport)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ezSp(x.sport)[2]}"/></svg></i><span><b>${esc(x.n)}</b>${al ? `<em>${esc(al)}</em>` : ''}</span>${ido(x) ? `<i class="p">${esc(ido(x))}</i>` : ''}</button>
+        <button type="button" class="nap" ${tv} aria-label="${esc(x.n)} – tervezés">${NAP}</button></div>`;
+    const sabAl = x => { const m = ezSabMeta(x).split(' · '); m.shift(); return [m.join(' · '), x.gyak && x.gyak.length ? `${x.gyak.length} gyakorlat` : x.cel || (x.leiras || '').split('\n')[0]].filter(y => y && y !== '—')[0] || ezSp(x.sport)[0]; };
+    const szur = l => l.filter(x => !ezSabSport || x.sport === ezSabSport);
+    const sajat = szur(sab.filter(x => !ezSabProg(x))), progok = EZ_PROGRAMOK.map(pr => [pr, szur(sab.filter(x => x.prog === pr.id))]).filter(([, l]) => l.length);
+    const szek = (cim, db, l, mind) => l.length ? `<section class="st-sab-szek"><div class="h"><span>${esc(cim)} · ${db}</span>${mind || ''}</div><div class="l">${l.join('')}</div></section>` : '';
+    const sajatSor = sajat.map((x, i) => sor(x, `data-ezsabnyit="${esc(x.id)}"`, `data-eztervez="${esc(x.id)}"`, sabAl(x), !ezStSabMind && i >= 5));
+    const html = szek('Saját', sajat.length, sajatSor, sajat.length > 5 ? `<button type="button" data-ezstsabmind>${ezStSabMind ? 'Kevesebb' : 'Mind'}</button>` : '')
+        + progok.map(([pr, l]) => szek(pr.n, l.length, l.map(x => sor(x, `data-ezsabnyit="${esc(x.id)}"`, `data-eztervez="${esc(x.id)}"`, sabAl(x))))).join('')
+        + EZ_TAR.map(g => [g, szur(tar.filter(t => t.cs === g.cs))]).filter(([, l]) => l.length).map(([g, l]) => szek(g.cs, l.length, l.map(t => sor(t, `data-ezsttarnyit="${esc(t.id)}"`, `data-ezsttarterv="${esc(t.id)}"`, t.cel || ezSp(t.sport)[0])))).join('');
+    return `<div class="st-sab">${seg}
+        <div class="st-sab-ker"><label><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-ezstsabker placeholder="Keresés ${ossz} sablonban" autocomplete="off"></label><button type="button" data-ezsabuj>+ Új</button></div>
+        <div class="st-sab-chip">${chip('', 'Mind', ossz)}${sportok.map(([k, n]) => chip(k, ezSp(k)[0], n)).join('')}</div>
+        ${html || '<p class="ez-megj">Ebben a sportágban még nincs sablon.</p>'}<p class="st-sab-ures" hidden>Nincs találat.</p></div>`;
+}
+document.addEventListener('click', e => {
+    if(e.target.closest('[data-ezstsabmind]')){ ezStSabMind = !ezStSabMind; renderEdz(); return; }
+    const tn = e.target.closest('[data-ezsttarnyit]'); if(tn){ const t = EZ_TAR_LISTA.find(x => x.id === tn.dataset.ezsttarnyit); if(t){ const u = ezTarSablonba(t); renderEdz(); ezSabReszlet(u.id); } return; }
+    const tt = e.target.closest('[data-ezsttarterv]'); if(tt){ const t = EZ_TAR_LISTA.find(x => x.id === tt.dataset.ezsttarterv); if(t){ const u = ezTarSablonba(t); renderEdz(); ezUjModal(ezMa(), u.id); } return; }
+});
+// keresés a listában újrarajzolás nélkül (a fókusz megmarad)
+document.addEventListener('input', e => { if(!e.target.matches('[data-ezstsabker]')) return;
+    const q = e.target.value.trim().toLowerCase(), r = e.target.closest('.st-sab'); let van = 0; r.classList.toggle('keres', !!q);
+    r.querySelectorAll('.st-sab-sor').forEach(x => { const ok = !q || x.dataset.ezstsabn.includes(q); x.hidden = !ok; if(ok) van++; });
+    r.querySelectorAll('.st-sab-szek').forEach(sz => sz.hidden = ![...sz.querySelectorAll('.st-sab-sor')].some(x => !x.hidden));
+    r.querySelector('.st-sab-ures').hidden = !!van; });
+// hosszú nyomás egy soron: műveletek (a ⋯ menü helyett)
+(function(){ let t = 0, sx = 0, sy = 0;
+    document.addEventListener('pointerdown', e => { const r = e.target.closest('.st-sab-sor [data-ezsabnyit]'); if(!r) return; sx = e.clientX; sy = e.clientY;
+        clearTimeout(t); t = setTimeout(() => { r.dataset.hosszu = '1'; navigator.vibrate && navigator.vibrate(10); ezSabMenu(r, r.dataset.ezsabnyit); }, 520); });
+    const le = () => clearTimeout(t);
+    document.addEventListener('pointerup', le); document.addEventListener('pointercancel', le);
+    document.addEventListener('pointermove', e => { if(Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 10) le(); });
+    document.addEventListener('click', e => { const r = e.target.closest('.st-sab-sor [data-hosszu]'); if(r){ delete r.dataset.hosszu; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    document.addEventListener('contextmenu', e => { if(e.target.closest('.st-sab-sor')) e.preventDefault(); });
+})();
 function ezSablonHtml(){
+    if(window.stoaAktiv && window.stoaAktiv() && !ezSablonHtml._belso){ ezSablonHtml._belso = true; try { return ezStSablonHtml(); } finally { ezSablonHtml._belso = false; } }
     const sab = ezAdat.torzs.sablonok, gyDb = ezGyakLista().length;
     const ful = (k, n, db) => `<button type="button" role="tab" class="ez-ful${ezSabFul === k ? ' on' : ''}" aria-selected="${ezSabFul === k}" data-ezsabful="${k}">${n} <span>${db}</span></button>`;
     const fej = `<div class="ez-fulsor"><div class="ez-fulok" role="tablist">${ful('sab', 'Sablonok', sab.length)}${ful('tar', 'Edzéstár', EZ_TAR_LISTA.length)}${ful('gy', 'Gyakorlatok', gyDb)}${ful('prog', 'Kész programok', EZ_PROGRAMOK.length)}</div>
@@ -35849,13 +35909,16 @@ function stFejAdat(lap){
         if(lap === 'edzes' && typeof ezTab !== 'undefined' && ezAdat && ezAdat.torzs){
             const ma = ezMa();
             if(ezTab === 'ma'){ const d = ezStSel || ma, l = ezIdoRend(ezNapLista(d)).filter(e => e.sport !== 'pih'), e = l.find(x => ['terv', 'var', 'jel'].includes(ezAll(x, d))) || l[0], dd = ezD(d);
-                const kick = [d === ma ? 'Ma' : EZ_NAP[ezNapIdx(d)], e && e.ido, e && e.perc ? e.perc + ' perc' : '', d !== ma ? `${EZ_HO_R[dd.getMonth()]} ${dd.getDate()}.` : ''].filter(Boolean).join(' · ');
-                return { modul: nev, kicker: kick, fo: e ? e.n : ezNapLista(d).length ? 'Pihenőnap' : 'Nincs edzés' }; }
+                const nap = d === ma ? 'Ma' : d === ezPlusz(ma, 1) ? 'Holnap' : d === ezPlusz(ma, -1) ? 'Tegnap' : `${EZ_NAP[ezNapIdx(d)]}, ${EZ_HO_R[dd.getMonth()]} ${dd.getDate()}.`;
+                if(l.length > 1){ const kesz = l.filter(x => ['ok', 'resz'].includes(ezAll(x, d))).length;
+                    return { modul: nev, kicker: nap, fo: `${l.length} edzés`, all: [`${kesz} / ${l.length} kész`, kesz >= l.length ? 'ok' : 'terv'] }; }
+                const kick = [nap, e && e.ido, e && ezCel(e) !== '—' ? ezCel(e) : ''].filter(Boolean).join(' · '), aa = e ? ezAll(e, d) : '';
+                return { modul: nev, kicker: kick, fo: e ? e.n : ezNapLista(d).length ? 'Pihenőnap' : 'Nincs edzés', all: e ? [EZ_ST_ALL[aa] || '', aa] : null }; }
             if(ezTab === 'attek'){ const [y, mo] = ezHo.split('-').map(Number), h = new Date(y, mo, 0).getDate();
                 const st = ezStat(Array.from({ length: h }, (_, i) => `${ezHo}-${String(i + 1).padStart(2, '0')}`).filter(x => x <= ma));
                 return { modul: nev, kicker: `${HO[mo - 1]} · ${st.ok} / ${st.n} esedékes kész`, fo: st.n ? Math.round(st.ok / st.n * 100) + '%' : '—' }; }
             if(ezTab === 'csucs') return { modul: nev, kicker: 'A Strava legjobb idői szerint', fo: 'Csúcsok' };
-            if(ezTab === 'sablon') return { modul: nev, kicker: `${(ezAdat.torzs.sablonok || []).length} sablon`, fo: 'Sablonok' };
+            if(ezTab === 'sablon') return { modul: nev, kicker: '', fo: '' };
             if(ezTab === 'verseny'){ const v = typeof ezKovVerseny === 'function' ? ezKovVerseny() : null;
                 return { modul: nev, kicker: v ? `Következő verseny · ${Math.round((ezD(v.d) - ezD(ma)) / 864e5)} nap múlva` : 'Közelgő versenyek', fo: v ? v.n : 'Versenyek' }; }
         }
@@ -35912,7 +35975,8 @@ function stFejFrissit(){
     const sor = document.getElementById('szFulSor'); if(sor && sor.parentElement !== fej) fej.appendChild(sor);
     { const ks = document.getElementById('szKerSor') || (typeof szKerSorRajz === 'function' ? szKerSorRajz() : null); if(ks && ks.parentElement !== fej) fej.appendChild(ks); }
     // --- fő szám blokk ---
-    set(hos, '.ki', a.kicker || '');
+    { const el = hos.querySelector('.ki'), kh = esc(a.kicker || '') + (a.all && a.all[0] ? ` <span class="all a-${esc(a.all[1])}">${esc(a.all[0])}</span>` : '');
+      if(el._h !== kh){ el.innerHTML = kh; el._h = kh; } el.hidden = !kh; }
     hos.classList.toggle('pz', !!a.pz); hos.classList.toggle('egy', !!a.egysor);
     set(hos, '.al', a.al || '');
     { const es = hos.querySelector('.esor'), eh = a.egysor ? `<b>${esc(a.egysor[0])}</b><span>${esc(a.egysor[1])}</span><em>${esc(a.egysor[2])}</em>` : '';
@@ -49595,6 +49659,47 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 .st-rtoast span { flex:1; display:flex; flex-direction:column; min-width:0; } .st-rtoast b { font-size:14px; } .st-rtoast em { font-style:normal; font-size:12px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .st-rtoast button { height:40px; padding:0 16px; border:0; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; flex:none; }
 @media (min-width:761px){ .st-rtoast { left:auto; right:24px; width:380px; bottom:24px; } }
+/* Edzés · Ma (1b): állapot chip a hősben, a kártyában csak gyakorlatok és gombok */
+html body.sf-privat .st-hos .ki .all { display:inline-flex; align-items:center; height:28px; padding:0 12px; margin-left:6px; border-radius:999px; background:var(--r-ntint); color:var(--r-ink); font-size:13px; font-weight:700; letter-spacing:0; text-transform:none; vertical-align:middle; }
+html body.sf-privat .st-hos .ki .all:is(.a-ki, .a-jel) { background:var(--r-ctint); color:var(--r-cdeep); }
+html body.sf-privat .st-hos .ki .all:is(.a-ok) { background:var(--r-atint); color:var(--r-adeep); }
+html body.sf-privat .st-hos .ki .all:is(.a-resz) { background:var(--r-atint); color:var(--r-a); }
+html body.sf-privat .st-ez-nap .gb button.pk { background:var(--r-atint) !important; color:var(--r-adeep) !important; }
+html body.sf-privat .st-ez-nap.ki .sz { justify-content:space-around; }
+html body.sf-privat .st-ez-nap.nevvel .fej h3 { font-size:20px; }
+/* Edzés · Sablonok (2a) */
+html body.sf-privat .st-sab { display:flex; flex-direction:column; gap:12px; }
+html body.sf-privat .st-sab-seg { display:flex; gap:2px; padding:4px; border-radius:999px; background:var(--r-card); box-shadow:var(--r-shchip); overflow-x:auto; scrollbar-width:none; }
+html body.sf-privat .st-sab-seg button { flex:1 0 auto; height:42px; padding:0 14px; border:0; border-radius:999px; background:none; font:inherit; font-size:14px; font-weight:700; color:var(--r-ink); cursor:pointer; white-space:nowrap; }
+html body.sf-privat .st-sab-seg button span { color:var(--r-muted); font-size:12px; margin-left:2px; } html body.sf-privat .st-sab-seg button.on { background:var(--r-ink); color:#fff; } html body.sf-privat .st-sab-seg button.on span { color:rgba(255,255,255,.6); }
+html body.sf-privat .st-sab-ker { display:flex; gap:8px; }
+html body.sf-privat .st-sab-ker label { flex:1; min-width:0; display:flex; align-items:center; gap:8px; height:48px; padding:0 16px; border-radius:999px; background:var(--r-card); box-shadow:var(--r-shchip); color:var(--r-muted); }
+html body.sf-privat .st-sab-ker label svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; }
+html body.sf-privat .st-sab-ker input { flex:1; min-width:0; border:0; outline:0; background:none; font:inherit; font-size:15px; color:var(--r-ink); padding:0; -webkit-appearance:none; }
+html body.sf-privat .st-sab-ker > button { flex:none; height:48px; padding:0 18px; border:0; border-radius:999px; background:var(--r-a); color:#fff; font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+html body.sf-privat .st-sab-chip { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -14px; padding:2px 14px 6px; }
+html body.sf-privat .st-sab-chip::-webkit-scrollbar, html body.sf-privat .st-sab-seg::-webkit-scrollbar { display:none; }
+html body.sf-privat .st-sab-chip button { flex:none; display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 14px; border:0; border-radius:999px; background:var(--r-card); box-shadow:var(--r-shchip); font:inherit; font-size:14px; font-weight:700; color:var(--r-ink); cursor:pointer; }
+html body.sf-privat .st-sab-chip button i { width:9px; height:9px; border-radius:999px; background:var(--sc); } html body.sf-privat .st-sab-chip button span { color:var(--r-muted); font-size:13px; }
+html body.sf-privat .st-sab-chip button.on { background:var(--r-ink); color:#fff; } html body.sf-privat .st-sab-chip button.on i { background:#fff; } html body.sf-privat .st-sab-chip button.on span { color:rgba(255,255,255,.6); }
+html body.sf-privat .st-sab-szek .h { display:flex; justify-content:space-between; align-items:baseline; padding:6px 6px 8px; }
+html body.sf-privat .st-sab-szek .h span { font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--r-muted); }
+html body.sf-privat .st-sab-szek .h button { border:0; background:none; font:inherit; font-size:14px; font-weight:700; color:var(--r-a); cursor:pointer; padding:0; }
+html body.sf-privat .st-sab-szek .l { background:var(--r-card); border-radius:28px; box-shadow:var(--r-sh); overflow:hidden; }
+html body.sf-privat .st-sab-sor { display:flex; align-items:center; gap:8px; padding:0 14px 0 0; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+html body.sf-privat .st-sab-sor + .st-sab-sor { box-shadow:inset 0 1px 0 var(--r-ntint); }
+html body.sf-privat .st-sab-sor .f { flex:1; min-width:0; display:flex; align-items:center; gap:12px; padding:14px 0 14px 14px; border:0; background:none; font:inherit; text-align:left; color:var(--r-ink); cursor:pointer; }
+html body.sf-privat .st-sab-sor .ik { width:44px; height:44px; flex:none; border-radius:999px; display:grid; place-items:center; background:color-mix(in srgb, var(--sc) 16%, #fff); color:var(--sc); }
+html body.sf-privat .st-sab-sor .ik svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+html body.sf-privat .st-sab-sor .f > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+html body.sf-privat .st-sab-sor b { font-size:16px; font-weight:700; line-height:1.2; }
+html body.sf-privat .st-sab-sor em { font-style:normal; font-size:13px; color:var(--r-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html body.sf-privat .st-sab-sor .p { flex:none; font-style:normal; font-size:14px; font-weight:700; color:var(--r-muted); }
+html body.sf-privat .st-sab-sor .nap { width:42px; height:42px; flex:none; border:0; border-radius:999px; background:var(--r-atint); color:var(--r-adeep); display:grid; place-items:center; cursor:pointer; }
+html body.sf-privat .st-sab-sor .nap svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+html body.sf-privat .st-sab-ures { text-align:center; color:var(--r-muted); font-size:14px; }
+html body.sf-privat .st-sab [hidden], html body.sf-privat .st-sab:not(.keres) .st-sab-sor.rejt { display:none !important; }
+html body.sf-privat .st-sab:not(.keres) .st-sab-sor.rejt + .st-sab-sor, html body.sf-privat .st-sab-l > .st-sab-sor:first-child { box-shadow:none; }
 /* Edzés közben */
 .st-fut { position:fixed; inset:0; z-index:4200; background:#14222a; color:#eaf0f1; overflow-y:auto; font-family:'DM Sans',sans-serif; }
 .st-fut .b { max-width:520px; min-height:100%; margin:0 auto; box-sizing:border-box; padding:calc(16px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:18px; }
