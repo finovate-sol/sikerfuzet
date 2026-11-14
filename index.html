@@ -35826,7 +35826,7 @@ function stFejAdat(lap){
             return { modul: `Szia${m.nev ? ', ' + m.nev : ''}`, kicker: datum, fo: m.hatra == null ? 'Szép napot' : m.hatra ? `${m.hatra} dolog vár még ma` : 'Mára minden kész',
                 csempe: [['a', 'Víz', `${m.viz || 0} pohár`, '+1 pohár', 'data-mastviz'], ['c', 'Testsúly', m.kg ? `${m.kg} kg` : '—', m.kgMa ? 'ma mérve' : 'ma még nincs mérés', 'data-mamenj="egeszseg"']] }; }
         if(lap === 'en'){ const l = szLapok().filter(x => x.lap !== 'en');
-            return { modul: 'Összes', kicker: `${l.length} modul · ${szSavLista().length} kedvenc`, fo: '', chips: ST_EN_CSOP.map(([n]) => [n, `data-stenugr="${n}"`]) }; }
+            return { modul: 'Összes', kicker: '', fo: '', chips: [] }; }
         if(lap === 'penzugyek' && typeof pzView !== 'undefined' && pzTorzsData){
             const ho = pzTHo, lista = pzTranz[ho] || [], hoN = PZ_MONTHS[+ho.slice(5, 7) - 1];
             const P = (kicker, fo, al) => ({ pz: true, modul: 'Pénzügyek', kicker, fo, al: al || '' });
@@ -35998,7 +35998,10 @@ window.stFejFrissit = stFejFrissit;
 })();
 (function(){ let t = 0; const fut = () => { clearTimeout(t); t = setTimeout(stFejFrissit, 90); };
     const ind = () => { const m = document.querySelector('.main'); if(!m) return setTimeout(ind, 300);
-        new MutationObserver(muts => { if(muts.every(x => x.target.closest && x.target.closest('#stFej, #stHos'))) return; fut(); }).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+        new MutationObserver(muts => { if(muts.every(x => x.target.closest && x.target.closest('#stFej, #stHos'))) return;
+            // lapváltáskor azonnal (még a kirajzolás előtt), hogy a fejléc és a fő szám blokk ne utólag ugorjon be
+            if(muts.some(x => x.type === 'attributes' && x.target.classList && x.target.classList.contains('page') && !x.target.hidden)){ clearTimeout(t); try { stFejFrissit(); } catch(_){} return; }
+            fut(); }).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
         fut(); };
     ind(); window.addEventListener('sf-ter', fut); window.addEventListener('resize', fut);
     document.addEventListener('click', e => { const g = e.target.closest('[data-stenugr]'); if(!g) return;
