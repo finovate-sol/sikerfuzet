@@ -35016,7 +35016,7 @@ async function stRInit(){
     if(['edzes', 'suly'].includes(S.tip)){ await Promise.all([ezBetolt('torzs'), ezEvekBetolt(ma)]).catch(() => null); }
     if(S.tip === 'edzes'){ const ut = stREdzUtolso(); S.sport = ut ? ut.sport : 'ero'; S.fok = ut ? ut.fok || '' : ''; S.perc = ut ? ut.perc || 45 : 45; S.erz = 'jo'; S.megj = ''; }
     if(S.tip === 'suly'){ const m = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), ut = m[m.length - 1]; S.kg = ut ? ut.kg : 75; S.elo = ut ? ut.kg : null; S.ehgy = true; }
-    if(S.tip === 'alvas'){ await nlEv(ma.slice(0, 4)).catch(() => null); const x = nlEg(ma); S.le = x.le || '23:00'; S.fel = x.fel || '07:00'; S.alv = stRAlvPerc(S.le, S.fel); const q = nlNapAlvM(ma); S.q = q == null ? 80 : q; }
+    if(S.tip === 'alvas'){ await nlEv(ma.slice(0, 4)).catch(() => null); const x = nlEg(ma); S.ido = !!(x.le && x.fel); S.le = x.le || '23:00'; S.fel = x.fel || '07:00'; S.alv = nlNapAlv(ma) || (S.ido ? stRAlvPerc(S.le, S.fel) : 450); S.q = nlNapAlvM(ma); S.idoNy = false; }
     if(S.tip === 'szokas'){ S.sz = await prvBetolt('szokasok').catch(() => ({})); }
     if(S.tip === 'naplo'){ await nlEv(ma.slice(0, 4)).catch(() => null); S.B = await nlBeall().catch(() => ({ hang: [], tev: [] })); S.h = 0; S.tev = []; S.megj = ''; }
     if(S.tip === 'link'){ S.mt = await prvBetolt('mentesek').catch(() => ({ lista: [] })); S.u = S.u || ''; S.cimke = '';
@@ -35094,16 +35094,20 @@ function stRRajz(){
                 gombok: `<button type="button" class="fo" data-stract="ment">Mentés</button>` }); }
     }
     else if(S.tip === 'alvas'){
-        const ora = Math.floor(S.alv / 60), perc = S.alv % 60, q = S.q, osz = nlAlvMOszt(q);
-        let onb = false; try { onb = !localStorage.getItem('stoa_alv_onb'); } catch(_){}
-        h = stRVaz({ kicker: 'Alvás', cim: 'Tegnap éjjel', tart: `
-            ${onb ? `<div class="onb"><b>Mit jelent az alvásminőség %?</b><span>Ha az órád vagy a telefonod méri (pl. Apple Watch, Oura, Sleep Cycle), írd be onnan a pontszámot. Ha nem, becsüld meg: <em>85+ pihentető</em>, <em>60 körül közepes</em>, <em>50 alatt gyenge</em>. Így látszik majd, mitől alszol jobban.</span><button type="button" data-stralvonb>Értem</button></div>` : ''}
-            <div class="alvido"><label><span>Lefekvés</span><input type="time" id="stRLe" value="${esc(S.le || '23:00')}"></label><i>→</i><label><span>Ébredés</span><input type="time" id="stRFel" value="${esc(S.fel || '07:00')}"></label></div>
-            <div class="alvossz"><b>${ora} ó ${perc} p</b><span>alvásidő</span></div>
-            <div class="alvq"><div class="f"><span>Minőség</span><b class="q-${osz}">${q}% · ${nlAlvMSzo(q)}</b></div>
-                <input type="range" id="stRQ" min="0" max="100" step="1" value="${q}" class="q-${osz}" aria-label="Alvásminőség százalékban">
-                <div class="chips">${[[90, 'Pihentető'], [65, 'Közepes'], [40, 'Rossz']].map(([v, n]) => stRChip(n, `data-strq="${v}"`, q === v)).join('')}</div></div>`,
-            gombok: `<button type="button" class="fo" data-stract="ment">Mentés</button>` });
+        const ora = Math.floor(S.alv / 60), perc = S.alv % 60;
+        if(S.lep === 0) h = stRVaz({ kicker: 'Alvás · 1/2', cim: 'Mennyit aludtál?', lepes: [0, 2], tart: `
+            <div class="lepdoboz">${stRLep(`${ora} ó ${perc} p`, S.ido ? `${esc(S.le)} → ${esc(S.fel)}` : 'tegnap éjjel', 'alv')}</div>
+            <button type="button" class="opc${S.idoNy ? ' ny' : ''}" data-stralvido><span>Mikortól meddig? <em>nem kötelező</em></span><b>${S.ido ? `${esc(S.le)} → ${esc(S.fel)}` : '+ Megadom'}</b></button>
+            ${S.idoNy ? `<div class="alvido"><label><span>Lefekvés</span><input type="time" id="stRLe" value="${esc(S.le)}"></label><i>→</i><label><span>Ébredés</span><input type="time" id="stRFel" value="${esc(S.fel)}"></label></div>` : ''}`,
+            gombok: `<button type="button" class="fo" data-stract="tov">Tovább</button>` });
+        else { const q = S.q, osz = q == null ? '' : nlAlvMOszt(q);
+            let onb = false; try { onb = !localStorage.getItem('stoa_alv_onb'); } catch(_){}
+            h = stRVaz({ kicker: 'Alvás · 2/2', cim: 'Milyen volt?', vissza: true, lepes: [1, 2], tart: `
+                ${onb ? `<div class="onb"><b>Alvásminőség %</b><span>Ha az órád vagy a telefonod méri (Apple Watch, Oura, Sleep Cycle), írd be onnan a pontszámot. Ha nem, becsüld: <em>85+ pihentető</em>, <em>60 körül közepes</em>, <em>50 alatt gyenge</em>.</span><button type="button" data-stralvonb>Értem</button></div>` : ''}
+                <div class="alvq"><div class="f"><span>Minőség</span><b class="q-${osz}">${q == null ? 'Válassz' : `${q}% · ${nlAlvMSzo(q)}`}</b></div>
+                    <input type="range" id="stRQ" min="0" max="100" step="1" value="${q == null ? 70 : q}" class="q-${osz}${q == null ? ' ures' : ''}" aria-label="Alvásminőség százalékban">
+                    <div class="chips">${[[90, 'Pihentető'], [65, 'Közepes'], [40, 'Rossz']].map(([v, n]) => stRChip(n, `data-strq="${v}"`, q === v)).join('')}</div></div>`,
+                gombok: `<button type="button" class="fo" data-stract="ment"${q == null ? ' disabled' : ''}>Mentés · ${ora} ó ${perc} p</button>` }); }
     }
     else if(S.tip === 'suly'){
         h = stRVaz({ kicker: 'Testsúly', cim: 'Mai mérés', tart: `<div class="lepdoboz">${stRLep(String(Math.round(S.kg * 10) / 10).replace('.', ','), `kg${S.elo ? ' · legutóbb ' + String(S.elo).replace('.', ',') : ''}`, 'kg')}</div>
@@ -35201,7 +35205,7 @@ async function stRMent(){
     }
     if(S.tip === 'alvas'){
         const y = ma.slice(0, 4), doc = await nlEv(y), eg = doc.eg || (doc.eg = {}), x = eg[ma] || (eg[ma] = {}), regi = { ...x };
-        x.alv = S.alv; x.alvM = S.q; x.le = S.le; x.fel = S.fel;
+        x.alv = S.alv; x.alvM = S.q; if(S.ido){ x.le = S.le; x.fel = S.fel; } else { delete x.le; delete x.fel; }
         prvMent(nlEvKulcs(y)); stRZar(); stRUtan();
         stRToast(`Alvás mentve · ${Math.floor(S.alv / 60)} ó ${S.alv % 60} p`, '', async () => { eg[ma] = regi; if(!Object.keys(regi).length) delete eg[ma]; prvMent(nlEvKulcs(y)); stRUtan(); });
         return;
@@ -35280,10 +35284,11 @@ document.addEventListener('click', async e => {
     if((b = g('[data-strerz]'))){ S.erz = b.dataset.strerz; return stRRajz(); }
     if((b = g('[data-strlep]'))){ const [m, d] = b.dataset.strlep.split('|'), n = +d;
         if(m === 'perc') S.perc = Math.max(5, Math.min(600, S.perc + n * 5));
-        if(m === 'alv'){ S.alv = Math.max(30, Math.min(16 * 60, S.alv + n * 10)); S.le = S.fel = ''; }
+        if(m === 'alv'){ S.alv = Math.max(30, Math.min(16 * 60, S.alv + n * 10)); S.ido = false; S.idoNy = false; }
         if(m === 'kg') S.kg = Math.max(20, Math.min(400, Math.round((S.kg + n * .1) * 10) / 10));
         return stRRajz(); }
     if((b = g('[data-strq]'))){ S.q = +b.dataset.strq; return stRRajz(); }
+    if(g('[data-stralvido]')){ S.idoNy = !S.idoNy; return stRRajz(); }
     if(g('[data-stralvonb]')){ try { localStorage.setItem('stoa_alv_onb', '1'); } catch(_){} return stRRajz(); }
     if(g('[data-strehgy]')){ S.ehgy = !S.ehgy; return stRRajz(); }
     if(g('[data-strmegj]')){ const v = prompt('Jegyzet:', S.megj || ''); if(v != null){ S.megj = v.trim(); stRRajz(); } return; }
@@ -35319,8 +35324,8 @@ document.addEventListener('input', e => {
     if(e.target.id === 'stREsN') stR.n = e.target.value;
     if(e.target.id === 'stRLink') stR.u = e.target.value;
 });
-document.addEventListener('change', e => { if(stR && (e.target.id === 'stRLe' || e.target.id === 'stRFel') && e.target.value){ stR[e.target.id === 'stRLe' ? 'le' : 'fel'] = e.target.value; stR.alv = stRAlvPerc(stR.le, stR.fel); stRRajz(); } });
-document.addEventListener('input', e => { if(stR && e.target.id === 'stRQ'){ stR.q = +e.target.value; const o = nlAlvMOszt(stR.q), b = e.target.closest('.alvq').querySelector('.f b'); b.textContent = `${stR.q}% · ${nlAlvMSzo(stR.q)}`; b.className = 'q-' + o; e.target.className = 'q-' + o; } });
+document.addEventListener('change', e => { if(stR && (e.target.id === 'stRLe' || e.target.id === 'stRFel') && e.target.value){ stR[e.target.id === 'stRLe' ? 'le' : 'fel'] = e.target.value; stR.ido = true; stR.alv = stRAlvPerc(stR.le, stR.fel); stRRajz(); } });
+document.addEventListener('input', e => { if(stR && e.target.id === 'stRQ'){ const elso = stR.q == null; stR.q = +e.target.value; if(elso){ stRRajz(); return; } const o = nlAlvMOszt(stR.q), b = e.target.closest('.alvq').querySelector('.f b'); b.textContent = `${stR.q}% · ${nlAlvMSzo(stR.q)}`; b.className = 'q-' + o; e.target.className = 'q-' + o; const m = document.querySelector('#stRog [data-stract="ment"]'); if(m) m.disabled = false; } });
 document.addEventListener('change', e => { if(stR && e.target.id === 'stRDat' && e.target.value){ stR.d = e.target.value; stR.n = (document.getElementById('stREsN') || {}).value ?? stR.n; if(stR.tip === 'koltes') stR.nyit = ''; stRRajz(); } });
 document.addEventListener('keydown', e => {
     if(!stR || !document.getElementById('stRog')) return;
@@ -49413,6 +49418,9 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
     /* az átutalás régi lapja is ekkora */
     .st-lap-hatter .st-lap { height:calc(50dvh + 90px); min-height:470px; max-height:92dvh; }
 }
+.st-rog .opc { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:48px; border:0; border-radius:20px; background:#fff; padding:0 14px; font:inherit; color:#14222a; cursor:pointer; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); }
+.st-rog .opc span { font-size:14px; font-weight:700; } .st-rog .opc em { font-style:normal; font-size:11px; color:#4f6370; font-weight:600; } .st-rog .opc b { font-size:13px; color:#2f6f8f; }
+.st-rog .alvq input.ures { opacity:.45; }
 /* visszavonható értesítés */
 .st-rtoast { position:fixed; left:16px; right:16px; bottom:calc(max(8px, calc(env(safe-area-inset-bottom) - 10px)) + 70px); z-index:4200; display:flex; align-items:center; gap:12px; padding:8px 8px 8px 10px; border-radius:24px; background:#14222a; color:#fff; box-shadow:0 12px 32px rgba(20,34,42,.3); transform:translateY(20px); opacity:0; transition:transform .25s, opacity .25s; font-family:'DM Sans',sans-serif; }
 .st-rtoast.be { transform:none; opacity:1; }
