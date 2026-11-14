@@ -33637,6 +33637,23 @@ const NL_CSOP_SZIN = { munka:'#2563eb', en:'#0d9488', mozgas:'#ea580c', alvas:'#
 const nlTevIk = t => { const k = NL_EMOJI_IK[String((t && t.ik) || '').trim()] || NL_EMOJI_IK[String((t && t.ik) || '').replace(/\uFE0F/g, '').trim()];
     return k ? `<i class="nl-tevi" style="color:${NL_CSOP_SZIN[t.cs] || '#475569'}">${sfIkon(k)}</i>` : `<i>${esc((t && t.ik) || '')}</i>`; };
 const nlIkTipp = n => { const s = String(n || '').toLowerCase(); const t = NL_IK_SZO.find(([re]) => re.test(s)); return t ? t[1] : '🏷️'; };
+// Csoport a tevékenység nevéből (import, és a régi „Importált” csoport szétosztása) – minden tevékenység kap valódi csoportot
+const NL_CSOP_SZO = [
+    ['alvas', /alv|aludt|szundi|ágy|álmos|fáradt|kipihen|ébred|insomn/],
+    ['mozgas', /fut|kondi|edz|gym|súly|sport|foci|kosár|úsz|bring|bicikl|biciklz|sét|gyalog|túr|jóga|nyújt|stretch|crossfit|tenisz|squash|padel|röpi|kardi|mozg|lépcs|hike|tánc|box|bokszo|harcm|síel|korcsoly/],
+    ['etel', /étel|evés|ebéd|vacsor|reggeli|nasi|édes|junk|gyorsétel|fast|pizza|burger|egészséges|saláta|diéta|kalória|böjt|alkohol|sör|bor|kávé|koffein|cukor|fehérje|étterem|rendel/],
+    ['otthon', /takarít|főz|mos|vasal|bevásárl|vásárl|házi|otthon|kert|szerel|rendrak|pakol|költöz|mosogat|szemét|lakás|ház|kutya|macska|állat|növény|ügyintéz|számla/],
+    ['munka', /munka|ovb|iroda|meeting|megbesz|ügyfél|tárgyal|hívás|telefon|email|e-mail|projekt|halogat|tervez|összpont|fókusz|produktív|határidő|korai|kezdés|laza munka|építő|prezent|üzlet|értékesít|toborz|képzés|tréning|coaching|mentor|szakmai|bedolgoz|csapat|vezet/],
+    ['szabad', /film|sorozat|tv|netflix|youtube|pihen|olvas|könyv|játék|gam|zene|koncert|színház|mozi|buli|parti|barát|család|randi|szerelem|pár|utaz|kirándul|nyaral|hétvég|program|hobbi|kreatív|rajz|fotó|gitár|zongor|hangszer|énekl|festés|társas|szórakoz|kikapcsol|közösség|vendég|szülinap|ünnep/],
+    ['en', /semleges|motiv|kedves|önismeret|önuralom|medit|hála|napló|tanul|fejlőd|olvas|ima|imádk|lelki|stressz|szorong|boldog|szomorú|dühös|ideges|nyugodt|elégedett|magány|egészség|orvos|beteg|gyógy|vitamin|terápia|pszich|cél|szokás|reggeli rutin|esti rutin|telefonmentes|képernyő|digitális/]];
+const nlCsopTipp = n => { const x = String(n || '').toLowerCase(); const t = NL_CSOP_SZO.find(([, re]) => re.test(x)); return t ? t[0] : 'en'; };
+// a csoport azonosítója (ha az alapcsoport hiányzik, létrehozza)
+function nlCsopBiztos(B, kulcs){
+    const alap = NL_CSOP_ALAP.find(([id]) => id === kulcs) || [kulcs, kulcs];
+    let c = B.csop.find(x => x.id === kulcs) || B.csop.find(x => nlNorm(x.n) === nlNorm(alap[1]));
+    if(!c){ c = { id: kulcs, n: alap[1] }; B.csop.push(c); }
+    return c.id;
+}
 const nlNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 let nlNezet = 'bej', nlHo = null, nlKer = '', nlKerNyit = false, nlStatTev = '', nlStatHang = 5, nlGrafTip = 'vonal', nlEvPix = null, nlTevMind = false;
 
@@ -33675,6 +33692,10 @@ async function nlBeall(){
         valt = true;
     }
     if(!Array.isArray(d.hang) || d.hang.length !== 6) { d.hang = NL_HANG_ALAP.slice(); valt = true; }
+    // az „Importált” csoport megszűnik: a tevékenységei a nevük alapján a valódi csoportokba kerülnek (a csoport nélküliek is)
+    { const imp = new Set(d.csop.filter(c => nlNorm(c.n) === 'importalt').map(c => c.id)), van = new Set(d.csop.map(c => c.id));
+      const kell = d.tev.filter(t => imp.has(t.cs) || !van.has(t.cs));
+      if(kell.length || imp.size){ for(const t of kell) t.cs = nlCsopBiztos(d, nlCsopTipp(t.n)); d.csop = d.csop.filter(c => !imp.has(c.id)); valt = true; } }
     NL_HANG_SZO = d.hang.map((x, i) => x || NL_HANG_ALAP[i]);
     // A tegnapi (napi egy bejegyzéses) napló átköltöztetése az évenkénti dokumentumokba.
     if(d.napok && Object.keys(d.napok).length && !d.v){
@@ -34297,8 +34318,8 @@ function nlImportModal(){
             const csopId = new Map(B.csop.map(c => [nlNorm(c.n), c.id]));
             for(const n of new Set(adat.bej.flatMap(b => b.tev))){
                 if(tevId.has(nlNorm(n))) continue;
-                const csn = adat.tevCsop[n] || 'Importált';
-                let cs = csopId.get(nlNorm(csn)); if(!cs){ cs = prvUjId(); B.csop.push({ id: cs, n: csn }); csopId.set(nlNorm(csn), cs); }
+                const csn = adat.tevCsop[n] && nlNorm(adat.tevCsop[n]) !== 'importalt' ? adat.tevCsop[n] : '';
+                let cs = csn ? csopId.get(nlNorm(csn)) : nlCsopBiztos(B, nlCsopTipp(n)); if(!cs){ cs = prvUjId(); B.csop.push({ id: cs, n: csn }); csopId.set(nlNorm(csn), cs); }
                 const id = prvUjId() + tevId.size; B.tev.push({ id, n, ik: nlIkTipp(n), cs }); tevId.set(nlNorm(n), id);
             }
             prvMent('naplo');
