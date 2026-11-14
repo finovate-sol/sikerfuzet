@@ -35888,8 +35888,14 @@ function szAlsoFrissit(){
     const sav = stoa ? [kozepLap, ...szSavLista().filter(l => l !== kozepLap).slice(0, 2), 'en'] : [...szSavLista().filter(l => l !== kozepLap).slice(0, 3), 'en'];
     const nb = Math.ceil(sav.length / 2), ures = n => '<span class="szm-t ures"></span>'.repeat(Math.max(0, n));
     const fav = l => { const x = l === 'en' ? (stoa ? { svg: SZ_MIND_SVG, n: 'Összes' } : { svg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>', n: 'Menü' }) : lapok.find(y => y.lap === l); return x ? `<button type="button" class="szm-t fav${l === akt ? ' on' : ''}" data-szmenj="${l}">${x.svg}<span>${esc(l === 'en' ? x.n : SZ_ROVID[l] || x.n)}</span></button>` : ''; };
-    const html = ures(2 - nb) + sav.slice(0, nb).map(fav).join('') + '<span class="szm-hely" aria-hidden="true"></span>' + sav.slice(nb).map(fav).join('') + ures(2 - (sav.length - nb));
+    // Stoa: ha kevesebb elem van, a sáv nem tölti ki a szélességet (nincsenek üres helyek), hanem összébb húzódik
+    const keves = stoa && sav.length < 4; nav.classList.toggle('keves', keves); nav.style.setProperty('--szm-db', sav.length);
+    const html = (keves ? '' : ures(2 - nb)) + sav.slice(0, nb).map(fav).join('') + '<span class="szm-hely" aria-hidden="true"></span>' + sav.slice(nb).map(fav).join('') + (keves ? '' : ures(2 - (sav.length - nb)));
     if(nav._html !== html){ nav.innerHTML = html; nav._html = html; }
+    // összehúzott sávnál a ＋ a sávban kihagyott hely közepére kerül (nem mindig a képernyő közepére)
+    { const g = document.getElementById('szGomb'), igazit = () => { if(!g) return; const h = keves && nav.querySelector('.szm-hely');
+        g.style.left = h ? (h.getBoundingClientRect().left + h.offsetWidth / 2) + 'px' : ''; };
+      igazit(); requestAnimationFrame(igazit); if(!szAlsoFrissit._rz){ szAlsoFrissit._rz = 1; addEventListener('resize', () => szAlsoFrissit()); } }
     szFulSorRajz();
     szFabFrissit();
 }
@@ -49344,6 +49350,8 @@ body.sf-privat { --r-shchip:0 6px 14px -8px rgba(20,34,42,.35); }
     html body.sf-privat .szm-also .szm-t.fav { font-size:10px !important; gap:3px !important; }
     html body.sf-privat .szm-also .szm-t.fav svg { width:20px !important; height:20px !important; }
     html body.sf-privat .szm-also .szm-hely { flex:0 0 66px !important; }
+    html body.sf-privat nav#szAlso.szm-also.keves, html:is(.sf-st-termeszet, .sf-st-tiszta) body.sf-privat nav#szAlso.szm-also.keves:not(.ures) { left:50% !important; right:auto !important; width:calc(var(--szm-db, 3) * 72px + 66px + 12px) !important; transform:translateX(-50%); justify-content:center; }
+    html body.sf-privat nav#szAlso.szm-also.keves .szm-t { flex:0 0 72px !important; }
     html body.sf-privat .szm-gomb:not([hidden]) { width:46px !important; height:46px !important; margin-left:-23px !important; bottom:calc(max(8px, calc(env(safe-area-inset-bottom) - 10px)) + 7px) !important; border:0 !important; box-shadow:none !important; background:var(--r-c) !important; }
     html body.sf-privat .szm-gomb svg { width:22px !important; height:22px !important; }
 }
