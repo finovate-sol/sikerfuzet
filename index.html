@@ -33731,6 +33731,8 @@ function nlKepNez(id){
 }
 // ---- bejegyzés-szerkesztő ----
 async function nlSzerk(id, alap){
+    // Stoa: új mai bejegyzés a fél képernyős rögzítő panelben (a választott arc már bejelölve, a tevékenységeknél folytatódik)
+    if(!id && window.stoaAktiv && window.stoaAktiv() && typeof stRogNyit === 'function' && (!alap || !alap.d || alap.d === ezMa())) return stRogNyit('naplo', alap && alap.h ? { h: +alap.h, lep: 1 } : null);
     const B = await nlBeall();
     const a = alap || {};
     const s0 = a.d || ezMa();
@@ -35137,7 +35139,7 @@ async function stRInit(){
     if(S.tip === 'suly'){ const m = ezMeresek().slice().sort((a, b) => a.d.localeCompare(b.d)), ut = m[m.length - 1]; S.kg = ut ? ut.kg : 75; S.elo = ut ? ut.kg : null; S.ehgy = true; }
     if(S.tip === 'alvas'){ await nlEv(ma.slice(0, 4)).catch(() => null); const x = nlEg(ma); S.ido = !!(x.le && x.fel); S.le = x.le || '23:00'; S.fel = x.fel || '07:00'; S.alv = nlNapAlv(ma) || (S.ido ? stRAlvPerc(S.le, S.fel) : 450); S.q = nlNapAlvM(ma); S.idoNy = false; }
     if(S.tip === 'szokas'){ S.sz = await prvBetolt('szokasok').catch(() => ({})); }
-    if(S.tip === 'naplo'){ await nlEv(ma.slice(0, 4)).catch(() => null); S.B = await nlBeall().catch(() => ({ hang: [], tev: [] })); S.h = 0; S.tev = []; S.megj = ''; }
+    if(S.tip === 'naplo'){ await nlEv(ma.slice(0, 4)).catch(() => null); S.B = await nlBeall().catch(() => ({ hang: [], tev: [] })); S.h = S.h || 0; S.tev = []; S.megj = ''; }
     if(S.tip === 'link'){ S.mt = await prvBetolt('mentesek').catch(() => ({ lista: [] })); S.u = S.u || ''; S.cimke = '';
         try { const c = await navigator.clipboard.readText(); if(/^https?:\/\//i.test((c || '').trim())){ S.u = c.trim(); S.vago = true; } } catch(_){} }
     if(S.tip === 'esemeny'){ S.em = await prvBetolt('emberek').catch(() => ({})); S.n = ''; S.d = ezPlusz(ma, 1); S.ido = '10:00'; S.elore = 0; S.ism = false; S.megj = ''; }
