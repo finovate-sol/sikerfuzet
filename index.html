@@ -35334,9 +35334,21 @@ function stRRajz(){
                 ${x.ido ? `<button type="button" class="ch k${x.eml ? '' : ' ki'}" data-tdfe="${i}">Emlékeztet</button>` : ''}
                 <button type="button" class="ch c${x.p ? '' : ' ki'}" data-tdfp="${i}">${x.p ? 'Prioritás ' + '!'.repeat(x.p) : 'Prioritás'}</button><button type="button" class="ch c${x.zas ? '' : ' ki'}" data-tdfz="${i}">Zászló</button></div>
                 ${szerk ? `<input type="text" class="mj" data-tdm="${i}" value="${esc(x.megj || '')}" placeholder="Megjegyzés" maxlength="300">` : ''}</div>`;
+        // szerkesztés: címkés sorok (mint a többi részletező panel)
+        const szerkHtml = x => { const i = 0, ISM = x.ism ? (x.ism.t === 'havi' && x.ism.n ? `Havonta ${x.ism.n}-én` : tdIsmSzo(x.ism).replace(/^./, c => c.toUpperCase())) : 'Nincs';
+            return `<input type="text" class="inp td-cim" data-tdn="0" value="${esc(x.n)}" maxlength="140" aria-label="Feladat">
+            <div class="sorok td-sorok">
+                ${stRSor('Nap', `<label class="pill${x.d ? ' a' : ''}">${x.d ? esc(tdNapSzo(x.d)) : '+ Hozzáad'}<input type="date" data-tdfd="${i}" value="${esc(x.d)}"></label>`)}
+                ${stRSor('Időpont', `<label class="pill${x.ido ? ' a' : ''}">${x.ido ? esc(x.ido) : '+ Hozzáad'}<input type="time" data-tdfi="${i}" value="${esc(x.ido)}"></label>`)}
+                ${stRSor('Ismétlődés', `<button type="button" class="pill${x.ism ? ' z' : ''}" data-tdfr="${i}">${esc(ISM)}</button>`)}
+                ${x.ido ? stRSor('Emlékeztető', `<button type="button" class="kapcs${x.eml ? ' on' : ''}" data-tdfe="${i}" role="switch" aria-checked="${!!x.eml}"><i></i></button>`) : ''}
+                ${stRSor('Prioritás', `<div class="seg kicsi">${[0, 1, 2, 3].map(v => `<button type="button" class="${(x.p || 0) === v ? 'on' : ''}" data-tdfpv="${v}">${v ? '!'.repeat(v) : '–'}</button>`).join('')}</div>`)}
+                ${stRSor('Zászló', `<button type="button" class="kapcs nar${x.zas ? ' on' : ''}" data-tdfz="${i}" role="switch" aria-checked="${!!x.zas}"><i></i></button>`)}</div>
+            <span class="cim">Lista</span><div class="chips">${LST.map(l => `<button type="button" class="ch ter${x.l === l ? ' on' : ''}" data-tdflv="${esc(l)}" style="--c:${tdSzin(l)}"><i></i>${esc(l)}</button>`).join('')}</div>
+            <span class="cim">Megjegyzés</span><textarea class="inp ta td-mj" data-tdm="${i}" rows="2" maxlength="300" placeholder="Pl. részletek, összeg, link">${esc(x.megj || '')}</textarea>`; };
         const db = S.tet.length;
-        h = stRVaz({ kicker: szerk ? 'Feladat' : S.nyers && !S.dikt ? 'Beírásból' : 'Diktálásból', cim: szerk ? 'Szerkesztés' : db ? `${db} feladat lett belőle` : 'Nem maradt feladat', fejJobb: szerk ? '' : '<button type="button" class="alap" data-tdd="meg">🎙 Még</button>',
-            tart: `<div class="td-kk">${S.tet.map(kartya).join('')}</div>`,
+        h = stRVaz({ kicker: szerk ? 'Feladat · ' + esc(S.tet[0].l || '') : S.nyers && !S.dikt ? 'Beírásból' : 'Diktálásból', cim: szerk ? 'Részletek' : db ? `${db} feladat lett belőle` : 'Nem maradt feladat', fejJobb: szerk ? '' : '<button type="button" class="alap" data-tdd="meg">🎙 Még</button>',
+            tart: szerk ? szerkHtml(S.tet[0]) : `<div class="td-kk">${S.tet.map(kartya).join('')}</div>`,
             gombok: szerk ? `<button type="button" class="mas" data-tdd="torol">Törlés</button><button type="button" class="fo" data-tdd="ment">Mentés</button>`
                 : `<button type="button" class="mas" data-tdd="egyben"${S.nyers ? '' : ' disabled'}>Egyben</button><button type="button" class="fo" data-tdd="ment"${db ? '' : ' disabled'}>Mentés (${db})</button>` });
         p.dataset.lst = LST.join('|');
@@ -35871,6 +35883,8 @@ document.addEventListener('click', async e => {
     if((b = e.target.closest('[data-tdfe]'))){ const x = S.tet[+b.dataset.tdfe]; x.eml = !x.eml; return stRRajz(); }
     if((b = e.target.closest('[data-tdfp]'))){ const x = S.tet[+b.dataset.tdfp]; x.p = ((x.p || 0) + 1) % 4; return stRRajz(); }
     if((b = e.target.closest('[data-tdfz]'))){ const x = S.tet[+b.dataset.tdfz]; x.zas = !x.zas; return stRRajz(); }
+    if((b = e.target.closest('[data-tdfpv]'))){ S.tet[0].p = +b.dataset.tdfpv; return stRRajz(); }
+    if((b = e.target.closest('[data-tdflv]'))){ S.tet[0].l = b.dataset.tdflv; return stRRajz(); }
     if(!(b = e.target.closest('[data-tdd], [data-stract="tdtov"]'))) return;
     const a = b.dataset.tdd || 'tdtov';
     if(a === 'elvet'){ stRDiktStop(); clearInterval(S.tick); return stRZar(); }
@@ -50269,7 +50283,7 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 .st-rog .celkep > i { display:grid; place-items:center; background:#e3eaec; color:#4f6370; font-style:normal; font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-size:30px; font-weight:600; }
 .st-rog .celkep > div { display:flex; flex-wrap:wrap; gap:8px; } .st-rog .celkep label.ch { cursor:pointer; }
 .st-rog label.pill { display:inline-flex; align-items:center; gap:4px; position:relative; }
-.st-rog label.pill input[type=date], .st-rog label.ch input[type=datetime-local] { position:absolute; inset:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0; }
+.st-rog label.pill input[type=date], .st-rog label.pill input[type=time], .st-rog label.ch input[type=datetime-local] { position:absolute; inset:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0; }
 .st-rog label.ch { position:relative; }
 .st-rog .pill.ar input { width:92px; border:0; background:none; text-align:right; font:inherit; color:inherit; outline:0; padding:0; }
 .st-rog .pill.ar input::placeholder { color:#8a3b27; opacity:1; } .st-rog .pill.ar em { font-style:normal; }
@@ -50431,6 +50445,16 @@ html body.sf-privat .td-sor.lej .t em, html body.sf-privat .td-sor.uj .t em { co
 html body.sf-privat .td-sor .t .pr { text-decoration:none; color:var(--lc, var(--r-c)); font-weight:800; letter-spacing:-.04em; }
 html body.sf-privat .td-sor .t .mj { font-size:11.5px; color:var(--r-muted); }
 html body.sf-privat .td-sor .zas { flex:none; color:#f0a04b; display:grid; } html body.sf-privat .td-sor .zas svg { width:18px; height:18px; fill:currentColor; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; }
+.st-rog .inp.td-cim { height:auto; min-height:52px; border:0; border-radius:20px; padding:12px 16px; font-size:17px; font-weight:700; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); }
+.st-rog .inp.td-mj { min-height:64px; }
+.st-rog .td-sorok .sr { min-height:42px; } .st-rog .td-sorok .pill { height:30px; display:inline-flex; align-items:center; } .st-rog .inp.td-cim { min-height:46px; padding:10px 16px; }
+.st-rog .pill.z { background:#e2f0e6; color:#2e6b48; }
+.st-rog .kapcs { width:46px; height:28px; flex:none; border:0; border-radius:999px; background:#d6e0e3; position:relative; cursor:pointer; padding:0; transition:background .2s; }
+.st-rog .kapcs i { position:absolute; left:3px; top:3px; width:22px; height:22px; border-radius:999px; background:#fff; box-shadow:0 2px 4px rgba(20,34,42,.25); transition:transform .2s; }
+.st-rog .kapcs.on { background:#2f6f8f; } .st-rog .kapcs.nar.on { background:#f0a04b; } .st-rog .kapcs.on i { transform:translateX(18px); }
+.st-rog .seg.kicsi { display:flex; gap:2px; padding:3px; border-radius:999px; background:#eef2f3; box-shadow:none; }
+.st-rog .seg.kicsi button { height:28px; min-width:38px; padding:0 8px; border:0; border-radius:999px; background:none; font:inherit; font-size:13px; font-weight:800; color:#4f6370; cursor:pointer; }
+.st-rog .seg.kicsi button.on { background:#fff; color:#b4553b; box-shadow:0 2px 6px rgba(20,34,42,.15); }
 .st-rog .td-k input.mj { border:0; outline:0; background:#eef2f3; border-radius:12px; padding:10px 12px; font:inherit; font-size:14px; color:#14222a; margin-left:32px; width:calc(100% - 32px); box-sizing:border-box; }
 html body.sf-privat .td-sor .hi { flex:none; color:var(--r-muted); display:grid; } html body.sf-privat .td-sor .hi svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
 html body.sf-privat .td-kesz > button { width:100%; display:flex; align-items:center; gap:8px; height:46px; padding:0 18px; border:0; border-radius:999px; background:#e2f0e6; color:#2e6b48; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
