@@ -35331,7 +35331,9 @@ function stRRajz(){
         const kartya = (x, i) => `<div class="td-k"><div class="kf"><i class="kor"></i><input type="text" value="${esc(x.n)}" data-tdn="${i}" maxlength="140" aria-label="Feladat">${szerk ? '' : `<button type="button" class="x" data-tdx="${i}" aria-label="Kihagyás">×</button>`}</div>
             <div class="kc"><label class="ch k">${x.d ? esc(tdNapSzo(x.d)) : 'Nap'}<input type="date" data-tdfd="${i}" value="${esc(x.d)}"></label><label class="ch k">${x.ido ? esc(x.ido) : 'Időpont'}<input type="time" data-tdfi="${i}" value="${esc(x.ido)}"></label>
                 <button type="button" class="ch c" data-tdfl="${i}">${esc(x.l || 'Lista')}</button><button type="button" class="ch z${x.ism ? '' : ' ki'}" data-tdfr="${i}">${x.ism ? (x.ism.t === 'havi' && x.ism.n ? `Havonta ${x.ism.n}-én` : tdIsmSzo(x.ism).replace(/^./, c => c.toUpperCase())) : 'Nem ismétlődik'}</button>
-                ${x.ido ? `<button type="button" class="ch k${x.eml ? '' : ' ki'}" data-tdfe="${i}">Emlékeztet</button>` : ''}</div></div>`;
+                ${x.ido ? `<button type="button" class="ch k${x.eml ? '' : ' ki'}" data-tdfe="${i}">Emlékeztet</button>` : ''}
+                <button type="button" class="ch c${x.p ? '' : ' ki'}" data-tdfp="${i}">${x.p ? 'Prioritás ' + '!'.repeat(x.p) : 'Prioritás'}</button><button type="button" class="ch c${x.zas ? '' : ' ki'}" data-tdfz="${i}">Zászló</button></div>
+                ${szerk ? `<input type="text" class="mj" data-tdm="${i}" value="${esc(x.megj || '')}" placeholder="Megjegyzés" maxlength="300">` : ''}</div>`;
         const db = S.tet.length;
         h = stRVaz({ kicker: szerk ? 'Feladat' : S.nyers && !S.dikt ? 'Beírásból' : 'Diktálásból', cim: szerk ? 'Szerkesztés' : db ? `${db} feladat lett belőle` : 'Nem maradt feladat', fejJobb: szerk ? '' : '<button type="button" class="alap" data-tdd="meg">🎙 Még</button>',
             tart: `<div class="td-kk">${S.tet.map(kartya).join('')}</div>`,
@@ -35750,11 +35752,43 @@ function tdSzinez(sz){
     return h;
 }
 
+// --- egyszeri import: a korábbi emlékeztetők (Finovate, OTP, Otthon) – csak a tulajdonos fiókjában (az e-mail lenyomata alapján) ---
+const TD_IMP_H = '460bcd38d5981f5c0205030f9934da9f79d49d85611bf9e032c99eae8040f2e6';
+const TD_IMP_1 = [
+    ['Finovate', 'Felvenni a kapcsolatot a konzul hogy jövőre náluk szeretnék lenni', '2026-12-01'],
+    ['Finovate', 'Kitölteni az IDBC óra számokat', '2026-11-25', '', 'havi', 2, '', 1],
+    ['Finovate', 'Havi Adó Befizetése 🏦', '2026-12-10', '', 'havi', 3],
+    ['Finovate', 'Számla kiállítás - IDBC-nek 😎💶', '2026-12-06', '', 'havi', 3],
+    ['Finovate', 'Útnyilvántartás elkészítése 🚘', '2026-11-28', '', 'havi', 2, '600 - 800K'],
+    ['Finovate', 'Könyvelő Fizetéste', '2026-12-08', '', 'havi', 2],
+    ['Finovate', 'Áfa Utalás 🌪️', '2026-11-20', '', 'havi', 3],
+    ['Finovate', 'KFT regisztrációk', ''],
+    ['OTP', 'Timesheet kitöltése az adott honapra - Jelenléti', '2026-11-28', '', 'havi', 3],
+    ['OTP', 'Timesheet kitöltése - OTP 🫡🧭', '2026-11-06', '14:30', 'heti', 3],
+    ['OTP', 'Naptár Egyeztetés 📅♋️', '2026-11-13', '14:30', 'heti', 2, 'Megnézni hogy a héten az OTP-s dolgok hogy lesznek'],
+    ['OTP', 'Home Office - Kivétel', '2026-11-20', '14:30', 'heti', 2],
+    ['Otthon', 'Vitamin 💊🚰', '2026-11-15', '', 'napi', 2],
+    ['Otthon', 'Sport Tervezés a hónapra 🏋️', '2026-12-03', '', 'havi', 2],
+    ['Otthon', 'Kutya Biztosítás', '', '', '', 2],
+    ['Otthon', 'Laptop File-ok rendberakása', ''],
+    ['Otthon', 'Költségvetés Tervezése / Lezárása', '2026-12-01', '', 'havi']];
+async function tdImport(d){
+    if((d.imp || []).includes('emlek1') || (typeof prvNemFriss === 'function' && prvNemFriss('teendok'))) return false;
+    const em = String((window.sfCurrentUser || {}).email || '').trim().toLowerCase(); if(!em || !(window.crypto && crypto.subtle)) return false;
+    const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(em)))].map(b => b.toString(16).padStart(2, '0')).join('');
+    if(h !== TD_IMP_H || (d.imp || []).includes('emlek1')) return false;
+    const most = new Date().toISOString(), van = new Set(d.lista.map(x => (x.l + '|' + x.n).toLowerCase()));
+    TD_IMP_1.forEach(([l, n, dd, ido, ism, pr, megj, zas], i) => { if(van.has((l + '|' + n).toLowerCase())) return;
+        d.lista.push({ id: 'imp' + i + prvUjId(), n, d: dd || '', ido: ido || '', l, ism: ism ? { t: ism, ...(ism === 'havi' && dd ? { n: +dd.slice(8) } : {}) } : null, eml: !!ido, hang: false, kesz: '', letr: most, ...(pr ? { p: pr } : {}), ...(megj ? { megj } : {}), ...(zas ? { zas: true } : {}) }); });
+    d.imp = [...(d.imp || []), 'emlek1']; prvMent('teendok');
+    return true;
+}
 // --- lista ---
 async function renderTeendok(){
     const host = document.getElementById('tdBody'); if(!host) return;
     if(typeof ezMasNezet === 'function' && ezMasNezet()){ host.innerHTML = '<div class="card pv-ures">A feladatok privátak.</div>'; return; }
     const d = await prvBetolt('teendok'); if(!Array.isArray(d.lista)) d.lista = [];
+    try { await tdImport(d); } catch(_){}
     if(!prvLap('teendok')) return;
     const ma = tdMa(), listak = [...new Set([...d.lista.map(x => x.l).filter(Boolean)])];
     if(tdSzuro && !listak.includes(tdSzuro)) tdSzuro = '';
@@ -35765,7 +35799,7 @@ async function renderTeendok(){
     const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
     const sor = (x, cls) => { const al = [x.d && (cls === 'kes' || cls === 'lej') ? tdNapSzo(x.d) : '', x.ido, x.ism ? tdIsmSzo(x.ism) : '', x.l, tdUjak.has(x.id) ? 'új' : ''].filter(Boolean).join(' · ');
         return `<div class="td-sor ${cls}${tdUjak.has(x.id) ? ' uj' : ''}${x.kesz ? ' kesz' : ''}" data-tdid="${esc(x.id)}"><button type="button" class="kor${x.ido && cls === 'ma' ? ' ido' : ''}" data-tdpipa="${esc(x.id)}" aria-label="${x.kesz ? 'Visszaállítás' : 'Kész'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
-            <button type="button" class="t" data-tdszerk="${esc(x.id)}"><b>${esc(x.n)}</b>${al ? `<em>${esc(al)}</em>` : ''}</button>${x.hang ? `<i class="hi">${MIC}</i>` : ''}</div>`; };
+            <button type="button" class="t" data-tdszerk="${esc(x.id)}"><b>${x.p ? `<s class="pr">${'!'.repeat(x.p)}</s> ` : ''}${esc(x.n)}</b>${x.megj ? `<span class="mj">${esc(x.megj)}</span>` : ''}${al ? `<em>${esc(al)}</em>` : ''}</button>${x.zas ? '<i class="zas" aria-label="Megjelölve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg></i>' : ''}${x.hang ? `<i class="hi">${MIC}</i>` : ''}</div>`; };
     const csop = (cim, l, cls) => l.length ? `<section class="td-cs ${cls}"><h4>${cim}</h4><div class="td-l">${l.map(x => sor(x, cls)).join('')}</div></section>` : '';
     host.innerHTML = `<div class="td">
         ${listak.length ? `<div class="td-chip">${['', ...listak].map(k => `<button type="button" class="${tdSzuro === k ? 'on' : ''}" data-tdszuro="${esc(k)}">${esc(k || 'Mind')}</button>`).join('')}</div>` : ''}
@@ -35778,7 +35812,7 @@ async function renderTeendok(){
 window.renderTeendok = renderTeendok;
 async function tdMentUjak(l, toastCim){
     const d = await prvBetolt('teendok'); if(!Array.isArray(d.lista)) d.lista = [];
-    const ujak = l.map(x => ({ id: prvUjId() + Math.random().toString(36).slice(2, 5), n: x.n, d: x.d || '', ido: x.ido || '', l: x.l || 'Otthon', ism: x.ism || null, eml: !!x.eml, hang: !!x.hang, kesz: '', letr: new Date().toISOString() }));
+    const ujak = l.map(x => ({ id: prvUjId() + Math.random().toString(36).slice(2, 5), n: x.n, d: x.d || '', ido: x.ido || '', l: x.l || 'Otthon', ism: x.ism || null, eml: !!x.eml, hang: !!x.hang, kesz: '', letr: new Date().toISOString(), ...(x.p ? { p: x.p } : {}), ...(x.zas ? { zas: true } : {}) }));
     d.lista.push(...ujak); prvMent('teendok');
     ujak.forEach(x => tdUjak.add(x.id)); setTimeout(() => { ujak.forEach(x => tdUjak.delete(x.id)); if(prvLap('teendok')) renderTeendok(); }, 4000);
     if(prvLap('teendok')) renderTeendok(); else if(prvLap('privma')) renderPrivMa();
@@ -35829,6 +35863,8 @@ document.addEventListener('click', async e => {
     if((b = e.target.closest('[data-tdfr]'))){ const x = S.tet[+b.dataset.tdfr], k = [null, 'napi', 'heti', 'havi'], i = k.indexOf(x.ism ? x.ism.t : null), u = k[(i + 1) % k.length];
         x.ism = u ? { t: u, ...(u === 'havi' ? { n: ezD(x.d || tdMa()).getDate() } : {}) } : null; if(u && !x.d) x.d = tdMa(); return stRRajz(); }
     if((b = e.target.closest('[data-tdfe]'))){ const x = S.tet[+b.dataset.tdfe]; x.eml = !x.eml; return stRRajz(); }
+    if((b = e.target.closest('[data-tdfp]'))){ const x = S.tet[+b.dataset.tdfp]; x.p = ((x.p || 0) + 1) % 4; return stRRajz(); }
+    if((b = e.target.closest('[data-tdfz]'))){ const x = S.tet[+b.dataset.tdfz]; x.zas = !x.zas; return stRRajz(); }
     if(!(b = e.target.closest('[data-tdd], [data-stract="tdtov"]'))) return;
     const a = b.dataset.tdd || 'tdtov';
     if(a === 'elvet'){ stRDiktStop(); clearInterval(S.tick); return stRZar(); }
@@ -35838,11 +35874,11 @@ document.addEventListener('click', async e => {
     if(a === 'meg'){ Object.assign(S, { tip: 'fdikt', elozo: S.tet, elozoNyers: S.nyers, szov: '', koz: '', t0: Date.now() }); return tdDiktStart(); }
     if(a === 'egyben'){ const x = tdErtelmez(S.nyers); stRZar(); return tdMentUjak([{ ...x, n: (S.nyers[0] || '').toUpperCase() + S.nyers.slice(1, 200), hang: !!S.dikt }]); }
     if(a === 'ment' && S.tip === 'fell'){ const l = S.tet.filter(x => (x.n || '').trim()); stRZar(); if(l.length) tdMentUjak(l); return; }
-    if(a === 'ment' && S.tip === 'fszerk'){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === S.x.id), u = S.tet[0]; if(x){ Object.assign(x, { n: (u.n || '').trim() || x.n, d: u.d, ido: u.ido, l: u.l, ism: u.ism, eml: u.eml }); prvMent('teendok'); } stRZar(); return renderTeendok(); }
+    if(a === 'ment' && S.tip === 'fszerk'){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === S.x.id), u = S.tet[0]; if(x){ Object.assign(x, { n: (u.n || '').trim() || x.n, d: u.d, ido: u.ido, l: u.l, ism: u.ism, eml: u.eml, p: u.p || 0, zas: !!u.zas, megj: (u.megj || '').trim() }); prvMent('teendok'); } stRZar(); return renderTeendok(); }
     if(a === 'torol'){ const d = await prvBetolt('teendok'), i = d.lista.findIndex(y => y.id === S.x.id); if(i < 0) return stRZar(); const [x] = d.lista.splice(i, 1); prvMent('teendok'); stRZar(); renderTeendok();
         stRToast('Feladat törölve', x.n, () => { d.lista.splice(i, 0, x); prvMent('teendok'); renderTeendok(); }); }
 });
-document.addEventListener('input', e => { const S = stR; if(!S || !S.tet) return; const n = e.target.dataset && e.target.dataset.tdn; if(n != null) S.tet[+n].n = e.target.value; });
+document.addEventListener('input', e => { const S = stR; if(!S || !S.tet) return; const n = e.target.dataset && e.target.dataset.tdn; if(n != null) S.tet[+n].n = e.target.value; const m = e.target.dataset && e.target.dataset.tdm; if(m != null) S.tet[+m].megj = e.target.value; });
 document.addEventListener('change', e => { const S = stR; if(!S || !S.tet) return; const ds = e.target.dataset || {};
     if(ds.tdfd != null){ S.tet[+ds.tdfd].d = e.target.value; stRRajz(); }
     if(ds.tdfi != null){ const x = S.tet[+ds.tdfi]; x.ido = e.target.value; if(x.ido){ x.eml = true; if(!x.d) x.d = tdMa(); } stRRajz(); } });
@@ -50380,6 +50416,10 @@ html body.sf-privat .td-sor.pipa { opacity:.55; } html body.sf-privat .td-sor.ke
 html body.sf-privat .td-sor .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:12px 0; border:0; background:none; font:inherit; text-align:left; color:inherit; cursor:pointer; }
 html body.sf-privat .td-sor .t b { font-size:16px; font-weight:700; } html body.sf-privat .td-sor .t em { font-style:normal; font-size:13px; color:var(--r-muted); }
 html body.sf-privat .td-sor.lej .t em, html body.sf-privat .td-sor.uj .t em { color:var(--r-chero); }
+html body.sf-privat .td-sor .t .pr { text-decoration:none; color:var(--r-c); font-weight:800; letter-spacing:-.04em; }
+html body.sf-privat .td-sor .t .mj { font-size:13px; color:var(--r-muted); }
+html body.sf-privat .td-sor .zas { flex:none; color:#f0a04b; display:grid; } html body.sf-privat .td-sor .zas svg { width:18px; height:18px; fill:currentColor; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; }
+.st-rog .td-k input.mj { border:0; outline:0; background:#eef2f3; border-radius:12px; padding:10px 12px; font:inherit; font-size:14px; color:#14222a; margin-left:32px; width:calc(100% - 32px); box-sizing:border-box; }
 html body.sf-privat .td-sor .hi { flex:none; color:var(--r-muted); display:grid; } html body.sf-privat .td-sor .hi svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
 html body.sf-privat .td-kesz > button { width:100%; display:flex; align-items:center; gap:8px; height:46px; padding:0 18px; border:0; border-radius:999px; background:#e2f0e6; color:#2e6b48; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
 html body.sf-privat .td-kesz > button svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; } html body.sf-privat .td-kesz > button i { margin-left:auto; font-style:normal; transition:transform .2s; }
