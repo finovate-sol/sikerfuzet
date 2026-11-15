@@ -35287,7 +35287,7 @@ function stRRajz(){
         const B = S.B || {}, H = (B.hang && B.hang.length > 5 ? B.hang : ['', 'Szörnyű', 'Vacak', 'Meh', 'Jó', 'Király']);
         if(S.lep === 0) h = stRVaz({ kicker: 'Napló · 1/3', cim: 'Hogy vagy?', lepes: [0, 3], tart: `<div class="napcim">${esc(pzNapCim(ma))} · ${pzMostIdo()}</div>
             <div class="arcok">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="${S.h === i ? 'on' : ''}" data-strh="${i}"><i style="color:${NL_SZ[i] || '#4f6370'}">${typeof nlArc === 'function' ? nlArc(i) : i}</i><span>${esc(String(H[i] || '').replace(/^./, c => c.toUpperCase()))}</span></button>`).join('')}</div>`,
-            gombok: stRGomb('Kihagyom', 'tov', true) + stRGomb('Tovább', 'tov') });
+            gombok: (stRSR() ? `<button type="button" class="mas mic2" data-strnlmond aria-label="Mondd el"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Mondd el</button>` : stRGomb('Kihagyom', 'tov', true)) + stRGomb('Tovább', 'tov') });
         else if(S.lep === 1){ const db = new Map(); for(const b of Object.values(PRV).flatMap(d => (d && d.bej) || [])) for(const t of b.tev || []) db.set(t, (db.get(t) || 0) + 1);
             const tev = (B.tev || []), gyak = tev.filter(t => db.get(t.id)).sort((a, b) => db.get(b.id) - db.get(a.id)).slice(0, 8);
             const cs = [...(B.csop || []), { id: '', n: 'Egyéb' }].map(c => [c, tev.filter(t => (t.cs || '') === c.id || (!c.id && !(B.csop || []).some(x => x.id === t.cs)))]).filter(([, l]) => l.length);
@@ -35299,7 +35299,9 @@ function stRRajz(){
         else { const nevek = S.tev.map(id => ((S.B.tev || []).find(t => t.id === id) || {}).n).filter(Boolean);
             h = stRVaz({ kicker: 'Napló · 3/3 · nem kötelező', cim: 'Jegyzet', vissza: true, lepes: [2, 3], tart: `<button type="button" class="ism" data-strvissza-l><span>${S.h ? esc(String(H[S.h] || '').replace(/^./, c => c.toUpperCase())) + ' nap' : 'Hangulat nélkül'} · ${nevek.length} tevékenység${nevek.length ? `<em>${esc(nevek.slice(0, 3).join(', '))}</em>` : ''}</span><b>Módosít</b></button>
                 <div class="chips egysor">${['Mi ment ma jól?', 'Miért vagy hálás?', 'Mi volt a nap legjobb része?', 'Min akadtál el?'].map(q => stRChip(q, `data-strq2="${q}"`)).join('')}</div>
-                <textarea class="inp ta" id="stRMegj" placeholder="Mi történt ma?">${esc(S.megj)}</textarea>`,
+                <div class="nl-ta${S.dikt ? ' rec' : ''}"><textarea class="inp ta" id="stRMegj" placeholder="${S.dikt ? 'Hallgatlak…' : 'Mi történt ma? Írd vagy mondd el…'}">${esc(S.megj)}</textarea>
+                    ${stRSR() ? `<button type="button" class="mic" data-strnldikt aria-label="${S.dikt ? 'Diktálás leállítása' : 'Diktálás'}">${S.dikt ? '<b class="negyzet"></b>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>'}</button>` : ''}</div>
+                <div class="nl-felism" id="stRNlF">${stNlFelHtml()}</div>`,
                 gombok: `<button type="button" class="fo" data-stract="ment">Mentés</button>` }); }
     }
     else if(S.tip === 'kszem'){
@@ -35477,6 +35479,48 @@ function stRRajz(){
     }
     p.innerHTML = h; p.classList.toggle('fo', S.tip === 'fo');
 }
+// --- napló: hangulat és tevékenységek a szövegből ---
+const NL_HANG_RE = [[5, /(szuper|kiraly|fantasztikus|csodalatos|tokeletes|nagyszeru|zsenialis|legjobb nap|imadtam|fenomenalis|eszmeletlen)/g],
+    [4, /(jo nap|jol (ment|telt|ereztem|sikerult)|jo volt|orulok|boldog|halas|elegedett|sikeres|pozitiv|klassz|vidam|jokedv)/g],
+    [3, /(\boke\b|semleges|atlagos|\bmeh\b|elment|olyan amilyen|vegyes|se jo se rossz)/g],
+    [2, /(farad|rossz|vacak|stressz|ideges|szomoru|nyugtalan|lehangolt|nem ment|unalmas|kimerult|feszult|szorong)/g],
+    [1, /(szornyu|borzalmas|\bszar\b|pocsek|katasztrofa|legrosszabb|kibirhatatlan|tragikus)/g]];
+const NL_SZINONIMA = [[/\b(edz|gym|sulyz|kondi|crossfit)/, /kondi|edz|gym/], [/\b(fut|kocog)/, /fut/], [/\b(alud|alv|alszo|aludt)/, /alv/], [/\b(csalad|anyu|apu|gyerek|tesom)/, /csalad/],
+    [/\b(film|sorozat|netflix|mozi)/, /film/], [/\b(takarit|porszi|rendet rak)/, /takarit/], [/\b(fozt|fozok|fozes|fozni)/, /foz/], [/\b(olvas|konyv)/, /olvas/], [/\b(setal|seta)/, /seta|setal/],
+    [/\b(pihen|lazit|relax)/, /pihen/], [/\b(meditál|medit)/, /medit/], [/\b(halogat|halasztot)/, /halogat/], [/\b(ovb|ugyfel|irodaban)/, /^ovb$/], [/\b(sport|foci|kosar|tenisz|padel)/, /sport/]];
+function stNlFelismer(szoveg){
+    const t = ' ' + nlNorm(szoveg) + ' ', S = stR || {}, B = S.B || {};
+    let h = 0, best = 0; for(const [lv, re] of NL_HANG_RE){ const n = (t.match(re) || []).length; if(n > best){ best = n; h = lv; } }
+    const tev = [];
+    for(const x of B.tev || []){ const n = nlNorm(x.n), szavak = n.split(' ').filter(w => w.length >= 4);
+        const toves = szavak.length && szavak.every(w => new RegExp('\\b' + w.slice(0, Math.max(3, w.length - 2)).replace(/[.*+?^${}()|[\]\\]/g, '')).test(t));
+        const szin = NL_SZINONIMA.some(([tr, nr]) => nr.test(n) && tr.test(t));
+        if(toves || szin) tev.push(x.id); }
+    return { h, tev };
+}
+function stNlFelHtml(){
+    const S = stR; if(!S || !(S.megj || '').trim()) return '';
+    const f = stNlFelismer(S.megj), B = S.B || {}, H = (B.hang && B.hang.length > 5 ? B.hang : ['', 'Szörnyű', 'Vacak', 'Meh', 'Jó', 'Király']);
+    if(!f.h && !f.tev.length) return '';
+    return `<span class="cim">Felismertem a szövegből</span><div class="chips">${f.h ? `<button type="button" class="ch hg${S.h === f.h ? ' on' : ''}" data-strnlh="${f.h}" style="--c:${NL_SZ[f.h] || '#4f6370'}"><i></i>Hangulat: ${esc(String(H[f.h] || '').replace(/^./, c => c.toUpperCase()))}</button>` : ''}${f.tev.map(id => { const x = (B.tev || []).find(y => y.id === id); return x ? stRChip((S.tev.includes(id) ? '✓ ' : '+ ') + esc(x.n), `data-strnlt="${esc(id)}"`, S.tev.includes(id)) : ''; }).join('')}</div>`;
+}
+function stNlAlkalmaz(){ const S = stR; if(!S) return; const f = stNlFelismer(S.megj || ''); if(f.h && !S.h) S.h = f.h; for(const id of f.tev) if(!S.tev.includes(id)) S.tev.push(id); }
+function stNlDikt(){
+    const S = stR; if(!S || S.tip !== 'naplo') return;
+    if(S.dikt){ stRDiktR && stRDiktR._leall(); return; }
+    const alap = (S.megj || '').trim(); S.dikt = true; stRRajz();
+    stRDiktInd(() => { if(stR !== S) return; S.dikt = false; stNlAlkalmaz(); stRRajz(); },
+        (v, koz) => { if(stR !== S) return; S.megj = [alap, v, koz].filter(Boolean).join(' '); const t = document.getElementById('stRMegj'); if(t) t.value = S.megj; const f = document.getElementById('stRNlF'); if(f) f.innerHTML = stNlFelHtml(); },
+        err => { S.dikt = false; stRRajz(); stRToast('A diktálás itt nem érhető el', err === 'not-allowed' ? 'Engedélyezd a mikrofont' : 'Használd a billentyűzet mikrofonját'); });
+}
+document.addEventListener('click', e => {
+    const S = stR; if(!S || S.tip !== 'naplo' || !e.target.closest('#stRog')) return; let b;
+    if(e.target.closest('[data-strnlmond]')){ S.lep = 2; stRRajz(); return stNlDikt(); }
+    if(e.target.closest('[data-strnldikt]')) return stNlDikt();
+    if((b = e.target.closest('[data-strnlh]'))){ const v = +b.dataset.strnlh; S.h = S.h === v ? 0 : v; return stRRajz(); }
+    if((b = e.target.closest('[data-strnlt]'))){ const id = b.dataset.strnlt; S.tev = S.tev.includes(id) ? S.tev.filter(x => x !== id) : [...S.tev, id]; return stRRajz(); }
+});
+document.addEventListener('input', e => { if(stR && stR.tip === 'naplo' && e.target.id === 'stRMegj'){ clearTimeout(stNlFelHtml._t); stNlFelHtml._t = setTimeout(() => { const f = document.getElementById('stRNlF'); if(f) f.innerHTML = stNlFelHtml(); }, 350); } });
 // --- „Hol költötted?” javaslatok: hely → kategória · tárca (a legutóbbi alapján) ---
 function stRHolJavas(){
     const S = stR, f = pzNorm(S.ker || '').trim(), db = new Map();
@@ -50273,6 +50317,12 @@ html body.sf-privat #pzNaplo .pz-napfej .ossz b { font-size:12px !important; col
 .st-rog .htet .tip { flex:none; height:30px; padding:0 12px; border:0; border-radius:999px; font:inherit; font-size:12px; font-weight:700; cursor:pointer; background:#e3eaec; color:#14222a; }
 .st-rog .htet .tip.t-feladat { background:#d3e4ec; color:#1f4f66; } .st-rog .htet .tip.t-bevas { background:#fbe4dd; color:#8a3b27; } .st-rog .htet .tip.t-otlet { background:#e2f0e6; color:#2e6b48; }
 .st-rog #stRJg { min-height:84px; }
+.st-rog .nl-ta { position:relative; } .st-rog .nl-ta textarea { padding-right:62px; min-height:110px; }
+.st-rog .nl-ta .mic { position:absolute; right:10px; bottom:10px; width:44px; height:44px; border:0; border-radius:999px; background:#e07a5f; color:#fff; display:grid; place-items:center; cursor:pointer; }
+.st-rog .nl-ta .mic svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; } .st-rog .nl-ta .mic .negyzet { width:14px; height:14px; border-radius:3px; background:#fff; display:block; }
+.st-rog .nl-ta.rec .mic { animation:stMic 1.4s ease-in-out infinite; } .st-rog .nl-ta.rec textarea { box-shadow:0 0 0 2px #e07a5f, 0 10px 24px -12px rgba(20,34,42,.35); }
+.st-rog .nl-felism:empty { display:none; } .st-rog .ch.hg { display:inline-flex; align-items:center; gap:6px; } .st-rog .ch.hg i { width:10px; height:10px; border-radius:999px; background:var(--c); } .st-rog .ch.hg.on i { box-shadow:0 0 0 2px #fff; }
+.st-rog .alja .mic2 { display:inline-flex; align-items:center; gap:8px; } .st-rog .alja .mic2 svg { width:18px; height:18px; fill:none; stroke:#e07a5f; stroke-width:2.4; stroke-linecap:round; }
 .st-rog .ch.ter { display:inline-flex; align-items:center; gap:7px; } .st-rog .ch.ter i { width:9px; height:9px; border-radius:999px; background:var(--c); } .st-rog .ch.ter.on i { box-shadow:0 0 0 2px #fff; }
 .st-rog label.ch.rejt { position:relative; } .st-rog label.ch.rejt input { position:absolute; inset:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0; }
 .st-rog .cim em { font-style:normal; font-weight:600; opacity:.7; }
