@@ -11186,6 +11186,10 @@ try {
                 <span class="nav-label">Mentések</span>
             </a>
             <div class="nav-grp" data-ter="priv" data-navcsop="elet">Életvitel</div>
+            <a href="#" data-ter="priv" data-page="teendok" data-navcs="elet" title="Feladatok">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="nav-label">Feladatok</span>
+            </a>
             <a href="#" data-ter="priv" data-page="kiszemelt" data-navcs="elet" title="Kiszemeltek">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>
                 <span class="nav-label">Kiszemeltek</span>
@@ -11828,6 +11832,11 @@ try {
         <!-- EDZÉSEK -->
         <div id="page-edzes" class="page" hidden>
           <div class="page-wrap"><div id="edzBody"></div></div>
+        </div>
+
+        <!-- FELADATOK (Stoa, privát): hanggal először – Lejárt / Ma / Később, ismétlődés -->
+        <div id="page-teendok" class="page" hidden>
+          <div class="page-wrap"><div id="tdBody"></div></div>
         </div>
 
         <!-- KISZEMELTEK (privát): apróbb dolgok, amiket meg szeretnél venni -->
@@ -12983,6 +12992,7 @@ window.addEventListener('popstate', e => {
         if(p === 'egeszseg' && typeof window.sfShowEgeszseg === 'function') window.sfShowEgeszseg();
         if(p === 'mentesek' && typeof window.sfShowMentesek === 'function') window.sfShowMentesek();
         if(p === 'kiszemelt' && typeof window.sfShowKiszemelt === 'function') window.sfShowKiszemelt();
+        if(p === 'teendok' && typeof window.renderTeendok === 'function') window.renderTeendok();
         if(p === 'emberek' && typeof window.sfShowEmberek === 'function') window.sfShowEmberek();
         if(p === 'konyvek' && typeof window.sfShowKonyvek === 'function') window.sfShowKonyvek();
         if(p === 'enaplo' && typeof window.sfShowNaplo === 'function') window.sfShowNaplo();
@@ -19125,7 +19135,7 @@ function sfKesoFrissit(){
         if(document.querySelector('.modal-overlay') || (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable))){ sfKesoFrissit(); return; }
         const lap = id => { const p = document.getElementById('page-' + id); return p && !p.hidden; };
         const R = { penzugyek: () => pzFrissit(), privma: () => renderPrivMa(), szokasok: () => renderSzokasok(), egeszseg: () => renderEgeszseg(),
-            mentesek: () => renderMentesek(), kiszemelt: () => renderKiszemelt(), emberek: () => renderEmberek(), konyvek: () => renderKonyvek(), enaplo: () => renderNaplo(), edzes: () => renderEdz(), onismeret: () => renderOnismeret() };
+            mentesek: () => renderMentesek(), kiszemelt: () => renderKiszemelt(), teendok: () => window.renderTeendok && window.renderTeendok(), emberek: () => renderEmberek(), konyvek: () => renderKonyvek(), enaplo: () => renderNaplo(), edzes: () => renderEdz(), onismeret: () => renderOnismeret() };
         for(const id in R) if(lap(id)){ try { R[id](); } catch(e){ console.warn(e); } }
     }, 400);
 }
@@ -32545,7 +32555,7 @@ const prvHiba = new Set();
 let prvUid = null;
 const prvKulcs = k => `sf_priv_${ezUid()}_${k}`;
 function prvCache(){ if(prvUid !== ezUid()){ for(const k in PRV) delete PRV[k]; prvHiba.clear(); prvKesik.clear(); prvToltes = {}; prvUid = ezUid(); } }
-const PRV_ALAP = { beall: () => ({}), sablonok: () => ({ lista: [] }), prezik: () => ({ lista: [] }), idd: () => ({ tud: {} }), gst: () => ({ kesz: {} }), tudastar: () => ({ sz: [] }), csapatterv: () => ({ honapok: {}, tagok: [], rejtett: [], rekordok: [] }), onismeret: () => ({ kerek: [], hawk: [] }), mentesek: () => ({ lista: [] }), szabalyok: () => ({ temak: [], lista: [] }), kiszemelt: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
+const PRV_ALAP = { beall: () => ({}), sablonok: () => ({ lista: [] }), prezik: () => ({ lista: [] }), idd: () => ({ tud: {} }), gst: () => ({ kesz: {} }), tudastar: () => ({ sz: [] }), csapatterv: () => ({ honapok: {}, tagok: [], rejtett: [], rekordok: [] }), onismeret: () => ({ kerek: [], hawk: [] }), mentesek: () => ({ lista: [] }), szabalyok: () => ({ temak: [], lista: [] }), kiszemelt: () => ({ lista: [] }), teendok: () => ({ lista: [] }), szokasok: () => ({ lista: [], napok: {} }), emberek: () => ({ lista: [] }), konyvek: () => ({ lista: [], cel: {} }), naplo: () => ({ napok: {} }) };
 const prvUj = (k, adat) => Object.assign((PRV_ALAP[k] || (/^nl\d{4}$/.test(k) ? () => ({ bej: [] }) : () => ({})))(), adat && typeof adat === 'object' ? adat : {});
 // Lassú szervernél a helyi másolattal dolgozunk (lásd SF_VAR_MS); ezek a kulcsok addig csak
 // helyben mentődnek. Ugyanazt a kulcsot egyszerre csak egyszer kérjük le.
@@ -35303,6 +35313,28 @@ function stRRajz(){
                 ${stRSor('Jegyzet', `<button type="button" class="pill" data-strmegj>${S.megj ? esc(S.megj.slice(0, 18)) : '+ Hozzáad'}</button>`)}</div>`,
                 gombok: stRGomb('Mentés', 'ment') }); }
     }
+    else if(S.tip === 'fdikt'){
+        const vegl = S.szov || '', koz = S.koz || '', van = !!stRSR();
+        h = stRVaz({ kicker: 'Feladatok', cim: S.rec ? 'Mondd el…' : 'Mondd vagy írd', tart: van ? `<div class="hangk td-dikt${S.rec ? ' rec' : ''}">
+                <div class="hf"><span class="ido"><i></i>${S.rec ? 'Figyelek' : 'Szünet'} · ${stHangIdo()}</span><em>Szünetnél nem áll le</em></div>
+                <div class="hullam">${Array.from({ length: 26 }, (_, i) => `<i style="--d:${(i * 137 % 100) / 100}s;--h:${6 + (i * 53 % 22)}px"></i>`).join('')}</div>
+                <p class="szov td-szov">${vegl ? tdSzinez(vegl) : ''} <span>${esc(koz)}</span>${!vegl && !koz ? `<span>${S.hiba ? esc(S.hiba) : 'Pl. „Hívjam fel a szerelőt holnap 9-kor, vegyek tejet és tojást, és fizessem be a lakbért minden hónap 5-én.”'}</span>` : ''}<i class="kur"></i></p></div>`
+            : `<textarea class="inp ta" id="stRTdT" rows="4" placeholder="Pl. holnap 9-kor szerelő, vegyek tejet és tojást, minden hónap 5-én lakbér">${esc(vegl)}</textarea><span class="megj">Ezen a böngészőn nincs beszédfelismerés – a billentyűzet mikrofonjával diktálhatsz.</span>`,
+            gombok: van ? `<div class="hgomb"><button type="button" class="el" data-tdd="elvet">Elvet</button><button type="button" class="mic stop${S.rec ? ' on' : ''}" data-tdd="${S.rec ? 'stop' : 'ujra'}" aria-label="${S.rec ? 'Leállítás' : 'Folytatás'}">${S.rec ? '<b class="negyzet"></b>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>'}</button><button type="button" class="rog sot" data-tdd="kesz">Kész</button></div>` : stRGomb('Tovább', 'tdtov') });
+    }
+    else if(S.tip === 'fell' || S.tip === 'fszerk'){
+        const szerk = S.tip === 'fszerk', LST = [...new Set([...TD_LISTAK, ...((PRV.teendok && PRV.teendok.lista) || []).map(x => x.l).filter(Boolean)])];
+        const kartya = (x, i) => `<div class="td-k"><div class="kf"><i class="kor"></i><input type="text" value="${esc(x.n)}" data-tdn="${i}" maxlength="140" aria-label="Feladat">${szerk ? '' : `<button type="button" class="x" data-tdx="${i}" aria-label="Kihagyás">×</button>`}</div>
+            <div class="kc"><label class="ch k">${x.d ? esc(tdNapSzo(x.d)) : 'Nap'}<input type="date" data-tdfd="${i}" value="${esc(x.d)}"></label><label class="ch k">${x.ido ? esc(x.ido) : 'Időpont'}<input type="time" data-tdfi="${i}" value="${esc(x.ido)}"></label>
+                <button type="button" class="ch c" data-tdfl="${i}">${esc(x.l || 'Lista')}</button><button type="button" class="ch z${x.ism ? '' : ' ki'}" data-tdfr="${i}">${x.ism ? (x.ism.t === 'havi' && x.ism.n ? `Havonta ${x.ism.n}-én` : tdIsmSzo(x.ism).replace(/^./, c => c.toUpperCase())) : 'Nem ismétlődik'}</button>
+                ${x.ido ? `<button type="button" class="ch k${x.eml ? '' : ' ki'}" data-tdfe="${i}">Emlékeztet</button>` : ''}</div></div>`;
+        const db = S.tet.length;
+        h = stRVaz({ kicker: szerk ? 'Feladat' : S.nyers && !S.dikt ? 'Beírásból' : 'Diktálásból', cim: szerk ? 'Szerkesztés' : db ? `${db} feladat lett belőle` : 'Nem maradt feladat', fejJobb: szerk ? '' : '<button type="button" class="alap" data-tdd="meg">🎙 Még</button>',
+            tart: `<div class="td-kk">${S.tet.map(kartya).join('')}</div>`,
+            gombok: szerk ? `<button type="button" class="mas" data-tdd="torol">Törlés</button><button type="button" class="fo" data-tdd="ment">Mentés</button>`
+                : `<button type="button" class="mas" data-tdd="egyben"${S.nyers ? '' : ' disabled'}>Egyben</button><button type="button" class="fo" data-tdd="ment"${db ? '' : ' disabled'}>Mentés (${db})</button>` });
+        p.dataset.lst = LST.join('|');
+    }
     else if(S.tip === 'hang'){
         const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
         if(S.lep === 0) h = stRVaz({ kicker: 'Hangjegyzet', cim: S.rec ? 'Mondd…' : S.hiba ? 'Nem indult el' : 'Koppints és mondd', tart: `<div class="hangk${S.rec ? ' rec' : ''}">
@@ -35460,9 +35492,9 @@ async function stRMent(){
         const sorok = t.split('\n'), cim = sorok[0].slice(0, 80), torzs = sorok.length > 1 ? sorok.slice(1).join('\n').trim() : (sorok[0].length > 80 ? t : '');
         let id = '', fel = null;
         try { id = await window.sfJegyzetUj({ title: cim, body: torzs, tags: S.mappa ? [S.mappa] : [] }); } catch(err){ alert('Nem sikerült menteni a jegyzetet: ' + (err.message || err)); return; }
-        if(S.emlek && window.sfFeladatGyors){ try { const [dd, tt] = S.emlek.split('T'); fel = await window.sfFeladatGyors(`${cim} ${dd.replace(/-/g, '.')}. ${tt}`); } catch(_){} }
+        if(S.emlek){ try { const [dd, tt] = S.emlek.split('T'); const u = await tdMentUjak([{ n: cim, d: dd, ido: (tt || '').slice(0, 5), l: 'Személyes', eml: true }]); document.getElementById('stRToast')?.remove(); fel = { tdId: u[0].id }; } catch(_){} }
         stRZar();
-        stRToast('Jegyzet mentve', S.mappa + (fel ? ' · emlékeztető' : ''), async () => { await window.sfJegyzetTorol(id); if(fel && fel.id) await window.sfFeladatTorol(fel.listId, fel.id); });
+        stRToast('Jegyzet mentve', S.mappa + (fel ? ' · emlékeztető' : ''), async () => { await window.sfJegyzetTorol(id); if(fel && fel.tdId){ const d = await prvBetolt('teendok'); d.lista = d.lista.filter(y => y.id !== fel.tdId); prvMent('teendok'); } });
         return;
     }
     if(S.tip === 'link'){
@@ -35535,6 +35567,199 @@ document.addEventListener('change', e => { if(!stR) return;
     if(e.target.id === 'stRJgEml'){ stR.emlek = e.target.value; stRRajz(); }
 });
 document.addEventListener('click', e => { if(stR && e.target.closest('#stRog [data-strkszk]')) stR.katKezi = true; }, true);
+
+// ===== Feladatok (Stoa) – hanggal először =====
+// privat/{uid}_teendok: { lista: [{ id, n, d ('YYYY-MM-DD' | ''), ido ('HH:MM' | ''), l (lista), ism (null | { t:'napi'|'heti'|'havi', n }), eml, hang, kesz (ISO | ''), kl: [kész napok ismétlődőnél], letr }] }
+const TD_LISTAK = ['Otthon', 'Munka', 'Bevásárlás', 'Személyes'];
+let tdSzuro = '', tdKeszNyit = false, tdUjak = new Set();
+const tdD = () => (PRV.teendok && Array.isArray(PRV.teendok.lista)) ? PRV.teendok : null;
+const tdMa = () => ezMa();
+function tdFejSzov(){ const d = tdD(); if(!d) return ''; const ma = tdMa();
+    const hatra = d.lista.filter(x => !x.kesz && x.d && x.d <= ma).length, kesz = d.lista.filter(x => (x.kesz || '').slice(0, 10) === ma || (x.kl || []).includes(ma)).length;
+    return `Ma ${hatra} hátra · ${kesz} kész`; }
+const TD_NAP = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+const TD_HO = ['jan', 'feb', 'már', 'ápr', 'máj', 'jún', 'júl', 'aug', 'sze', 'okt', 'nov', 'dec'];
+function tdNapSzo(d){ if(!d) return ''; const ma = tdMa(); if(d === ma) return 'Ma'; if(d === ezPlusz(ma, 1)) return 'Holnap'; if(d === ezPlusz(ma, -1)) return 'Tegnap';
+    const x = ezD(d), k = Math.round((x - ezD(ma)) / 864e5); if(k > 1 && k < 7) return TD_NAP[x.getDay()].replace(/^./, c => c.toUpperCase());
+    if(k >= 7 && k < 14 && x.getDay() === 1) return 'Jövő hét'; return `${EZ_HO_R[x.getMonth()].replace(/^./, c => c.toUpperCase())} ${x.getDate()}`; }
+const tdIsmSzo = i => !i ? '' : i.t === 'napi' ? 'naponta' : i.t === 'heti' ? 'hetente' : `havonta`;
+// a következő előfordulás egy ismétlődő feladatnál
+function tdKov(x){ const i = x.ism, d = x.d || tdMa(); if(!i) return '';
+    if(i.t === 'napi') return ezPlusz(d, 1); if(i.t === 'heti') return ezPlusz(d, 7);
+    const y = ezD(d); const n = i.n || y.getDate(); const k = new Date(y.getFullYear(), y.getMonth() + 1, 1); const h = new Date(k.getFullYear(), k.getMonth() + 1, 0).getDate();
+    k.setDate(Math.min(n, h)); return `${k.getFullYear()}-${String(k.getMonth() + 1).padStart(2, '0')}-${String(k.getDate()).padStart(2, '0')}`; }
+
+// --- mondat → feladatok (időpont, lista, ismétlődés kiolvasása) ---
+const TD_RE = {
+    ism: /\b(minden\s+(?:hónap(?:ban)?|hó)\s+(\d{1,2})[\.\-]?\s*(?:-?(?:én|án|jén|ján|ei|ai))?|havonta(?:\s+(\d{1,2})[\.\-]?\s*(?:-?(?:én|án|jén|ján))?)?|minden\s+héten|hetente|minden\s+(hétfő|kedd|szerda|csütörtök|péntek|szombat|vasárnap)n?|minden\s+nap|naponta|mindennap)\b/i,
+    ido: /\b(?:(reggel|délelőtt|délben|délután|este)\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:-?kor|-?ra|-?re|\s*órakor|\s*óra(?:kor)?)\b|\b(délben)\b/i,
+    nap: /\b(ma|holnapután|holnap|jövő\s+héten?|(?:jövő\s+)?(?:hétfő|kedd|szerda|csütörtök|péntek|szombat|vasárnap)(?:n|i|re)?|(jan|feb|márc?|ápr|máj|jún|júl|aug|szept?|okt|nov|dec)\w*\.?\s+(\d{1,2})[\.\-]?\s*(?:-?(?:én|án|jén|ján|ig|re|ra))?|(\d{1,2})[\.\-]?\s*-?(?:én|án|jén|ján))\b/i,
+    lista: /\b(bevásárlás(?:ra|hoz|ba)?|bevásárló\s*listára|munká(?:hoz|ba|ban|ra)|munka(?:helyen)?|otthon(?:ra)?|itthon|személyes)\b/i
+};
+const TD_IGE = /^(?:fel|meg|be|ki|el|le|át|vissza|oda|össze)?(?:hív|vegy|ve(?:nn|gy)|vásárol|fizes|fizet|intéz|vigy|vidd|vigyem|hozz|hozd|küld|írj|írd|néz|foglal|mos|takarít|men|adj|add|rendel|cserél|szól|beszél|keres|nyiss|zár|pakol|tölts|töltsd|kapcsol|ellenőriz|válts|váltsd|igényel|újít|hosszabbít|szerezz|főzz|vágj|javíts|rak|tegy|tedd|vedd|készíts)/i;
+function tdBont(szoveg){
+    const mondatok = String(szoveg || '').replace(/\s+/g, ' ').trim().split(/(?<=[.!?;])\s+/);
+    const darab = [];
+    for(const m of mondatok){
+        const r = m.split(/\s*,\s*|\s+(?=(?:és|aztán|majd|meg)\s)/i);
+        let akt = '';
+        for(let f of r){ f = f.trim(); if(!f) continue;
+            const tiszta = f.replace(/^(?:és|aztán|majd|meg|ja,?)\s+/i, '');
+            const ige = TD_IGE.test(tiszta) || /^(?:ne felejtsem|emlékeztess)/i.test(tiszta), sajatIdo = TD_RE.nap.test(tiszta) || TD_RE.ido.test(tiszta) || TD_RE.ism.test(tiszta);
+            const felsorol = akt && /^(?:vegyek|vegyünk|venni|vennem)\b/i.test(akt) && !ige && !sajatIdo;
+            const kotoszo = /^(?:és|meg)\s/i.test(f);
+            if(akt && (ige || (!felsorol && !kotoszo))){ darab.push(akt); akt = tiszta; }
+            else akt = akt ? akt + (kotoszo ? ' ' : ', ') + f : tiszta;
+        }
+        if(akt) darab.push(akt);
+    }
+    return darab.map(tdErtelmez).filter(x => x.n);
+}
+function tdErtelmez(f){
+    const ma = tdMa(); let t = ' ' + f.replace(/[.!?;]+$/, '') + ' ', d = '', ido = '', ism = null, l = '';
+    const vag = re => { const m = t.match(re); if(m) t = t.slice(0, m.index) + ' ' + t.slice(m.index + m[0].length); return m; };
+    let m = vag(TD_RE.ism);
+    if(m){ const s = m[0].toLowerCase();
+        if(/nap/.test(s) && !/hónap|hó /.test(s)) ism = { t: 'napi' };
+        else if(/hét|hetente|hétfő|kedd|szerda|csütörtök|péntek|szombat|vasárnap/.test(s)){ ism = { t: 'heti' }; const nn = TD_NAP.findIndex(n => s.includes(n)); if(nn >= 0){ let k = 0; while(ezD(ezPlusz(ma, k)).getDay() !== nn) k++; d = ezPlusz(ma, k); } }
+        else { const n = +(m[2] || m[3] || 0) || 0; ism = { t: 'havi', ...(n ? { n } : {}) }; if(n){ const y = ezD(ma); let c = new Date(y.getFullYear(), y.getMonth(), n); if(c < y) c = new Date(y.getFullYear(), y.getMonth() + 1, n); d = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}-${String(c.getDate()).padStart(2, '0')}`; } } }
+    m = vag(TD_RE.ido);
+    if(m){ if(m[4] || /délben/i.test(m[1] || '')) ido = m[2] ? `${String(+m[2]).padStart(2, '0')}:${m[3] || '00'}` : '12:00';
+        else { let h = +m[2]; if(/délután|este/i.test(m[1] || '') && h < 12) h += 12; ido = `${String(h).padStart(2, '0')}:${m[3] || '00'}`; } }
+    m = vag(TD_RE.nap);
+    if(m && !d){ const s = m[0].toLowerCase().trim();
+        if(/^ma\b/.test(s)) d = ma; else if(/holnapután/.test(s)) d = ezPlusz(ma, 2); else if(/holnap/.test(s)) d = ezPlusz(ma, 1);
+        else if(/jövő\s+hét(en)?$/.test(s)){ let k = 1; while(ezD(ezPlusz(ma, k)).getDay() !== 1) k++; d = ezPlusz(ma, k); }
+        else if(m[2]){ const ho = ['jan', 'feb', 'már', 'ápr', 'máj', 'jún', 'júl', 'aug', 'sze', 'okt', 'nov', 'dec'].findIndex(h => m[2].toLowerCase().startsWith(h)); const y = ezD(ma); let c = new Date(y.getFullYear(), ho, +m[3]); if(c < y) c.setFullYear(c.getFullYear() + 1); d = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}-${String(c.getDate()).padStart(2, '0')}`; }
+        else if(m[4]){ const y = ezD(ma); let c = new Date(y.getFullYear(), y.getMonth(), +m[4]); if(c < y) c = new Date(y.getFullYear(), y.getMonth() + 1, +m[4]); d = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}-${String(c.getDate()).padStart(2, '0')}`; }
+        else { const nn = TD_NAP.findIndex(n => s.includes(n)); if(nn >= 0){ let k = 1; while(ezD(ezPlusz(ma, k)).getDay() !== nn) k++; if(/jövő/.test(s) && k < 7) k += 7; d = ezPlusz(ma, k); } } }
+    else if(m && d){ /* az ismétlődés már adott napot */ }
+    m = vag(TD_RE.lista);
+    if(m){ const s = m[0].toLowerCase(); l = /bevásárl/.test(s) ? 'Bevásárlás' : /munk/.test(s) ? 'Munka' : /személyes/.test(s) ? 'Személyes' : 'Otthon'; }
+    t = t.replace(/\s+(?:a|az)\s+(?=\s|$)/g, ' ').replace(/\s{2,}/g, ' ').trim().replace(/^(?:és|aztán|majd|meg|hogy)\s+/i, '').replace(/[,\s]+$/, '');
+    const bev = /^(?:vegyek|vegyünk|vennem kell|venni kell|vásároljak)\s+/i;
+    if(bev.test(t) || (!l && /\b(tej|tojás|kenyér|vaj|sajt|kávé|zöldség|gyümölcs|banán|alma)\w*/i.test(t))){
+        const tet = t.replace(bev, '').replace(/^még\s+/i, '').split(/\s*,\s*|\s+(?:meg|és)\s+/).map(x => x.trim()).filter(Boolean)
+            .map(w => w.split(' ').map(s => /[aeoö]t$/i.test(s) && s.length > 4 ? s.slice(0, -2) : /([áéóőúűaeiou]|[szlrnj])t$/i.test(s) && s.length > 3 ? s.slice(0, -1) : s).join(' '));
+        t = tet.join(', '); l = l || 'Bevásárlás'; if(!d) d = ma;
+    }
+    if(!l) l = /\b(jelentés|meeting|megbeszél|ügyfél|prezent|email|e-mail|projekt|iroda|kolléga|főnök|határidő|riport|számlá?z)/i.test(t) ? 'Munka' : /\b(anya|apa|szülinap|születésnap|barát|ajándék)/i.test(t) ? 'Személyes' : 'Otthon';
+    if(ido && !d) d = ma;
+    const n = t ? t[0].toUpperCase() + t.slice(1) : '';
+    return { n, d, ido, l, ism, eml: !!ido };
+}
+// élő színezés diktálás közben: időpont kék, lista korall, ismétlődés zöld
+function tdSzinez(sz){
+    let h = esc(sz);
+    const jel = (re, cls) => { h = h.replace(new RegExp(re.source, 'gi'), x => `<mark class="${cls}">${x}</mark>`); };
+    jel(TD_RE.ism, 'z'); jel(/\b(?:(?:reggel|délelőtt|délután|este)\s*)?\d{1,2}(?:[:.]\d{2})?\s*(?:-?kor|-?ra|-?re|\s*órakor)\b|\bdélben\b/i, 'k'); jel(/\b(ma|holnapután|holnap|jövő\s+héten?|(?:hétfő|kedd|szerda|csütörtök|péntek|szombat|vasárnap)n)\b/i, 'k'); jel(TD_RE.lista, 'c');
+    return h;
+}
+
+// --- lista ---
+async function renderTeendok(){
+    const host = document.getElementById('tdBody'); if(!host) return;
+    if(typeof ezMasNezet === 'function' && ezMasNezet()){ host.innerHTML = '<div class="card pv-ures">A feladatok privátak.</div>'; return; }
+    const d = await prvBetolt('teendok'); if(!Array.isArray(d.lista)) d.lista = [];
+    if(!prvLap('teendok')) return;
+    const ma = tdMa(), listak = [...new Set([...d.lista.map(x => x.l).filter(Boolean)])];
+    if(tdSzuro && !listak.includes(tdSzuro)) tdSzuro = '';
+    const lat = d.lista.filter(x => !tdSzuro || x.l === tdSzuro);
+    const nyitott = lat.filter(x => !x.kesz).sort((a, b) => (a.d || '9999').localeCompare(b.d || '9999') || (a.ido || '99').localeCompare(b.ido || '99'));
+    const lejart = nyitott.filter(x => x.d && x.d < ma), mai = nyitott.filter(x => x.d === ma), kesobb = nyitott.filter(x => !x.d || x.d > ma);
+    const keszMa = lat.filter(x => (x.kesz || '').slice(0, 10) === ma || (x.kl || []).includes(ma));
+    const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+    const sor = (x, cls) => { const al = [x.d && (cls === 'kes' || cls === 'lej') ? tdNapSzo(x.d) : '', x.ido, x.ism ? tdIsmSzo(x.ism) : '', x.l, tdUjak.has(x.id) ? 'új' : ''].filter(Boolean).join(' · ');
+        return `<div class="td-sor ${cls}${tdUjak.has(x.id) ? ' uj' : ''}${x.kesz ? ' kesz' : ''}" data-tdid="${esc(x.id)}"><button type="button" class="kor${x.ido && cls === 'ma' ? ' ido' : ''}" data-tdpipa="${esc(x.id)}" aria-label="${x.kesz ? 'Visszaállítás' : 'Kész'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="t" data-tdszerk="${esc(x.id)}"><b>${esc(x.n)}</b>${al ? `<em>${esc(al)}</em>` : ''}</button>${x.hang ? `<i class="hi">${MIC}</i>` : ''}</div>`; };
+    const csop = (cim, l, cls) => l.length ? `<section class="td-cs ${cls}"><h4>${cim}</h4><div class="td-l">${l.map(x => sor(x, cls)).join('')}</div></section>` : '';
+    host.innerHTML = `<div class="td">
+        ${listak.length ? `<div class="td-chip">${['', ...listak].map(k => `<button type="button" class="${tdSzuro === k ? 'on' : ''}" data-tdszuro="${esc(k)}">${esc(k || 'Mind')}</button>`).join('')}</div>` : ''}
+        ${csop('Lejárt', lejart, 'lej')}${csop('Ma', mai, 'ma')}${csop('Később', kesobb, 'kes')}
+        ${!nyitott.length ? `<div class="td-ures">${window.stoaIllu ? window.stoaIllu('check', { size: 84, seed: 3, tone: 'a' }) : ''}<b>${d.lista.length ? 'Minden kész' : 'Még nincs feladat'}</b><span>Írd be, vagy mondd el lent – egy mondatból több feladat is lehet.</span></div>` : ''}
+        ${keszMa.length ? `<section class="td-kesz${tdKeszNyit ? ' nyit' : ''}"><button type="button" data-tdkesznyit><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>${keszMa.length} kész ma<i>▾</i></button>${tdKeszNyit ? `<div class="td-l">${keszMa.map(x => sor({ ...x, kesz: x.kesz || ma }, 'kk')).join('')}</div>` : ''}</section>` : ''}
+        <form class="td-be" data-tdbe><input type="text" data-tdinp placeholder="Írd vagy mondd…" autocomplete="off" enterkeyhint="done" maxlength="300"><button type="button" class="mic" data-tdmic aria-label="Diktálás">${MIC}</button></form></div>`;
+    if(typeof stFejFrissit === 'function') stFejFrissit();
+}
+window.renderTeendok = renderTeendok;
+async function tdMentUjak(l, toastCim){
+    const d = await prvBetolt('teendok'); if(!Array.isArray(d.lista)) d.lista = [];
+    const ujak = l.map(x => ({ id: prvUjId() + Math.random().toString(36).slice(2, 5), n: x.n, d: x.d || '', ido: x.ido || '', l: x.l || 'Otthon', ism: x.ism || null, eml: !!x.eml, hang: !!x.hang, kesz: '', letr: new Date().toISOString() }));
+    d.lista.push(...ujak); prvMent('teendok');
+    ujak.forEach(x => tdUjak.add(x.id)); setTimeout(() => { ujak.forEach(x => tdUjak.delete(x.id)); if(prvLap('teendok')) renderTeendok(); }, 4000);
+    if(prvLap('teendok')) renderTeendok(); else if(prvLap('privma')) renderPrivMa();
+    const ma = tdMa(), cimk = [...new Set(ujak.map(x => x.ism ? 'Ismétlődő' : x.d === ma ? 'Ma' : x.d ? tdNapSzo(x.d) : 'Később'))].join(' · ');
+    stRToast(toastCim || (ujak.length === 1 ? 'Feladat mentve' : `${ujak.length} feladat mentve`), cimk, async () => { const ids = new Set(ujak.map(x => x.id)); d.lista = d.lista.filter(x => !ids.has(x.id)); prvMent('teendok'); if(prvLap('teendok')) renderTeendok(); });
+    return ujak;
+}
+window.tdMentUjak = tdMentUjak;
+document.addEventListener('submit', e => { if(!e.target.matches('[data-tdbe]')) return; e.preventDefault();
+    const i = e.target.querySelector('[data-tdinp]'), v = (i.value || '').trim(); if(!v) return;
+    const l = tdBont(v); if(!l.length) return; i.value = '';
+    if(l.length > 1) stRogNyit('fell', { tet: l, nyers: v }); else tdMentUjak(l); });
+document.addEventListener('click', async e => {
+    if(!e.target.closest('#tdBody')) return;
+    let b;
+    if((b = e.target.closest('[data-tdszuro]'))){ tdSzuro = b.dataset.tdszuro; return renderTeendok(); }
+    if(e.target.closest('[data-tdkesznyit]')){ tdKeszNyit = !tdKeszNyit; return renderTeendok(); }
+    if((b = e.target.closest('[data-tdpipa]'))){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === b.dataset.tdpipa); if(!x) return; const ma = tdMa(), regi = JSON.stringify(x);
+        const sorEl = b.closest('.td-sor');
+        if(x.kesz || (x.kl || []).includes(ma)){ x.kesz = ''; x.kl = (x.kl || []).filter(y => y !== ma); prvMent('teendok'); return renderTeendok(); }
+        sorEl && sorEl.classList.add('pipa'); if(navigator.vibrate) try { navigator.vibrate(8); } catch(_){}
+        if(x.ism){ x.kl = [...(x.kl || []).slice(-30), ma]; x.d = tdKov(x); } else x.kesz = new Date().toISOString();
+        prvMent('teendok'); setTimeout(renderTeendok, 450);
+        stRToast(x.ism ? 'Kész – jön a következő' : 'Kész', x.ism ? `${x.n} · ${tdNapSzo(x.d)}` : x.n, () => { Object.assign(x, JSON.parse(regi)); if(!JSON.parse(regi).kl) delete x.kl; prvMent('teendok'); renderTeendok(); }); return; }
+    if((b = e.target.closest('[data-tdszerk]'))){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === b.dataset.tdszerk); if(x) stRogNyit('fszerk', { x, tet: [{ ...x }] }); return; }
+    if(e.target.closest('[data-tdmic]')){ const v = (document.querySelector('#tdBody [data-tdinp]') || {}).value || ''; await stRogNyit('fdikt', { szov: v.trim() }); tdDiktStart(); return; }
+});
+// --- diktálás / ellenőrzés / szerkesztés események ---
+function tdDiktStart(){
+    const S = stR; if(!S || S.tip !== 'fdikt') return;
+    const alap = (S.szov || '').trim(); S.hiba = ''; S.t0 = S.t0 || Date.now();
+    const r = stRDiktInd(() => { if(stR !== S) return; S.rec = false; if(S.vege) tdDiktKesz(); else stRRajz(); },
+        (v, koz) => { if(stR !== S) return; S.szov = [alap, v].filter(Boolean).join(' '); S.koz = koz; const p = document.querySelector('#stRog .td-szov'); if(p) p.innerHTML = `${tdSzinez(S.szov)} <span>${esc(koz)}</span><i class="kur"></i>`; },
+        err => { if(stR !== S) return; S.rec = false; S.hiba = err === 'not-allowed' ? 'Koppints a mikrofonra (és engedélyezd), hogy elinduljon.' : 'Nem sikerült elindítani a felvételt – a billentyűzetről is beírhatod lent.'; stRRajz(); });
+    if(r){ S.rec = true; clearInterval(S.tick); S.tick = setInterval(() => { const o = document.querySelector('#stRog .td-dikt .ido'); if(o && stR === S) o.innerHTML = `<i></i>${S.rec ? 'Figyelek' : 'Szünet'} · ${stHangIdo()}`; else clearInterval(S.tick); }, 300); }
+    stRRajz();
+}
+function tdDiktKesz(){ const S = stR; if(!S) return; clearInterval(S.tick);
+    const t = [S.szov, S.koz].filter(Boolean).join(' ').trim(); S.koz = '';
+    if(!t){ S.vege = false; S.hiba = 'Nem hallottam semmit – próbáld újra.'; return stRRajz(); }
+    const tet = tdBont(t).map(x => ({ ...x, hang: true }));
+    Object.assign(S, { tip: 'fell', tet: [...(S.elozo || []), ...tet], nyers: [S.elozoNyers, t].filter(Boolean).join(' '), dikt: true, lep: 0, vege: false }); stRRajz(); }
+document.addEventListener('click', async e => {
+    const S = stR; if(!S || !['fdikt', 'fell', 'fszerk'].includes(S.tip) || !e.target.closest('#stRog')) return;
+    let b;
+    if((b = e.target.closest('[data-tdx]'))){ S.tet.splice(+b.dataset.tdx, 1); return stRRajz(); }
+    if((b = e.target.closest('[data-tdfl]'))){ const L = (document.querySelector('#stRog .st-rog').dataset.lst || TD_LISTAK.join('|')).split('|'), x = S.tet[+b.dataset.tdfl]; x.l = L[(L.indexOf(x.l) + 1) % L.length]; return stRRajz(); }
+    if((b = e.target.closest('[data-tdfr]'))){ const x = S.tet[+b.dataset.tdfr], k = [null, 'napi', 'heti', 'havi'], i = k.indexOf(x.ism ? x.ism.t : null), u = k[(i + 1) % k.length];
+        x.ism = u ? { t: u, ...(u === 'havi' ? { n: ezD(x.d || tdMa()).getDate() } : {}) } : null; if(u && !x.d) x.d = tdMa(); return stRRajz(); }
+    if((b = e.target.closest('[data-tdfe]'))){ const x = S.tet[+b.dataset.tdfe]; x.eml = !x.eml; return stRRajz(); }
+    if(!(b = e.target.closest('[data-tdd], [data-stract="tdtov"]'))) return;
+    const a = b.dataset.tdd || 'tdtov';
+    if(a === 'elvet'){ stRDiktStop(); clearInterval(S.tick); return stRZar(); }
+    if(a === 'stop' || a === 'kesz'){ S.vege = true; if(stRDiktR) stRDiktR._leall(); else tdDiktKesz(); return; }
+    if(a === 'ujra') return tdDiktStart();
+    if(a === 'tdtov'){ S.szov = (document.getElementById('stRTdT') || {}).value || ''; return tdDiktKesz(); }
+    if(a === 'meg'){ Object.assign(S, { tip: 'fdikt', elozo: S.tet, elozoNyers: S.nyers, szov: '', koz: '', t0: Date.now() }); return tdDiktStart(); }
+    if(a === 'egyben'){ const x = tdErtelmez(S.nyers); stRZar(); return tdMentUjak([{ ...x, n: (S.nyers[0] || '').toUpperCase() + S.nyers.slice(1, 200), hang: !!S.dikt }]); }
+    if(a === 'ment' && S.tip === 'fell'){ const l = S.tet.filter(x => (x.n || '').trim()); stRZar(); if(l.length) tdMentUjak(l); return; }
+    if(a === 'ment' && S.tip === 'fszerk'){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === S.x.id), u = S.tet[0]; if(x){ Object.assign(x, { n: (u.n || '').trim() || x.n, d: u.d, ido: u.ido, l: u.l, ism: u.ism, eml: u.eml }); prvMent('teendok'); } stRZar(); return renderTeendok(); }
+    if(a === 'torol'){ const d = await prvBetolt('teendok'), i = d.lista.findIndex(y => y.id === S.x.id); if(i < 0) return stRZar(); const [x] = d.lista.splice(i, 1); prvMent('teendok'); stRZar(); renderTeendok();
+        stRToast('Feladat törölve', x.n, () => { d.lista.splice(i, 0, x); prvMent('teendok'); renderTeendok(); }); }
+});
+document.addEventListener('input', e => { const S = stR; if(!S || !S.tet) return; const n = e.target.dataset && e.target.dataset.tdn; if(n != null) S.tet[+n].n = e.target.value; });
+document.addEventListener('change', e => { const S = stR; if(!S || !S.tet) return; const ds = e.target.dataset || {};
+    if(ds.tdfd != null){ S.tet[+ds.tdfd].d = e.target.value; stRRajz(); }
+    if(ds.tdfi != null){ const x = S.tet[+ds.tdfi]; x.ido = e.target.value; if(x.ido){ x.eml = true; if(!x.d) x.d = tdMa(); } stRRajz(); } });
+// a lista mikrofonja nyomva tartva is diktál (elengedve kész)
+(function(){ let t = 0, tartva = false;
+    document.addEventListener('pointerdown', e => { if(!e.target.closest('#tdBody [data-tdmic]')) return; tartva = false; clearTimeout(t);
+        t = setTimeout(async () => { tartva = true; await stRogNyit('fdikt', { szov: '', tartva: true }); tdDiktStart(); }, 380); }, true);
+    const fel = () => { clearTimeout(t); if(tartva && stR && stR.tip === 'fdikt' && stR.tartva){ stR.tartva = false; stR.vege = true; if(stRDiktR) stRDiktR._leall(); else tdDiktKesz(); } };
+    document.addEventListener('pointerup', fel, true); document.addEventListener('pointercancel', fel, true);
+    document.addEventListener('click', e => { if(tartva && e.target.closest('#tdBody [data-tdmic]')){ tartva = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+})();
 // ===== Hangjegyzet: a ＋ hosszú nyomására rögtön felvesz; elengedve ment, balra húzva elvet, felfelé húzva rögzül =====
 const ST_HANG_TIP = { feladat: 'Teendő', bevas: 'Bevásárlás', otlet: 'Ötletek', jegyzet: 'Jegyzet' };
 const stHangIdo = mp => { const m = mp != null ? mp : stR && stR.t0 ? Math.floor(((stR.rec ? Date.now() : stR.tStop || Date.now()) - stR.t0) / 1000) : 0; return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
@@ -35587,7 +35812,7 @@ async function stHangMent(csak){
         if(csak) await jg(S.vegl.slice(0, 60), S.vegl.length > 60 ? S.vegl : '', mappa);
         else for(const x of S.tetelek.filter(y => y.on)){
             try {
-                if(x.tip === 'feladat' && window.sfFeladatGyors){ let f = null; try { f = await window.sfFeladatGyors(x.szov || x.cim); } catch(_){} if(f && f.id) visz.push(() => window.sfFeladatTorol(f.listId, f.id)); else await jg(x.cim, x.szov || '', 'Teendők'); }
+                if(x.tip === 'feladat'){ const ujak = await tdMentUjak(tdBont(x.szov || x.cim).map(y => ({ ...y, hang: true })), ''); document.getElementById('stRToast')?.remove(); const d = PRV.teendok; visz.push(async () => { const ids = new Set(ujak.map(y => y.id)); d.lista = d.lista.filter(y => !ids.has(y.id)); prvMent('teendok'); if(prvLap('teendok')) renderTeendok(); }); }
                 else if(x.tip === 'bevas') await jg('Bevásárlás · ' + pzNapCim(ezMa()), (x.lista || [x.cim]).map(y => '- ' + y).join('\n'), 'Bevásárlás');
                 else if(x.tip === 'otlet') await jg(x.cim, x.szov && x.szov !== x.cim ? x.szov : '', 'Ötletek');
                 else if(x.tip === 'feladat') await jg(x.cim, '', 'Teendők');
@@ -35991,7 +36216,7 @@ function szLapok(){
         .sort((a, b) => (a.dataset.ter === 'mind') - (b.dataset.ter === 'mind'))   // a közös lapok (pl. Jegyzetek) a végére
         .map(a => ({ lap: a.dataset.page, n: (a.querySelector('.nav-label') || a).textContent.trim(), svg: (a.querySelector('svg') || {}).outerHTML || '' }));
 }
-const SZ_ROVID = { penzugyek: 'Pénz', enaplo: 'Napló', szokasok: 'Szokások', kiszemelt: 'Kiszemelt', emberek: 'Események', onismeret: 'Önismeret', egeszseg: 'Egészség', konyvek: 'Olvasás', privma: 'Ma',
+const SZ_ROVID = { teendok: 'Feladatok', penzugyek: 'Pénz', enaplo: 'Napló', szokasok: 'Szokások', kiszemelt: 'Kiszemelt', emberek: 'Események', onismeret: 'Önismeret', egeszseg: 'Egészség', konyvek: 'Olvasás', privma: 'Ma',
     home: 'Sikerfüzet', feladatok: 'Feladatok', havi: 'Havi terv', eves: 'Éves terv', pg: 'Bedolgozás', csendes: 'Csendes PG', ugyfelek: '10 perces', ketoras: '2 órás', csapatterv: 'Csapat', kovetkezo: 'Következő',
     struktura: 'Struktúra', jegyzetek: 'Jegyzetek', sablonok: 'Sablonok', prezik: 'Prezik', tervezet: 'Tervezet', idd: 'IDD', gst: 'GST', tudastar: 'Tudástár', kiertekelo: 'Kiértékelő', telefonparty: 'Telefonparty' };
 function szSavLista(){
@@ -36141,6 +36366,7 @@ function stFejAdat(lap){
             if(pzView === 'beall') return P('Pénzügyek', 'Beállítások');
             if(pzView === 'terv') return P('Éves terv', 'Tervező');
         }
+        if(lap === 'teendok') return { modul: 'Feladatok', kicker: typeof tdFejSzov === 'function' ? tdFejSzov() : '', fo: '' };
         if(lap === 'edzes' && typeof ezTab !== 'undefined' && ezAdat && ezAdat.torzs){
             const ma = ezMa();
             if(ezTab === 'ma'){ const d = ezStSel || ma, l = ezIdoRend(ezNapLista(d)).filter(e => e.sport !== 'pih'), e = l.find(x => ['terv', 'var', 'jel'].includes(ezAll(x, d))) || l[0], dd = ezD(d);
@@ -36692,10 +36918,10 @@ document.addEventListener('keydown', e => {
 const EN_LEIRAS = { home: 'naptár, mai nap, heti terv', feladatok: 'teendők, határidők', havi: 'havi és heti számok', eves: 'az év célszámai', pg: 'új munkatársak bedolgozása', csendes: 'heti önreflexió, akcióterv',
     ugyfelek: 'ügyfelek, ajánlások', ketoras: 'karrier-jelöltek', csapatterv: 'a csapat havi terve', kovetkezo: 'utódjelöltek', struktura: 'a csapat felépítése', sablonok: 'üzenet- és e-mail-sablonok',
     prezik: 'bemutatók', tervezet: 'ajánlati tervezet PDF-ben', idd: 'vizsgafelkészítés', gst: 'vizsgafelkészítés', tudastar: 'tudásbázis, control', privma: 'a mai nap egy helyen', penzugyek: 'költések, keretek, számlák', celok: 'célok, vízió, haladás', szokasok: 'napi és heti szokások, sorozatok', onismeret: 'életkerék, szabályaim, értékek', edzes: 'edzésterv, Strava, csúcsok', egeszseg: 'testsúly, alvás, mérések',
-    enaplo: 'napi bejegyzések, hangulat', konyvek: 'amit olvasol, olvasási lista', mentesek: 'elmentett cikkek, linkek', kiszemelt: 'amit szeretnél megvenni', emberek: 'születésnapok, programok', jegyzetek: 'jegyzetek, ötletek' };
+    enaplo: 'napi bejegyzések, hangulat', konyvek: 'amit olvasol, olvasási lista', mentesek: 'elmentett cikkek, linkek', kiszemelt: 'amit szeretnél megvenni', teendok: 'teendők – írd vagy mondd', emberek: 'születésnapok, programok', jegyzetek: 'jegyzetek, ötletek' };
 // Stoa Összes: csoportok (Napi · Test · Fejlődés · Gyűjtemények), kártyánként illusztráció és ★
-const ST_EN_CSOP = [['Napi', ['penzugyek', 'szokasok', 'enaplo', 'feladatok']], ['Test', ['edzes', 'egeszseg']], ['Fejlődés', ['celok', 'onismeret', 'konyvek']], ['Gyűjtemények', ['mentesek', 'kiszemelt', 'emberek', 'jegyzetek', 'linkek']]];
-const ST_EN_IK = { privma:'sun', penzugyek:'wallet', szokasok:'calendar-check', enaplo:'notebook-pen', feladatok:'square-check', edzes:'dumbbell', egeszseg:'heart-pulse', celok:'target', onismeret:'brain', konyvek:'book-open', mentesek:'bookmark', kiszemelt:'shopping-bag', emberek:'calendar-heart', jegyzetek:'notebook-text', linkek:'globe' };
+const ST_EN_CSOP = [['Napi', ['penzugyek', 'teendok', 'szokasok', 'enaplo', 'feladatok']], ['Test', ['edzes', 'egeszseg']], ['Fejlődés', ['celok', 'onismeret', 'konyvek']], ['Gyűjtemények', ['mentesek', 'kiszemelt', 'emberek', 'jegyzetek', 'linkek']]];
+const ST_EN_IK = { privma:'sun', penzugyek:'wallet', szokasok:'calendar-check', enaplo:'notebook-pen', feladatok:'square-check', teendok:'square-check', edzes:'dumbbell', egeszseg:'heart-pulse', celok:'target', onismeret:'brain', konyvek:'book-open', mentesek:'bookmark', kiszemelt:'shopping-bag', emberek:'calendar-heart', jegyzetek:'notebook-text', linkek:'globe' };
 function stEnCsoportok(sav){
     const lapok = szLapok().filter(x => x.lap !== 'en');
     const csop = ST_EN_CSOP.map(([n, l]) => [n, lapok.filter(x => l.includes(x.lap))]);
@@ -49999,6 +50225,50 @@ html body.sf-privat .st-sab-sor .nap svg { width:18px; height:18px; fill:none; s
 html body.sf-privat .st-sab-ures { text-align:center; color:var(--r-muted); font-size:14px; }
 html body.sf-privat .st-sab [hidden], html body.sf-privat .st-sab:not(.keres) .st-sab-sor.rejt { display:none !important; }
 html body.sf-privat .st-sab:not(.keres) .st-sab-sor.rejt + .st-sab-sor, html body.sf-privat .st-sab-l > .st-sab-sor:first-child { box-shadow:none; }
+/* Feladatok (Stoa) */
+html body.sf-privat #page-teendok .page-wrap { padding-bottom:170px; }
+html body.sf-privat .td { display:flex; flex-direction:column; gap:14px; font-family:'DM Sans',sans-serif; color:var(--r-ink); }
+html body.sf-privat .td-chip { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -14px; padding:2px 14px 4px; } html body.sf-privat .td-chip::-webkit-scrollbar { display:none; }
+html body.sf-privat .td-chip button { flex:none; height:38px; padding:0 16px; border:0; border-radius:999px; background:var(--r-card); box-shadow:var(--r-shchip); font:inherit; font-size:14px; font-weight:700; color:var(--r-ink); cursor:pointer; }
+html body.sf-privat .td-chip button.on { background:var(--r-ink); color:#fff; }
+html body.sf-privat .td-cs h4 { margin:0 0 8px 6px; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--r-muted); }
+html body.sf-privat .td-cs.lej h4 { color:var(--r-chero); }
+html body.sf-privat .td-l { background:var(--r-card); border-radius:24px; box-shadow:var(--r-sh); overflow:hidden; }
+html body.sf-privat .td-sor { display:flex; align-items:center; gap:4px; padding:0 14px 0 6px; transition:background .3s, opacity .3s; }
+html body.sf-privat .td-sor + .td-sor { box-shadow:inset 0 1px 0 var(--r-ntint); }
+html body.sf-privat .td-sor.uj { background:var(--r-ctint); }
+html body.sf-privat .td-sor .kor { width:44px; height:52px; flex:none; border:0; background:none; display:grid; place-items:center; cursor:pointer; padding:0; color:transparent; }
+html body.sf-privat .td-sor .kor::before { content:''; position:absolute; width:24px; height:24px; border-radius:999px; box-shadow:inset 0 0 0 2px var(--r-line); }
+html body.sf-privat .td-sor .kor { position:relative; } html body.sf-privat .td-sor .kor svg { position:relative; width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; }
+html body.sf-privat .td-sor.lej .kor::before, html body.sf-privat .td-sor.uj .kor::before { box-shadow:inset 0 0 0 2.4px var(--r-c); }
+html body.sf-privat .td-sor .kor.ido::before { box-shadow:inset 0 0 0 2.4px var(--r-a); }
+html body.sf-privat .td-sor.pipa .kor::before, html body.sf-privat .td-sor.kesz .kor::before { background:var(--r-a); box-shadow:none; } html body.sf-privat .td-sor.pipa .kor, html body.sf-privat .td-sor.kesz .kor { color:#fff; }
+html body.sf-privat .td-sor.pipa { opacity:.55; } html body.sf-privat .td-sor.kesz .t b { text-decoration:line-through; color:var(--r-muted); }
+html body.sf-privat .td-sor .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:12px 0; border:0; background:none; font:inherit; text-align:left; color:inherit; cursor:pointer; }
+html body.sf-privat .td-sor .t b { font-size:16px; font-weight:700; } html body.sf-privat .td-sor .t em { font-style:normal; font-size:13px; color:var(--r-muted); }
+html body.sf-privat .td-sor.lej .t em, html body.sf-privat .td-sor.uj .t em { color:var(--r-chero); }
+html body.sf-privat .td-sor .hi { flex:none; color:var(--r-muted); display:grid; } html body.sf-privat .td-sor .hi svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
+html body.sf-privat .td-kesz > button { width:100%; display:flex; align-items:center; gap:8px; height:46px; padding:0 18px; border:0; border-radius:999px; background:#e2f0e6; color:#2e6b48; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+html body.sf-privat .td-kesz > button svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; } html body.sf-privat .td-kesz > button i { margin-left:auto; font-style:normal; transition:transform .2s; }
+html body.sf-privat .td-kesz.nyit > button i { transform:rotate(180deg); } html body.sf-privat .td-kesz .td-l { margin-top:8px; }
+html body.sf-privat .td-ures { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:30px 20px; } html body.sf-privat .td-ures b { font-size:18px; } html body.sf-privat .td-ures span { font-size:14px; color:var(--r-muted); max-width:280px; }
+html body.sf-privat .td-be { position:fixed; z-index:48; left:16px; right:16px; bottom:calc(max(8px, calc(env(safe-area-inset-bottom) - 10px)) + 72px); display:flex; align-items:center; gap:8px; height:58px; padding:0 6px 0 20px; border-radius:999px; background:var(--r-card); box-shadow:0 12px 30px -10px rgba(20,34,42,.35); margin:0; }
+html body.sf-privat .td-be input { flex:1; min-width:0; border:0; outline:0; background:none; font:inherit; font-size:16px; color:var(--r-ink); padding:0; }
+html body.sf-privat .td-be .mic { width:46px; height:46px; flex:none; border:0; border-radius:999px; background:var(--r-c); color:#fff; display:grid; place-items:center; cursor:pointer; -webkit-touch-callout:none; user-select:none; }
+html body.sf-privat .td-be .mic svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; }
+html body.sf-privat:not(.st-retegek) .td-be { position:static; }
+.st-rog .td-szov mark { background:none; border-radius:6px; padding:0 3px; font-weight:700; } .st-rog .td-szov mark.k { background:#d3e4ec; color:#1f4f66; } .st-rog .td-szov mark.c { background:#fbe4dd; color:#8a3b27; } .st-rog .td-szov mark.z { background:#e2f0e6; color:#2e6b48; }
+.st-rog .td-szov { font-size:17px; line-height:1.6; } .st-rog .td-szov .kur { display:inline-block; width:2px; height:1.1em; background:#e07a5f; vertical-align:-3px; margin-left:2px; animation:stHangPont 1s steps(1) infinite; }
+.st-rog .alja .hgomb button.sot { background:#14222a; color:#fff; } .st-rog .hgomb .negyzet { width:18px; height:18px; border-radius:4px; background:#fff; display:block; }
+.st-rog .td-kk { display:flex; flex-direction:column; gap:10px; }
+.st-rog .td-k { background:#fff; border-radius:22px; padding:12px 14px; box-shadow:0 10px 24px -12px rgba(20,34,42,.35); display:flex; flex-direction:column; gap:10px; }
+.st-rog .td-k .kf { display:flex; align-items:center; gap:10px; } .st-rog .td-k .kor { width:22px; height:22px; flex:none; border-radius:999px; box-shadow:inset 0 0 0 2px #b9c7cc; }
+.st-rog .td-k input[data-tdn] { flex:1; min-width:0; border:0; outline:0; background:none; font:inherit; font-size:16px; font-weight:700; color:#14222a; padding:2px 0; }
+.st-rog .td-k .x { width:30px; height:30px; flex:none; border:0; background:none; font-size:22px; line-height:1; color:#8a9aa2; cursor:pointer; }
+.st-rog .td-k .kc { display:flex; flex-wrap:wrap; gap:6px; padding-left:32px; }
+.st-rog .td-k .ch { height:30px; padding:0 12px; font-size:12.5px; box-shadow:none; } .st-rog .td-k .ch.k { background:#d3e4ec; color:#1f4f66; } .st-rog .td-k .ch.c { background:#fbe4dd; color:#8a3b27; } .st-rog .td-k .ch.z { background:#e2f0e6; color:#2e6b48; }
+.st-rog .td-k .ch.ki { background:#eef2f3; color:#6b7f88; }
+.st-rog .td-k label.ch { position:relative; display:inline-flex; align-items:center; } .st-rog .td-k label.ch input { position:absolute; inset:0; width:100%; height:100%; opacity:0; border:0; padding:0; }
 /* Edzés közben */
 .st-fut { position:fixed; inset:0; z-index:4200; background:#14222a; color:#eaf0f1; overflow-y:auto; font-family:'DM Sans',sans-serif; }
 .st-fut .b { max-width:520px; min-height:100%; margin:0 auto; box-sizing:border-box; padding:calc(16px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:18px; }
