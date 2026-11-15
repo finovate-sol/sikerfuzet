@@ -35330,7 +35330,7 @@ function stRRajz(){
         const szerk = S.tip === 'fszerk', LST = [...new Set([...TD_LISTAK, ...((PRV.teendok && PRV.teendok.lista) || []).map(x => x.l).filter(Boolean)])];
         const kartya = (x, i) => `<div class="td-k"><div class="kf"><i class="kor"></i><input type="text" value="${esc(x.n)}" data-tdn="${i}" maxlength="140" aria-label="Feladat">${szerk ? '' : `<button type="button" class="x" data-tdx="${i}" aria-label="Kihagyás">×</button>`}</div>
             <div class="kc"><label class="ch k">${x.d ? esc(tdNapSzo(x.d)) : 'Nap'}<input type="date" data-tdfd="${i}" value="${esc(x.d)}"></label><label class="ch k">${x.ido ? esc(x.ido) : 'Időpont'}<input type="time" data-tdfi="${i}" value="${esc(x.ido)}"></label>
-                <button type="button" class="ch c" data-tdfl="${i}">${esc(x.l || 'Lista')}</button><button type="button" class="ch z${x.ism ? '' : ' ki'}" data-tdfr="${i}">${x.ism ? (x.ism.t === 'havi' && x.ism.n ? `Havonta ${x.ism.n}-én` : tdIsmSzo(x.ism).replace(/^./, c => c.toUpperCase())) : 'Nem ismétlődik'}</button>
+                <button type="button" class="ch c lsz" data-tdfl="${i}" style="--lc:${tdSzin(x.l)}">${esc(x.l || 'Lista')}</button><button type="button" class="ch z${x.ism ? '' : ' ki'}" data-tdfr="${i}">${x.ism ? (x.ism.t === 'havi' && x.ism.n ? `Havonta ${x.ism.n}-én` : tdIsmSzo(x.ism).replace(/^./, c => c.toUpperCase())) : 'Nem ismétlődik'}</button>
                 ${x.ido ? `<button type="button" class="ch k${x.eml ? '' : ' ki'}" data-tdfe="${i}">Emlékeztet</button>` : ''}
                 <button type="button" class="ch c${x.p ? '' : ' ki'}" data-tdfp="${i}">${x.p ? 'Prioritás ' + '!'.repeat(x.p) : 'Prioritás'}</button><button type="button" class="ch c${x.zas ? '' : ' ki'}" data-tdfz="${i}">Zászló</button></div>
                 ${szerk ? `<input type="text" class="mj" data-tdm="${i}" value="${esc(x.megj || '')}" placeholder="Megjegyzés" maxlength="300">` : ''}</div>`;
@@ -35667,6 +35667,10 @@ document.addEventListener('change', e => { const S = stR; if(!S || S.tip !== 'ce
 // ===== Feladatok (Stoa) – hanggal először =====
 // privat/{uid}_teendok: { lista: [{ id, n, d ('YYYY-MM-DD' | ''), ido ('HH:MM' | ''), l (lista), ism (null | { t:'napi'|'heti'|'havi', n }), eml, hang, kesz (ISO | ''), kl: [kész napok ismétlődőnél], letr }] }
 const TD_LISTAK = ['Otthon', 'Munka', 'Bevásárlás', 'Személyes'];
+// listák színe (d.szin: { lista: '#hex' }); ami nincs megadva, a palettából kap egyet a neve alapján
+const TD_SZIN_ALAP = { Otthon: '#2f74ea', Munka: '#5f6b78', Bevásárlás: '#e07a5f', Személyes: '#9b59d0', Finovate: '#5f6b78', OTP: '#a08a63' };
+const TD_PALETTA = ['#2f74ea', '#a08a63', '#5f6b78', '#e07a5f', '#2e9e6b', '#9b59d0', '#d6417c', '#e0a030'];
+const tdSzin = l => { const d = PRV.teendok; const s = (d && d.szin && d.szin[l]) || TD_SZIN_ALAP[l]; if(s) return s; let h = 0; for(const c of String(l || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return TD_PALETTA[h % TD_PALETTA.length]; };
 let tdSzuro = '', tdKeszNyit = false, tdUjak = new Set();
 const tdD = () => (PRV.teendok && Array.isArray(PRV.teendok.lista)) ? PRV.teendok : null;
 const tdMa = () => ezMa();
@@ -35780,7 +35784,7 @@ async function tdImport(d){
     const most = new Date().toISOString(), van = new Set(d.lista.map(x => (x.l + '|' + x.n).toLowerCase()));
     TD_IMP_1.forEach(([l, n, dd, ido, ism, pr, megj, zas], i) => { if(van.has((l + '|' + n).toLowerCase())) return;
         d.lista.push({ id: 'imp' + i + prvUjId(), n, d: dd || '', ido: ido || '', l, ism: ism ? { t: ism, ...(ism === 'havi' && dd ? { n: +dd.slice(8) } : {}) } : null, eml: !!ido, hang: false, kesz: '', letr: most, ...(pr ? { p: pr } : {}), ...(megj ? { megj } : {}), ...(zas ? { zas: true } : {}) }); });
-    d.imp = [...(d.imp || []), 'emlek1']; prvMent('teendok');
+    d.imp = [...(d.imp || []), 'emlek1']; d.szin = { Finovate: '#5f6b78', OTP: '#a08a63', Otthon: '#2f74ea', ...(d.szin || {}) }; prvMent('teendok');
     return true;
 }
 // --- lista ---
@@ -35797,12 +35801,13 @@ async function renderTeendok(){
     const lejart = nyitott.filter(x => x.d && x.d < ma), mai = nyitott.filter(x => x.d === ma), kesobb = nyitott.filter(x => !x.d || x.d > ma);
     const keszMa = lat.filter(x => (x.kesz || '').slice(0, 10) === ma || (x.kl || []).includes(ma));
     const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-    const sor = (x, cls) => { const al = [x.d && (cls === 'kes' || cls === 'lej') ? tdNapSzo(x.d) : '', x.ido, x.ism ? tdIsmSzo(x.ism) : '', x.l, tdUjak.has(x.id) ? 'új' : ''].filter(Boolean).join(' · ');
-        return `<div class="td-sor ${cls}${tdUjak.has(x.id) ? ' uj' : ''}${x.kesz ? ' kesz' : ''}" data-tdid="${esc(x.id)}"><button type="button" class="kor${x.ido && cls === 'ma' ? ' ido' : ''}" data-tdpipa="${esc(x.id)}" aria-label="${x.kesz ? 'Visszaállítás' : 'Kész'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
-            <button type="button" class="t" data-tdszerk="${esc(x.id)}"><b>${x.p ? `<s class="pr">${'!'.repeat(x.p)}</s> ` : ''}${esc(x.n)}</b>${x.megj ? `<span class="mj">${esc(x.megj)}</span>` : ''}${al ? `<em>${esc(al)}</em>` : ''}</button>${x.zas ? '<i class="zas" aria-label="Megjelölve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg></i>' : ''}${x.hang ? `<i class="hi">${MIC}</i>` : ''}</div>`; };
+    const sor = (x, cls) => { const al = [x.d && (cls === 'kes' || cls === 'lej') ? tdNapSzo(x.d) : '', x.ido, x.ism ? tdIsmSzo(x.ism) : ''].filter(Boolean).map(esc).concat(tdSzuro ? [] : [`<u>${esc(x.l)}</u>`], tdUjak.has(x.id) ? ['új'] : []).join(' · ');
+        return `<div class="td-sor ${cls}${tdUjak.has(x.id) ? ' uj' : ''}${x.kesz ? ' kesz' : ''}" data-tdid="${esc(x.id)}" style="--lc:${tdSzin(x.l)}"><button type="button" class="kor${x.ido && cls === 'ma' ? ' ido' : ''}" data-tdpipa="${esc(x.id)}" aria-label="${x.kesz ? 'Visszaállítás' : 'Kész'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="t" data-tdszerk="${esc(x.id)}"><b>${x.p ? `<s class="pr">${'!'.repeat(x.p)}</s> ` : ''}${esc(x.n)}</b>${x.megj ? `<span class="mj">${esc(x.megj)}</span>` : ''}${al ? `<em>${al}</em>` : ''}</button>${x.zas ? '<i class="zas" aria-label="Megjelölve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg></i>' : ''}${x.hang ? `<i class="hi">${MIC}</i>` : ''}</div>`; };
     const csop = (cim, l, cls) => l.length ? `<section class="td-cs ${cls}"><h4>${cim}</h4><div class="td-l">${l.map(x => sor(x, cls)).join('')}</div></section>` : '';
     host.innerHTML = `<div class="td">
-        ${listak.length ? `<div class="td-chip">${['', ...listak].map(k => `<button type="button" class="${tdSzuro === k ? 'on' : ''}" data-tdszuro="${esc(k)}">${esc(k || 'Mind')}</button>`).join('')}</div>` : ''}
+        ${listak.length ? `<div class="td-chip">${['', ...listak].map(k => `<button type="button" class="${tdSzuro === k ? 'on' : ''}" data-tdszuro="${esc(k)}"${k ? ` style="--lc:${tdSzin(k)}"` : ''}>${k ? '<i></i>' : ''}${esc(k || 'Mind')}</button>`).join('')}</div>` : ''}
+        ${tdSzuro ? `<h2 class="td-lcim" style="color:${tdSzin(tdSzuro)}">${esc(tdSzuro)}<button type="button" data-tdszin="${esc(tdSzuro)}" aria-label="Lista színe" style="background:${tdSzin(tdSzuro)}"></button></h2>` : ''}
         ${csop('Lejárt', lejart, 'lej')}${csop('Ma', mai, 'ma')}${csop('Később', kesobb, 'kes')}
         ${!nyitott.length ? `<div class="td-ures">${window.stoaIllu ? window.stoaIllu('check', { size: 84, seed: 3, tone: 'a' }) : ''}<b>${d.lista.length ? 'Minden kész' : 'Még nincs feladat'}</b><span>Írd be, vagy mondd el lent – egy mondatból több feladat is lehet.</span></div>` : ''}
         ${keszMa.length ? `<section class="td-kesz${tdKeszNyit ? ' nyit' : ''}"><button type="button" data-tdkesznyit><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>${keszMa.length} kész ma<i>▾</i></button>${tdKeszNyit ? `<div class="td-l">${keszMa.map(x => sor({ ...x, kesz: x.kesz || ma }, 'kk')).join('')}</div>` : ''}</section>` : ''}
@@ -35830,6 +35835,7 @@ document.addEventListener('click', async e => {
     let b;
     if((b = e.target.closest('[data-tdszuro]'))){ tdSzuro = b.dataset.tdszuro; return renderTeendok(); }
     if(e.target.closest('[data-tdkesznyit]')){ tdKeszNyit = !tdKeszNyit; return renderTeendok(); }
+    if((b = e.target.closest('[data-tdszin]'))){ const d = await prvBetolt('teendok'), l = b.dataset.tdszin, i = TD_PALETTA.indexOf(tdSzin(l)); d.szin = { ...(d.szin || {}), [l]: TD_PALETTA[(i + 1) % TD_PALETTA.length] }; prvMent('teendok'); return renderTeendok(); }
     if((b = e.target.closest('[data-tdpipa]'))){ const d = await prvBetolt('teendok'), x = d.lista.find(y => y.id === b.dataset.tdpipa); if(!x) return; const ma = tdMa(), regi = JSON.stringify(x);
         const sorEl = b.closest('.td-sor');
         if(x.kesz || (x.kl || []).includes(ma)){ x.kesz = ''; x.kl = (x.kl || []).filter(y => y !== ma); prvMent('teendok'); return renderTeendok(); }
@@ -50400,6 +50406,12 @@ html body.sf-privat .td { display:flex; flex-direction:column; gap:14px; font-fa
 html body.sf-privat .td-chip { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -14px; padding:2px 14px 4px; } html body.sf-privat .td-chip::-webkit-scrollbar { display:none; }
 html body.sf-privat .td-chip button { flex:none; height:38px; padding:0 16px; border:0; border-radius:999px; background:var(--r-card); box-shadow:var(--r-shchip); font:inherit; font-size:14px; font-weight:700; color:var(--r-ink); cursor:pointer; }
 html body.sf-privat .td-chip button.on { background:var(--r-ink); color:#fff; }
+html body.sf-privat .td-chip button { display:inline-flex; align-items:center; gap:7px; } html body.sf-privat .td-chip button i { width:10px; height:10px; border-radius:999px; background:var(--lc); }
+html body.sf-privat .td-chip button.on[style] { background:var(--lc); } html body.sf-privat .td-chip button.on i { background:#fff; }
+html body.sf-privat .td-lcim { display:flex; align-items:center; gap:10px; margin:2px 4px -4px; font-family:'Bricolage Grotesque','DM Sans',sans-serif; font-size:34px; font-weight:700; line-height:1.1; }
+html body.sf-privat .td-lcim button { width:22px; height:22px; border:3px solid #fff; border-radius:999px; box-shadow:0 0 0 1px rgba(20,34,42,.12); cursor:pointer; padding:0; }
+html body.sf-privat .td-sor .t em u { text-decoration:none; color:var(--lc); font-weight:700; }
+.st-rog .td-k .ch.c.lsz { background:color-mix(in srgb, var(--lc) 16%, #fff); color:var(--lc); }
 html body.sf-privat .td-cs h4 { margin:0 0 8px 6px; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--r-muted); }
 html body.sf-privat .td-cs.lej h4 { color:var(--r-chero); }
 html body.sf-privat .td-l { background:var(--r-card); border-radius:24px; box-shadow:var(--r-sh); overflow:hidden; }
@@ -50416,7 +50428,7 @@ html body.sf-privat .td-sor.pipa { opacity:.55; } html body.sf-privat .td-sor.ke
 html body.sf-privat .td-sor .t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:12px 0; border:0; background:none; font:inherit; text-align:left; color:inherit; cursor:pointer; }
 html body.sf-privat .td-sor .t b { font-size:16px; font-weight:700; } html body.sf-privat .td-sor .t em { font-style:normal; font-size:13px; color:var(--r-muted); }
 html body.sf-privat .td-sor.lej .t em, html body.sf-privat .td-sor.uj .t em { color:var(--r-chero); }
-html body.sf-privat .td-sor .t .pr { text-decoration:none; color:var(--r-c); font-weight:800; letter-spacing:-.04em; }
+html body.sf-privat .td-sor .t .pr { text-decoration:none; color:var(--lc, var(--r-c)); font-weight:800; letter-spacing:-.04em; }
 html body.sf-privat .td-sor .t .mj { font-size:13px; color:var(--r-muted); }
 html body.sf-privat .td-sor .zas { flex:none; color:#f0a04b; display:grid; } html body.sf-privat .td-sor .zas svg { width:18px; height:18px; fill:currentColor; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; }
 .st-rog .td-k input.mj { border:0; outline:0; background:#eef2f3; border-radius:12px; padding:10px 12px; font:inherit; font-size:14px; color:#14222a; margin-left:32px; width:calc(100% - 32px); box-sizing:border-box; }
