@@ -190,6 +190,14 @@
     t.dispatchEvent(new PointerEvent('pointerdown', { ...o, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mousedown', o));
     t.dispatchEvent(new PointerEvent('pointerup', { ...o, buttons: 0, pointerId: 1, isPrimary: true })); t.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
     t.dispatchEvent(new MouseEvent('click', { ...o, buttons: 0 })); return true; };
+  // elemre kattintás: előbb láthatóvá görgetjük (az ablak alján lévő részek – pl. Szín – különben a képernyőn kívül esnek),
+  // egérművelettel kattintunk, és ha a pont nem az elemre esik, közvetlenül az elemre
+  async function elemKatt(el) {
+    if (!el) return false;
+    try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (_) {} await var_(150);
+    const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, t = document.elementFromPoint(x, y);
+    if (t && (t === el || el.contains(t) || t.contains(el))) egerrel(x, y); else el.click();
+    await var_(150); return true; }
   // az időpont-ablak (új vagy szerkesztés): a Mentés gomb legközelebbi őse, amiben a „Cím…” mező is benne van
   const ablak = () => { const m = gombSzoveg(document, 'Mentés')[0]; if (!m) return null;
     for (let p = m.parentElement; p && p !== document.body; p = p.parentElement)
@@ -217,7 +225,7 @@
     // a legkülső ilyen elem a csempe (a belső span csak a felirat)
     const cs = jel.find(x => !jel.some(y => y !== x && y.contains(x))) || jel[0];
     const kat = cs.closest('button,[role="button"],[role="radio"],label,a') || cs;
-    const r = kat.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(200);
+    await elemKatt(kat); await var_(50);
     const radio = kat.querySelector('input[type="radio"]') || (kat.htmlFor && document.getElementById(kat.htmlFor));
     if (radio && !radio.checked) { radio.click(); await var_(150); }
     return true; }
@@ -243,12 +251,22 @@
     let best = '', bt = Infinity; for (const [n, x] of Object.entries(EJ_SZINEK)) { const d = rgb(x), t = (d[0] - c[0]) ** 2 + (d[1] - c[1]) ** 2 + (d[2] - c[2]) ** 2; if (t < bt) { bt = t; best = n; } } return best; };
   async function szinValaszt(ab, hex) {
     const nev = szinNev(hex); if (!nev) return 0;
+    for (let k = 0; k < 2; k++) { const ok = await szinKatt(ab, nev); if (!ok) return 0; await var_(200); if (szinKijelolt(ab, nev) !== false) return 1; }
+    return 1; }
+  // ki van-e jelölve a szín (pipa / aria-checked / aria-pressed / kiemelt keret) – ha nem eldönthető: null
+  function szinKijelolt(ab, nev) {
+    const jel = [...ab.querySelectorAll('*')].filter(x => lat(x) && [...x.childNodes].some(n => n.nodeType === 3 && kis(n.textContent) === kis(nev)));
+    const cs = jel[0] && (jel[0].closest('button,[role="radio"],[role="option"],label,li') || jel[0].parentElement); if (!cs) return null;
+    const a = cs.getAttribute('aria-checked') || cs.getAttribute('aria-pressed') || cs.getAttribute('aria-selected'); if (a) return a === 'true';
+    const inp = cs.querySelector('input[type=radio],input[type=checkbox]'); if (inp) return inp.checked;
+    return null; }
+  async function szinKatt(ab, nev) {
     // a „Szín” rész a felirata alatt; benne a szín neve pontosan
     let gy = ab; const f = felirat(ab, 'Szín')[0]; if (f) for (let p = f.parentElement; p && p !== ab.parentElement; p = p.parentElement) { if (felirat(p, 'Fekete').length || felirat(p, 'Kék').length) { gy = p; break; } }
     const jel = [...gy.querySelectorAll('*')].filter(x => lat(x) && !x.closest('#sfejPanel') && [...x.childNodes].some(n => n.nodeType === 3 && kis(n.textContent) === kis(nev)));
     if (!jel.length) return 0;
     const cel = jel[0].closest('button,[role="radio"],[role="option"],label,li') || jel[0];
-    const r = cel.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(150);
+    await elemKatt(cel);
     return 1; }
   // az idő beírása: a Journal időmezői maszkolt / saját komponensek, a sima értékadás nem mindig jut át –
   // ezért kijelölés + „gépelés” (insertText), és ellenőrizzük, hogy tényleg az lett-e az érték
@@ -305,8 +323,9 @@
     // az ablak kitöltése (új és meglévő időpontnál is)
     async function kitolt(ab, e, uj) {
       const inp = [...ab.querySelectorAll('input,textarea')].filter(lat);
-      if (uj) { if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
-        const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text'); ir(cimIn, e.cim); }
+      // a típus meglévő időpontnál is (a Journal a típushoz alapszínt rendelhet – a színt ezért mindig a típus UTÁN állítjuk)
+      if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
+      if (uj) { const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text'); ir(cimIn, e.cim); }
       const idoMezok = () => [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}\s*[:.]\s*\d{2}$/.test(String(i.value).trim())));
       let im = idoMezok(); const okK = im[0] ? await idoIr(im[0], e.k) : 0; await var_(200);
       im = idoMezok(); const okV = im[1] ? await idoIr(im[1], e.v) : 0; await var_(150);
