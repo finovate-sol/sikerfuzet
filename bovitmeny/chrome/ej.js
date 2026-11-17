@@ -69,19 +69,64 @@
   const sorElem = inp => { for (let p = inp.parentElement; p && p.parentElement; p = p.parentElement) { if (p.tagName === 'TR') return p;
       if ([...p.querySelectorAll('input,textarea')].filter(i => /név megad/i.test(i.placeholder || '')).length > 1) return null;
       if (p.querySelector('select')) return p; } return null; };
-  const selIr = (sel, szoveg) => { if (!sel || !szoveg) return 0; const op = [...sel.options].find(o => kis(o.text) === kis(szoveg)) || [...sel.options].find(o => kis(o.text).startsWith(kis(szoveg).slice(0, 4)));
+  const TIP_ROKON = { 'elemzés': ['elemzés', 'el '], 'tanácsadás': ['tanácsadás', 'ta '], 'szerviz': ['szerviz', 'sz '], 'felvételi 1': ['felvételi 1', 'interjú 1', 'f1', 'interjú', 'felvételi'], 'felvételi 2': ['felvételi 2', 'interjú 2', 'f2', 'tob', 'info'] };
+  const selIr = (sel, szoveg) => { if (!sel || !szoveg) return 0; const rok = TIP_ROKON[kis(szoveg)] || [kis(szoveg)];
+    const op = [...sel.options].find(o => kis(o.text) === kis(szoveg)) || [...sel.options].find(o => rok.some(r => kis(o.text).startsWith(r))) || [...sel.options].find(o => kis(o.text).startsWith(kis(szoveg).slice(0, 4)));
     if (!op || sel.value === op.value) return op ? 1 : 0;
     Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, op.value);
     sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); return 1; };
-  const eredmAll = t => { const x = kis(t); if (/✕|✗|×|nem|sikertelen|elutas/.test(x)) return 'no'; if (/✓|✔|lebesz|sikerült|igen|ok\b/.test(x)) return 'ok'; return 'pending'; };
+  const eredmAll = t => { const x = kis(t); if (/✕|✗|×|nem |nem$|nem sikerült|sikertelen|elutas|nem érte|nem vette/.test(x)) return 'no'; if (/✓|✔|lebesz|sikerült|igen|időpont|egyeztet|\bok\b/.test(x)) return 'ok'; return 'pending'; };
+  const EREDM_RE = { ok: /✓|✔|lebesz|sikerült|igen|időpont|egyeztetve|\bok\b/i, no: /✕|✗|×|nem sikerült|sikertelen|nem érte|nem vette|elutas|^nem$/i };
   async function eredmIr(sor, e) {
     if (!e || e === 'pending') return 1;
     const sel = [...sor.querySelectorAll('select')].filter(lat)[1];
-    if (sel) return selIr(sel, e === 'ok' ? 'Lebeszélve' : 'Nem sikerült') || selIr(sel, e === 'ok' ? '✓' : '✕');
-    // kattintásra váltó jelvény: az utolsó cella, addig kattintunk, amíg a kívánt állapot nem lesz (legfeljebb 4×)
+    if (sel) { const op = [...sel.options].find(o => EREDM_RE[e].test(o.text) && !(e === 'ok' && EREDM_RE.no.test(o.text)));
+      if (op) { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, op.value); sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); return 1; } }
     const cellak = [...sor.children].filter(lat); const c = cellak.length >= 4 ? cellak[3] : cellak[cellak.length - 1]; if (!c) return 0;
-    for (let k = 0; k < 4; k++) { if (eredmAll(c.innerText) === e) return 1; const g = c.querySelector('button,[role="button"],span,div') || c; g.click(); await var_(250); }
-    return eredmAll(c.innerText) === e ? 1 : 0; }
+    if (eredmAll(c.innerText) === e) return 1;
+    for (let k = 0; k < 4; k++) {
+      const elotte = new Set([...document.querySelectorAll('button,[role="option"],[role="menuitem"],[role="radio"],li,label')].filter(lat));
+      const g = c.querySelector('button,[role="button"],select,input,span,div') || c; const r = g.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(350);
+      // a cellában megjelent lenyíló
+      const s2 = c.querySelector('select'); if (s2 && lat(s2)) { const op = [...s2.options].find(o => EREDM_RE[e].test(o.text) && !(e === 'ok' && EREDM_RE.no.test(o.text)));
+        if (op) { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s2, op.value); s2.dispatchEvent(new Event('change', { bubbles: true })); return 1; } }
+      // felugró menü / gombsor: az újonnan megjelent elemek közül a megfelelő felirat
+      const uj = [...document.querySelectorAll('button,[role="option"],[role="menuitem"],[role="radio"],li,label')].filter(x => lat(x) && !elotte.has(x) && !x.closest('#sfejPanel'));
+      const cel = uj.find(x => EREDM_RE[e].test(x.innerText || x.title || x.getAttribute('aria-label') || '') && !(e === 'ok' && EREDM_RE.no.test(x.innerText || '')));
+      if (cel) { cel.click(); await var_(300); return 1; }
+      if (uj.length) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      // kattintásra váltó jelvény
+      if (eredmAll(c.innerText) === e) return 1;
+    }
+    return 0; }
+  // választás egy sor lenyílójából: natív <select>, vagy egyedi lenyíló (gomb → felugró lista)
+  async function listaValaszt(cella, szoveg, re) {
+    if (!cella) return 0;
+    const sel = [...cella.querySelectorAll('select')].find(lat); if (sel) return re ? 0 : selIr(sel, szoveg);
+    const rok = re ? null : (TIP_ROKON[kis(szoveg)] || [kis(szoveg)]);
+    const jo = t => { const x = kis(t); return re ? (re.test(t) && !(re === EREDM_RE.ok && EREDM_RE.no.test(t))) : (x === kis(szoveg) || rok.some(r => x.startsWith(r.trim()))); };
+    if (jo(cella.innerText)) return 1;
+    const elotte = new Set([...document.querySelectorAll('*')].filter(lat));
+    const g = cella.querySelector('button,[role="combobox"],[role="button"],[aria-haspopup]') || cella.firstElementChild || cella; const r = g.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(350);
+    const uj = [...document.querySelectorAll('[role="option"],[role="menuitem"],li,button,div,span')].filter(x => lat(x) && !elotte.has(x) && !x.closest('#sfejPanel') && x.children.length <= 1 && (x.innerText || '').trim());
+    const cel = uj.find(x => jo(x.innerText)); if (cel) { cel.click(); await var_(300); return 1; }
+    if (uj.length) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await var_(200); }
+    return 0; }
+  // szöveg egy cellába: ha van benne mező, oda; ha nincs, rákattintunk (szerkeszthetővé válik), és a megjelenő mezőbe
+  async function cellaSzoveg(cella, v) {
+    if (!cella || !v) return 0;
+    const mezo = () => [...cella.querySelectorAll('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable="true"]')].find(lat);
+    let m = mezo();
+    if (!m) { const elotte = new Set([...document.querySelectorAll('input,textarea,[contenteditable="true"]')]);
+      const r = cella.getBoundingClientRect(); egerrel(r.left + Math.min(30, r.width / 2), r.top + r.height / 2); await var_(300);
+      m = mezo() || [...document.querySelectorAll('input:not([type=checkbox]),textarea,[contenteditable="true"]')].find(x => lat(x) && !elotte.has(x) && !x.closest('#sfejPanel')); }
+    if (!m) return 0;
+    if (kis(m.value || m.innerText) === kis(v)) return 1;
+    if (m.isContentEditable) { m.focus(); document.execCommand('selectAll', false); document.execCommand('insertText', false, v); }
+    else if (String(m.value || '').trim()) return 1;   // amit már beírtak, nem írjuk felül
+    else szovegIr(m, v);
+    m.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); m.blur(); await var_(250);
+    return 1; }
   async function h321Lista(cim, lista) {
     const card = kartya(cim); if (!card) return { db: 0, hiba: [`nem találom: ${cim}`] };
     let db = 0; const hiba = [];
@@ -93,10 +138,14 @@
         inp = nevMezok(card).find(i => nevNorm(i.value) === nevNorm(x.n)) || inp; }
       const sor = sorElem(inp); if (!sor) { if (uj) db++; continue; }
       const jg = [...sor.querySelectorAll('input,textarea')].filter(i => lat(i) && i !== inp && !/név megad/i.test(i.placeholder || '') && !['checkbox', 'radio'].includes(i.type))[0];
-      if (jg && x.j && !String(jg.value || '').trim()) szovegIr(jg, x.j);
-      const tip = [...sor.querySelectorAll('select')].filter(lat)[0]; if (tip && x.t) selIr(tip, x.t);
-      await var_(150);
-      if (!(await eredmIr(sor, x.e))) hiba.push(`${x.n} (eredmény)`);
+      // a jegyzet a telefonszám; a korábbi bővítmény „mire · telefon · jegyzet” formájú bejegyzését is kicseréljük
+      if (jg && x.j && (!String(jg.value || '').trim() || (/ · /.test(jg.value) && kis(jg.value) !== kis(x.j)))) szovegIr(jg, x.j);
+      const cellak = [...sor.children].filter(lat);
+      if (x.t && !(await listaValaszt(cellak[2], x.t))) hiba.push(`${x.n} (típus: ${x.t})`);
+      await var_(250);
+      // Eredmény = a Sikerfüzetben írt jegyzet (szöveg); ha üres, a ✓ / ✕ jelölés
+      if (x.er) { if (!(await cellaSzoveg(cellak[3], x.er))) hiba.push(`${x.n} (eredmény)`); }
+      else if (x.e && x.e !== 'pending') { const ok = (await listaValaszt(cellak[3], '', EREDM_RE[x.e])) || (await eredmIr(sor, x.e)); if (!ok) hiba.push(`${x.n} (eredmény)`); }
       if (uj) db++;
       await var_(200);
     }
@@ -179,6 +228,18 @@
   const szovegIr = (el, v) => { if (!el || !v) return 0; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const d = Object.getOwnPropertyDescriptor(proto, 'value'); el.focus(); d.set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); return 1; };
+  // szín: az ablak színválasztójából a Sikerfüzet-színhez legközelebbi korong / négyzet
+  const rgb = s => { const m = String(s).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/); if (m) return m[4] === '0' ? null : [+m[1], +m[2], +m[3]];
+    const h = String(s).replace('#', ''); return h.length === 6 ? [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)) : null; };
+  async function szinValaszt(ab, hex) {
+    const cel = rgb(hex); if (!cel) return 0;
+    let gy = ab; const f = felirat(ab, 'Szín')[0] || felirat(ab, 'Színek')[0]; if (f) for (let p = f.parentElement; p && p !== ab.parentElement; p = p.parentElement) { if (p.querySelectorAll('button,[role="radio"],span,div').length > 3) { gy = p; break; } }
+    const korong = [...gy.querySelectorAll('button,[role="radio"],span,div,label')].filter(x => { if (!lat(x) || x.closest('#sfejPanel')) return false; const r = x.getBoundingClientRect();
+      if (r.width < 10 || r.width > 48 || Math.abs(r.width - r.height) > 6) return false; const c = rgb(getComputedStyle(x).backgroundColor); return c && !(c[0] > 245 && c[1] > 245 && c[2] > 245); });
+    if (korong.length < 3) return 0;
+    const tav = x => { const c = rgb(getComputedStyle(x).backgroundColor); return (c[0] - cel[0]) ** 2 + (c[1] - cel[1]) ** 2 + (c[2] - cel[2]) ** 2; };
+    const best = korong.sort((a, b) => tav(a) - tav(b))[0]; const r = best.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(150);
+    return 1; }
   // az idő beírása: a Journal időmezői maszkolt / saját komponensek, a sima értékadás nem mindig jut át –
   // ezért kijelölés + „gépelés” (insertText), és ellenőrizzük, hogy tényleg az lett-e az érték
   const idoNorm = s => { const m = String(s || '').match(/(\d{1,2})\s*[:.]\s*(\d{2})/); return m ? `${m[1].padStart(2, '0')}:${m[2]}` : ''; };
@@ -204,67 +265,72 @@
     const osz = await varjRa(() => { const l = napOszlopok(); return l.length >= 5 ? l : null; }, 6000); if (!osz) return { db: 0, hiba: ['a heti naptár nem található'] };
     const { sfejKesz = {} } = await chrome.storage.local.get('sfejKesz');
     const hetben = lista.filter(e => osz.some(o => o.md === e.d.slice(5)));
-    const ide = hetben.filter(e => !sfejKesz[e.id]);
-    let db = 0, fr = 0; const hiba = [], frissitett = new Set();
-    const levelCim = cim => [...document.querySelectorAll('*')].find(x => lat(x) && x.children.length === 0 && !x.closest('#sfejPanel') && kis(x.innerText) === kis(cim));
-    // 1) a már átvitt időpontok állapota: ha a Sikerfüzetben azóta megtörtént / elmaradt lett, itt is átállítjuk
-    for (const e of hetben) {
-      const reg = sfejKesz[e.id]; if (!reg) continue;
-      if (reg === allKod(e.all) || (reg === 1 && !e.all)) { if (reg === 1) sfejKesz[e.id] = allKod(e.all); continue; }
-      if (frissitett.has(e.id)) continue; frissitett.add(e.id);
-      const lev = levelCim(e.cim); if (!lev) continue;
-      (lev.closest('a,[role="button"],.fc-event') || lev).click();
-      const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (állapot)'); continue; }
-      const okA = allapotIr(ab, e.all); await var_(250);
-      const ment = gombSzoveg(ab, 'Mentés')[0];
-      if (okA && ment){ ment.click(); if (await varjRa(() => !ablak(), 4000)) { fr++; sfejKesz[e.id] = allKod(e.all); await chrome.storage.local.set({ sfejKesz }); continue; } }
-      hiba.push(e.cim + ' (állapot)'); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); await var_(400);
-    }
-    for (const e of ide) {
-      // már ott van (pl. kézzel felvitték)? – azonos cím a naptárban
-      if (levelCim(e.cim)) { sfejKesz[e.id] = e.all ? 'a:?' : 1; continue; }
-      const o = napOszlopok().find(x => x.md === e.d.slice(5)); if (!o) { hiba.push(e.cim); continue; }
-      const [hh, mm] = e.k.split(':').map(Number);
-      let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(300); c = oraCimke(hh, o.el.getBoundingClientRect().left); }
-      const r = o.el.getBoundingClientRect(), x = r.left + r.width / 2;
-      let y; if (c) { const c2 = oraCimke(hh + 1, r.left), cr = c.getBoundingClientRect(), mag = c2 ? c2.getBoundingClientRect().top - cr.top : 60;
-        y = cr.top + Math.min(mag - 4, Math.max(4, mag * mm / 60 + 4)); } else y = r.bottom + 40;
-      egerrel(x, y);
-      const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim); continue; }
-      // a dátum: az ablak a kattintott napot mutatja – ellenőrizzük
-      const [, mo, nap] = e.d.split('-').map(Number), datSz = `${HO_ROV[mo - 1]} ${nap}.`;
-      const datIn = [...ab.querySelectorAll('input[type="date"]')][0];
-      if (datIn) ir(datIn, e.d);
-      else if (!kis(ab.innerText).includes(kis(datSz))) { const m = gombSzoveg(ab, 'Mégse')[0]; if (m) m.click(); await var_(400); hiba.push(e.cim + ' (dátum)'); continue; }
+    let db = 0, fr = 0; const hiba = [];
+    // a nap oszlopának vízszintes sávja (a fejléc cellájából)
+    const savja = o => { const r = o.el.getBoundingClientRect(); return [r.left - 2, r.right + 2]; };
+    // egy időpont a naptárban – csak az adott nap oszlopában (az ismétlődő, azonos című események miatt)
+    const levelCimNap = (cim, o) => { const [l, r] = savja(o), k = kis(cim);
+      return [...document.querySelectorAll('*')].find(x => { if (!lat(x) || x.children.length !== 0 || x.closest('#sfejPanel')) return false; const t = kis(x.innerText);
+        if (t !== k && !(t.length > k.length && t.endsWith(' ' + k))) return false; const b = x.getBoundingClientRect(), cx = b.left + b.width / 2; return cx >= l && cx <= r; }); };
+    // foglalt-e a pont: a fölötte lévő elemek között van-e egy esemény-blokk („9:00 - 9:30” szöveggel)
+    const foglalt = (x, y) => { let el = document.elementFromPoint(x, y); for (let i = 0; el && i < 7; i++, el = el.parentElement) { if (/\b\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\b/.test(el.innerText || '') && el.getBoundingClientRect().height < 900) return true; } return false; };
+    const ujE = ab => /új időpont/.test(kis(ab.innerText));
+    const megse = async () => { const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await var_(400); };
+    const kulcs = e => `${allKod(e.all)}|${e.k}-${e.v}`;
+    // az ablak kitöltése (új és meglévő időpontnál is)
+    async function kitolt(ab, e, uj) {
       const inp = [...ab.querySelectorAll('input,textarea')].filter(lat);
-      const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text');
-      // típus: a csempe nem mindig <button> – bármilyen elem, aminek a szövege pontosan a típus neve; előbb a típus, utána a cím
-      // (a típusválasztás egyes esetekben a címet is átírhatja)
-      if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
-      ir(cimIn, e.cim);
-      // kezdés, majd a befejezés – a kezdés átírása után a mezők újrarajzolódhatnak, ezért újra megkeressük őket
+      if (uj) { if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
+        const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text'); ir(cimIn, e.cim); }
       const idoMezok = () => [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}\s*[:.]\s*\d{2}$/.test(String(i.value).trim())));
       let im = idoMezok(); const okK = im[0] ? await idoIr(im[0], e.k) : 0; await var_(200);
       im = idoMezok(); const okV = im[1] ? await idoIr(im[1], e.v) : 0; await var_(150);
       if (!okK || !okV) hiba.push(e.cim + ' (időpont: ' + e.k + '–' + e.v + ')');
-      const holIn = mezoFelirat(ab, ['Hol', 'Helyszín'], 'input,textarea') || inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) szovegIr(holIn, e.hol);
-      const jgIn = mezoFelirat(ab, ['Jegyzet', 'Megjegyzés', 'Leírás', 'Megjegyzések'], 'textarea,input') || [...ab.querySelectorAll('textarea')].find(lat); if (jgIn && e.jegyzet && jgIn !== holIn) szovegIr(jgIn, e.jegyzet);
+      const holIn = mezoFelirat(ab, ['Hol', 'Helyszín'], 'input,textarea') || inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || ''));
+      if (holIn && e.hol && !String(holIn.value || '').trim()) szovegIr(holIn, e.hol);
+      const jgIn = mezoFelirat(ab, ['Jegyzet', 'Megjegyzés', 'Leírás', 'Megjegyzések'], 'textarea,input') || [...ab.querySelectorAll('textarea')].find(lat);
+      if (jgIn && e.jegyzet && jgIn !== holIn && !String(jgIn.value || '').trim()) szovegIr(jgIn, e.jegyzet);
       allapotIr(ab, e.all);
+      if (e.szin) await szinValaszt(ab, e.szin);
       await var_(250);
-      const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) { hiba.push(e.cim); continue; }
-      ment.click();
-      if (await varjRa(() => !ablak(), 4000)) { db++; sfejKesz[e.id] = allKod(e.all); await chrome.storage.local.set({ sfejKesz }); }
-      else { hiba.push(e.cim); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); }
-      await var_(500);
+      const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) return false;
+      ment.click(); return !!(await varjRa(() => !ablak(), 4000));
     }
-    // a cím alapján már ott lévő (kézzel felvitt) időpontok állapota
-    for (const e of lista.filter(x => sfejKesz[x.id] === 'a:?' && osz.some(o => o.md === x.d.slice(5)))) {
-      const lev = levelCim(e.cim); if (!lev) continue;
-      (lev.closest('a,[role="button"],.fc-event') || lev).click();
-      const ab = await varjRa(ablak, 4000); if (!ab) continue;
-      const okA = allapotIr(ab, e.all); await var_(250); const ment = gombSzoveg(ab, 'Mentés')[0];
-      if (okA && ment){ ment.click(); if (await varjRa(() => !ablak(), 4000)) { fr++; sfejKesz[e.id] = allKod(e.all); continue; } }
-      const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); await var_(400);
+    for (const e of hetben) {
+      const o = napOszlopok().find(x => x.md === e.d.slice(5)); if (!o) { hiba.push(e.cim); continue; }
+      const reg = sfejKesz[e.id];
+      const [hh, mm] = e.k.split(':').map(Number);
+      let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(250); }
+      const lev = levelCimNap(e.cim, o);
+      if (lev) {
+        // megvan ezen a napon: ha az idő vagy a megvalósulás még nem egyezik (vagy régi bejegyzés), frissítjük
+        if (reg === kulcs(e)) continue;
+        (lev.closest('a,[role="button"],.fc-event') || lev).click();
+        const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (frissítés)'); continue; }
+        if (ujE(ab)) { await megse(); hiba.push(e.cim + ' (frissítés)'); continue; }
+        if (await kitolt(ab, e, false)) { fr++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); }
+        else { hiba.push(e.cim + ' (frissítés)'); await megse(); }
+        await var_(400); continue;
+      }
+      // nincs ott: ha mi vittük át korábban és azóta eltűnt, a felhasználó törölte – nem hozzuk vissza
+      // (a korábbi hiba miatt „már ott van”-nak jelöltek – 1 vagy 'a:?' – viszont pótlódnak)
+      if (reg && reg !== 1 && reg !== 'a:?') continue;
+      // új időpont: egy szabad pontra kattintunk az adott nap oszlopában (foglalt helyre kattintva a meglévő nyílna meg)
+      c = oraCimke(hh, o.el.getBoundingClientRect().left);
+      const r = o.el.getBoundingClientRect(), xs = [r.left + r.width / 2, r.right - 8, r.left + 10];
+      const ys = []; if (c) { const c2 = oraCimke(hh + 1, r.left), cr = c.getBoundingClientRect(), mag = c2 ? c2.getBoundingClientRect().top - cr.top : 60; ys.push(cr.top + Math.min(mag - 4, Math.max(4, mag * mm / 60 + 4))); }
+      for (let h = 6; h <= 22; h++) { const ch = oraCimke(h, r.left); if (ch) { const t = ch.getBoundingClientRect().top + 10; if (t > 0 && t < innerHeight - 10) ys.push(t); } }
+      let ab = null;
+      for (const y of ys) { for (const x of xs) { if (foglalt(x, y)) continue; egerrel(x, y); ab = await varjRa(ablak, 3000); if (ab && !ujE(ab)) { await megse(); ab = null; } if (ab) break; } if (ab) break; }
+      if (!ab) { hiba.push(e.cim + ' (nem találtam szabad helyet a napon)'); continue; }
+      // a dátum: az ablak a kattintott napot mutatja – ellenőrizzük
+      const [, mo, nap] = e.d.split('-').map(Number), datSz = `${HO_ROV[mo - 1]} ${nap}.`;
+      const datIn = [...ab.querySelectorAll('input[type="date"]')][0];
+      if (datIn) ir(datIn, e.d);
+      else if (!kis(ab.innerText).includes(kis(datSz))) { await megse(); hiba.push(e.cim + ' (dátum)'); continue; }
+      if (await kitolt(ab, e, true)) { db++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); }
+      else { hiba.push(e.cim); await megse(); }
+      await var_(500);
     }
     await chrome.storage.local.set({ sfejKesz });
     return { db, fr, hiba };
