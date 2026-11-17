@@ -106,6 +106,18 @@
     Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, op.value);
     sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true }));
     return true; };
+  // az „Időpont típusa” csempéi közül a megadott kiválasztása (gomb, címke, div – amelyik épp)
+  async function tipusValaszt(ab, tip) {
+    if (!tip) return true;
+    const jel = [...ab.querySelectorAll('button,[role="button"],[role="radio"],label,a,div,span,li')].filter(x => lat(x) && !x.closest('#sfejPanel,input,select,textarea') && kis(x.innerText) === kis(tip));
+    if (!jel.length) return false;
+    // a legkülső ilyen elem a csempe (a belső span csak a felirat)
+    const cs = jel.find(x => !jel.some(y => y !== x && y.contains(x))) || jel[0];
+    const kat = cs.closest('button,[role="button"],[role="radio"],label,a') || cs;
+    const r = kat.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(200);
+    const radio = kat.querySelector('input[type="radio"]') || (kat.htmlFor && document.getElementById(kat.htmlFor));
+    if (radio && !radio.checked) { radio.click(); await var_(150); }
+    return true; }
   const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
   // a megnyitott hét naptárába beírja az ide eső, még át nem vitt OVB-időpontokat
   async function idopontokKitolt() {
@@ -149,8 +161,10 @@
       else if (!kis(ab.innerText).includes(kis(datSz))) { const m = gombSzoveg(ab, 'Mégse')[0]; if (m) m.click(); await var_(400); hiba.push(e.cim + ' (dátum)'); continue; }
       const inp = [...ab.querySelectorAll('input,textarea')].filter(lat);
       const cimIn = inp.find(i => /^cím/i.test(i.placeholder || '')) || inp.find(i => i.type === 'text');
+      // típus: a csempe nem mindig <button> – bármilyen elem, aminek a szövege pontosan a típus neve; előbb a típus, utána a cím
+      // (a típusválasztás egyes esetekben a címet is átírhatja)
+      if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
       ir(cimIn, e.cim);
-      const tg = gombSzoveg(ab, e.tip)[0]; if (tg) { tg.click(); await var_(150); }
       const idok = [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}:\d{2}$/.test(i.value)));
       if (idok[0]) idoIr(idok[0], e.k); await var_(100); if (idok[1]) idoIr(idok[1], e.v);
       const holIn = inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) ir(holIn, e.hol);

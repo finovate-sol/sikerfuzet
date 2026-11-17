@@ -1720,6 +1720,9 @@
         .cal-ly-sub { color:var(--muted); font-size:12px; margin:0 0 10px; }
         .cal-ly-ures { color:var(--muted); font-size:12.5px; margin:0 0 12px; }
         /* kompakt sor: szín · név (+ kis felirat) · kapcsoló – egy sorban (a .modal-body label blokk-szabálya felett) */
+        .bl-ejt-l { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:8px 16px; margin:8px 0 12px; }
+        .bl-ejt-s { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13.5px; font-weight:600; }
+        .bl-ejt-s select { min-width:140px; height:34px; border:1px solid #d6dde8; border-radius:8px; padding:0 8px; font:inherit; font-weight:500; background:#fff; }
         .cal-ly-ful { display:flex; gap:4px; padding:4px; border-radius:12px; background:#eef1f6; margin:0 0 12px; }
         .cal-ly-ful button { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:38px; border:0; border-radius:9px; background:none; font:inherit; font-size:14px; font-weight:700; color:#475569; cursor:pointer; transition:background .15s, box-shadow .15s; }
         .cal-ly-ful button em { font-style:normal; font-size:12px; font-weight:700; padding:1px 8px; border-radius:999px; background:#dfe5ee; color:#475569; }
@@ -17133,6 +17136,13 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
                 <div class="bl-ej-m"><label>E-mail<input type="email" id="blEjEmail" autocomplete="off" value="${esc(ej ? ej.email : '')}" placeholder="pl. nev@ovb.hu"></label>
                 <label>Jelszó<input type="password" id="blEjJelszo" autocomplete="new-password" value="${esc(ej ? ej.jelszo : '')}" placeholder="••••••••"></label></div>
                 <div class="bl-ej-g"><button type="button" class="btn primary" data-blejment>Mentés</button>${ej ? '<button type="button" class="btn" data-blejtorol>Törlés</button>' : ''}<span class="bl-ej-uzi" role="status">${ej ? 'Megadva ✓' : ''}</span></div></section>`);
+            // Erfolgsjournal típus-párosítás
+            const EJT = ['Elemzés', 'Tanácsadás', 'Szerviz', 'FI', 'TOB', 'PG', 'Info', 'Interjú', 'Kávés találkozó', 'Telefonparti', 'MAG-nap', 'Tréning', 'Egyéb'];
+            const tab = window.sfEjTipusTabla ? window.sfEjTipusTabla() : {}, sft = window.sfEjOvbTipusok ? window.sfEjOvbTipusok() : Object.keys(tab);
+            host.insertAdjacentHTML('beforeend', `<section class="card bl-k bl-ejt"><h3>Erfolgsjournal – időpont-típusok párosítása</h3>
+                <p class="bl-megj">Melyik Sikerfüzet-típus melyik Erfolgsjournal-típusként kerüljön át az „Új időpont” ablakba. Ami „— ne kerüljön át —”, azt a bővítmény kihagyja.</p>
+                <div class="bl-ejt-l">${sft.map(n => `<label class="bl-ejt-s"><span>${esc(n)}</span><select data-blejt="${esc(n)}"><option value="">— ne kerüljön át —</option>${EJT.map(j => `<option${tab[n] === j ? ' selected' : ''}>${esc(j)}</option>`).join('')}</select></label>`).join('')}</div>
+                <div class="bl-ej-g"><button type="button" class="btn" data-blejtalap>Alapértelmezés</button><span class="bl-ej-uzi" id="blEjtUzi" role="status"></span></div></section>`);
         } else if(k === 'logok'){
             host.innerHTML = '<section class="card bl-k"><div class="bl-beagy">' + window.sfVaz(2) + '</div></section>';
             if(typeof pzIkonModal === 'function') await pzIkonModal(host.querySelector('.bl-beagy'));
@@ -17141,6 +17151,16 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
             if(typeof window.sfAdmSzekcio === 'function') await window.sfAdmSzekcio(k, host);
         }
     }
+    document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-blejt]'); if(!s) return;
+        const alap = window.EJ_TIPUS_ALAP || {}, f = {}; document.querySelectorAll('[data-blejt]').forEach(x => { if(x.value !== (alap[x.dataset.blejt] || '')) f[x.dataset.blejt] = x.value; });
+        try { localStorage.setItem('sf_ej_tipus', JSON.stringify(f)); } catch(_){}
+        if(typeof prvBetolt === 'function') prvBetolt('beall').then(b => { b.ejTipus = f; prvMent('beall'); }).catch(() => {});
+        const u = document.getElementById('blEjtUzi'); if(u) u.textContent = 'Mentve ✓ – a következő átvitelnél már így megy.';
+        if(typeof ejBovnekAd === 'function'){ try { ejEsem = null; ejBovnekAd(); } catch(_){} } });
+    document.addEventListener('click', e => { if(!e.target.closest('[data-blejtalap]')) return;
+        try { localStorage.removeItem('sf_ej_tipus'); } catch(_){} if(typeof prvBetolt === 'function') prvBetolt('beall').then(b => { delete b.ejTipus; prvMent('beall'); }).catch(() => {});
+        const alap = window.EJ_TIPUS_ALAP || {}; document.querySelectorAll('[data-blejt]').forEach(x => { x.value = alap[x.dataset.blejt] || ''; });
+        const u = document.getElementById('blEjtUzi'); if(u) u.textContent = 'Visszaállítva.'; });
     window.sfShowBeallitasok = function(){
         const host = document.getElementById('beallBody'); if(!host) return;
         const mbt = document.getElementById('mbTitle'); if(mbt) mbt.textContent = 'Beállítások';
@@ -25206,9 +25226,11 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.7.1';  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
+var EJ_BOV_KELL = '1.7.2';
+setTimeout(function ejTipusFelho(){ if(typeof prvBetolt !== 'function' || !window.sfCurrentUser) return setTimeout(ejTipusFelho, 3000);
+    prvBetolt('beall').then(b => { if(b && b.ejTipus && !localStorage.getItem('sf_ej_tipus')) try { localStorage.setItem('sf_ej_tipus', JSON.stringify(b.ejTipus)); } catch(_){} }).catch(() => {}); }, 4000);  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.1'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.2'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
@@ -41393,6 +41415,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         "PG": "PG", "Training": "Tréning", "Oktatás": "Tréning", "Felvételi 1": "Interjú", "Felvételi 2": "Interjú",
         "Munkatársnyerő": "MAG-nap", "Rendezvény": "Egyéb", "Vezetőségi": "Egyéb" };
     const EJ_UGYFEL = ["Elemzés", "Tanácsadás", "Szerviz"];
+    // A párosítás a Beállítások → Kapcsolatok alatt felülírható (felhasználónként: ezen az eszközön és a fiókban is); "" = ne kerüljön át
+    window.EJ_TIPUS_ALAP = EJ_TIPUS;
+    window.sfEjTipusTabla = () => { let f = {}; try { f = JSON.parse(localStorage.getItem("sf_ej_tipus") || "{}") || {}; } catch(_){} return Object.assign({}, EJ_TIPUS, f); };
+    window.sfEjOvbTipusok = () => EVENT_TYPES.filter(t => t.ovb).map(t => t.label);
     window.sfOvbIdopontok = async (tol, ig) => {
         let token = getCalendarToken() || await silentOnce();
         if (!token) return null;
@@ -41405,8 +41431,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const sp = splitEventTitle(clean), low = clean.toLowerCase();
             // a cím kódja / kulcsszava; plusz néhány gyakori írásmód, amit a naptár-színezés nem ismer
             let t = sp.type || (/mt\s*nyerő|mag-?nap/.test(low) ? tipusa("Munkatársnyerő") : /pg\b/.test(low) ? tipusa("PG") : null);
-            if (!t || !t.ovb || !EJ_TIPUS[t.label]) return null;
-            const tip = EJ_TIPUS[t.label], alap = String(sp.base || clean).replace(/\s+/g, " ").trim();
+            const TAB = window.sfEjTipusTabla();
+            if (!t || !t.ovb || !TAB[t.label]) return null;
+            const tip = TAB[t.label], alap = String(sp.base || clean).replace(/\s+/g, " ").trim();
             const cim = EJ_UGYFEL.includes(t.label) ? (tip + " " + alap).trim()
                 : t.suffix ? (t.label + " " + alap).trim() : alap || t.label;
             const k = new Date(ev.start.dateTime), v = new Date(ev.end && ev.end.dateTime || ev.start.dateTime);
