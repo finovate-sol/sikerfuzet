@@ -1717,6 +1717,14 @@
         .cal-layers-n { font-size:10.5px; font-weight:800; color:var(--blue); }
         .cal-layers-n:empty { display:none; }
         .cal-ly-modal { max-width:420px; }
+        .cal-ly-modal.ket { max-width:880px; width:calc(100vw - 48px); }
+        .cal-ly-ket { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .cal-ly-osz { background:#f4f6fa; border-radius:14px; padding:8px 10px 10px; min-height:180px; transition:background .15s, box-shadow .15s; }
+        .cal-ly-osz.cel { background:#e7efff; box-shadow:inset 0 0 0 2px #2f5fd0; }
+        .cal-ly-osz .cal-ly-sor { background:#fff; border-bottom:0; margin-top:6px; border-radius:10px; }
+        .cal-ly-oszf { display:flex; align-items:center; gap:8px; padding:4px 4px 2px; } .cal-ly-oszf b { font-size:15px; color:#1f3b73; }
+        .cal-ly-oszf em { font-style:normal; font-size:12px; font-weight:700; padding:1px 8px; border-radius:999px; background:#dfe5ee; color:#475569; }
+        .cal-ly-oszf span { margin-left:auto; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#94a3b8; }
         .cal-ly-sub { color:var(--muted); font-size:12px; margin:0 0 10px; }
         .cal-ly-ures { color:var(--muted); font-size:12.5px; margin:0 0 12px; }
         /* kompakt sor: szín · név (+ kis felirat) · kapcsoló – egy sorban (a .modal-body label blokk-szabálya felett) */
@@ -41604,6 +41612,14 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             };
             const mind = calLista.slice().sort((a, b) => foE(b) - foE(a)), lista = mind.filter(c => calCsopOf(c) === lyFul);
             const db = k => mind.filter(c => calCsopOf(c) === k).length;
+            // széles képernyőn a két oldal egymás mellett – egyből látszik mindkettő, a naptár a másik oszlopba húzható
+            const szeles = innerWidth >= 860; overlay.querySelector(".cal-ly-modal").classList.toggle("ket", szeles);
+            if (szeles){ const OSZ = [["sajat", "Saját"], ["csapat", "Csapat"]];
+                body.innerHTML = `<p class="cal-ly-sub">A naptárnézet fölötti <b>Saját / Csapat</b> váltóval lapozol a két oldal között. Egy naptárat a fogantyúnál (⋮⋮) megfogva a másik oszlopba húzhatsz.</p>
+                    <div class="cal-ly-ket">${OSZ.map(([k, n]) => { const l = mind.filter(c => calCsopOf(c) === k);
+                        return `<section class="cal-ly-osz" data-lyful="${k}" data-lyosz="${k}"><div class="cal-ly-oszf"><b>${n}</b><em>${l.length}</em><span data-lydb="${k}">Bekapcsolva: ${l.filter(lathato).length} / ${l.length}</span></div>
+                            ${l.map(sor).join("") || `<p class="cal-ly-ures">Húzz ide egy naptárat.</p>`}</section>`; }).join("")}</div>`;
+                return; }
             body.innerHTML = `<div class="cal-ly-ful" role="tablist">${[["sajat", "Saját"], ["csapat", "Csapat"]].map(([k, n]) => `<button type="button" role="tab" data-lyful="${k}" class="${lyFul === k ? "on" : ""}" aria-selected="${lyFul === k}">${n}<em>${db(k)}</em></button>`).join("")}</div>
                 <p class="cal-ly-sub">A naptárnézet fölötti <b>Saját / Csapat</b> váltóval lapozol a két oldal között. Egy naptárat a bal oldali fogantyúnál megfogva a másik fülre húzhatsz.</p>
                 <div class="cal-ly-cs" id="calLyDb">Bekapcsolva: ${lista.filter(lathato).length} / ${lista.length}</div>${lista.map(sor).join("") || `<p class="cal-ly-ures">Ezen az oldalon még nincs naptár – húzz ide egyet a másik fülről.</p>`}`;
@@ -41614,18 +41630,18 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const f = e.target.closest("[data-lyfog]"); if (!f) return;
             e.preventDefault(); const sorEl = f.closest(".cal-ly-sor"), r = sorEl.getBoundingClientRect();
             const g = sorEl.cloneNode(true); g.classList.add("cal-ly-szellem"); g.style.width = r.width + "px"; g.style.left = r.left + "px"; g.style.top = r.top + "px"; document.body.appendChild(g);
-            sorEl.classList.add("huzva"); huz = { id: f.dataset.lyfog, g, sorEl, dy: e.clientY - r.top, x0: r.left };
+            sorEl.classList.add("huzva"); huz = { id: f.dataset.lyfog, g, sorEl, dy: e.clientY - r.top, dx: e.clientX - r.left, x0: r.left, forras: (sorEl.closest("[data-lyosz]") || {}).dataset ? (sorEl.closest("[data-lyosz]") || { dataset: {} }).dataset.lyosz || lyFul : lyFul };
             try { f.setPointerCapture(e.pointerId); } catch(_){}
         });
-        const celFul = (x, y) => { const el = document.elementFromPoint(x, y); const t = el && el.closest("[data-lyful]"); return t && t.dataset.lyful !== lyFul ? t : null; };
-        overlay.addEventListener("pointermove", e => { if (!huz) return; huz.g.style.top = (e.clientY - huz.dy) + "px"; huz.g.style.display = "none"; const t = celFul(e.clientX, e.clientY); huz.g.style.display = "";
+        const celFul = (x, y) => { const el = document.elementFromPoint(x, y); const t = el && el.closest("[data-lyful]"); return t && t.dataset.lyful !== ((huz && huz.forras) || lyFul) ? t : null; };
+        overlay.addEventListener("pointermove", e => { if (!huz) return; huz.g.style.top = (e.clientY - huz.dy) + "px"; if (overlay.querySelector(".cal-ly-modal.ket")) huz.g.style.left = (e.clientX - huz.dx) + "px"; huz.g.style.display = "none"; const t = celFul(e.clientX, e.clientY); huz.g.style.display = "";
             overlay.querySelectorAll("[data-lyful]").forEach(b => b.classList.toggle("cel", b === t)); });
         const huzVege = e => { if (!huz) return; const h = huz; huz = null; h.g.style.display = "none"; const t = e && celFul(e.clientX, e.clientY); h.g.remove(); h.sorEl.classList.remove("huzva");
             overlay.querySelectorAll("[data-lyful]").forEach(b => b.classList.remove("cel"));
             if (t){ calCsop[h.id] = t.dataset.lyful; calLathatoMent(); valtozott = true; rajzol(); const b = overlay.querySelector(`[data-lyful="${t.dataset.lyful}"]`); if (b){ b.classList.add("kapta"); setTimeout(() => b.classList.remove("kapta"), 700); } } };
         overlay.addEventListener("pointerup", huzVege); overlay.addEventListener("pointercancel", () => huzVege(null));
         overlay.addEventListener("click", async e => {
-            const tf = e.target.closest("[data-lyful]"); if (tf){ lyFul = tf.dataset.lyful; rajzol(); return; }
+            const tf = e.target.closest("button[data-lyful]"); if (tf){ lyFul = tf.dataset.lyful; rajzol(); return; }
             if (e.target.closest("[data-lyfog]")){ e.preventDefault(); return; }
             if (e.target === overlay || e.target.closest("[data-lyok]")) return bezar();
             if (e.target.closest("[data-lyle]")){
@@ -41644,6 +41660,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         overlay.addEventListener("change", e => {
             const i = e.target.closest("[data-lyid]"); if (!i) return;
             calLathato[i.dataset.lyid] = i.checked; calLathatoMent(); valtozott = true;
+            overlay.querySelectorAll("[data-lydb]").forEach(d => { const l = [...overlay.querySelectorAll(`[data-lyosz="${d.dataset.lydb}"] [data-lyid]`)]; d.textContent = `Bekapcsolva: ${l.filter(x => x.checked).length} / ${l.length}`; });
             const db = overlay.querySelector("#calLyDb"); if (db){ const l = [...overlay.querySelectorAll("[data-lyid]")]; db.textContent = `Bekapcsolva: ${l.filter(x => x.checked).length} / ${l.length}`; }
         });
         rajzol();
