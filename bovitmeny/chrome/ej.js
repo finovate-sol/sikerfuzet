@@ -280,9 +280,12 @@
     // a nap oszlopának vízszintes sávja (a fejléc cellájából)
     const savja = o => { const r = o.el.getBoundingClientRect(); return [r.left - 2, r.right + 2]; };
     // egy időpont a naptárban – csak az adott nap oszlopában (az ismétlődő, azonos című események miatt)
+    // a Journal a hosszú címeket levágva rajzolja ki („OTP -…”) – a levágott elejét is elfogadjuk
+    const cimEgyezik = (t, k) => { if (t === k || (t.length > k.length && t.endsWith(' ' + k))) return true;
+      const m = t.match(/^(.*?)\s*(…|\.\.\.)$/); if (!m) return false; const p = m[1].trim(); return p.length >= 3 && (k.startsWith(p) || k.includes(' ' + p)); };
     const levelCimNap = (cim, o) => { const [l, r] = savja(o), k = kis(cim);
-      return [...document.querySelectorAll('*')].find(x => { if (!lat(x) || x.children.length !== 0 || x.closest('#sfejPanel')) return false; const t = kis(x.innerText);
-        if (t !== k && !(t.length > k.length && t.endsWith(' ' + k))) return false; const b = x.getBoundingClientRect(), cx = b.left + b.width / 2; return cx >= l && cx <= r; }); };
+      return [...document.querySelectorAll('*')].find(x => { if (!lat(x) || x.children.length !== 0 || x.closest('#sfejPanel')) return false;
+        if (!cimEgyezik(kis(x.innerText), k)) return false; const b = x.getBoundingClientRect(), cx = b.left + b.width / 2; return cx >= l && cx <= r; }); };
     // foglalt-e a pont: a fölötte lévő elemek között van-e egy esemény-blokk („9:00 - 9:30” szöveggel)
     const foglalt = (x, y) => { let el = document.elementFromPoint(x, y); for (let i = 0; el && i < 7; i++, el = el.parentElement) { if (/\b\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\b/.test(el.innerText || '') && el.getBoundingClientRect().height < 900) return true; } return false; };
     const ujE = ab => /új időpont/.test(kis(ab.innerText));
@@ -318,13 +321,13 @@
         (lev.closest('a,[role="button"],.fc-event') || lev).click();
         const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (frissítés)'); continue; }
         if (ujE(ab)) { await megse(); hiba.push(e.cim + ' (frissítés)'); continue; }
+        { const ci = [...ab.querySelectorAll('input')].find(i => lat(i) && /^cím/i.test(i.placeholder || '')) || [...ab.querySelectorAll('input')].find(i => lat(i) && i.type === 'text');
+          if (ci && kis(ci.value) !== kis(e.cim)) { await megse(); continue; } }
         if (await kitolt(ab, e, false)) { fr++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); }
         else { hiba.push(e.cim + ' (frissítés)'); await megse(); }
         await var_(400); continue;
       }
-      // nincs ott: ha mi vittük át korábban és azóta eltűnt, a felhasználó törölte – nem hozzuk vissza
-      // (a korábbi hiba miatt „már ott van”-nak jelöltek – 1 vagy 'a:?' – viszont pótlódnak)
-      if (reg && reg !== 1 && reg !== 'a:?') continue;
+      // nincs ott ezen a napon: felvesszük (a Journal kövesse a Sikerfüzetet – a korábbi hibás körökben elveszettek is pótlódnak)
       // új időpont: egy szabad pontra kattintunk az adott nap oszlopában (foglalt helyre kattintva a meglévő nyílna meg)
       c = oraCimke(hh, o.el.getBoundingClientRect().left);
       const r = o.el.getBoundingClientRect(), xs = [r.left + r.width / 2, r.right - 8, r.left + 10];
