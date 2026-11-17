@@ -7,9 +7,14 @@ document.documentElement.dataset.sfejBov = chrome.runtime.getManifest().version;
 window.addEventListener('message', e => {
   if (e.source !== window || !e.data || !e.data.sfejMent) return;
   const o = { sfejAdat: e.data.sfejMent, sfejIdo: Date.now() };
+  // ha ebben az átadásban még nincsenek időpontok (a Sikerfüzet épp most kéri le őket), a korábban átadottakat megtartjuk
+  if (!Array.isArray(o.sfejAdat.esem)) { chrome.storage.local.get('sfejAdat').then(r => { const reg = r && r.sfejAdat; if (reg && Array.isArray(reg.esem)) o.sfejAdat.esem = reg.esem; mentes(e, o); }, () => mentes(e, o)); return; }
+  mentes(e, o);
+});
+function mentes(e, o) {
   if (e.data.ut) o.sfejAuto = { ut: e.data.ut, ido: Date.now() };
   // Erfolgsjournal belépés (Sikerfüzet → Beállítások → Kapcsolatok); ha ott törölték, itt is töröljük
   if (e.data.belep && e.data.belep.email && e.data.belep.jelszo) o.sfejBelep = { email: e.data.belep.email, jelszo: e.data.belep.jelszo };
   else if ('belep' in e.data) { try { chrome.storage.local.remove('sfejBelep'); } catch (_) {} }
   try { chrome.storage.local.set(o); } catch (_) {}
-});
+}

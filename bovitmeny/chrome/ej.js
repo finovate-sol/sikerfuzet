@@ -443,6 +443,9 @@
             await var_(500);
             const uzi = hetKitolt(kw), m = uzi.match(/(\d+) mező/); f.db += m ? +m[1] : 0; ok = !!m;
             await var_(1800);   // az Erfolgsjournal automatikus mentésének ideje
+            // az időpontok a Sikerfüzetből késve is megjöhetnek (a háttérben kéri le őket) – legfeljebb 20 mp-ig várunk rájuk
+            if (!(adat.esem && adat.esem.length) && !f.vartEsem) { f.vartEsem = 1; rajz(`Egész hónap kitöltése…\n${kw}. hét – várakozás az időpontokra a Sikerfüzetből…`);
+              await varjRa(() => adat && Array.isArray(adat.esem), 20000); }
             if (adat.esem && adat.esem.length) { rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – időpontok`);
               try { const r = await idopontokKitolt(); f.idp = (f.idp || 0) + r.db; f.idfr = (f.idfr || 0) + (r.fr || 0); if (r.hiba.length) f.hiba.push(...r.hiba.map(x => `${kw}. hét: ${x}`)); } catch (_) {} }
             rajz(`Egész hónap kitöltése…\n${kw}. hét (${f.i + 1} / ${f.hetek.length}) – 3-2-1`);
