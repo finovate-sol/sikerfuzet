@@ -41485,8 +41485,14 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             return { id: ev.id, tip, cim, d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
                 k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "", ...(jegyzet ? { jegyzet } : {}), szin: (() => { try {
                     // saját naptár színe, kifejezett Google-szín vagy a felismert típus színe; ami egyik sem (Egyéb), az az Egyéb típus színe (nem az alapértelmezett kék)
-                    if (ev._szin) return ev._szin; if (ev.colorId && GCAL_HEX[ev.colorId]) return GCAL_HEX[ev.colorId];
-                    if (t) return GCAL_HEX[t.colorId] || ""; return GCAL_HEX[(EVENT_TYPES.find(x => x.label === "Egyéb") || {}).colorId || "5"];
+                    // OVB-s típus: a típus színe. Egyéb időpontnál a fajtája szerint: Munka → szürke, Sport → ibolyaszín, a többi (esemény) → citromsárga
+                    const SZ = l => GCAL_HEX[(EVENT_TYPES.find(x => x.label === l) || {}).colorId] || "";
+                    if (t && t.ovb) return GCAL_HEX[t.colorId] || "";
+                    const tn = String(ev.__nt || "").toLowerCase();
+                    const fajta = (t && (t.label === "Munka" || t.label === "Sport")) ? t.label
+                        : ev.colorId === "8" ? "Munka" : ev.colorId === "3" ? "Sport"
+                        : /sport|edzés|futás|gym|fitness/.test(tn) ? "Sport" : /munka|work|kft|otp|iroda|office/.test(tn) ? "Munka" : "Egyéb";
+                    return SZ(fajta) || SZ("Egyéb");
                 } catch(_){ return ""; } })(),
                 all: status || "" };   // "yes" = megtörtént, "no" = elmaradt, "" = még nincs
         }).filter(Boolean);
