@@ -282,7 +282,7 @@
     // egy időpont a naptárban – csak az adott nap oszlopában (az ismétlődő, azonos című események miatt)
     // a Journal a hosszú címeket levágva rajzolja ki („OTP -…”) – a levágott elejét is elfogadjuk
     const cimEgyezik = (t, k) => { if (t === k || (t.length > k.length && t.endsWith(' ' + k))) return true;
-      const m = t.match(/^(.*?)\s*(…|\.\.\.)$/); if (!m) return false; const p = m[1].trim(); return p.length >= 3 && (k.startsWith(p) || k.includes(' ' + p)); };
+      const m = t.match(/^(.*?)\s*(…|\.\.\.)$/); if (!m) return false; const p = m[1].trim(); return p.length >= 2 && (k.startsWith(p) || k.includes(' ' + p)); };
     const levelCimNap = (cim, o) => { const [l, r] = savja(o), k = kis(cim);
       return [...document.querySelectorAll('*')].find(x => { if (!lat(x) || x.children.length !== 0 || x.closest('#sfejPanel')) return false;
         if (!cimEgyezik(kis(x.innerText), k)) return false; const b = x.getBoundingClientRect(), cx = b.left + b.width / 2; return cx >= l && cx <= r; }); };
