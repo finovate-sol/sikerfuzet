@@ -25198,9 +25198,24 @@ function ejAdat(){
     lista.forEach(ho => {
         const d = loadHavi(ho), n = haviWeekRanges(ho).length;
         honapok[`${ho.getFullYear()}-${ho.getMonth() + 1}`] = { celPenz: ejSzam(d.celPenz), celES: ejSzam(d.celES), formula: d.formula.map(ejSzam),
-            hetek: Array.from({ length: n }, (_, w) => ({ kw: haviWeekKW(ho, w), cel: d.weeks[w].cel.map(ejSzam), van: d.weeks[w].van.map(ejSzam), szv: ejSzam(d.weeks[w].szv) })) };
+            hetek: Array.from({ length: n }, (_, w) => ({ kw: haviWeekKW(ho, w), cel: d.weeks[w].cel.map(ejSzam), van: d.weeks[w].van.map(ejSzam), szv: ejSzam(d.weeks[w].szv), ...ej321(ho, w) })) };
     });
     return { v: 1, akt: haviWeekKW(akt.monthDate, akt.weekIdx), honapok, ...(ejSor.length ? { sor: ejSor.slice() } : {}) };
+}
+// a hét 3-2-1 listája (Saját pénzem / Saját karrierem): a folyó TP-ciklusban az élő lista, korábban az elmentett
+// { h321: { penz: [{ n, j, t, e }], karr: [...] } } – j: jegyzet (mire · telefon · jegyzet), t: típus, e: ok | no | pending
+function ej321(ho, w){
+    try {
+        const ck = tpHetCiklus(ho, w), most = tpCiklusKulcs(), d = (typeof PRV !== 'undefined' && PRV.tp_hetek) || null;
+        const CEL = { E: 'Elemzés', TA: 'Tanácsadás', SZ: 'Szerviz', F1: 'Felvételi 1', F2: 'Felvételi 2' };
+        const ki = x => ({ n: String(x.name || '').trim(), j: [CEL[x.c] || x.c, x.phone, x.j].filter(Boolean).join(' · '), t: x.t || '', e: x.e || 'pending' });
+        let pill = null;
+        if(ck === most || (ck < most && d && d.ciklus === ck)){ const sor = l => hetSorok(l).map(({ r }) => { const m = HET_MEZO[l]; return { name: r.name, phone: r.phone, c: r[m.c], t: r[m.t], j: r[m.j], e: r[m.e] }; }); pill = { penz: sor('penz'), karr: sor('karr') }; }
+        else if(ck < most && d && d.hetek && d.hetek[ck]) pill = d.hetek[ck];
+        if(!pill) return {};
+        const o = { penz: (pill.penz || []).map(ki).filter(x => x.n).slice(0, HET_SOR.penz), karr: (pill.karr || []).map(ki).filter(x => x.n).slice(0, HET_SOR.karr) };
+        return o.penz.length || o.karr.length ? { h321: o } : {};
+    } catch(_){ return {}; }
 }
 // visszamenőleges átvitel: a még át nem vitt hónapok sora (a legrégebbitől), a bővítmény egymás után végigmegy rajtuk
 var ejSor = [];
@@ -25226,6 +25241,7 @@ window.sfEjBelep = {
 // az ügyfél-időpontokat (Google Naptár) a háttérben kérjük le, és amint megvannak, újra átadjuk
 let ejEsem = null, ejEsemFut = false;
 function ejBovnekAd(ut){
+    if(typeof PRV !== 'undefined' && !PRV.tp_hetek && typeof prvBetolt === 'function' && window.sfCurrentUser) prvBetolt('tp_hetek').then(() => { try { if(ejBovVerzio()) window.postMessage({ sfejMent: Object.assign(ejAdat(), ejEsem ? { esem: ejEsem } : {}), ut: '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} }).catch(() => {});
     // az átadás csak akkor megy, ha a bővítmény látja ezt a lapot; az időpontokat viszont mindig előre lekérjük,
     // hogy a megnyitó link (#sfej=…) is vigye őket – akkor is, ha a lap a bővítmény telepítése előtt nyílt meg
     const kuld = u => { if(!ejBovVerzio()) return; try { const a = ejAdat(); if(ejEsem) a.esem = ejEsem; window.postMessage({ sfejMent: a, ut: u || '', belep: window.sfEjBelep.olvas() }, location.origin); } catch(_){} };
@@ -25246,11 +25262,11 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.8.1';
+var EJ_BOV_KELL = '1.9.0';
 setTimeout(function ejTipusFelho(){ if(typeof prvBetolt !== 'function' || !window.sfCurrentUser) return setTimeout(ejTipusFelho, 3000);
     prvBetolt('beall').then(b => { if(b && b.ejTipus && !localStorage.getItem('sf_ej_tipus')) try { localStorage.setItem('sf_ej_tipus', JSON.stringify(b.ejTipus)); } catch(_){} }).catch(() => {}); }, 4000);  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.8.1'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.9.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
