@@ -276,7 +276,18 @@
     const osz = await varjRa(() => { const l = napOszlopok(); return l.length >= 5 ? l : null; }, 6000); if (!osz) return { db: 0, hiba: ['a heti naptár nem található'] };
     const { sfejKesz = {} } = await chrome.storage.local.get('sfejKesz');
     const hetben = lista.filter(e => osz.some(o => o.md === e.d.slice(5)));
-    let db = 0, fr = 0; const hiba = [];
+    let db = 0, fr = 0; const hiba = [], naplo = [];
+    // meglévő időpont megnyitása szerkesztésre: kattintás a blokkra; ha előbb egy összefoglaló nyílik, annak „Szerkesztés” gombja
+    async function meglevotNyit(lev) {
+      const blokk = lev.closest('a,[role="button"],.fc-event,[draggable="true"]') || lev.parentElement || lev;
+      const r = blokk.getBoundingClientRect(); egerrel(r.left + Math.min(20, r.width / 2), r.top + Math.min(12, r.height / 2));
+      let ab = await varjRa(ablak, 2000); if (ab) return ab;
+      blokk.click(); ab = await varjRa(ablak, 1500); if (ab) return ab;
+      const sz = ['Szerkesztés', 'Módosítás', 'Szerkeszt', 'Megnyitás'].map(t => gombSzoveg(document, t)[0]).find(Boolean)
+        || [...document.querySelectorAll('button,[role="button"],a')].find(x => lat(x) && !x.closest('#sfejPanel') && /szerkeszt|edit|módosít/i.test((x.getAttribute('aria-label') || '') + ' ' + (x.title || '')));
+      if (sz) { sz.click(); ab = await varjRa(ablak, 3000); if (ab) return ab; }
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await var_(300);
+      return null; }
     // a nap oszlopának vízszintes sávja (a fejléc cellájából)
     const savja = o => { const r = o.el.getBoundingClientRect(); return [r.left - 2, r.right + 2]; };
     // egy időpont a naptárban – csak az adott nap oszlopában (az ismétlődő, azonos című események miatt)
@@ -305,7 +316,8 @@
       const jgIn = mezoFelirat(ab, ['Jegyzet', 'Megjegyzés', 'Leírás', 'Megjegyzések'], 'textarea,input') || [...ab.querySelectorAll('textarea')].find(lat);
       if (jgIn && e.jegyzet && jgIn !== holIn && !String(jgIn.value || '').trim()) szovegIr(jgIn, e.jegyzet);
       allapotIr(ab, e.all);
-      if (e.szin) await szinValaszt(ab, e.szin);
+      if (e.szin && !(await szinValaszt(ab, e.szin))) naplo.push(`! ${e.d.slice(5)} ${e.cim}: a színt (${szinNev(e.szin)}) nem találtam az ablakban`);
+      if (!e.szin) naplo.push(`! ${e.d.slice(5)} ${e.cim}: a Sikerfüzet nem küldött színt (frissítsd a Sikerfüzet oldalát)`);
       await var_(250);
       const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) return false;
       ment.click(); return !!(await varjRa(() => !ablak(), 4000));
@@ -318,13 +330,13 @@
       const lev = levelCimNap(e.cim, o);
       if (lev) {
         // megvan ezen a napon: mindig átnézzük (idő, szín, megvalósulás), mert közben bármelyik oldalon változhatott
-        (lev.closest('a,[role="button"],.fc-event') || lev).click();
-        const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (frissítés)'); continue; }
+        const ab = await meglevotNyit(lev); if (!ab) { hiba.push(e.cim + ' (frissítés: nem nyílt meg a szerkesztő)'); naplo.push(`✕ ${e.d.slice(5)} ${e.cim}: nem nyílt meg`); continue; }
         if (ujE(ab)) { await megse(); hiba.push(e.cim + ' (frissítés)'); continue; }
         { const ci = [...ab.querySelectorAll('input')].find(i => lat(i) && /^cím/i.test(i.placeholder || '')) || [...ab.querySelectorAll('input')].find(i => lat(i) && i.type === 'text');
-          if (ci && kis(ci.value) !== kis(e.cim)) { await megse(); continue; } }
-        if (await kitolt(ab, e, false)) { fr++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); }
-        else { hiba.push(e.cim + ' (frissítés)'); await megse(); }
+          if (ci && kis(ci.value) !== kis(e.cim)) { naplo.push(`– ${e.d.slice(5)} ${e.cim}: másik időpont nyílt meg (${ci.value})`); await megse(); continue; } }
+        const szinOk = e.szin ? szinNev(e.szin) : '';
+        if (await kitolt(ab, e, false)) { fr++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); naplo.push(`✓ ${e.d.slice(5)} ${e.cim}: frissítve${szinOk ? ' (' + szinOk + ')' : ''}`); }
+        else { hiba.push(e.cim + ' (frissítés: mentés nem sikerült)'); naplo.push(`✕ ${e.d.slice(5)} ${e.cim}: mentés nem sikerült`); await megse(); }
         await var_(400); continue;
       }
       // nincs ott ezen a napon: felvesszük (a Journal kövesse a Sikerfüzetet – a korábbi hibás körökben elveszettek is pótlódnak)
@@ -335,18 +347,19 @@
       for (let h = 6; h <= 22; h++) { const ch = oraCimke(h, r.left); if (ch) { const t = ch.getBoundingClientRect().top + 10; if (t > 0 && t < innerHeight - 10) ys.push(t); } }
       let ab = null;
       for (const y of ys) { for (const x of xs) { if (foglalt(x, y)) continue; egerrel(x, y); ab = await varjRa(ablak, 3000); if (ab && !ujE(ab)) { await megse(); ab = null; } if (ab) break; } if (ab) break; }
-      if (!ab) { hiba.push(e.cim + ' (nem találtam szabad helyet a napon)'); continue; }
+      if (!ab) { hiba.push(e.cim + ' (nem találtam szabad helyet a napon)'); naplo.push(`✕ ${e.d.slice(5)} ${e.cim}: nincs szabad hely`); continue; }
       // a dátum: az ablak a kattintott napot mutatja – ellenőrizzük
       const [, mo, nap] = e.d.split('-').map(Number), datSz = `${HO_ROV[mo - 1]} ${nap}.`;
       const datIn = [...ab.querySelectorAll('input[type="date"]')][0];
       if (datIn) ir(datIn, e.d);
       else if (!kis(ab.innerText).includes(kis(datSz))) { await megse(); hiba.push(e.cim + ' (dátum)'); continue; }
-      if (await kitolt(ab, e, true)) { db++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); }
-      else { hiba.push(e.cim); await megse(); }
+      if (await kitolt(ab, e, true)) { db++; sfejKesz[e.id] = kulcs(e); await chrome.storage.local.set({ sfejKesz }); naplo.push(`+ ${e.d.slice(5)} ${e.cim}: felvéve${e.szin ? ' (' + szinNev(e.szin) + ')' : ''}`); }
+      else { hiba.push(e.cim); naplo.push(`✕ ${e.d.slice(5)} ${e.cim}: felvétel nem sikerült`); await megse(); }
       await var_(500);
     }
     await chrome.storage.local.set({ sfejKesz });
-    return { db, fr, hiba };
+    try { const { sfejNaplo = [] } = await chrome.storage.local.get('sfejNaplo'); await chrome.storage.local.set({ sfejNaplo: [...sfejNaplo, ...naplo].slice(-300) }); } catch (_) {}
+    return { db, fr, hiba, naplo };
   }
   // ---- automatikus belépés (e-mail + jelszó a Sikerfüzet beállításaiból) ----
   const belepoMezok = () => { const js = [...document.querySelectorAll('input[type="password"]')].find(lat); if (!js) return null;
@@ -395,6 +408,7 @@
         if (f.i >= f.hetek.length) {
           const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}${f.h321 ? `, ${f.h321} név a 3-2-1-be` : ''}.${adat && Array.isArray(adat.esem) ? '' : '\nIdőpontok: nem jöttek át a Sikerfüzetből (Google Naptár kapcsolat?).'}${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
           await chrome.storage.local.remove('sfejFeladat');
+          try { const { sfejNaplo = [] } = await chrome.storage.local.get('sfejNaplo'); if (sfejNaplo.length) f.naplo = sfejNaplo; await chrome.storage.local.remove('sfejNaplo'); } catch (_) {}
           // visszamenőleges sor: ha van még hónap utána, oda lépünk, és ott magától folytatódik
           const sor = (adat && adat.sor) || [], hk = `${f.ev}-${+f.ho}`, i = sor.indexOf(hk), kov = i >= 0 ? sor[i + 1] : null;
           const { sfejSorOssz = [] } = await chrome.storage.local.get('sfejSorOssz');
@@ -403,8 +417,10 @@
             rajz(`${f.ev}. ${f.ho}. kész ✓ – jön: ${ky}. ${km}.`); location.href = ut; return; }
           const ossz = sfejSorOssz.length ? 'Előző hónapok:\n' + sfejSorOssz.join('\n') + '\n\n' : '';
           await chrome.storage.local.remove('sfejSorOssz');
-          await chrome.storage.local.set({ sfejVege: ossz + vege });
-          rajz(ossz + vege);
+          const nap = f.naplo && f.naplo.length ? `\n\nIdőpontok:\n${f.naplo.slice(-60).join('\n')}` : '';
+          await chrome.storage.local.set({ sfejVege: ossz + vege + nap });
+          rajz(ossz + vege + nap);
+          panel.querySelector('[data-all]').style.cssText += ';max-height:60vh;overflow:auto;font-size:12px';
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
           return;
         }
@@ -488,7 +504,8 @@
           b3.textContent = r.nincs ? 'Erre a hétre nincs 3-2-1 lista a Sikerfüzetben' : `${r.db} név beírva ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b3.title = r.hiba.join('\n'); b3.disabled = false; }; }
       if (adat.esem && adat.esem.length) { const b = document.createElement('button'); b.style.cssText = gomb + ';margin-top:6px;width:100%;background:#fff;color:#0f2a52'; b.textContent = 'Időpontok beírása erre a hétre';
         panel.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = 'Beírás…'; const r = await idopontokKitolt();
-          b.textContent = `${r.db} időpont beírva${r.fr ? `, ${r.fr} állapot frissítve` : ''} ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n'); }; }
+          b.textContent = `${r.db} időpont beírva${r.fr ? `, ${r.fr} frissítve` : ''} ✓${r.hiba.length ? ' · nem sikerült: ' + r.hiba.length : ''}`; if (r.hiba.length) b.title = r.hiba.join('\n');
+          const all = panel.querySelector('[data-all]'); all.textContent = (r.naplo || []).join('\n') || 'Nincs teendő ezen a héten.'; all.style.cssText += ';max-height:50vh;overflow:auto;font-size:12px'; }; }
     }
   }
   // ha a Sikerfüzet közben átadja (vagy frissíti) a számokat, magától újrarajzolunk – nem kell gombot nyomni
