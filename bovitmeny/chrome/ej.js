@@ -127,7 +127,22 @@
   const szovegIr = (el, v) => { if (!el || !v) return 0; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const d = Object.getOwnPropertyDescriptor(proto, 'value'); el.focus(); d.set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); return 1; };
-  const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
+  // az idő beírása: a Journal időmezői maszkolt / saját komponensek, a sima értékadás nem mindig jut át –
+  // ezért kijelölés + „gépelés” (insertText), és ellenőrizzük, hogy tényleg az lett-e az érték
+  const idoNorm = s => { const m = String(s || '').match(/(\d{1,2})\s*[:.]\s*(\d{2})/); return m ? `${m[1].padStart(2, '0')}:${m[2]}` : ''; };
+  async function idoIr(el, v) {
+    if (!el || !v) return 0;
+    if (el.type === 'time') { ir(el, v); await var_(80); if (idoNorm(el.value) === v) return 1; }
+    for (let k = 0; k < 3; k++) {
+      el.focus(); el.click(); await var_(60);
+      try { el.select(); } catch (_) {} try { el.setSelectionRange(0, el.value.length); } catch (_) {}
+      document.execCommand('selectAll', false); const ok = document.execCommand('insertText', false, v);
+      if (!ok) ir(el, v);
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+      el.blur(); el.dispatchEvent(new Event('change', { bubbles: true })); await var_(150);
+      if (idoNorm(el.value) === v) return 1;
+    }
+    return 0; }
   // a megnyitott hét naptárába beírja az ide eső, még át nem vitt OVB-időpontokat
   async function idopontokKitolt() {
     const lista = (adat && adat.esem) || []; if (!lista.length) return { db: 0, hiba: [] };
@@ -175,8 +190,11 @@
       // (a típusválasztás egyes esetekben a címet is átírhatja)
       if (!(await tipusValaszt(ab, e.tip))) hiba.push(e.cim + ' (típus: ' + e.tip + ')');
       ir(cimIn, e.cim);
-      const idok = [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}:\d{2}$/.test(i.value)));
-      if (idok[0]) idoIr(idok[0], e.k); await var_(100); if (idok[1]) idoIr(idok[1], e.v);
+      // kezdés, majd a befejezés – a kezdés átírása után a mezők újrarajzolódhatnak, ezért újra megkeressük őket
+      const idoMezok = () => [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}\s*[:.]\s*\d{2}$/.test(String(i.value).trim())));
+      let im = idoMezok(); const okK = im[0] ? await idoIr(im[0], e.k) : 0; await var_(200);
+      im = idoMezok(); const okV = im[1] ? await idoIr(im[1], e.v) : 0; await var_(150);
+      if (!okK || !okV) hiba.push(e.cim + ' (időpont: ' + e.k + '–' + e.v + ')');
       const holIn = mezoFelirat(ab, ['Hol', 'Helyszín'], 'input,textarea') || inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) szovegIr(holIn, e.hol);
       const jgIn = mezoFelirat(ab, ['Jegyzet', 'Megjegyzés', 'Leírás', 'Megjegyzések'], 'textarea,input') || [...ab.querySelectorAll('textarea')].find(lat); if (jgIn && e.jegyzet && jgIn !== holIn) szovegIr(jgIn, e.jegyzet);
       allapotIr(ab, e.all);
