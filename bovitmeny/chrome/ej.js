@@ -245,6 +245,7 @@
   const idoNorm = s => { const m = String(s || '').match(/(\d{1,2})\s*[:.]\s*(\d{2})/); return m ? `${m[1].padStart(2, '0')}:${m[2]}` : ''; };
   async function idoIr(el, v) {
     if (!el || !v) return 0;
+    if (idoNorm(el.value) === v) return 1;   // már jó
     if (el.type === 'time') { ir(el, v); await var_(80); if (idoNorm(el.value) === v) return 1; }
     for (let k = 0; k < 3; k++) {
       el.focus(); el.click(); await var_(60);
@@ -303,8 +304,7 @@
       let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(250); }
       const lev = levelCimNap(e.cim, o);
       if (lev) {
-        // megvan ezen a napon: ha az idő vagy a megvalósulás még nem egyezik (vagy régi bejegyzés), frissítjük
-        if (reg === kulcs(e)) continue;
+        // megvan ezen a napon: mindig átnézzük (idő, szín, megvalósulás), mert közben bármelyik oldalon változhatott
         (lev.closest('a,[role="button"],.fc-event') || lev).click();
         const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (frissítés)'); continue; }
         if (ujE(ab)) { await megse(); hiba.push(e.cim + ' (frissítés)'); continue; }
