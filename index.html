@@ -17755,22 +17755,23 @@ function ejSavEllenoriz(){
     const cu = window.sfCurrentUser, h = document.getElementById('page-home');
     const le = () => { const x = document.getElementById('ejSav'); if(x) x.remove(); };
     if(!cu || !cu.uid || !h || document.body.classList.contains('sf-privat') || (window.sfBlockedPages && window.sfBlockedPages.has('havi')) || (window.sfViewedUid && window.sfViewedUid !== cu.uid)) return le();
-    const akt = currentHaviWeek().monthDate, ho = new Date(akt.getFullYear(), akt.getMonth() - 1, 1);
-    const kulcs = `sf_ej_kesz_${cu.uid}_${ho.getFullYear()}_${ho.getMonth()}`;
-    if(store.load(kulcs, 0) || !hzVanTerv(loadHavi(ho))) return le();
+    const hat = ejHatralek(); if(!hat.length) return le();
+    const ho = hat[0], uts = hat[hat.length - 1];
+    const kulcs = hat.map(x => `sf_ej_kesz_${cu.uid}_${x.getFullYear()}_${x.getMonth()}`).join('|');
     let sv = document.getElementById('ejSav');
     if(!sv){ sv = document.createElement('div'); sv.id = 'ejSav'; sv.className = 'card hv-sav ej-sav';
         const elo = document.getElementById('hvSav') || document.getElementById('sfNincsHozz'); if(elo && elo.parentElement === h) elo.after(sv); else h.prepend(sv); }
-    const hoNev = HU_MONTHS_FULL[ho.getMonth()].toLowerCase();
-    sv.dataset.ho = `${ho.getFullYear()}-${ho.getMonth()}`; sv.dataset.kulcs = kulcs;
-    sv.innerHTML = `<i>${sfIkon('trend')}</i><span><b>Vidd át ${/^[aáeéiíoóöőuúüű]/i.test(hoNev) ? "az" : "a"} ${esc(hoNev)}i számokat az Erfolgsjournalba</b><small>Megnyitás után a Chrome-bővítmény magától beírja a képletet és a hetek Cél / Van számait.</small></span>
+    const hoNev = HU_MONTHS_FULL[ho.getMonth()].toLowerCase(), utsNev = HU_MONTHS_FULL[uts.getMonth()].toLowerCase();
+    const nevek = hat.length > 1 ? `${esc(hoNev)}–${esc(utsNev)}i (${hat.length} hónap)` : `${esc(hoNev)}i`;
+    sv.dataset.ho = `${ho.getFullYear()}-${ho.getMonth()}`; sv.dataset.kulcs = kulcs; sv.dataset.sor = hat.map(x => `${x.getFullYear()}-${x.getMonth() + 1}`).join(',');
+    sv.innerHTML = `<i>${sfIkon('trend')}</i><span><b>Vidd át ${/^[aáeéiíoóöőuúüű]/i.test(hoNev) ? "az" : "a"} ${nevek} számokat az Erfolgsjournalba</b><small>A Chrome-bővítmény hónapról hónapra, a legrégebbitől végigmegy: képlet, a hetek Cél / Van számai és az összes időpont a megvalósulással.</small></span>
         <button type="button" class="btn primary" data-ejsavnyit>Megnyitás ›</button><button type="button" class="btn" data-ejsavkesz title="Átvittem – a sáv eltűnik">Kész ✓</button>`;
 }
 document.addEventListener('click', e => {
     const sv = e.target.closest && e.target.closest('#ejSav'); if(!sv) return;
     if(e.target.closest('[data-ejsavnyit]')){ const [y, m] = sv.dataset.ho.split('-').map(Number), ho = new Date(y, m, 1);
-        ejIndit(ho); return; }
-    if(e.target.closest('[data-ejsavkesz]')){ store.save(sv.dataset.kulcs, 1); sv.remove(); }
+        ejSor = (sv.dataset.sor || '').split(',').filter(Boolean); ejEsem = null; ejEsemFut = false; ejIndit(ho); return; }
+    if(e.target.closest('[data-ejsavkesz]')){ sv.dataset.kulcs.split('|').forEach(k => store.save(k, 1)); sv.remove(); }
 });
 async function sfHaviZarEllenoriz(){
     try { ejSavEllenoriz(); } catch(e){}
@@ -25185,12 +25186,23 @@ function ejAdat(){
     const honapok = {}, akt = currentHaviWeek(), alap = [haviAnchor, akt.monthDate];
     const lista = [];
     alap.forEach(a => [-1, 0, 1].forEach(k => { const ho = new Date(a.getFullYear(), a.getMonth() + k, 1); if(!lista.some(x => +x === +ho)) lista.push(ho); }));
+    for(const k of ejSor){ const [y, m] = k.split('-').map(Number), ho = new Date(y, m - 1, 1); if(!lista.some(x => +x === +ho)) lista.push(ho); }
     lista.forEach(ho => {
         const d = loadHavi(ho), n = haviWeekRanges(ho).length;
         honapok[`${ho.getFullYear()}-${ho.getMonth() + 1}`] = { celPenz: ejSzam(d.celPenz), celES: ejSzam(d.celES), formula: d.formula.map(ejSzam),
             hetek: Array.from({ length: n }, (_, w) => ({ kw: haviWeekKW(ho, w), cel: d.weeks[w].cel.map(ejSzam), van: d.weeks[w].van.map(ejSzam), szv: ejSzam(d.weeks[w].szv) })) };
     });
-    return { v: 1, akt: haviWeekKW(akt.monthDate, akt.weekIdx), honapok };
+    return { v: 1, akt: haviWeekKW(akt.monthDate, akt.weekIdx), honapok, ...(ejSor.length ? { sor: ejSor.slice() } : {}) };
+}
+// visszamenőleges átvitel: a még át nem vitt hónapok sora (a legrégebbitől), a bővítmény egymás után végigmegy rajtuk
+var ejSor = [];
+// azok a lezárt hónapok (legfeljebb 6 hónapra vissza), amelyekhez van havi terv, de még nem jelölted „Kész”-nek
+function ejHatralek(){
+    const cu = window.sfCurrentUser; if(!cu || !cu.uid) return [];
+    const akt = currentHaviWeek().monthDate, l = [];
+    for(let i = 6; i >= 1; i--){ const ho = new Date(akt.getFullYear(), akt.getMonth() - i, 1);
+        if(!store.load(`sf_ej_kesz_${cu.uid}_${ho.getFullYear()}_${ho.getMonth()}`, 0) && hzVanTerv(loadHavi(ho))) l.push(ho); }
+    return l;
 }
 // Az Erfolgsjournal más oldalba nem ágyazható → rendes böngészőlapon nyitjuk (telepített appból is a böngészőben nyílik).
 // A számok a cím # utáni részében mennek (base64); a Chrome-bővítmény betöltéskor elmenti, kiveszi a címből,
@@ -25226,11 +25238,11 @@ function ejAblak(ho){
 // Chrome (vagy Edge) kell a bővítményhez – más böngészőből a leírást mutatjuk
 const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.brands.some(b => /Chrom|Edge/i.test(b.brand)) : /Chrome|CriOS|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent));
 // a telepített bővítmény a Sikerfüzet lapjára is jelzést tesz (<html data-sfej-bov="verzió">)
-var EJ_BOV_KELL = '1.7.2';
+var EJ_BOV_KELL = '1.8.0';
 setTimeout(function ejTipusFelho(){ if(typeof prvBetolt !== 'function' || !window.sfCurrentUser) return setTimeout(ejTipusFelho, 3000);
     prvBetolt('beall').then(b => { if(b && b.ejTipus && !localStorage.getItem('sf_ej_tipus')) try { localStorage.setItem('sf_ej_tipus', JSON.stringify(b.ejTipus)); } catch(_){} }).catch(() => {}); }, 4000);  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
-function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.7.2'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
+function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.8.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
     document.querySelectorAll('.ej-info-ov').forEach(x => x.remove());
     const ov = document.createElement('div'); ov.className = 'modal-overlay ej-info-ov';
@@ -41431,14 +41443,16 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const sp = splitEventTitle(clean), low = clean.toLowerCase();
             // a cím kódja / kulcsszava; plusz néhány gyakori írásmód, amit a naptár-színezés nem ismer
             let t = sp.type || (/mt\s*nyerő|mag-?nap/.test(low) ? tipusa("Munkatársnyerő") : /pg\b/.test(low) ? tipusa("PG") : null);
+            // minden időpont átkerül: amit nem ismerünk fel (vagy nem OVB-s), „Egyéb” lesz; ami a párosításban „ne kerüljön át”, kimarad
             const TAB = window.sfEjTipusTabla();
-            if (!t || !t.ovb || !TAB[t.label]) return null;
-            const tip = TAB[t.label], alap = String(sp.base || clean).replace(/\s+/g, " ").trim();
-            const cim = EJ_UGYFEL.includes(t.label) ? (tip + " " + alap).trim()
-                : t.suffix ? (t.label + " " + alap).trim() : alap || t.label;
+            if (t && t.ovb && TAB[t.label] === "") return null;
+            const tip = (t && t.ovb && TAB[t.label]) || "Egyéb", alap = String(sp.base || clean).replace(/\s+/g, " ").trim();
+            const cim = t && EJ_UGYFEL.includes(t.label) ? (tip + " " + alap).trim()
+                : t && t.ovb && t.suffix ? (t.label + " " + alap).trim() : alap || (t && t.label) || "Időpont";
+            const jegyzet = String(ev.description || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\n{3,}/g, "\n\n").trim().slice(0, 600);
             const k = new Date(ev.start.dateTime), v = new Date(ev.end && ev.end.dateTime || ev.start.dateTime);
             return { id: ev.id, tip, cim, d: `${k.getFullYear()}-${p2(k.getMonth() + 1)}-${p2(k.getDate())}`,
-                k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "",
+                k: `${p2(k.getHours())}:${p2(k.getMinutes())}`, v: `${p2(v.getHours())}:${p2(v.getMinutes())}`, hol: ev.location || "", ...(jegyzet ? { jegyzet } : {}),
                 all: status || "" };   // "yes" = megtörtént, "no" = elmaradt, "" = még nincs
         }).filter(Boolean);
     };

@@ -3,7 +3,9 @@
 // „Erfolgsjournal megnyitása” gombbal nyitott lap), különben a vágólapról (a megnyitás oda is kiteszi).
 // - Havi terv oldal (…/month/ÉÉÉÉ/H): magától beírja a Célom pénzben / ES-ben értékeket és a Havi képletet.
 // - Aktuális hét oldal (CÉL / VAN · Heti célok): a panelen választott hét Cél és Van számait egy kattintással.
-// - Heti tervezés naptár: a Sikerfüzet összes OVB-s időpontját (ügyfél, PG, Tréning, Telefonparti, Interjú, MAG-nap…) az „Új időpont” ablakon át beírja (egyszer).
+// - Heti tervezés naptár: a Sikerfüzet összes időpontját (ügyfél, PG, Tréning, Telefonparti, Interjú, MAG-nap…, a többi „Egyéb”-ként)
+//   az „Új időpont” ablakon át beírja (egyszer), a hellyel és a jegyzettel; a megvalósulást (Állapot) beírja / frissíti.
+// - Visszamenőleg: ha a Sikerfüzet több hónapot ad át (sor), a legrégebbitől hónapról hónapra végigmegy rajtuk.
 // A mezőket a feliratuk alapján keresi (nem az oldal belső kódja alapján).
 (() => {
   if (window.__sfejBetoltve) return; window.__sfejBetoltve = true;
@@ -118,6 +120,13 @@
     const radio = kat.querySelector('input[type="radio"]') || (kat.htmlFor && document.getElementById(kat.htmlFor));
     if (radio && !radio.checked) { radio.click(); await var_(150); }
     return true; }
+  // mező a felirata alapján: a felirat után következő (látható) input / textarea az ablakon belül
+  const mezoFelirat = (ab, cimek, tipus) => { for (const c of cimek) for (const f of felirat(ab, c)) {
+      for (let p = f.parentElement; p && p !== ab.parentElement; p = p.parentElement) { const l = [...p.querySelectorAll(tipus)].filter(x => lat(x) && !x.closest('#sfejPanel')); if (l.length === 1) return l[0]; if (l.length > 1) break; } }
+    return null; };
+  const szovegIr = (el, v) => { if (!el || !v) return 0; const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const d = Object.getOwnPropertyDescriptor(proto, 'value'); el.focus(); d.set.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); return 1; };
   const idoIr = (el, v) => { if (!el) return 0; if (el.type === 'time') return ir(el, v); ir(el, v); return 1; };
   // a megnyitott hét naptárába beírja az ide eső, még át nem vitt OVB-időpontokat
   async function idopontokKitolt() {
@@ -129,12 +138,13 @@
     const { sfejKesz = {} } = await chrome.storage.local.get('sfejKesz');
     const hetben = lista.filter(e => osz.some(o => o.md === e.d.slice(5)));
     const ide = hetben.filter(e => !sfejKesz[e.id]);
-    let db = 0, fr = 0; const hiba = [];
+    let db = 0, fr = 0; const hiba = [], frissitett = new Set();
     const levelCim = cim => [...document.querySelectorAll('*')].find(x => lat(x) && x.children.length === 0 && !x.closest('#sfejPanel') && kis(x.innerText) === kis(cim));
     // 1) a már átvitt időpontok állapota: ha a Sikerfüzetben azóta megtörtént / elmaradt lett, itt is átállítjuk
     for (const e of hetben) {
       const reg = sfejKesz[e.id]; if (!reg) continue;
       if (reg === allKod(e.all) || (reg === 1 && !e.all)) { if (reg === 1) sfejKesz[e.id] = allKod(e.all); continue; }
+      if (frissitett.has(e.id)) continue; frissitett.add(e.id);
       const lev = levelCim(e.cim); if (!lev) continue;
       (lev.closest('a,[role="button"],.fc-event') || lev).click();
       const ab = await varjRa(ablak, 4000); if (!ab) { hiba.push(e.cim + ' (állapot)'); continue; }
@@ -145,7 +155,7 @@
     }
     for (const e of ide) {
       // már ott van (pl. kézzel felvitték)? – azonos cím a naptárban
-      if (levelCim(e.cim)) { sfejKesz[e.id] = 1; continue; }
+      if (levelCim(e.cim)) { sfejKesz[e.id] = e.all ? 'a:?' : 1; continue; }
       const o = napOszlopok().find(x => x.md === e.d.slice(5)); if (!o) { hiba.push(e.cim); continue; }
       const [hh, mm] = e.k.split(':').map(Number);
       let c = oraCimke(hh, o.el.getBoundingClientRect().left); if (c) { c.scrollIntoView({ block: 'center' }); await var_(300); c = oraCimke(hh, o.el.getBoundingClientRect().left); }
@@ -167,7 +177,8 @@
       ir(cimIn, e.cim);
       const idok = [...ab.querySelectorAll('input')].filter(i => lat(i) && (i.type === 'time' || /^\d{1,2}:\d{2}$/.test(i.value)));
       if (idok[0]) idoIr(idok[0], e.k); await var_(100); if (idok[1]) idoIr(idok[1], e.v);
-      const holIn = inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) ir(holIn, e.hol);
+      const holIn = mezoFelirat(ab, ['Hol', 'Helyszín'], 'input,textarea') || inp.find(i => /zoom|helysz|hol/i.test(i.placeholder || '')); if (holIn && e.hol) szovegIr(holIn, e.hol);
+      const jgIn = mezoFelirat(ab, ['Jegyzet', 'Megjegyzés', 'Leírás', 'Megjegyzések'], 'textarea,input') || [...ab.querySelectorAll('textarea')].find(lat); if (jgIn && e.jegyzet && jgIn !== holIn) szovegIr(jgIn, e.jegyzet);
       allapotIr(ab, e.all);
       await var_(250);
       const ment = gombSzoveg(ab, 'Mentés')[0]; if (!ment) { hiba.push(e.cim); continue; }
@@ -175,6 +186,15 @@
       if (await varjRa(() => !ablak(), 4000)) { db++; sfejKesz[e.id] = allKod(e.all); await chrome.storage.local.set({ sfejKesz }); }
       else { hiba.push(e.cim); const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); }
       await var_(500);
+    }
+    // a cím alapján már ott lévő (kézzel felvitt) időpontok állapota
+    for (const e of lista.filter(x => sfejKesz[x.id] === 'a:?' && osz.some(o => o.md === x.d.slice(5)))) {
+      const lev = levelCim(e.cim); if (!lev) continue;
+      (lev.closest('a,[role="button"],.fc-event') || lev).click();
+      const ab = await varjRa(ablak, 4000); if (!ab) continue;
+      const okA = allapotIr(ab, e.all); await var_(250); const ment = gombSzoveg(ab, 'Mentés')[0];
+      if (okA && ment){ ment.click(); if (await varjRa(() => !ablak(), 4000)) { fr++; sfejKesz[e.id] = allKod(e.all); continue; } }
+      const m = gombSzoveg(document, 'Mégse')[0]; if (m) m.click(); await var_(400);
     }
     await chrome.storage.local.set({ sfejKesz });
     return { db, fr, hiba };
@@ -224,9 +244,18 @@
       while (true) {
         const { sfejFeladat: f } = await chrome.storage.local.get('sfejFeladat'); if (!f) return;
         if (f.i >= f.hetek.length) {
-          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} OVB-időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}.${adat && Array.isArray(adat.esem) ? '' : '\nOVB-időpontok: nem jöttek át a Sikerfüzetből (Google Naptár kapcsolat?).'}${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
-          await chrome.storage.local.remove('sfejFeladat'); await chrome.storage.local.set({ sfejVege: vege });
-          rajz(vege);
+          const vege = `Kész ✓ – ${f.ev}. ${f.ho}. hónap: ${f.hetek.length} hét, ${f.db} mező kitöltve${f.idp ? `, ${f.idp} időpont beírva` : ''}${f.idfr ? `, ${f.idfr} állapot frissítve` : ''}.${adat && Array.isArray(adat.esem) ? '' : '\nIdőpontok: nem jöttek át a Sikerfüzetből (Google Naptár kapcsolat?).'}${f.hiba.length ? '\nNem sikerült: ' + f.hiba.join(', ') : ''}\nNézd át, és véglegesítsd, ahogy eddig.`;
+          await chrome.storage.local.remove('sfejFeladat');
+          // visszamenőleges sor: ha van még hónap utána, oda lépünk, és ott magától folytatódik
+          const sor = (adat && adat.sor) || [], hk = `${f.ev}-${+f.ho}`, i = sor.indexOf(hk), kov = i >= 0 ? sor[i + 1] : null;
+          const { sfejSorOssz = [] } = await chrome.storage.local.get('sfejSorOssz');
+          if (kov) { const [ky, km] = kov.split('-'); const ut = `/month/${ky}/${km}`;
+            await chrome.storage.local.set({ sfejSorOssz: [...sfejSorOssz, `${f.ev}. ${f.ho}.: ${f.db} mező${f.idp ? `, ${f.idp} időpont` : ''}${f.hiba.length ? `, ${f.hiba.length} hiba` : ''}`], sfejAuto: { ut, ido: Date.now() } });
+            rajz(`${f.ev}. ${f.ho}. kész ✓ – jön: ${ky}. ${km}.`); location.href = ut; return; }
+          const ossz = sfejSorOssz.length ? 'Előző hónapok:\n' + sfejSorOssz.join('\n') + '\n\n' : '';
+          await chrome.storage.local.remove('sfejSorOssz');
+          await chrome.storage.local.set({ sfejVege: ossz + vege });
+          rajz(ossz + vege);
           if (location.pathname !== f.vissza) { const l = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') && a.getAttribute('href').includes(f.vissza)); if (l) l.click(); else location.href = f.vissza; }
           return;
         }
