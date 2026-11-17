@@ -231,14 +231,24 @@
   // szín: az ablak színválasztójából a Sikerfüzet-színhez legközelebbi korong / négyzet
   const rgb = s => { const m = String(s).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/); if (m) return m[4] === '0' ? null : [+m[1], +m[2], +m[3]];
     const h = String(s).replace('#', ''); return h.length === 6 ? [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)) : null; };
+  // a Journal színei (név → közelítő szín a képernyőről); a Sikerfüzet / Google-színek fix párja, a többinél a legközelebbi
+  const EJ_SZINEK = { 'Kék': '#3f6db0', 'Égszínkék': '#2f78b5', 'Ciánkék': '#2f7a96', 'Türkiz': '#3c7d7b', 'Smaragd': '#2f8060', 'Zöld': '#3e7d55', 'Lime': '#5c8a2a',
+    'Sárga': '#8a6a1f', 'Borostyán': '#b0562a', 'Narancssárga': '#a8693a', 'Piros': '#c4473f', 'Rózsaszín': '#d6334f', 'Magenta': '#b03cd0', 'Lila': '#7e5fd0',
+    'Ibolyaszín': '#7a3fe0', 'Indigó': '#4f46d8', 'Barna': '#6b3519', 'Palaszürke': '#4b5563', 'Szürke': '#6b7280', 'Citromsárga': '#fbe98a', 'Élénk ciánkék': '#74d6ea',
+    'Élénk zöld': '#52b07a', 'Élénk narancssárga': '#f0a040', 'Élénk vörös': '#d63426', 'Élénk magenta': '#b8306e', 'Fekete': '#1f1f1f' };
+  // Google Naptár színek (a Sikerfüzet típusai ezeket használják) → Journal-szín
+  const GCAL_EJ = { '#7986cb': 'Lila', '#33b679': 'Élénk zöld', '#8e24aa': 'Ibolyaszín', '#e67c73': 'Piros', '#f6bf26': 'Citromsárga', '#f4511e': 'Élénk narancssárga',
+    '#039be5': 'Égszínkék', '#616161': 'Szürke', '#3f51b5': 'Indigó', '#0b8043': 'Zöld', '#d50000': 'Élénk vörös' };
+  const szinNev = hex => { const h = String(hex || '').toLowerCase(); if (GCAL_EJ[h]) return GCAL_EJ[h]; const c = rgb(h); if (!c) return '';
+    let best = '', bt = Infinity; for (const [n, x] of Object.entries(EJ_SZINEK)) { const d = rgb(x), t = (d[0] - c[0]) ** 2 + (d[1] - c[1]) ** 2 + (d[2] - c[2]) ** 2; if (t < bt) { bt = t; best = n; } } return best; };
   async function szinValaszt(ab, hex) {
-    const cel = rgb(hex); if (!cel) return 0;
-    let gy = ab; const f = felirat(ab, 'Szín')[0] || felirat(ab, 'Színek')[0]; if (f) for (let p = f.parentElement; p && p !== ab.parentElement; p = p.parentElement) { if (p.querySelectorAll('button,[role="radio"],span,div').length > 3) { gy = p; break; } }
-    const korong = [...gy.querySelectorAll('button,[role="radio"],span,div,label')].filter(x => { if (!lat(x) || x.closest('#sfejPanel')) return false; const r = x.getBoundingClientRect();
-      if (r.width < 10 || r.width > 48 || Math.abs(r.width - r.height) > 6) return false; const c = rgb(getComputedStyle(x).backgroundColor); return c && !(c[0] > 245 && c[1] > 245 && c[2] > 245); });
-    if (korong.length < 3) return 0;
-    const tav = x => { const c = rgb(getComputedStyle(x).backgroundColor); return (c[0] - cel[0]) ** 2 + (c[1] - cel[1]) ** 2 + (c[2] - cel[2]) ** 2; };
-    const best = korong.sort((a, b) => tav(a) - tav(b))[0]; const r = best.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(150);
+    const nev = szinNev(hex); if (!nev) return 0;
+    // a „Szín” rész a felirata alatt; benne a szín neve pontosan
+    let gy = ab; const f = felirat(ab, 'Szín')[0]; if (f) for (let p = f.parentElement; p && p !== ab.parentElement; p = p.parentElement) { if (felirat(p, 'Fekete').length || felirat(p, 'Kék').length) { gy = p; break; } }
+    const jel = [...gy.querySelectorAll('*')].filter(x => lat(x) && !x.closest('#sfejPanel') && [...x.childNodes].some(n => n.nodeType === 3 && kis(n.textContent) === kis(nev)));
+    if (!jel.length) return 0;
+    const cel = jel[0].closest('button,[role="radio"],[role="option"],label,li') || jel[0];
+    const r = cel.getBoundingClientRect(); egerrel(r.left + r.width / 2, r.top + r.height / 2); await var_(150);
     return 1; }
   // az idő beírása: a Journal időmezői maszkolt / saját komponensek, a sima értékadás nem mindig jut át –
   // ezért kijelölés + „gépelés” (insertText), és ellenőrizzük, hogy tényleg az lett-e az érték
