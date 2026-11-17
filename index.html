@@ -3810,6 +3810,7 @@
         .ej-info-ov { position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; padding:16px; }
         .ej-info-m { position:relative; background:var(--card, #fff); color:var(--text, #0f172a); border-radius:16px; max-width:460px; width:100%; max-height:90vh; overflow:auto; padding:22px 22px 18px; font-size:14px; line-height:1.5; box-shadow:0 20px 50px rgba(0,0,0,.25); }
         .ej-info-m h3 { margin:0 0 10px; font-size:18px; } .ej-info-m h4 { margin:14px 0 4px; font-size:14px; } .ej-info-m p { margin:6px 0; } .ej-info-m ol { margin:6px 0; padding-left:20px; }
+        .ej-info-m .ej-verzio { display:inline-block; margin:2px 0 8px; padding:4px 10px; border-radius:8px; background:#eef2f8; font-size:12.5px; color:#475569; } .ej-info-m .ej-verzio b { color:#1f3b73; }
         .ej-info-x { position:absolute; right:12px; top:10px; border:0; background:none; font-size:24px; cursor:pointer; color:var(--muted); }
         .ej-info-gomb { margin-top:14px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
         .ej-uj { margin-top:8px; font-size:12px; font-weight:650; color:#9a3412; background:#fff7ed; border:1px solid #fed7aa; border-radius:9px; padding:6px 9px; } .ej-folyamat li { margin:5px 0; }
@@ -25268,6 +25269,7 @@ const ejChrome = () => !!(navigator.userAgentData ? navigator.userAgentData.bran
 var EJ_BOV_KELL = '1.10.0';
 setTimeout(function ejTipusFelho(){ if(typeof prvBetolt !== 'function' || !window.sfCurrentUser) return setTimeout(ejTipusFelho, 3000);
     prvBetolt('beall').then(b => { if(b && b.ejTipus && !localStorage.getItem('sf_ej_tipus')) try { localStorage.setItem('sf_ej_tipus', JSON.stringify(b.ejTipus)); } catch(_){} }).catch(() => {}); }, 4000);  // a ejVerzioRegi-ben is (függvényként a korai kirajzoláshoz)
+const ejZipNev = () => `sikerfuzet-ej-${EJ_BOV_KELL}.zip`;
 function ejBovVerzio(){ return document.documentElement.dataset.sfejBov || ''; }
 function ejVerzioRegi(v){ const a = v.split('.').map(Number), b = '1.10.0'.split('.').map(Number); for(let i = 0; i < 3; i++){ if((a[i] || 0) !== b[i]) return (a[i] || 0) < b[i]; } return false; }
 function ejModal(belso){
@@ -25292,22 +25294,24 @@ function ejIndit(ho){
     }
     const v = ejBovVerzio();
     if(v && !ejVerzioRegi(v)){ ejAblak(ho); return; }
-    const letolt = () => { const a = document.createElement('a'); a.href = 'bovitmeny/sikerfuzet-ej.zip'; a.download = 'sikerfuzet-ej.zip'; document.body.appendChild(a); a.click(); a.remove(); };
+    const letolt = () => { const a = document.createElement('a'); a.href = 'bovitmeny/sikerfuzet-ej.zip?v=' + EJ_BOV_KELL; a.download = ejZipNev(); document.body.appendChild(a); a.click(); a.remove(); };
+    const zip = esc(ejZipNev());
     const lepesek = frissit => frissit
-        ? `<h3>Frissítsd a bővítményt</h3><p>Letöltöttem az új verziót (<b>sikerfuzet-ej.zip</b>, a Letöltések mappában).</p>
+        ? `<h3>Frissítsd a bővítményt</h3><p>Letöltöttem az új verziót (<b>${zip}</b>, a Letöltések mappában).</p>
             <ol><li>Csomagold ki <b>ugyanabba a mappába</b>, ahol a régi van (felülírva).</li>
                 <li>Nyisd meg: <b>chrome://extensions</b> → a Sikerfüzet bővítménynél <b>↻</b>.</li></ol>
             <div class="ej-info-gomb"><button type="button" class="btn primary" data-ejmehet>Frissítettem – indulhat ›</button></div>`
-        : `<h3>Egyszeri telepítés</h3><p>Letöltöttem a Sikerfüzet bővítményt (<b>sikerfuzet-ej.zip</b>, a Letöltések mappában). Telepítsd egyszer:</p>
+        : `<h3>Egyszeri telepítés</h3><p>Letöltöttem a Sikerfüzet bővítményt – ${EJ_BOV_KELL} verzió (<b>${zip}</b>, a Letöltések mappában). Telepítsd egyszer:</p>
             <ol><li>Csomagold ki egy mappába, ahol meg is marad.</li>
                 <li>Nyisd meg: <b>chrome://extensions</b>, és jobb fent kapcsold be a <b>Fejlesztői módot</b>.</li>
                 <li><b>Kicsomagolt bővítmény betöltése</b> → válaszd ki a kicsomagolt mappát.</li></ol>
             <div class="ej-info-gomb"><button type="button" class="btn primary" data-ejmehet>Telepítettem – indulhat ›</button></div>`;
     // előbb rákérdezünk – letölteni csak akkor, ha kéri
     const ov = ejModal(v
-        ? `<h3>Új bővítmény érhető el</h3><p>A Sikerfüzet bővítményből új verzió van (<b>${EJ_BOV_KELL}</b>, nálad: ${esc(v)}). Telepítsd fel, hogy minden funkció működjön.</p>
+        ? `<h3>Új bővítmény érhető el</h3><p>A Sikerfüzet bővítményből új verzió van (<b>${EJ_BOV_KELL}</b>, nálad: <b>${esc(v)}</b>). Telepítsd fel, hogy minden funkció működjön.</p>
             <div class="ej-info-gomb"><button type="button" class="btn" data-ejmost>Most nem, indulhat</button><button type="button" class="btn primary" data-ejle>Letöltés és frissítés</button></div>`
         : `<h3>Telepítve van a bővítmény?</h3><p>A kitöltéshez a Sikerfüzet Chrome-bővítménye kell. Ha már telepítetted, indulhat; ha még nincs meg, letöltöm.</p>
+            <p class="ej-verzio">Legfrissebb verzió: <b>${EJ_BOV_KELL}</b> · nálad: <b>nem látom</b></p>
             <p style="font-size:12.5px;color:var(--muted)">Ha telepítve van, de mégis ezt kérdezem: frissítsd ezt a lapot (a bővítmény csak frissítés után látja a Sikerfüzetet).</p>
             <div class="ej-info-gomb"><button type="button" class="btn" data-ejmost>Telepítve van – indulhat</button><button type="button" class="btn primary" data-ejle>Letöltés</button></div>`);
     ov.querySelector('[data-ejmost]').onclick = () => { ov.remove(); ejAblak(ho); };
