@@ -731,14 +731,12 @@ export async function loginWithGoogle() {
     // A bejelentkezés CSAK a naptár-jogot kéri – így akkor is működik,
     // ha a Google-projektben a Tasks API/scope még nincs engedélyezve.
     // A Tasks jogot a PG modul kéri külön (reconnectCalendar → incremental).
+    // A belépés CSAK a Google-fiókot kéri (név, e-mail) – a Naptár-jogot nem. Így nincs „A Google nem ellenőrizte
+    // ezt az alkalmazást” figyelmeztetés és jogosultság-kérő lépés, és az is be tud lépni, akinek a naptárhoz nincs
+    // (vagy nem ad) hozzáférést. A Naptárat a Sikerfüzetben külön lehet összekötni („Naptár összekötése”);
+    // akinek már összekötött naptára van, annak a néma (automatikus) csatlakozás belépés után magától megszerzi.
     const provider = new GoogleAuthProvider();
-    provider.addScope(CALENDAR_SCOPE);
-    // Ha a naptárlista olvasását korábban már engedélyezte, a belépés tokenje is
-    // kapja meg – különben belépés után csak a fő naptár látszik (a lista lekérése
-    // jog nélkül elbukik). Az include_granted_scopes a már megadott jogokat is
-    // beleteszi a tokenbe, új engedélyt nem kér.
-    if (hasCalListGrant()) provider.addScope(CALLIST_SCOPE);
-    provider.setCustomParameters({ prompt: "select_account", include_granted_scopes: "true" });
+    provider.setCustomParameters({ prompt: "select_account" });
 
     const result = await signInWithPopup(auth, provider);
     const email = result.user.email;
@@ -750,11 +748,7 @@ export async function loginWithGoogle() {
         throw new Error("Ehhez az e-mail címhez (" + email + ") nincs hozzáférés. Kérd az adminisztrátortól a felvételt.");
     }
 
-    // A Google OAuth access token a Calendar API híváshoz (session-re eltesszük).
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential && credential.accessToken) {
-        tokMent(credential.accessToken);
-    }
+    // (A belépés tokenje naptár-jog nélküli – nem tesszük el naptár-tokenként.)
 
     // A munkatárs profil létrehozása/frissítése – lásd ensureEmployeeProfile
     // lentebb: itt ÉS minden további oldalbetöltésnél (requireAuth) is fut,
