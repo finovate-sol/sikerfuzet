@@ -100,6 +100,7 @@
         .msg { margin-top:18px; font-size:12px; border-radius:9px; padding:11px 14px; text-align:left; display:none; }
         .msg.error { background:#fdeaea; color:var(--red); display:block; }
         .msg.warn  { background:#fef3e2; color:var(--amber); display:block; }
+        .msg .btn-mas { display:inline-flex; align-items:center; height:34px; padding:0 14px; border:1px solid #e3c999; border-radius:8px; background:#fff; color:#7a4b00; font:inherit; font-size:12.5px; font-weight:700; text-decoration:none; cursor:pointer; }
         .msg.info  { background:var(--blue-light); color:var(--navy); display:block; }
         .foot { margin-top:26px; font-size:11px; color:var(--muted); }
         .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,.4); border-top-color:var(--blue);
@@ -168,6 +169,31 @@
         const greetingEl = document.getElementById("greeting");
 
         function showMsg(text, type){ msg.className = "msg " + type; msg.textContent = text; }
+        // Beépített böngésző (Messenger, Facebook, Instagram, TikTok, LinkedIn…): a Google ezekből nem engedi a belépést –
+        // a felugró ablak azonnal bezárul („popup-closed-by-user”). Ilyenkor a rendes böngésző megnyitását kérjük.
+        const ua = navigator.userAgent || "";
+        const beepitett = /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|LinkedInApp|Snapchat|Twitter|GSA\//i.test(ua)
+            || (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua) && !navigator.standalone && !/CriOS|FxiOS|EdgiOS/.test(ua));
+        const android = /Android/i.test(ua);
+        function bongeszoKell(){
+            msg.className = "msg warn";
+            msg.innerHTML = `<b>Nyisd meg a Sikerfüzetet ${android ? "Chrome-ban" : "Safariban"}.</b><br>Ebből az alkalmazásból (pl. Messenger) a Google nem engedi a belépést.
+                ${android ? "" : "Koppints a jobb felső <b>⋯</b> menüre → <b>Megnyitás böngészőben</b>, vagy másold ki a linket, és illeszd be a Safariba."}
+                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${android ? `<a class="btn-mas" href="intent://${location.host}${location.pathname}#Intent;scheme=https;package=com.android.chrome;end">Megnyitás Chrome-ban</a>` : ""}<button type="button" class="btn-mas" id="linkMasol">Link másolása</button></div>`;
+            const m = document.getElementById("linkMasol");
+            if (m) m.onclick = async () => { const u = location.origin + location.pathname; try { await navigator.clipboard.writeText(u); m.textContent = "Kimásolva ✓"; } catch(_){ prompt("Másold ki a linket:", u); } };
+        }
+        // érthető üzenet a Firebase hibakódok helyett
+        function hibaSzoveg(e){
+            const k = (e && e.code) || ((e && e.message || "").match(/auth\/[a-z-]+/) || [""])[0];
+            if (/popup-closed-by-user|cancelled-popup-request/.test(k)) return beepitett ? null : "A belépés megszakadt – a Google-ablak bezárult. Próbáld újra, és válaszd ki a fiókodat.";
+            if (/popup-blocked/.test(k)) return "A böngésző letiltotta a belépő ablakot. Engedélyezd a felugró ablakokat ennél az oldalnál, és próbáld újra.";
+            if (/network-request-failed/.test(k)) return "Nincs internetkapcsolat, vagy megszakadt. Ellenőrizd a netet, és próbáld újra.";
+            if (/web-storage-unsupported|operation-not-supported/.test(k)) return null;
+            if (/unauthorized-domain/.test(k)) return "Erről a címről nem lehet belépni. Nyisd meg a Sikerfüzetet a megszokott címéről.";
+            if (/user-disabled/.test(k)) return "Ez a fiók le van tiltva. Kérd az adminisztrátor segítségét.";
+            return (e && e.message) || "A belépés nem sikerült. Próbáld újra.";
+        }
 
         // Napszaknak megfelelő üdvözlés
         (function(){
@@ -181,6 +207,7 @@
             showMsg("Ehhez az e-mail címhez nincs hozzáférés. Kérd az adminisztrátortól a felvételt.", "error");
         }
 
+        if (beepitett) bongeszoKell();
         if (!isConfigured) {
             showMsg("A Firebase beállítás még folyamatban van – a belépés hamarosan aktív lesz.", "warn");
         } else {
@@ -196,7 +223,8 @@
                 await loginWithGoogle();
                 window.location.href = celOldal();
             } catch (e) {
-                showMsg(e.message || "A belépés nem sikerült. Próbáld újra.", "error");
+                const t = hibaSzoveg(e);
+                if (t === null) bongeszoKell(); else showMsg(t, "error");
                 btn.disabled = false;
                 label.textContent = original;
             }
