@@ -35950,12 +35950,29 @@ async function renderTeendok(){
         ${keszMa.length ? `<section class="td-kesz${tdKeszNyit ? ' nyit' : ''}"><button type="button" data-tdkesznyit><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>${keszMa.length} kész ma<i>▾</i></button>${tdKeszNyit ? `<div class="td-l">${keszMa.map(x => sor({ ...x, kesz: x.kesz || ma }, 'kk')).join('')}</div>` : ''}</section>` : ''}
         <form class="td-be" data-tdbe><input type="text" data-tdinp placeholder="Írd vagy mondd…" autocomplete="off" enterkeyhint="done" maxlength="300"><button type="button" class="mic" data-tdmic aria-label="Diktálás">${MIC}</button></form></div>`;
     if(typeof stFejFrissit === 'function') stFejFrissit();
+    window.tdBadge && window.tdBadge();
 }
 window.renderTeendok = renderTeendok;
+// jelvény az alsó sávon (és a fejlécnél): a mai és a lejárt, még nyitott feladatok száma
+let tdBadgeToltes = false;
+window.tdBadge = function(){
+    const gomb = document.querySelector('#szAlso [data-szmenj="teendok"]');
+    const d = PRV.teendok;
+    if(!d && !tdBadgeToltes && typeof prvBetolt === 'function' && window.sfCurrentUser && typeof szTer === 'function' && szTer() === 'priv'){ tdBadgeToltes = true; prvBetolt('teendok').then(() => window.tdBadge()).catch(() => {}); }
+    if(!gomb) return;
+    const ma = ezMa(), n = d && Array.isArray(d.lista) ? d.lista.filter(x => !x.kesz && x.d && x.d <= ma).length : 0;
+    const lejart = n && d.lista.some(x => !x.kesz && x.d && x.d < ma);
+    let b = gomb.querySelector('.szm-badge');
+    if(!n){ if(b) b.remove(); gomb.removeAttribute('aria-description'); return; }
+    if(!b){ b = document.createElement('b'); b.className = 'szm-badge'; gomb.appendChild(b); }
+    const t = n > 9 ? '9+' : String(n); if(b.textContent !== t) b.textContent = t; b.classList.toggle('lej', !!lejart);
+    gomb.setAttribute('aria-description', `${n} feladat ma vagy lejárt`);
+};
+setInterval(() => window.tdBadge(), 60000);
 async function tdMentUjak(l, toastCim){
     const d = await prvBetolt('teendok'); if(!Array.isArray(d.lista)) d.lista = [];
     const ujak = l.map(x => ({ id: prvUjId() + Math.random().toString(36).slice(2, 5), n: x.n, d: x.d || '', ido: x.ido || '', l: x.l || 'Otthon', ism: x.ism || null, eml: !!x.eml, hang: !!x.hang, kesz: '', letr: new Date().toISOString(), ...(x.p ? { p: x.p } : {}), ...(x.zas ? { zas: true } : {}) }));
-    d.lista.push(...ujak); prvMent('teendok');
+    d.lista.push(...ujak); prvMent('teendok'); setTimeout(() => window.tdBadge && window.tdBadge(), 0);
     ujak.forEach(x => tdUjak.add(x.id)); setTimeout(() => { ujak.forEach(x => tdUjak.delete(x.id)); if(prvLap('teendok')) renderTeendok(); }, 4000);
     if(prvLap('teendok')) renderTeendok(); else if(prvLap('privma')) renderPrivMa();
     const ma = tdMa(), cimk = [...new Set(ujak.map(x => x.ism ? 'Ismétlődő' : x.d === ma ? 'Ma' : x.d ? tdNapSzo(x.d) : 'Később'))].join(' · ');
@@ -36598,6 +36615,7 @@ function szAlsoFrissit(){
     const keves = stoa && sav.length < 4; nav.classList.toggle('keves', keves); nav.style.setProperty('--szm-db', sav.length);
     const html = (keves ? '' : ures(2 - nb)) + sav.slice(0, nb).map(fav).join('') + '<span class="szm-hely" aria-hidden="true"></span>' + sav.slice(nb).map(fav).join('') + (keves ? '' : ures(2 - (sav.length - nb)));
     if(nav._html !== html){ nav.innerHTML = html; nav._html = html; }
+    if(typeof window.tdBadge === 'function') window.tdBadge();
     // összehúzott sávnál a ＋ a sávban kihagyott hely közepére kerül (nem mindig a képernyő közepére)
     { const g = document.getElementById('szGomb'), igazit = () => { if(!g) return; const h = keves && nav.querySelector('.szm-hely');
         g.style.left = h ? (h.getBoundingClientRect().left + h.offsetWidth / 2) + 'px' : ''; };
@@ -50170,6 +50188,9 @@ body.sf-privat { --r-shchip:0 6px 14px -8px rgba(20,34,42,.35); }
     html body.sf-privat .szm-also .szm-hely { flex:0 0 66px !important; }
     html body.sf-privat nav#szAlso.szm-also.keves, html:is(.sf-st-termeszet, .sf-st-tiszta) body.sf-privat nav#szAlso.szm-also.keves:not(.ures) { left:50% !important; right:auto !important; width:calc(var(--szm-db, 3) * 72px + 66px + 12px) !important; transform:translateX(-50%); justify-content:center; }
     html body.sf-privat nav#szAlso.szm-also.keves .szm-t { flex:0 0 72px !important; }
+    html body.sf-privat .szm-also .szm-t { position:relative; }
+    html body.sf-privat .szm-also .szm-t .szm-badge { position:absolute; top:4px; left:calc(50% + 6px); min-width:18px; height:18px; padding:0 5px; box-sizing:border-box; border-radius:999px; background:var(--r-a); color:#fff; font:800 11px/18px 'DM Sans',sans-serif; text-align:center; box-shadow:0 0 0 2px var(--r-ink); pointer-events:none; }
+    html body.sf-privat .szm-also .szm-t .szm-badge.lej { background:var(--r-c); }
     html body.sf-privat .szm-gomb:not([hidden]) { width:46px !important; height:46px !important; margin-left:-23px !important; bottom:calc(max(8px, calc(env(safe-area-inset-bottom) - 10px)) + 7px) !important; border:0 !important; box-shadow:none !important; background:var(--r-c) !important; }
     html body.sf-privat .szm-gomb svg { width:22px !important; height:22px !important; }
 }
