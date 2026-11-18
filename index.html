@@ -35953,6 +35953,16 @@ async function renderTeendok(){
     window.tdBadge && window.tdBadge();
 }
 window.renderTeendok = renderTeendok;
+// Ma oldal, mai edzés: „Strava ellenőrzés” – lekéri a friss Strava-aktivitásokat, és megmondja, teljesült-e
+document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-mastrava]'); if(!b) return;
+    const id = b.dataset.mastrava, ma = ezMa(), regi = b.textContent; b.disabled = true; b.textContent = 'Ellenőrzés…';
+    try { await ezStravaSzinkron(true); } catch(_){}
+    const ed = ezNapLista(ma).find(x => x.id === id), er = ed ? ezEr(ed, ma) : null;
+    if(er && ['ok', 'resz'].includes(er.a)) stRToast('Strava: megvan ✓', `${ed.n} · ${ezAllCim(er)}${er.akt && er.akt.length ? ' · ' + er.akt.map(x => x.n).join(', ') : ''}`);
+    else stRToast('Még nincs Strava-aktivitás', 'Ha már edzettél, várj pár percet, amíg a Strava feltölti – vagy jelöld késznek az Edzés oldalon.');
+    b.disabled = false; b.textContent = regi; if(typeof renderPrivMa === 'function' && prvLap('privma')) renderPrivMa();
+});
 // jelvény az alsó sávon (és a fejlécnél): a mai és a lejárt, még nyitott feladatok száma
 let tdBadgeToltes = false;
 window.tdBadge = function(){
@@ -36416,7 +36426,7 @@ async function renderPrivMa(){
         // mai edzés: kicker, cím, meta, gombok
         K.edzes = `<section class="card pv-kartya st-ma-edz"><span class="k">Mai edzés</span>${edz.length ? edz.slice(0, 2).map(e => { const er = ezEr(e, ma);
             return `<div class="t"><b>${esc(e.n)}</b><span>${esc([e.ido, ezCel(e)].filter(Boolean).join(' · '))}</span></div>
-                <div class="g">${er.a === 'terv' ? `<button type="button" class="p" data-mamenj="edzes">Edzés indítása</button><button type="button" data-maedzok="${esc(e.id)}">Kész</button>` : `<span class="kesz">${ezAllCim(er)} ✓</span>`}</div>`; }).join('')
+                <div class="g">${er.a === 'terv' ? `<button type="button" class="p" data-mamenj="edzes">Edzés indítása</button>${ezStravaKapcs() ? `<button type="button" data-mastrava="${esc(e.id)}">Strava ellenőrzés</button>` : `<button type="button" data-maedzok="${esc(e.id)}">Kész</button>`}` : `<span class="kesz">${ezAllCim(er)} ✓</span>`}</div>`; }).join('')
             : `<div class="t"><b>${pih ? 'Pihenőnap' : 'Nincs betervezett edzés'}</b><span>${pih ? 'A regeneráció is az edzés része.' : 'Tervezz egyet az Edzés oldalon.'}</span></div><div class="g"><button type="button" data-mamenj="edzes">Edzés megnyitása</button></div>`}</section>`;
     }
     const mb = maBeall(await prvBetolt('beall').catch(() => ({})));
@@ -50740,7 +50750,7 @@ body.sf-privat .st-ma-cs em { position:absolute; right:14px; top:14px; font-styl
 /* Szokások a Ma oldalon: egy dobozban, mint a többi kártya – a sorok elválasztóval, nem külön kapszulák */
 body.sf-privat #privMaBody .card.st-ma-szok { padding:18px 20px 8px !important; }
 body.sf-privat #privMaBody .st-ma-szok .st-ma-fej { margin-bottom:4px; }
-body.sf-privat #privMaBody .st-ma-szok .st-ma-fej h3 { font-size:22px; }
+html body.sf-privat #privMaBody .st-ma-szok .st-ma-fej h3 { font-size:19px; font-weight:700; letter-spacing:-.01em; }
 body.sf-privat #privMaBody .st-ma-szok .st-ma-szl { gap:0; }
 html body.sf-privat #privMaBody .st-ma-szok .st-ma-szs { background:none !important; box-shadow:none !important; border-radius:0; padding:12px 0; }
 html body.sf-privat #privMaBody .st-ma-szok .st-ma-szs + .st-ma-szs { box-shadow:inset 0 1px 0 var(--r-ntint) !important; }
