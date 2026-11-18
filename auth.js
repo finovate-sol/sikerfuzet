@@ -4,7 +4,7 @@
 // ============================================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
     initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp, increment
@@ -761,6 +761,24 @@ export async function loginWithGoogle() {
     // hogy egy elakadt írás ne maradjon véglegesen elmentetlen.
     await ensureEmployeeProfile(result.user);
 
+    return result.user;
+}
+
+// Tartalék belépés: a Google saját „Sign in with Google” gombja (Google Identity Services) egy ID-tokent ad, ezzel lépünk be
+// a Firebase-be. Nem kell hozzá harmadik féltől származó tárolás – ott is működik, ahol a felugró ablakos belépés
+// „popup-closed-by-user” hibával elakad (Safari követésvédelem, privát mód, letiltott sütik, Brave…).
+// A naptár-jogot ez a belépés nem kéri: a Sikerfüzet a Naptár összekötésénél külön kéri.
+export const googleLoginClientId = googleClientId || "";
+export async function loginWithIdToken(idToken) {
+    if (!isConfigured) throw new Error("A Firebase még nincs beállítva (firebase-config.js).");
+    const result = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+    const email = result.user.email;
+    const allowed = await isEmailAllowed(email);
+    if (!allowed) {
+        await signOut(auth);
+        throw new Error("Ehhez az e-mail címhez (" + email + ") nincs hozzáférés. Kérd az adminisztrátortól a felvételt.");
+    }
+    await ensureEmployeeProfile(result.user);
     return result.user;
 }
 

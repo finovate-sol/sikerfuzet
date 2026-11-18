@@ -161,7 +161,7 @@
     </script>
 
     <script type="module">
-        import { loginWithGoogle, redirectIfLoggedIn, isConfigured, celOldal } from "./auth.js?v=94";
+        import { loginWithGoogle, loginWithIdToken, googleLoginClientId, redirectIfLoggedIn, isConfigured, celOldal } from "./auth.js?v=95";
 
         const btn = document.getElementById("googleBtn");
         const label = document.getElementById("googleBtnLabel");
@@ -186,6 +186,7 @@
         // érthető üzenet a Firebase hibakódok helyett
         function hibaSzoveg(e){
             const k = (e && e.code) || ((e && e.message || "").match(/auth\/[a-z-]+/) || [""])[0];
+            if (/popup-closed-by-user|cancelled-popup-request|popup-blocked|web-storage-unsupported|operation-not-supported|internal-error/.test(k) && !beepitett) return "TARTALEK";
             if (/popup-closed-by-user|cancelled-popup-request/.test(k)) return beepitett ? null : "A belépés megszakadt – a Google-ablak bezárult. Próbáld újra, és válaszd ki a fiókodat.";
             if (/popup-blocked/.test(k)) return "A böngésző letiltotta a belépő ablakot. Engedélyezd a felugró ablakokat ennél az oldalnál, és próbáld újra.";
             if (/network-request-failed/.test(k)) return "Nincs internetkapcsolat, vagy megszakadt. Ellenőrizd a netet, és próbáld újra.";
@@ -208,6 +209,24 @@
         }
 
         if (beepitett) bongeszoKell();
+        // tartalék belépés a Google saját gombjával (ha a felugró ablakos belépés nem jut vissza)
+        let gsiBetoltve = null;
+        const gsi = () => gsiBetoltve || (gsiBetoltve = new Promise((ok, hiba) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = () => hiba(new Error("A Google belépő gomb nem töltődött be.")); document.head.appendChild(sc); }));
+        async function tartalek(){
+            msg.className = "msg warn";
+            msg.innerHTML = `<b>A felugró ablakos belépés ezen a böngészőn nem jutott vissza.</b><br>Lépj be inkább a Google saját gombjával:<div id="gsiGomb" style="margin-top:10px;min-height:44px"></div>
+                <div style="margin-top:8px;font-size:11.5px;opacity:.85">Ha ez sem megy: Safariban a Beállítások → Safari → „Felugró ablakok tiltása” kikapcsolásával, vagy Chrome-ban próbáld.</div>`;
+            if (!googleLoginClientId) { showMsg("A tartalék belépés nincs beállítva. Próbáld Chrome-ban, vagy engedélyezd a felugró ablakokat.", "error"); return; }
+            try {
+                await gsi();
+                google.accounts.id.initialize({ client_id: googleLoginClientId, auto_select: false, cancel_on_tap_outside: true, use_fedcm_for_prompt: true,
+                    callback: async r => {
+                        try { label.innerHTML = '<span class="spinner"></span>'; await loginWithIdToken(r.credential); window.location.href = celOldal(); }
+                        catch (e2) { label.textContent = "Belépés Google-fiókkal"; showMsg(e2.message || "A belépés nem sikerült.", "error"); }
+                    } });
+                google.accounts.id.renderButton(document.getElementById("gsiGomb"), { theme: "outline", size: "large", text: "signin_with", shape: "pill", width: Math.min(320, msg.clientWidth - 30), locale: "hu" });
+            } catch (e3) { showMsg(e3.message || "A tartalék belépés nem töltődött be.", "error"); }
+        }
         if (!isConfigured) {
             showMsg("A Firebase beállítás még folyamatban van – a belépés hamarosan aktív lesz.", "warn");
         } else {
@@ -224,7 +243,7 @@
                 window.location.href = celOldal();
             } catch (e) {
                 const t = hibaSzoveg(e);
-                if (t === null) bongeszoKell(); else showMsg(t, "error");
+                if (t === null) bongeszoKell(); else if (t === "TARTALEK") tartalek(); else showMsg(t, "error");
                 btn.disabled = false;
                 label.textContent = original;
             }
