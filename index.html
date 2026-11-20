@@ -1731,6 +1731,10 @@
         .bl-ejt-l { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:8px 16px; margin:8px 0 12px; }
         .bl-ejt-s { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13.5px; font-weight:600; }
         .bl-ejt-s select { min-width:140px; height:34px; border:1px solid #d6dde8; border-radius:8px; padding:0 8px; font:inherit; font-weight:500; background:#fff; }
+        .ev-kmenu { position:fixed; z-index:9000; min-width:190px; padding:6px; border-radius:12px; background:#fff; box-shadow:0 12px 32px rgba(15,23,42,.22), 0 0 0 1px rgba(15,23,42,.06); display:flex; flex-direction:column; }
+        .ev-kmenu button { display:flex; align-items:center; gap:10px; height:36px; padding:0 12px; border:0; border-radius:8px; background:none; font:inherit; font-size:13.5px; font-weight:600; color:#1f2937; cursor:pointer; text-align:left; }
+        .ev-kmenu button:hover { background:#eef2f8; } .ev-kmenu svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; color:#64748b; }
+        body.sf-privat .ev-kmenu { background:#fff; }
         .cal-ly-ful { display:flex; gap:4px; padding:4px; border-radius:12px; background:#eef1f6; margin:0 0 12px; }
         .cal-ly-ful button { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:38px; border:0; border-radius:9px; background:none; font:inherit; font-size:14px; font-weight:700; color:#475569; cursor:pointer; transition:background .15s, box-shadow .15s; }
         .cal-ly-ful button em { font-style:normal; font-size:12px; font-weight:700; padding:1px 8px; border-radius:999px; background:#dfe5ee; color:#475569; }
@@ -40792,15 +40796,15 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const end = szerk ? new Date(ev.end.dateTime || (ev.end.date + "T00:00:00")) : new Date(start.getTime() + (o.durationMin || 60) * 60000);
         const fromClient = o.srcList === "money" || o.srcList === "career";
         let status = null, alap = o.title || "", tipus0 = null, eh0 = "100", cleanCim = "";
-        if (szerk){
-            const pv = parseValidation(ev.summary); status = pv.status; cleanCim = pv.clean;
+        if (szerk || (o.masol && ev)){
+            const pv = parseValidation(ev.summary); status = szerk ? pv.status : null; cleanCim = pv.clean;
             const sp = splitEventTitle(pv.clean); alap = sp.base; tipus0 = sp.type;
             eh0 = sp.units || (sp.type && sp.type.unit ? "0" : "100");
         }
         const status0 = status;
         // A típus elsősorban a címből jön; ha onnan nem, a Google-színből – nem az „Egyéb”-ből, különben
         // egy puszta mentés más színre festené az eseményt.
-        const szinTipus = szerk && ev.colorId && EVENT_TYPES.find(t => t.colorId === ev.colorId);
+        const szinTipus = (szerk || o.masol) && ev && ev.colorId && EVENT_TYPES.find(t => t.colorId === ev.colorId);
         let curType = Math.max(0, EVENT_TYPES.indexOf(tipus0 || szinTipus || EVENT_TYPES.find(t => t.label === (fromClient ? "Tanácsadás" : "Egyéb"))));
         const priv0 = (ev && ev.extendedProperties && ev.extendedProperties.private) || {};
         const travel0 = parseInt(priv0.sfTravelMin, 10) || 0;
@@ -40967,7 +40971,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const fel = fajta === "task";
             mod.classList.toggle("evb-feladat", fel);
             $("#qcKind").querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === fajta));
-            $("#qcHeadTitle").textContent = szerk ? (evKind(ev) === "task" ? "Feladat szerkesztése" : "Esemény szerkesztése") : fel ? "Új feladat" : "Új esemény";
+            $("#qcHeadTitle").textContent = szerk ? (evKind(ev) === "task" ? "Feladat szerkesztése" : "Esemény szerkesztése") : fel ? "Új feladat" : o.masol ? "Esemény másolása" : "Új esemény";
             $("#qcTitle").placeholder = fel ? "Mi a teendő?" : "Ügyfél neve vagy esemény címe";
             $("#qcAdvCim").textContent = fel ? " Ismétlés" : " Ismétlődés, Meet, utazási idő";
             if (fel){ if (!$("#qcZaroWrap").hidden) $("#qcTobbGomb").click(); listaToltes(); }
@@ -41244,6 +41248,41 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const ev = eventsById[id]; if (!ev) return;
         evbAblak({ mod: "szerk", id, ev });
     }
+    // Esemény másolása: az Új esemény ablak az eredeti adataival (cím, típus, idő, helyszín, jegyzet, szín) – mentés előtt átírható
+    function masolEventModal(id){
+        const src = eventsById[id]; if (!src) return;
+        const egesz = !src.start.dateTime;
+        const kezd = new Date(src.start.dateTime || (src.start.date + "T00:00:00")), veg = new Date(src.end.dateTime || (src.end.date + "T00:00:00"));
+        const ev = { summary: src.summary || "", location: src.location || "", description: src.description || "", colorId: src.colorId,
+            start: src.start, end: src.end, extendedProperties: src.extendedProperties && src.extendedProperties.private ? { private: { ...src.extendedProperties.private, sfRegId: undefined } } : undefined };
+        evbAblak({ mod: "uj", fajta: "event", masol: true, ev, start: kezd, durationMin: Math.max(15, Math.round((veg - kezd) / 60000)), allDay: egesz });
+    }
+    // azonnali másolat ugyanarra az idősávra (ugyanabba a naptárba), a megvalósulás-jel nélkül – utána húzható / szerkeszthető
+    async function masolAzonnal(id){
+        const src = eventsById[id]; if (!src) return;
+        const egesz = !src.start.dateTime;
+        const kezd = new Date(src.start.dateTime || (src.start.date + "T00:00:00")), veg = new Date(src.end.dateTime || (src.end.date + "T00:00:00"));
+        const priv = src.extendedProperties && src.extendedProperties.private ? Object.fromEntries(Object.entries(src.extendedProperties.private).filter(([k]) => k === "sfTravelMin")) : null;
+        try {
+            const uj = await createCalendarEvent({ summary: parseValidation(src.summary || "").clean, description: src.description || "", location: src.location || "", colorId: src.colorId,
+                start: kezd, durationMin: Math.max(5, Math.round((veg - kezd) / 60000)), allDay: egesz, allDayEnd: egesz ? addDays(veg, -1) : undefined,
+                ...(priv && Object.keys(priv).length ? { extendedProperties: { private: priv } } : {}), ...(src._kulso ? { calId: src._kulso } : {}) });
+            initCalendar();
+            if (typeof stRToast === "function") stRToast("Másolat kész", parseValidation(src.summary || "").clean, uj && uj.id && !src._kulso ? async () => { await deleteCalendarEvent(uj.id); initCalendar(); } : null);
+        } catch (err) { alert("Nem sikerült másolni: " + (err.message || err)); }
+    }
+    // jobb kattintás egy eseményen: kis menü (Másolat készítése · Megnyitás)
+    document.addEventListener("contextmenu", e => {
+        const host = e.target.closest && e.target.closest("[data-event-id]"); if (!host || !host.dataset.eventId || !eventsById[host.dataset.eventId]) return;
+        e.preventDefault(); document.getElementById("evKmenu")?.remove();
+        const id = host.dataset.eventId, m = document.createElement("div"); m.id = "evKmenu"; m.className = "ev-kmenu"; m.setAttribute("role", "menu");
+        m.innerHTML = `<button type="button" role="menuitem" data-evkm="masol"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Másolat készítése</button>
+            <button type="button" role="menuitem" data-evkm="nyit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Megnyitás</button>`;
+        document.body.appendChild(m);
+        const w = m.offsetWidth, h = m.offsetHeight; m.style.left = Math.min(e.clientX, innerWidth - w - 8) + "px"; m.style.top = Math.min(e.clientY, innerHeight - h - 8) + "px";
+        m.addEventListener("click", ev2 => { const b = ev2.target.closest("[data-evkm]"); if (!b) return; m.remove(); if (b.dataset.evkm === "masol") masolAzonnal(id); else openEditEventModal(id); });
+    });
+    ["click", "scroll", "resize", "keydown"].forEach(t => window.addEventListener(t, e => { const m = document.getElementById("evKmenu"); if (m && !(t === "click" && m.contains(e.target))) m.remove(); }, true));
     // Új esemény (üres időpontra kattintva, „+ Esemény”, vagy ügyfél-sort a naptárba húzva).
     function openEventModal(start, opts){
         opts = opts || {};
