@@ -39861,6 +39861,17 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (kulsoCsakOlvas(id)) return;
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest";
         const newEnd = new Date(newStart.getTime() + durationMin * 60000);
+        // Ismétlődő esemény: rákérdezünk, hogy csak ez az alkalom vagy az egész sorozat mozduljon.
+        const ev = eventsById[id];
+        if (isRecurring(ev)){
+            const scope = await askRecurringScope(parseValidation(ev.summary || "").clean, "áthelyezés");
+            if (!scope){ initCalendar(); return; }
+            if (scope === "all"){
+                try { await sorozatAthelyez(ev, newStart, durationMin, tz); initCalendar(); }
+                catch (e){ alert("Nem sikerült áthelyezni a sorozatot: " + (e.message || e)); initCalendar(); }
+                return;
+            }
+        }
         try {
             await updateCalendarEvent(id, {
                 // A "date" mezőt explicit null-lal töröljük – ha az esemény korábban
@@ -39871,6 +39882,32 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             });
             initCalendar();
         } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
+    }
+
+    // A teljes sorozat áthelyezése: a mester-esemény kezdete annyi nappal tolódik, amennyivel
+    // a húzott alkalom, az időpont és a hossz pedig az új lesz. A heti szabály napjai (BYDAY)
+    // ugyanennyivel tolódnak, így pl. a szerdai sorozatból csütörtöki lesz.
+    async function sorozatAthelyez(ev, newStart, durationMin, tz){
+        const masterId = seriesIdOf(ev);
+        const master = await getCalendarEvent(masterId);
+        const napKezd = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+        const regi = new Date(ev.start.dateTime || (ev.start.date + "T00:00:00"));
+        const eltol = Math.round((napKezd(newStart) - napKezd(regi)) / 86400000);
+        const mS0 = new Date(master.start.dateTime || (master.start.date + "T00:00:00"));
+        const mS = addDays(mS0, eltol); mS.setHours(newStart.getHours(), newStart.getMinutes(), 0, 0);
+        const mE = new Date(mS.getTime() + durationMin * 60000);
+        const body = {
+            start: { date: null, dateTime: localIso(mS), timeZone: tz },
+            end:   { date: null, dateTime: localIso(mE), timeZone: tz }
+        };
+        if (eltol && master.recurrence && master.recurrence.length){
+            const NAPOK = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+            const tolt = k => NAPOK[(((NAPOK.indexOf(k) + eltol) % 7) + 7) % 7];
+            body.recurrence = master.recurrence.map(sor => !/^RRULE:/i.test(sor) ? sor
+                : sor.replace(/BYDAY=([^;]+)/i, (m, lista) => "BYDAY=" + lista.split(",").map(x => {
+                    const mm = /^([+-]?\d*)(SU|MO|TU|WE|TH|FR|SA)$/i.exec(x.trim()); return mm ? mm[1] + tolt(mm[2].toUpperCase()) : x; }).join(",")));
+        }
+        return updateCalendarEvent(masterId, body);
     }
 
     // Időzített esemény egész naposra váltása (az "egész nap" sávba húzáskor).
