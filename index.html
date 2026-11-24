@@ -39339,6 +39339,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     let statsBusy = false;
     let statsRetry = null;
     let statsWeekOffset = 0; // 0 = aktuális hét, 1 = következő hét
+    let statsUtolso = { off: null, t: 0 };
     async function updateStats(token){
         const grid = document.getElementById("statsGrid");
         if(!grid) return;
@@ -39349,6 +39350,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if(statsBusy){ clearTimeout(statsRetry); statsRetry = setTimeout(() => updateStats(), 400); return; }
         token = token || getCalendarToken();
         if(!token) return;
+        if(statsUtolso.off === statsWeekOffset && Date.now() - statsUtolso.t < 60000) return;
+        statsUtolso = { off: statsWeekOffset, t: Date.now() };
         statsBusy = true;
         try {
             const thisStart = addDays(startOfWeek(new Date()), statsWeekOffset * 7);
@@ -40377,13 +40380,15 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 e.preventDefault();
                 gAcc += e.deltaX;
                 const cv = document.getElementById("wkCanvas"), oszl = cv.offsetWidth / Math.max(1, currentColumns.length);
+                const lep = Math.trunc(gAcc / oszl);
+                if (lep){ gAcc -= lep * oszl; napLep(lep); }   // a gyorsítótárból azonnal újrarajzol
                 gMozgat(-gAcc, false);
                 clearTimeout(gIdo);
                 gIdo = setTimeout(() => {
-                    const n = Math.round(gAcc / oszl); gAcc = 0;
+                    const n = Math.abs(gAcc) > oszl / 2 ? Math.sign(gAcc) : 0; gAcc = 0;
                     if (!n){ gMozgat(0, true); return; }
                     napLep(n);
-                }, 140);
+                }, 120);
             }, { passive:false });
             racs.addEventListener("touchcancel", () => { if (bx !== null && irany) mozgat(0, true); bx = null; }, { passive:true });
         }
@@ -40421,9 +40426,10 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     const hetKezd = () => (wkKezd && wkKezdAnchor === viewAnchor) ? startOfDay(wkKezd) : startOfWeek(viewAnchor);
     function napLep(n){
         if (!n) return;
+        const regiHet = weekOffsetOf(viewAnchor);
         if (viewMode === "day") viewAnchor = addDays(viewAnchor, n);
         else { wkKezd = addDays(hetKezd(), n); viewAnchor = new Date(wkKezd); wkKezdAnchor = viewAnchor; }
-        initCalendar(); pushWeekFromCalendar();
+        initCalendar(); if (weekOffsetOf(viewAnchor) !== regiHet) pushWeekFromCalendar();
     }
     function shiftAnchor(dir){
         if (viewMode === "clients" && ugyIdo.tip !== "het"){
@@ -41958,25 +41964,27 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     }
     function calCacheKeres(kulcs, s, e){ return calCache.find(c => c.kulcs === kulcs && c.s <= s && c.e >= e) || null; }
     function calCacheTesz(adat){
+        adat.ido = Date.now();
         calCache = calCache.filter(c => !(c.kulcs === adat.kulcs && +c.s === +adat.s && +c.e === +adat.e));
         calCache.unshift(adat); if (calCache.length > 10) calCache.length = 10;
     }
     // mentés / áthelyezés / létrehozás után az esemény rögtön a gyorsítótárba kerül (a következő rajz már így mutatja)
     function calCacheEsemeny(ev, opt){
-        if (!ev || !ev.id) return; opt = opt || {};
+        if (!ev || !ev.id) return; opt = opt || {}; statsUtolso.t = 0;
         calCache.forEach(c => {
             c.json = null;
             const listak = [c.main, ...c.kulsok];
             let megvan = false;
             listak.forEach(l => { if (!l) return; const i = l.findIndex(x => x.id === ev.id);
                 if (i >= 0){ megvan = true; const regi = l[i]; l[i] = Object.assign({}, regi, ev, { _kulso: regi._kulso, _szin: regi._szin, _iras: regi._iras, _naptar: regi._naptar }); } });
+            if (!megvan && !opt.uj) c.ido = 0;   // pl. sorozat-módosítás: a példányok a következő rajzkor frissülnek
             if (!megvan && opt.uj){
                 const ki = opt.calId ? c.atf.indexOf(opt.calId) : -1;
                 (ki >= 0 ? c.kulsok[ki] : c.main).push(ev);
             }
         });
     }
-    function calCacheTorol(id){ calCache.forEach(c => { c.json = null; c.main = c.main.filter(x => x.id !== id); c.kulsok = c.kulsok.map(l => (l || []).filter(x => x.id !== id)); }); }
+    function calCacheTorol(id){ statsUtolso.t = 0; calCache.forEach(c => { c.json = null; c.main = c.main.filter(x => x.id !== id); c.kulsok = c.kulsok.map(l => (l || []).filter(x => x.id !== id)); }); }
     async function calRajz(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
@@ -42139,6 +42147,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             };
             const gyors = calCacheKeres(kulcs, rangeStart, rangeEnd);
             if (gyors) rajzol(gyors);
+            // 60 mp-en belüli adatnál nem kérdezzük újra a Google-t (görgetés, lapozás közben ez a lassú rész)
+            if (gyors && Date.now() - (gyors.ido || 0) < 60000) return;
             else if (cols && !grid.querySelector(".cal-vaz")){ shell(); }
             const [mainEv, tasksFr, ...kulsokFr] = await tolt(ab.s, ab.e);
             if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
