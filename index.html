@@ -5077,7 +5077,9 @@
         /* a naptárban nem kell látható görgetősáv (görgetni ugyanúgy lehet) – „mindig mutasd” rendszerbeállításnál se */
         .wk-grid, .wk-allday { scrollbar-width:none; -ms-overflow-style:none; }
         .wk-grid::-webkit-scrollbar, .wk-allday::-webkit-scrollbar { display:none; width:0; height:0; }
-        .wk-times { width:52px; flex-shrink:0; position:relative; }
+        .wk-times { width:52px; flex-shrink:0; position:relative; z-index:3; background:var(--card, #fff); }
+        .wk-head { overflow:hidden; } .wk-head .h:first-child { position:relative; z-index:3; background:var(--card, #fff); }
+        .wk-grid { overscroll-behavior-x:contain; }
         .wk-times .t { height:var(--row,44px); font-size:10px; color:var(--muted); text-align:right; padding:2px 8px 0 0; box-sizing:border-box; }
         .wk-canvas { position:relative; flex:1; }
         .ideal-zone { position:absolute; pointer-events:none; z-index:0; border-radius:5px; box-sizing:border-box; }
@@ -40346,7 +40348,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         if (racs){
             const mozgat = (x, anim) => { racs.style.transition = anim ? "transform .2s cubic-bezier(.3,.7,.4,1)" : "none"; racs.style.transform = x ? `translate3d(${x}px,0,0)` : ""; };
             racs.addEventListener("touchstart", e => { bx = null; irany = 0;
-                if (e.touches.length !== 1 || !["day", "month"].includes(viewMode)) return;
+                if (e.touches.length !== 1 || !["day", "week", "month"].includes(viewMode)) return;
                 bx = e.touches[0].clientX; by = e.touches[0].clientY; bt = Date.now(); }, { passive:true });
             racs.addEventListener("touchmove", e => { if (bx === null) return; const t = e.touches[0], dx = t.clientX - bx, dy = t.clientY - by;
                 if (!irany){ if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
@@ -40354,12 +40356,32 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 mozgat(dx * .9, false); }, { passive:true });
             const vege = e => { if (bx === null || !irany){ bx = null; return; } const dx = e.changedTouches[0].clientX - bx; bx = null;
                 const w = racs.offsetWidth || window.innerWidth;
+                if (viewMode === "week"){   // heti nézet: annyi napot lép, ahány oszlopnyit húztál
+                    const cv = document.getElementById("wkCanvas"), oszl = cv ? cv.offsetWidth / Math.max(1, currentColumns.length) : w / 7;
+                    const n = Math.round(-dx / oszl); mozgat(0, !n); if (n) napLep(n); return; }
                 if (Math.abs(dx) < Math.min(80, w * .22)){ mozgat(0, true); return; }
                 const d = dx < 0 ? 1 : -1;
                 mozgat(-d * w, true);
                 setTimeout(() => { shiftAnchor(d); initCalendar(); pushWeekFromCalendar(); mozgat(d * w * .6, false);
                     requestAnimationFrame(() => requestAnimationFrame(() => mozgat(0, true))); }, 190); };
             racs.addEventListener("touchend", vege, { passive:true });
+            // trackpad (két ujjal oldalra) vagy vízszintes görgő: a napok élőben csúsznak, megállva a legközelebbi napra áll be
+            let gAcc = 0, gIdo = null;
+            const gElemek = () => [...racs.querySelectorAll(".wk-head .h:not(:first-child), #wkAllday .cell, #wkCanvas")];
+            const gMozgat = (x, anim) => gElemek().forEach(el => { el.style.transition = anim ? "transform .18s ease-out" : "none"; el.style.transform = x ? `translate3d(${x}px,0,0)` : ""; });
+            racs.addEventListener("wheel", e => {
+                if (!["day", "week"].includes(viewMode) || Math.abs(e.deltaX) <= Math.abs(e.deltaY) || !document.getElementById("wkCanvas")) return;
+                e.preventDefault();
+                gAcc += e.deltaX;
+                const cv = document.getElementById("wkCanvas"), oszl = cv.offsetWidth / Math.max(1, currentColumns.length);
+                gMozgat(-gAcc, false);
+                clearTimeout(gIdo);
+                gIdo = setTimeout(() => {
+                    const n = Math.round(gAcc / oszl); gAcc = 0;
+                    if (!n){ gMozgat(0, true); return; }
+                    napLep(n);
+                }, 140);
+            }, { passive:false });
             racs.addEventListener("touchcancel", () => { if (bx !== null && irany) mozgat(0, true); bx = null; }, { passive:true });
         }
     }
@@ -40390,6 +40412,16 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const t = document.getElementById("calUgyTol"), i = document.getElementById("calUgyIg");
         if (t && ugyIdo.tol) t.value = ugyIdo.tol; if (i && ugyIdo.ig) i.value = ugyIdo.ig;
     }
+    // Oldalra görgetve a heti nézet napról napra mozog: ilyenkor a hét nem hétfőn kezdődik.
+    // A gördített kezdőnap csak addig él, amíg a viewAnchor-t más (Ma, ugrás, hét-váltó…) le nem cseréli.
+    let wkKezd = null, wkKezdAnchor = null;
+    const hetKezd = () => (wkKezd && wkKezdAnchor === viewAnchor) ? startOfDay(wkKezd) : startOfWeek(viewAnchor);
+    function napLep(n){
+        if (!n) return;
+        if (viewMode === "day") viewAnchor = addDays(viewAnchor, n);
+        else { wkKezd = addDays(hetKezd(), n); viewAnchor = new Date(wkKezd); wkKezdAnchor = viewAnchor; }
+        initCalendar(); pushWeekFromCalendar();
+    }
     function shiftAnchor(dir){
         if (viewMode === "clients" && ugyIdo.tip !== "het"){
             if (ugyIdo.tip === "egyeni"){ const r = ugyTartomany(), nap = Math.round((r.e - r.s) / 86400000);
@@ -40398,6 +40430,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         }
         if (viewMode === "day") viewAnchor = addDays(viewAnchor, dir);
         else if (viewMode === "month"){ const d = new Date(viewAnchor); d.setDate(1); d.setMonth(d.getMonth() + dir); viewAnchor = d; }
+        else if (viewMode === "week" && wkKezd && wkKezdAnchor === viewAnchor){ wkKezd = addDays(wkKezd, dir * 7); viewAnchor = new Date(wkKezd); wkKezdAnchor = viewAnchor; }
         else viewAnchor = addDays(viewAnchor, dir * 7);   // week & agenda
     }
     // Hány héttel tér el a megadott dátum hete az aktuális héttől.
@@ -41965,7 +41998,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         } else {   // week
-            rangeStart = startOfWeek(viewAnchor); rangeEnd = addDays(rangeStart, 7);
+            rangeStart = hetKezd(); rangeEnd = addDays(rangeStart, 7);
             cols = []; for (let i=0;i<7;i++) cols.push(addDays(rangeStart, i));
             if (dateLabel) dateLabel.textContent = fmtRange(rangeStart);
         }
