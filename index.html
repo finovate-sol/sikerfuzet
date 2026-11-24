@@ -5735,6 +5735,25 @@
         }
         .fx .fx-ak { margin-bottom:14px; flex:none; } .fx .fx-ak .card-body { max-height:30vh; overflow-y:auto; }
         .fx .fx-ak.fx-mt .card-body { max-height:none; overflow:visible; }   /* az MT-fül a teljes lap, nem kell belső görgetés */
+        /* alsó „Írd vagy mondd” sor (mint a Stoában) */
+        .fx-be { flex:none; display:flex; align-items:center; gap:8px; margin-top:10px; background:var(--card); border:1px solid var(--border); border-radius:999px; padding:4px 4px 4px 18px; box-shadow:0 6px 18px rgba(15,42,82,.08); }
+        .fx-be input { flex:1; min-width:0; border:0; outline:0; background:none; font:inherit; font-size:15px; color:var(--text); height:40px; }
+        .fx-be .fx-mic { width:40px; height:40px; flex:none; border:0; border-radius:50%; background:var(--blue); color:#fff; display:grid; place-items:center; cursor:pointer; }
+        .fx-be .fx-mic svg { width:19px; height:19px; } .fx-be .fx-mic.rec { background:var(--red); animation:fxRec 1s ease-in-out infinite alternate; }
+        @keyframes fxRec { to { box-shadow:0 0 0 7px color-mix(in srgb, var(--red) 25%, transparent); } }
+        @media (max-width:760px){ .fx-be { margin-bottom:calc(92px + env(safe-area-inset-bottom, 0px)); } .fx.fx-fix .fx-lap > .card-body.fx-lista { padding-bottom:14px; } }
+        /* egységes sor (mint a Stoa Feladatokban) – a Sikerfüzet saját színeivel, betűivel */
+        .fx .pg-rec.fx-t.fx-s2 { align-items:flex-start; flex-wrap:nowrap; gap:11px; padding:10px 14px; border-radius:12px; }
+        .fx .pg-rec.fx-s2 .fd-check { padding-top:1px; }
+        .fx-s2-t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .fx .pg-rec.fx-s2 .pg-rec-name { white-space:normal; overflow:visible; font-size:14px; font-weight:600; line-height:1.3; flex:none; order:0; }
+        .fx-s2 .fx-pr { text-decoration:none; color:var(--lc); font-weight:800; letter-spacing:-.04em; }
+        .fx-s2-mj { font-size:12.5px; color:var(--muted); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .fx-s2-m { font-style:normal; font-size:12px; color:var(--muted); line-height:1.35; }
+        .fx-s2-m u { text-decoration:none; color:var(--lc); font-weight:700; }
+        .fx-s2-m .fx-m-nap.ma { color:var(--blue); font-weight:600; } .fx-s2-m .fx-m-nap.lej { color:var(--red); font-weight:600; }
+        .fx .pg-tab .fx-lp { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--lc); margin-right:6px; vertical-align:1px; }
+        .fx .pg-tab.active .fx-lp { box-shadow:0 0 0 2px #fff; }
         @media (max-width:760px){
             .fx .pg-rec.fx-t { flex-wrap:wrap; row-gap:4px; }
             .fx .pg-rec .fx-datum { order:3; flex:0 1 auto; width:auto; margin-left:31px; }
@@ -36002,7 +36021,8 @@ async function renderTeendok(){
     if(tdSzuro && !listak.includes(tdSzuro)) tdSzuro = '';
     const lat = d.lista.filter(x => !tdSzuro || x.l === tdSzuro);
     const nyitott = lat.filter(x => !x.kesz).sort((a, b) => (a.d || '9999').localeCompare(b.d || '9999') || (a.ido || '99').localeCompare(b.ido || '99'));
-    const lejart = nyitott.filter(x => x.d && x.d < ma), mai = nyitott.filter(x => x.d === ma), kesobb = nyitott.filter(x => !x.d || x.d > ma);
+    const holnap = ezPlusz(ma, 1);
+    const lejart = nyitott.filter(x => x.d && x.d < ma), mai = nyitott.filter(x => x.d === ma), holnapi = nyitott.filter(x => x.d === holnap), kesobb = nyitott.filter(x => x.d && x.d > holnap), nincsD = nyitott.filter(x => !x.d);
     const keszMa = lat.filter(x => (x.kesz || '').slice(0, 10) === ma || (x.kl || []).includes(ma));
     const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
     // sor: bal oldalt a pipa, középen a cím és a megjegyzés, alatta egy sorban: nap · idő · ismétlés · lista
@@ -36013,7 +36033,7 @@ async function renderTeendok(){
     host.innerHTML = `<div class="td">
         ${listak.length ? `<div class="td-chip">${['', ...listak].map(k => `<button type="button" class="${tdSzuro === k ? 'on' : ''}" data-tdszuro="${esc(k)}"${k ? ` style="--lc:${tdSzin(k)}"` : ''}>${k ? '<i></i>' : ''}${esc(k || 'Mind')}</button>`).join('')}</div>` : ''}
         ${tdSzuro ? `<h2 class="td-lcim" style="color:${tdSzin(tdSzuro)}">${esc(tdSzuro)}<button type="button" data-tdszin="${esc(tdSzuro)}" aria-label="Lista színe" style="background:${tdSzin(tdSzuro)}"></button></h2>` : ''}
-        ${csop('Lejárt', lejart, 'lej')}${csop('Ma', mai, 'ma')}${csop('Később', kesobb, 'kes')}
+        ${csop('Lejárt', lejart, 'lej')}${csop('Ma', mai, 'ma')}${csop('Holnap', holnapi, 'hol')}${csop('Később', kesobb, 'kes')}${csop('Határidő nélkül', nincsD, 'nin')}
         ${!nyitott.length ? `<div class="td-ures">${window.stoaIllu ? window.stoaIllu('check', { size: 84, seed: 3, tone: 'a' }) : ''}<b>${d.lista.length ? 'Minden kész' : 'Még nincs feladat'}</b><span>Írd be, vagy mondd el lent – egy mondatból több feladat is lehet.</span></div>` : ''}
         ${keszMa.length ? `<section class="td-kesz${tdKeszNyit ? ' nyit' : ''}"><button type="button" data-tdkesznyit><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>${keszMa.length} kész ma<i>▾</i></button>${tdKeszNyit ? `<div class="td-l">${keszMa.map(x => sor({ ...x, kesz: x.kesz || ma }, 'kk')).join('')}</div>` : ''}</section>` : ''}
         <form class="td-be" data-tdbe><input type="text" data-tdinp placeholder="Írd vagy mondd…" autocomplete="off" enterkeyhint="done" maxlength="300"><button type="button" class="mic" data-tdmic aria-label="Diktálás">${MIC}</button></form></div>`;
@@ -43726,17 +43746,19 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const tm = due ? taskTimeLabel(due) : "", rp = taskRepeat(t);
         const napja = lej ? Math.round((new Date(ma + "T00:00:00") - new Date(due.ymd + "T00:00:00")) / 864e5) : 0;
         const l = gtLists.find(x => x.id === t.listId);
-        // Ugyanaz a sor-komponens, mint a Heti PG / Bedolgozás listáiban (pg-rec, pg-chip, pg-rec-meta)
-        const chipek = [prio ? `<span class="pg-chip" title="${escM(prio)} prioritás">${escM(prio)}</span>` : "",
-            l ? `<span class="pg-chip alt">${escM(l.title)}</span>` : "",
-            rp ? `<span class="pg-rec-meta">↻ ${escM(FD_REPEAT_LABEL(rp))}</span>` : "",
-            ...taskTags(t).map(x => `<span class="pg-rec-ak">#${escM(x)}</span>`)].filter(Boolean).join("");
-        const datum = `<span class="pg-rec-date fx-datum${lej ? " lej" : mai ? " ma" : ""}">${due ? escM(fdNapSzo(due.ymd)) + (tm ? ` · ${escM(tm)}` : lej && napja > 1 ? ` · ${napja} napja` : "") : "—"}</span>`;
-        return `<div class="pg-rec fx-t fd-row${done ? " done" : ""}${fdOpenId === t.id ? " open" : ""}${varo ? " fd-pipalva" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true" style="--lc:${fdListColor(t.listId)}">
+        // Egységes sor (a Stoa Feladatokkal azonos felépítés): pipa balra, cím a prioritás-jellel, alatta a jegyzet
+        // első sora, majd egy sorban: nap · idő · ismétlés · lista (a lista saját színével) · címkék
+        const jel = { "Magas": "!!!", "Közepes": "!!", "Alacsony": "!" }[prio] || "";
+        const jegyzet = String(t.notes || "").split("\n").map(x => x.trim()).find(Boolean) || "";
+        // a Ma és a Holnap csoportban a nap neve fölösleges (a csoport címe mondja)
+        const csopNap = fdFilter !== "kesz" && due && !done && (due.ymd === ma || due.ymd === fdYmdL(fdPlusz(1)));
+        const napSzo = due && !csopNap ? fdNapSzo(due.ymd) + (lej && napja > 1 && !tm ? ` (${napja} napja)` : "") : "";
+        const meta = [napSzo ? `<span class="fx-m-nap${lej ? " lej" : mai ? " ma" : ""}">${escM(napSzo)}</span>` : "", tm ? escM(tm) : "",
+            rp ? "↻ " + escM(FD_REPEAT_LABEL(rp)) : "", !fdListSel && l ? `<u>${escM(l.title)}</u>` : "",
+            ...taskTags(t).map(x => `#${escM(x)}`)].filter(Boolean).join(" · ");
+        return `<div class="pg-rec fx-t fx-s2 fd-row${done ? " done" : ""}${fdOpenId === t.id ? " open" : ""}${varo ? " fd-pipalva" : ""}${lej ? " lej" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true" style="--lc:${fdListColor(t.listId)}">
             <label class="fd-check" title="Kész"><input type="checkbox" data-fdtoggle="${escM(t.id)}"${done || varo ? " checked" : ""} aria-label="Kész"></label>
-            ${datum}
-            <span class="pg-rec-name fd-title">${escM(t.title || "(névtelen feladat)")}</span>
-            ${chipek ? `<span class="fx-chipek">${chipek}</span>` : ""}
+            <span class="fx-s2-t"><span class="pg-rec-name fd-title">${jel ? `<s class="fx-pr" title="${escM(prio)} prioritás">${jel}</s> ` : ""}${escM(t.title || "(névtelen feladat)")}</span>${jegyzet ? `<span class="fx-s2-mj">${escM(jegyzet)}</span>` : ""}${meta ? `<em class="fx-s2-m">${meta}</em>` : ""}</span>
         </div>`;
     }
     // A kijelölt feladat részletei (a „B” terv szerint): lista-címke, nagy cím, alatta kulcs–érték
@@ -43879,7 +43901,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <div class="pg-tabs fx-tabs" role="tablist">
                 <button type="button" class="pg-tab${!fdListSel && fdFilter !== "kesz" ? " active" : ""}" data-fdfilter="aktiv">Összes${db("aktiv") ? ` <span class="pg-badge">${db("aktiv")}</span>` : ""}</button>
                 ${sorrend.map(l => { const n = gtTasks.filter(t => t.listId === l.id && !taskIsDone(t)).length;
-                    return `<button type="button" class="pg-tab${fdListSel === l.id ? " active" : ""}" data-fdlist="${escM(l.id)}" data-fdgroup="${escM(l.id)}" title="${escM(l.title)}">${escM(l.title)}${n ? ` <span class="pg-badge">${n}</span>` : ""}</button>`; }).join("")}
+                    return `<button type="button" class="pg-tab${fdListSel === l.id ? " active" : ""}" data-fdlist="${escM(l.id)}" data-fdgroup="${escM(l.id)}" title="${escM(l.title)}" style="--lc:${fdListColor(l.id)}"><i class="fx-lp"></i>${escM(l.title)}${n ? ` <span class="pg-badge">${n}</span>` : ""}</button>`; }).join("")}
                 <button type="button" class="pg-tab${!fdListSel && fdFilter === "kesz" ? " active" : ""}" data-fdfilter="kesz">✓ Kész</button>
             </div>
             <div class="fx-racs">
@@ -43899,6 +43921,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                         <div class="card-head"><h2><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7.5 4.5"/><path d="m3 12 1.5 1.5L7.5 10.5"/><path d="m3 18 1.5 1.5L7.5 16.5"/></svg></span>${fdFilter === "kesz" ? "Kész feladatok" : "Teendők"}</h2><span class="pg-count">${lathato.filter(t => fdFilter === "kesz" || !taskIsDone(t)).length} feladat</span></div>
                         <div class="card-body fx-lista">${torzs}</div>
                     </section>
+                    ${!fdMobUj && fdFilter !== "kesz" && !(fxFul === "mt" && fxVanMt()) ? `<form class="fx-be" data-fxbe style="--lc:${fdListColor(addList)}" onsubmit="return false"><input type="text" id="fdInput" placeholder="Írd vagy mondd…" maxlength="500" autocomplete="off" enterkeyhint="done" aria-label="Új feladat">${(window.SpeechRecognition || window.webkitSpeechRecognition) ? `<button type="button" class="fx-mic" data-fxmic aria-label="Diktálás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>` : ""}</form>` : ""}
                 </div>
                 ${ot ? `<div class="fd-lap-h" data-fdcancel></div><div class="fd-lap fx-reszl card" role="dialog" aria-label="Részletek"><div class="fd-lap-fogo"></div><div class="fx-r-fejsor"><span class="fx-r-fc">Részletek</span><button type="button" class="fx-x" data-fdcancel aria-label="Bezárás" title="Bezárás (Esc)">×</button></div>${fxReszlHtml(ot)}</div>`
                     : `<div class="card fx-reszl-ures">Válassz ki egy feladatot – itt szerkesztheted a határidejét, időpontját, listáját és jegyzetét.</div>`}
@@ -44007,6 +44030,17 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             window.sfUjFeladatAblak({ listId: fdListSel || fdAddListId, datum: fxIdo === "holnap" ? fdYmdL(fdPlusz(1)) : fdYmdL(fdMaL()) }); });
         body.querySelectorAll("[data-fxujzar]").forEach(x => x.addEventListener("click", () => { fdMobUj = false; fdUjNap = ""; renderFeladatok(); }));
         body.querySelector("[data-fxujment]")?.addEventListener("click", () => doAdd());
+        // diktálás az alsó sorba: amit mondasz, beíródik, és a végén rögtön felveszi
+        body.querySelector("[data-fxmic]")?.addEventListener("click", e => {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition, gomb = e.currentTarget, be = document.getElementById("fdInput"); if(!SR || !be) return;
+            if(gomb._r){ gomb._r.stop(); return; }
+            const r = new SR(); r.lang = "hu-HU"; r.interimResults = true; r.continuous = false; gomb._r = r; gomb.classList.add("rec"); be.placeholder = "Hallgatlak…";
+            const alap = be.value ? be.value.trim() + " " : "";
+            r.onresult = ev => { let t = ""; for(const x of ev.results) t += x[0].transcript; be.value = alap + t; };
+            r.onend = () => { gomb._r = null; gomb.classList.remove("rec"); be.placeholder = "Írd vagy mondd…"; if(be.value.trim()) doAdd(); };
+            r.onerror = () => { gomb._r = null; gomb.classList.remove("rec"); be.placeholder = "Írd vagy mondd…"; };
+            try { r.start(); } catch(_){ gomb._r = null; gomb.classList.remove("rec"); }
+        });
         body.querySelectorAll("[data-fxlistlap]").forEach(b => b.addEventListener("click", () => { fxListLap = true; renderFeladatok(); }));
         body.querySelectorAll("[data-fxlistlapzar]").forEach(b => b.addEventListener("click", () => { fxListLap = false; renderFeladatok(); }));
         body.querySelectorAll("[data-fxido]").forEach(b => b.addEventListener("click", () => { fxIdo = fxIdo === b.dataset.fxido ? "" : b.dataset.fxido; renderFeladatok(); }));
