@@ -39187,6 +39187,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             nowLine = `<div class="wk-now" style="top:${top}px">${dot}</div>`;
             nowLbl = `<div class="wk-now-lbl" style="top:${top}px">${pad2(now.getHours())}:${pad2(now.getMinutes())}</div>`;
         }
+        const regiRacs = grid.querySelector(".wk-grid"), regiTop = regiRacs ? regiRacs.scrollTop : null;
         grid.innerHTML =
             `<div class="wk-head" style="grid-template-columns:${tmpl}">${head.join("")}</div>` +
             `<div class="wk-allday" id="wkAllday" style="grid-template-columns:${tmpl}"><div class="lbl">egész nap</div>${cols.map(d => `<div class="cell${[0,6].includes(d.getDay()) ? " hetvege" : ""}"></div>`).join("")}</div>` +
@@ -39197,7 +39198,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const wkGridEl = grid.querySelector(".wk-grid");
         if (wkGridEl){
             wkGridEl.style.height = ((VIEW_END_H - VIEW_START_H) * ROW) + "px";
-            wkGridEl.scrollTop = Math.max(0, (VIEW_START_H - START_H) * ROW);
+            wkGridEl.scrollTop = regiTop != null ? regiTop : Math.max(0, (VIEW_START_H - START_H) * ROW);
         }
         lastPlanH = planCardHeight();
         // Egyszeri korrekció, ha a becsült és a tényleges rács-tető eltér.
@@ -39877,6 +39878,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 return;
             }
         }
+        // azonnal az új helyén rajzoljuk (a Google válasza csak megerősíti)
+        if (ev) { calCacheEsemeny(Object.assign({}, ev, { start: { dateTime: localIso(newStart), timeZone: tz }, end: { dateTime: localIso(newEnd), timeZone: tz } })); initCalendar(); }
         try {
             await updateCalendarEvent(id, {
                 // A "date" mezőt explicit null-lal töröljük – ha az esemény korábban
@@ -39886,7 +39889,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 end:   { date: null, dateTime: localIso(newEnd),   timeZone: tz }
             });
             initCalendar();
-        } catch (e){ alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
+        } catch (e){ calCache = []; initCalendar(); alert("Nem sikerült áthelyezni az eseményt: " + (e.message || e)); }
     }
 
     // A teljes sorozat áthelyezése: a mester-esemény kezdete annyi nappal tolódik, amennyivel
@@ -40738,7 +40741,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         let res = await doPatch(token);
         if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doPatch(token); }
         if (!res.ok) throw await apiError(res, "Frissítés hiba");
-        return res.json();
+        const frissEv = await res.json(); calCacheEsemeny(frissEv);
+        return frissEv;
     }
 
     async function deleteCalendarEvent(id){
@@ -40750,6 +40754,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         let res = await doDel(token);
         if (res.status === 401 || res.status === 403){ token = await reconnectCalendar(); res = await doDel(token); }
         if (!res.ok && res.status !== 410) throw await apiError(res, "Törlés hiba");
+        calCacheTorol(id);
         return true;
     }
 
@@ -40815,7 +40820,8 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             res = await doInsert(token);
         }
         if (!res.ok) throw await apiError(res, "Mentés hiba");
-        return res.json();
+        const ujEv = await res.json(); calCacheEsemeny(ujEv, { uj: true, calId: calId && calId !== "primary" ? calId : null });
+        return ujEv;
     }
 
     // A modal ismétlődés-mezőiből RRULE-t épít: az "Egyéni…" heti ismétlődés a
@@ -41944,6 +41950,33 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         return `<div class="cal-vaz" role="status" aria-label="Események betöltése…">${sz.map((w, i) =>
             `<div class="cal-vaz-s"><i class="t"></i><div class="b"${i === 1 ? ' style="min-height:64px"' : ""}><i style="width:${w}%"></i><i style="width:${w - 22}%"></i></div></div>`).join("")}</div>`;
     }
+    // ===== Naptár-gyorsítótár (memóriában) =====
+    let calCache = [];
+    function calAblak(s, e){
+        const a = addDays(startOfWeek(s), -7), b = addDays(startOfWeek(addDays(e, -1)), 14);
+        return { s: a, e: b };
+    }
+    function calCacheKeres(kulcs, s, e){ return calCache.find(c => c.kulcs === kulcs && c.s <= s && c.e >= e) || null; }
+    function calCacheTesz(adat){
+        calCache = calCache.filter(c => !(c.kulcs === adat.kulcs && +c.s === +adat.s && +c.e === +adat.e));
+        calCache.unshift(adat); if (calCache.length > 10) calCache.length = 10;
+    }
+    // mentés / áthelyezés / létrehozás után az esemény rögtön a gyorsítótárba kerül (a következő rajz már így mutatja)
+    function calCacheEsemeny(ev, opt){
+        if (!ev || !ev.id) return; opt = opt || {};
+        calCache.forEach(c => {
+            c.json = null;
+            const listak = [c.main, ...c.kulsok];
+            let megvan = false;
+            listak.forEach(l => { if (!l) return; const i = l.findIndex(x => x.id === ev.id);
+                if (i >= 0){ megvan = true; const regi = l[i]; l[i] = Object.assign({}, regi, ev, { _kulso: regi._kulso, _szin: regi._szin, _iras: regi._iras, _naptar: regi._naptar }); } });
+            if (!megvan && opt.uj){
+                const ki = opt.calId ? c.atf.indexOf(opt.calId) : -1;
+                (ki >= 0 ? c.kulsok[ki] : c.main).push(ev);
+            }
+        });
+    }
+    function calCacheTorol(id){ calCache.forEach(c => { c.json = null; c.main = c.main.filter(x => x.id !== id); c.kulsok = c.kulsok.map(l => (l || []).filter(x => x.id !== id)); }); }
     async function calRajz(){
         const grid = document.getElementById("calGrid");
         if (!grid) return;
@@ -42023,7 +42056,6 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const shell = () => { if (shellKesz || !cols) return; shellKesz = true;
             renderTimeShell(grid, cols, now); currentColumns = cols; wireDrop(); wireEventDrag(); wireAllDayClicks(cols); };
         if (!cols) currentColumns = [];
-        else if (!grid.querySelector(".cal-vaz")) shell();
 
         try {
             // A Google Tasks NEM jön vissza a Calendar API-ból, ezért külön
@@ -42039,24 +42071,32 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             // a fő (aktív) naptár is kikapcsolható a Naptárak ablakban – ilyenkor az eseményei nem kellenek
             const fo = sajatNezet && calLista ? calLista.find(c => calOwnId ? c.id === calOwnId : c.primary) : null;
             const foRejtve = !!(fo && ((fo.id in calLathato && !calLathato[fo.id]) || calCsopOf(fo) !== calNezet));
-            const [events, tasks, ...kulsok] = await Promise.all([
-                foRejtve ? Promise.resolve([]) : fetchEvents(token, rangeStart, rangeEnd),
+            const tolt = (tS, tE) => Promise.all([
+                foRejtve ? Promise.resolve([]) : fetchEvents(token, tS, tE),
                 ownCal ? tasksForCalendar() : Promise.resolve([]),
                 // Egy átfedő naptár hibája (pl. megszűnt hozzáférés) ne vigye el az egészet.
                 // Átmeneti hibánál (lejárt token, túl sok egyidejű kérés belépéskor) újrapróbáljuk,
                 // különben az a naptár csendben kimaradna.
-                ...atfedok.map(c => fetchEvents(token, rangeStart, rangeEnd, c.id).catch(async e => {
+                ...atfedok.map(c => fetchEvents(token, tS, tE, c.id).catch(async e => {
                     try {
-                        if (e.status === 401){ const friss = await silentOnce(true); if (friss) return await fetchEvents(friss, rangeStart, rangeEnd, c.id); return []; }
+                        if (e.status === 401){ const friss = await silentOnce(true); if (friss) return await fetchEvents(friss, tS, tE, c.id); return []; }
                         if (e.status === 403 || e.status === 429 || e.status >= 500){
                             await new Promise(r => setTimeout(r, 700 + Math.random() * 800));
-                            return await fetchEvents(getCalendarToken() || token, rangeStart, rangeEnd, c.id);
+                            return await fetchEvents(getCalendarToken() || token, tS, tE, c.id);
                         }
                     } catch(_){}
                     return [];
                 })),
             ]);
-            if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
+            // Gyorsítótár: a hét körüli tágabb ablak (±1 hét) eseményei megmaradnak, így lapozáskor, napos görgetéskor,
+            // mentés után azonnal a meglévő adatból rajzolunk, és a Google-ből csak a háttérben frissítünk.
+            const ab = calAblak(rangeStart, rangeEnd);
+            const kulcs = [activeCalendarId(), foRejtve ? 1 : 0, ownCal ? 1 : 0, ...atfedok.map(c => c.id)].join("|");
+            const atfoz = (ev) => { const a = ev.start || {}, b = ev.end || a;
+                const sD = new Date(a.dateTime || (a.date + "T00:00:00")), eD = new Date(b.dateTime || (b.date + "T00:00:00"));
+                return eD > rangeStart && sD < rangeEnd || (+sD === +eD && sD >= rangeStart && sD < rangeEnd); };
+            const rajzol = adat => {
+            const events = adat.main.filter(atfoz), tasks = adat.tasks, kulsok = adat.kulsok.map(l => (l || []).filter(atfoz));
             eventsById = {};
             events.forEach(ev => { if (ev.id) eventsById[ev.id] = ev; });
             // Ugyanaz a meghívó több naptárban is szerepelhet – csak egyszer rajzoljuk. Az ismétlődő esemény
@@ -42096,6 +42136,16 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 renderAgenda(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")), "Nincs ügyfél-időpont ezen a héten.", []);
             }
             else renderAgenda(grid, now, events, null, inRange);
+            };
+            const gyors = calCacheKeres(kulcs, rangeStart, rangeEnd);
+            if (gyors) rajzol(gyors);
+            else if (cols && !grid.querySelector(".cal-vaz")){ shell(); }
+            const [mainEv, tasksFr, ...kulsokFr] = await tolt(ab.s, ab.e);
+            if (seq !== calRenderSeq) return;          // közben újraindult a renderelés
+            const adat = { kulcs, s: ab.s, e: ab.e, main: mainEv, tasks: tasksFr, kulsok: kulsokFr, atf: atfedok.map(c => c.id) };
+            adat.json = JSON.stringify([mainEv, tasksFr.map(t => [t.id, t.updated, t.due, t.status, t.title]), kulsokFr]);
+            calCacheTesz(adat);
+            if (!gyors || gyors.json !== adat.json) rajzol(adat);
         } catch (e){
             if (seq !== calRenderSeq) return;
             const viewingOther = activeCalendarId() !== "primary";
