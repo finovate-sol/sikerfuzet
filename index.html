@@ -11228,6 +11228,18 @@ html body .sidebar-extlinks .nav-linkek { display:contents; }
 html body .sidebar:not(.collapsed) .sidebar-extlinks a { min-width:0; overflow:hidden; }
 html body .sidebar-extlinks a .nav-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 html:not(.sf-sotet) body:not(.sf-privat) .sidebar-extlinks a { border:1px solid #e3e8ef !important; border-radius:9px; }
+/* ===== Naptár eszköztár ===== */
+#page-home .cal-toolbar { gap:8px !important; }
+#page-home .cal-toolbar .cal-add-btn, html body #page-home .cal-toolbar #calAddEvent { background:var(--blue) !important; border-color:var(--blue) !important; color:#fff !important; font-weight:800 !important; padding:0 16px !important; height:36px; border-radius:10px !important; box-shadow:0 4px 12px rgba(47,85,164,.28) !important; }
+html body #page-home .cal-toolbar #calAddEvent svg { stroke:#fff; }
+html body #page-home .cal-toolbar #calAddEvent:hover { filter:brightness(1.08); }
+.cal-nezet-sw .cal-sw-sep { width:1px; align-self:stretch; background:#d6dde8; margin:4px 3px; }
+.cal-nezet-sw button.sz.on:not([data-calszur="mind"]) { background:#c4123a !important; color:#fff !important; }
+.cal-tobb { position:relative; }
+.cal-tobb-m { position:absolute; right:0; top:calc(100% + 6px); z-index:40; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 30px rgba(27,42,74,.18); padding:6px; min-width:230px; }
+.cal-tobb-m[hidden] { display:none; }
+.cal-tobb-i { display:flex; align-items:center; gap:10px; width:100%; border:0; background:none; padding:9px 10px; border-radius:8px; font:inherit; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; text-align:left; }
+.cal-tobb-i:hover { background:#f2f5f9; } .cal-tobb-i svg { width:15px; height:15px; }
 /* kezdőlap: a felső sávban nem kell a „Naptár” felirat */
 #page-home .cal-toolbar > .cal-h2 { display:none !important; }
 /* jobb sáv összecsukása */
@@ -11662,8 +11674,7 @@ html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-
                                 <div class="cal-search-results" id="calSearchResults"></div>
                             </div>
                         </div>
-                        <a class="btn icon-btn" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener" title="Megnyitás a Google Naptárban" aria-label="Megnyitás a Google Naptárban" style="margin-left:12px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></a>
-                        <button class="btn icon-btn" id="calScreenshot" title="Naptár mentése képként" style="margin-left:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></button>
+                        <div class="cal-tobb" id="calTobb"><button type="button" class="btn icon-btn" id="calTobbBtn" title="Továbbiak" aria-label="Továbbiak"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button><div class="cal-tobb-m" hidden><button type="button" class="cal-tobb-i" id="calScreenshot" title="Naptár mentése képként"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg> Naptár mentése képként</button></div></div>
                     </div>
                     <div class="cal-grid" id="calGrid"></div>
                 </section>
@@ -39678,23 +39689,29 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // Ésszerűen tág, de véges időablakban keres (fél év vissza, egy év előre) –
     // a valós használatban (időpontok, tervek) ez bőven lefedi a keresést, és
     // az orderBy=startTime a Google API-nál timeMin nélkül nem megbízható.
+    // Keresés a cím / leírás / helyszín / résztvevők között: a fő naptárban ÉS a bekapcsolt többi naptárban,
+    // egy év vissza – egy év előre; a mához legközelebbi találatok elöl (előbb a jövőbeliek).
     async function searchCalendarEvents(query){
-        const token = getCalendarToken();
+        let token = getCalendarToken();
         if (!token || !query || !query.trim()) return [];
         const now = new Date();
-        const timeMin = new Date(now.getTime() - 180*86400000);
-        const timeMax = new Date(now.getTime() + 365*86400000);
-        const url = "https://www.googleapis.com/calendar/v3/calendars/" + activeCalendarId() + "/events"
-            + "?singleEvents=true&orderBy=startTime&maxResults=8"
-            + "&q=" + encodeURIComponent(query.trim())
-            + "&timeMin=" + encodeURIComponent(timeMin.toISOString())
-            + "&timeMax=" + encodeURIComponent(timeMax.toISOString());
-        const doFetch = tok => fetch(url, { headers: { Authorization: "Bearer " + tok } });
-        let res = await doFetch(token);
-        if (res.status === 401 || res.status === 403) res = await doFetch(await reconnectCalendar());
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.items || [];
+        const timeMin = new Date(now.getTime() - 365*86400000), timeMax = new Date(now.getTime() + 365*86400000);
+        const egy = async (calPath, kulso) => {
+            const url = "https://www.googleapis.com/calendar/v3/calendars/" + calPath + "/events"
+                + "?singleEvents=true&maxResults=100&q=" + encodeURIComponent(query.trim())
+                + "&timeMin=" + encodeURIComponent(timeMin.toISOString()) + "&timeMax=" + encodeURIComponent(timeMax.toISOString());
+            let res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+            if (res.status === 401){ token = await reconnectCalendar(); res = await fetch(url, { headers: { Authorization: "Bearer " + token } }); }
+            if (!res.ok) return [];
+            return ((await res.json()).items || []).map(ev => (kulso ? Object.assign(ev, { _kulso: kulso.id, _naptar: kulso.nev, _szin: kulso.szin }) : ev));
+        };
+        let atf = []; try { atf = calAtfedok(); } catch(_){}
+        const lst = (await Promise.all([egy(activeCalendarId()), ...atf.map(c => egy(encodeURIComponent(c.id), c).catch(() => []))])).flat();
+        const lattuk = new Set(), ki = [];
+        lst.forEach(ev => { const k = (ev.iCalUID || ev.id) + "|" + ((ev.start && (ev.start.dateTime || ev.start.date)) || ""); if (lattuk.has(k)) return; lattuk.add(k); ki.push(ev); });
+        const t = ev => new Date(ev.start.dateTime || (ev.start.date + "T00:00:00")).getTime(), n0 = now.getTime() - 86400000;
+        ki.sort((a, b) => { const ja = t(a) >= n0, jb = t(b) >= n0; if (ja !== jb) return ja ? -1 : 1; return ja ? t(a) - t(b) : t(b) - t(a); });
+        return ki.slice(0, 30);
     }
 
     // ===== Statisztikák (aktuális hét vs. előző hét) =====
@@ -40606,14 +40623,14 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                 if (q.length < 2){ searchResults.innerHTML = ""; return; }
                 const seq = ++searchSeq;
                 searchResults.innerHTML = `<div class="cal-search-empty">Keresés…</div>`;
-                const items = await searchCalendarEvents(q);
+                let items = []; try { items = await searchCalendarEvents(q); } catch(_){ items = []; }
                 if (seq !== searchSeq) return;      // közben újabb keresés indult
                 if (!items.length){ searchResults.innerHTML = `<div class="cal-search-empty">Nincs találat.</div>`; return; }
                 searchResults.innerHTML = items.map(ev => {
                     const { clean, status } = parseValidation(ev.summary);
                     const hex = eventColorHex(ev, clean);
                     const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
-                    const when = fmtDay(ds) + (ev.start.dateTime ? " · " + pad2(ds.getHours())+":"+pad2(ds.getMinutes()) : " · egész nap");
+                    const when = fmtDay(ds) + (ev.start.dateTime ? " · " + pad2(ds.getHours())+":"+pad2(ds.getMinutes()) : " · egész nap") + (ev._naptar ? " · " + ev._naptar : "");
                     return `<div class="cal-search-item" data-event-id="${ev.id}" data-date="${ymd(ds)}">
                         <span class="cal-search-dot" style="background:${hex}"></span>
                         <div class="cal-search-item-txt">
@@ -40644,6 +40661,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             });
         }
 
+        const tobb = document.getElementById("calTobb");
+        if (tobb){ const m = tobb.querySelector(".cal-tobb-m");
+            tobb.querySelector("#calTobbBtn").addEventListener("click", e => { e.stopPropagation(); m.hidden = !m.hidden; });
+            document.addEventListener("click", e => { if (!tobb.contains(e.target)) m.hidden = true; });
+            m.addEventListener("click", () => setTimeout(() => { m.hidden = true; }, 0)); }
         const shot = document.getElementById("calScreenshot");
         if (shot) shot.addEventListener("click", async () => {
             try { await window.sfH2C(); } catch(e){ alert("A képmentés funkció nem töltődött be – ellenőrizd a netkapcsolatot."); return; }
@@ -42207,15 +42229,29 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const aktiv = calOwnId || "";
         return calLista.filter(c => calBe(c) && !(aktiv ? c.id === aktiv : c.primary) && calCsopOf(c) === calNezet);
     }
+    // Típus-szűrő a naptárra: Mind / Ügyfél / Felvételi (eszközönként megjegyezve)
+    let calSzur = (() => { try { return localStorage.getItem("sf_cal_szur") || "mind"; } catch(_){ return "mind"; } })();
+    const CAL_UGYF = ["Elemzés", "Tanácsadás", "Szerviz", "Telefonparty"], CAL_FELV = ["Felvételi 1", "Felvételi 2", "Munkatársnyerő"];
+    function calSzurOk(ev){
+        if (calSzur === "mind") return true;
+        const cl = parseValidation(ev.summary || "").clean, t = splitEventTitle(cl).type, n = t ? t.label : "";
+        return calSzur === "ugyfel" ? CAL_UGYF.includes(n) : CAL_FELV.includes(n);
+    }
+    document.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest("[data-calszur]"); if (!b) return;
+        calSzur = b.dataset.calszur; try { localStorage.setItem("sf_cal_szur", calSzur); } catch(_){}
+        document.querySelectorAll("[data-calszur]").forEach(x => x.classList.toggle("on", x.dataset.calszur === calSzur));
+        initCalendar();
+    });
     function renderCalLayersBtn(){
         const btn = document.getElementById("calLayers"); if (!btn) return;
         let sw = document.getElementById("calNezetSw");
         if (!sw){ sw = document.createElement("div"); sw.id = "calNezetSw"; sw.className = "cal-nezet-sw"; sw.setAttribute("role", "tablist"); btn.after(sw);
             sw.addEventListener("click", e => { const b = e.target.closest("[data-calnez]"); if (!b || b.dataset.calnez === calNezet) return; calNezet = b.dataset.calnez; try { localStorage.setItem("sf_cal_nezet", calNezet); } catch(_){} calFelhoMent(); renderCalLayersBtn(); initCalendar(); }); }
-        sw.innerHTML = [["sajat", "Saját"], ["csapat", "Csapat"]].map(([k, n]) => `<button type="button" role="tab" data-calnez="${k}" class="${calNezet === k ? "on" : ""}" aria-selected="${calNezet === k}">${n}</button>`).join("");
+        sw.innerHTML = [["sajat", "Saját"], ["csapat", "Csapat"]].map(([k, n]) => `<button type="button" role="tab" data-calnez="${k}" class="${calNezet === k ? "on" : ""}" aria-selected="${calNezet === k}">${n}</button>`).join("") + `<i class="cal-sw-sep"></i>` + [["mind", "Mind"], ["ugyfel", "Ügyfél"], ["felv", "Felvételi"]].map(([k, n]) => `<button type="button" data-calszur="${k}" class="sz${calSzur === k ? " on" : ""}" title="${k === "mind" ? "Minden esemény" : k === "ugyfel" ? "Csak ügyfél-időpontok (E, TA, SZ, Telefonparty)" : "Csak felvételik (F1, F2, Munkatársnyerő)"}">${n}</button>`).join("");
         const own = window.sfCurrentUser && window.sfCurrentUser.uid;
         const viewingOther = window.sfViewedUid && window.sfViewedUid !== own;
-        btn.hidden = !!viewingOther; sw.hidden = !!viewingOther || !calLista || !calLista.length;
+        btn.hidden = !!viewingOther; sw.hidden = !!viewingOther;   // a lista betöltése alatt is látszik (korábban ilyenkor eltűnt)
         const n = calAtfedok().length;
         btn.querySelector(".cal-layers-n").textContent = n ? "+" + n : "";
         if (!btn.dataset.wired){ btn.dataset.wired = "1"; btn.addEventListener("click", openCalLayers); }
@@ -42537,8 +42573,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
                     if(d >= rangeStart) inRange.push(Object.assign({}, t, { due: y + "T00:00:00.000Z", _vet: true }));
                 }
             });
-            if (viewMode === "day" || viewMode === "week"){ shell(); renderTimeEvents(cols, events, inRange); fitTimeGridBottom(); }
-            else if (viewMode === "month") renderMonth(grid, now, events, inRange);
+            const evSz = calSzur === "mind" ? events : events.filter(calSzurOk), tSz = calSzur === "mind" ? inRange : [];
+            if (viewMode === "day" || viewMode === "week"){ shell(); renderTimeEvents(cols, evSz, tSz); fitTimeGridBottom(); }
+            else if (viewMode === "month") renderMonth(grid, now, evSz, tSz);
             else if (viewMode === "clients"){
                 const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
                 renderUgyfelTabla(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")));
