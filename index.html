@@ -11294,6 +11294,11 @@ html body #sideViewSikerfuzet > #hlKartya { flex:1.15 1 0 !important; } html bod
 .hl-ka-e button { border:0; background:#fff; font:inherit; font-weight:800; font-size:13px; padding:12px 0; cursor:pointer; }
 .hl-ka-e button + button { border-left:1px solid #e3e8ef; } .hl-ka-e button:hover { background:#f6f8fb; }
 .hl-ka-e .g { color:#2e7d1e; } .hl-ka-e .p { color:#b0124a; } .hl-ka-e .y { color:#8a6a00; }
+.hl-sor { align-items:center; padding:9px 0; } .hl-sn { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.hl-sn1 { display:flex; align-items:center; gap:8px; min-width:0; } .hl-sor .hl-sn1 b { flex:0 1 auto; min-width:0; }
+.hl-sn small { font-size:12.5px; color:var(--muted); }
+.hl-pill { font-style:normal; flex:none; font-size:11.5px; font-weight:700; color:#2e7d32; background:#ecf8ee; border:1px solid #a8dcb2; border-radius:7px; padding:0 7px; line-height:18px; }
+.mt-ful button i { font-style:normal; font-size:10.5px; font-weight:800; color:#fff; background:#c4123a; border-radius:4px; padding:0 4px; margin-left:3px; } .mt-ful button i:empty { display:none; }
 .hl-kesz { padding:18px 6px; color:var(--muted); text-align:center; font-size:13px; }
 .mt-sor { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #f0f2f6; cursor:grab; }
 .mt-kor { width:20px; height:20px; border-radius:50%; border:2px solid #b9c3d3; background:#fff; color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center; cursor:pointer; padding:0; flex:none; }
@@ -11694,7 +11699,7 @@ html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-
 
                     <!-- Hívólista (3-2-1): a következő hívás nagy kártyán, alatta a sor -->
                     <div class="ps-mini" id="psMini"><button type="button" class="ps-ki" data-pscsuk title="Kinyitás" aria-label="Oldalsáv kinyitása"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><button type="button" class="ps-mi" data-pscsuk title="Hívólista"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><b id="psMiniH"></b></button><button type="button" class="ps-mi" data-pscsuk title="Mai teendők"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7.5 4.5"/><path d="m3 12 1.5 1.5L7.5 10.5"/><path d="m3 18 1.5 1.5L7.5 16.5"/></svg></span><b id="psMiniT"></b></button></div>
-                    <section class="card hl-kartya" id="hlKartya"><div class="hl-fej"><b>Hívólista · 3-2-1</b><span id="hlOssz"></span><button type="button" class="ps-ki" data-pscsuk title="Összecsukás" aria-label="Oldalsáv összecsukása"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button></div><div id="hlBody"></div></section>
+                    <section class="card hl-kartya" id="hlKartya"><div class="hl-fej"><b>Hívólista</b><span class="mt-ful"><button type="button" data-hlful="penz" class="on">Ügyfél <i id="hlDbP"></i></button><button type="button" data-hlful="karr">MT <i id="hlDbK"></i></button></span><span id="hlOssz"></span><button type="button" class="ps-ki" data-pscsuk title="Összecsukás" aria-label="Oldalsáv összecsukása"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button></div><div id="hlBody"></div></section>
                     <!-- Mai teendők: pipálós lista (lejárt, mai, holnapi + a ma kipipáltak) -->
                     <section class="card hl-kartya mt-kartya" id="mtKartya"><div class="hl-fej"><b>Teendők</b><span class="mt-ful"><button type="button" data-mtful="ma" class="on">Ma</button><button type="button" data-mtful="mind">Összes</button></span><span id="mtOssz"></span></div><div id="mtBody"></div></section>
                     <!-- 3-2-1: Pénzem / Karrierem egy dobozban, fülekkel (Portál-stílusú táblázat) -->
@@ -12809,11 +12814,15 @@ function hlMono(n){ return String(n || '?').split(/\s+/).filter(Boolean).slice(0
 function hlRender(){
     const box = document.getElementById('hlBody'); if(!box) return;
     const kes = hlKesobb(), e = x => x.r[HET_MEZO[x.l].e] || 'pending';
-    const sor = [...hetSorok('penz').map(x => ({ ...x, l: 'penz' })), ...hetSorok('karr').map(x => ({ ...x, l: 'karr' }))];
+    const hlFul = (() => { try { return localStorage.getItem('sf_hlful') || 'penz'; } catch(_){ return 'penz'; } })();
+    document.querySelectorAll('[data-hlful]').forEach(b => b.classList.toggle('on', b.dataset.hlful === hlFul));
+    const nyitDb = l => hetSorok(l).filter(x => (x.r[HET_MEZO[l].e] || 'pending') === 'pending').length;
+    const dP = document.getElementById('hlDbP'), dK = document.getElementById('hlDbK'); if(dP) dP.textContent = nyitDb('penz') || ''; if(dK) dK.textContent = nyitDb('karr') || '';
+    const sor = hetSorok(hlFul).map(x => ({ ...x, l: hlFul }));
     const nyit = sor.filter(x => e(x) === 'pending').sort((a, b) => (kes[a.gi] || 0) - (kes[b.gi] || 0));
     const kov = nyit[0], tobbi = nyit.slice(1).concat(sor.filter(x => e(x) !== 'pending'));
-    const mh = document.getElementById('psMiniH'); if(mh) mh.textContent = nyit.length || '';
-    const ossz = document.getElementById('hlOssz'); if(ossz) ossz.textContent = `Pénzem ${hetSorok('penz').length}/${HET_SOR.penz} · Karrierem ${hetSorok('karr').length}/${HET_SOR.karr}`;
+    const mh = document.getElementById('psMiniH'); if(mh) mh.textContent = (nyitDb('penz') + nyitDb('karr')) || '';
+    const ossz = document.getElementById('hlOssz'); if(ossz) ossz.textContent = `${hetSorok(hlFul).length} / ${HET_SOR[hlFul]}`;
     const tip = x => x.r[HET_MEZO[x.l].c] || '';
     const huz = x => `draggable="true" data-name="${esc(x.r.name)}" data-list="${x.l === 'penz' ? 'money' : 'career'}" data-regidx="${x.gi}" title="Húzd a naptárba"`;
     const JEL = { ok: ['g', '✓', 'Lebeszélve'], no: ['p', '✕', 'Nem sikerült'], pending: ['y', '?', 'Még nincs'] };
@@ -12824,15 +12833,17 @@ function hlRender(){
                 <b class="hl-kn" data-hlnev="${kov.gi}">${esc(kov.r.name || '(névtelen)')}</b>${tip(kov) ? `<span class="hl-tag">${esc(tip(kov))}</span>` : ''}${kov.l === 'karr' ? '<span class="hl-tag">Karrier</span>' : ''}</div></div>
             <div class="hl-ka-tel"><b>${kov.r.phone ? esc(szam(kov.r.phone)) : '<span style="color:var(--muted);font-weight:600">Nincs telefonszám</span>'}</b>${kov.r.phone ? `<a class="hl-hiv" href="tel:${esc(String(kov.r.phone).replace(/\s/g, ''))}" draggable="false">📞 Hívás</a>` : ''}</div>
             <div class="hl-ka-e"><button type="button" class="g" data-hl="${kov.l}:${kov.gi}:ok">✓ Lebeszélve</button><button type="button" class="p" data-hl="${kov.l}:${kov.gi}:no">✕ Nem</button><button type="button" class="y" data-hlk="${kov.gi}">⏱ Később</button></div></div>`
-        : `<div class="hl-kesz">${sor.length ? '🎉 Mindenkit felhívtál ezen a héten.' : 'Még nincs TP-vel jelölt ember – a 10 perces / 2 órás füzetben jelölhető.'}</div>`)
+        : `<div class="hl-kesz">${sor.length ? '🎉 Mindenkit felhívtál ezen a héten.' : hlFul === 'karr' ? 'Még nincs TP-vel jelölt MT-jelölt – a 2 órás füzetben jelölhető.' : 'Még nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'}</div>`)
         + (tobbi.length ? `<div class="hl-st">Sorban</div><div class="hl-lista">${tobbi.map(x => { const j = JEL[e(x)] || JEL.pending, kv = { pending: 'ok', ok: 'no', no: 'pending' }[e(x)];
-            return `<div class="hl-sor" ${huz(x)}><i class="hl-av kicsi">${esc(hlMono(x.r.name))}</i><b data-hlnev="${x.gi}">${esc(x.r.name || '(névtelen)')}</b><span>${esc(tip(x))}</span><button type="button" class="hl-e ${j[0]}" data-hl="${x.l}:${x.gi}:${kv}" title="${j[2]} – kattints a váltáshoz">${j[1]}</button></div>`; }).join('')}</div>` : '');
+            return `<div class="hl-sor" ${huz(x)}><i class="hl-av kicsi">${esc(hlMono(x.r.name))}</i><span class="hl-sn"><span class="hl-sn1"><b data-hlnev="${x.gi}">${esc(x.r.name || '(névtelen)')}</b>${tip(x) ? `<em class="hl-pill">${esc(tip(x))}</em>` : ''}</span>${x.r.phone ? `<small>${esc(x.r.phone)}</small>` : ''}</span><button type="button" class="hl-e ${j[0]}" data-hl="${x.l}:${x.gi}:${kv}" title="${j[2]} – kattints a váltáshoz">${j[1]}</button></div>`; }).join('')}</div>` : '');
 }
 document.addEventListener('click', e => {
     const k = e.target.closest && e.target.closest('#hlKartya'); if(!k) return;
     const b = e.target.closest('[data-hl]');
     if(b){ const [l, gi, v] = b.dataset.hl.split(':'); const r = registry[+gi]; if(!r) return;
         r[HET_MEZO[l].e] = v; store.save('sf_registry', registry); persistReg(+gi); renderMoney(); renderCareer(); return; }
+    const hf = e.target.closest('[data-hlful]');
+    if(hf){ try { localStorage.setItem('sf_hlful', hf.dataset.hlful); } catch(_){} hlRender(); return; }
     const kb = e.target.closest('[data-hlk]');
     if(kb){ const kes = hlKesobb(); kes[kb.dataset.hlk] = Date.now(); store.save('sf_hl_kesobb', kes); hlRender(); return; }
     const nv = e.target.closest('[data-hlnev]'); if(nv && typeof ugyModalNyit === 'function') ugyModalNyit(+nv.dataset.hlnev);
