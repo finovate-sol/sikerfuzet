@@ -11222,6 +11222,22 @@ html body #sbFdLista { display:flex; flex-direction:column; flex:1; min-height:0
 /* Info / Starter lap */
 .info-lap-cim { font-size:22px; font-weight:800; color:var(--navy); margin:4px 0 14px; }
 .info-lap { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:14px; align-items:start; }
+/* a menü alján: Portál, Camelot és a beállított linkek – két oszlopban, egyforma gombokként */
+html body .sidebar:not(.collapsed) .sidebar-extlinks { display:grid !important; grid-template-columns:1fr 1fr; gap:6px; }
+html body .sidebar-extlinks .nav-linkek { display:contents; }
+html body .sidebar:not(.collapsed) .sidebar-extlinks a { min-width:0; overflow:hidden; }
+html body .sidebar-extlinks a .nav-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+html:not(.sf-sotet) body:not(.sf-privat) .sidebar-extlinks a { border:1px solid #e3e8ef !important; border-radius:9px; }
+/* Beállítások → Linkek */
+.adm-lk-l { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+.adm-lk-s { border:1px solid var(--border); border-radius:12px; padding:10px; }
+.adm-lk-sor { display:grid; grid-template-columns:minmax(120px, .8fr) minmax(0, 1.6fr) auto auto auto; gap:8px; align-items:center; }
+.adm-lk-sor input { height:36px; border:1px solid var(--border); border-radius:9px; padding:0 10px; font:inherit; font-size:13px; min-width:0; }
+.adm-lk-ki.on { background:var(--blue-light); border-color:var(--blue); }
+.adm-lk-jog { margin-top:10px; padding-top:10px; border-top:1px solid #f0f2f6; display:flex; flex-direction:column; gap:8px; }
+.adm-lk-jf { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); } .adm-lk-jf span { margin-right:auto; }
+.adm-lk-lab { display:flex; align-items:center; gap:10px; } .adm-lk-uzi { margin-left:auto; font-size:12.5px; color:var(--muted); }
+@media (max-width:760px){ .adm-lk-sor { grid-template-columns:1fr 1fr; } .adm-lk-sor input { grid-column:1 / -1; } }
 /* a Privát mód kapcsoló kikerült az oldalsávból (az OVB és a privát rész között nincs átjárás) */
 html body #sfTerBox { display:none !important; }
 /* ===== Hívólista + Mai teendők (kezdőlap jobb oszlop) ===== */
@@ -11426,8 +11442,6 @@ html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
                 <span class="nav-label">Telefonparty</span>
             </a>
-            <div class="nav-grp nav-grp-link" data-ter="ovb" data-navcsop="link">Linkek</div>
-            <div id="navLinkek" class="nav-linkek"></div>
             <a href="#" data-ter="priv" data-page="privma" title="Ma">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 <span class="nav-label">Ma</span>
@@ -11498,6 +11512,7 @@ html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <span class="nav-label">Camelot</span>
             </a>
+            <div id="navLinkek" class="nav-linkek"></div>
         </nav>
         </div>
         <!-- OVB / Privát kapcsoló: a menü csak az egyik részt mutatja -->
@@ -17006,9 +17021,8 @@ const LINK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function linkUrl(u){ u = String(u || '').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u = 'https://' + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch(_) { return ''; } }
 function linkekRajz(){
     const box = document.getElementById('navLinkek'); if(!box) return;
-    // a csoportfejlécet a menü-építő újraírja, ezért a kezelő-gombot utólag tesszük bele
-    const g = document.querySelector('.nav-grp-link'); if(g && !g.querySelector('[data-linkkez]')) g.insertAdjacentHTML('beforeend', '<button type="button" class="nav-link-kez" data-linkkez title="Linkek kezelése" aria-label="Linkek kezelése">⚙</button>');
-    box.innerHTML = sfLinkek.filter(l => linkUrl(l.url)).map(l => `<a href="${esc(linkUrl(l.url))}" target="_blank" rel="noopener" data-ter="ovb" data-page="lk_${esc(l.id)}" data-navcs="link" data-kulso title="${esc(l.n)}">${LINK_SVG}<span class="nav-label">${esc(l.n)}</span><span class="nav-kulso-j">↗</span></a>`).join('');
+    // a Portál és a Camelot mellett, ugyanolyan gombként (a kezelés a Beállítások → Linkek részben)
+    box.innerHTML = sfLinkek.filter(l => linkUrl(l.url)).map(l => `<a href="${esc(linkUrl(l.url))}" target="_blank" rel="noopener" data-ter="ovb" data-page="lk_${esc(l.id)}" data-kulso title="${esc(l.n)}">${LINK_SVG}<span class="nav-label">${esc(l.n)}</span></a>`).join('');
     if(typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess();
 }
 async function linkekBetolt(){
@@ -17430,13 +17444,14 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         fontos: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
         naptar: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 13h3M8 17h6"/>',
         ikon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/>',
-        import: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
+        import: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+        linkek: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
     };
     // [cím, pontok, melyik részhez tartozik ('ovb' / 'priv' / üres = közös), csak adminnak]
     const BL_SZEK = [
         ['Közös', [['megj', 'Megjelenés és ikonok', '#6366f1'], ['kapcs', 'Kapcsolatok', '#0ea5e9']]],
         ['Sikerfüzet', [['fh', 'Felhasználók és hozzáférés', '#2563eb'], ['bed', 'Bedolgozási program', '#f59e0b'], ['rang', 'Rangok', '#ef4444'],
-            ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1]
+            ['info', 'INFO és szeminárium', '#14b8a6'], ['fontos', 'Fontos infók', '#64748b'], ['naptar', 'Naptár', '#0f2a52'], ['linkek', 'Linkek', '#0ea5e9'], ['import', 'Import (Notion)', '#0f2a52']], 'ovb', 1]
     ];
     let blSzek = null;
     const blMobil = () => window.matchMedia('(max-width:760px)').matches;
@@ -47929,12 +47944,67 @@ Vállalkozás nyitásának átbeszélése`, '']
         else if(k === 'naptar') renderAdmCalendar(host);
         else if(k === 'ikon') renderAdmIcon(host);
         else if(k === 'import') renderAdmImport(host);
+        else if(k === 'linkek') await renderAdmLinkek(host);
         else if(k === 'bed'){
             if(!bedSablon){ try { bedSablon = await getBedSablon(); } catch(e){} }
             if(!bedSablon || !Array.isArray(bedSablon.lepesek) || !bedSablon.lepesek.length) bedSablon = bedAlapSablon();
             bedSablonModal(host);
         }
     };
+    // ===== Beállítások → Linkek: a menü Portál / Camelot melletti gombjai; linkenként ki láthatja =====
+    let admLkNyit = null;
+    async function renderAdmLinkek(host){
+        host.innerHTML = sfVaz();
+        let employees = [];
+        try { employees = ((await getEmployees()) || []).filter(e => e.email && e.uid).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), "hu")); } catch(_){}
+        let lista = (Array.isArray(sfLinkek) ? sfLinkek : []).map(l => ({ ...l }));
+        const pa = () => (currentConfig && currentConfig.pageAccess) || {};
+        // akinek még nincs bejegyzése: új munkatársnál (alapból minden ki) semmit nem lát, régebbinél mindent
+        const latja = (uid, id) => { const m = pa(); if(m[uid] == null) return !m._ujAlapTiltva; return !m[uid].includes("lk_" + id); };
+        const hanyan = id => employees.filter(e => latja(e.uid, id)).length;
+        const rajz = () => {
+            host.innerHTML = `<div class="card"><div class="card-body adm-lk">
+                <div class="adm-section-title">Linkek</div>
+                <p style="color:var(--muted);font-size:12px;margin:-4px 0 14px;">A linkek a menü alján, a <b>Portál</b> és a <b>Camelot</b> mellett jelennek meg, ugyanolyan gombként, és új lapon nyitják meg a címet. Linkenként beállíthatod, ki láthatja.</p>
+                <div class="adm-lk-l">${lista.length ? lista.map((l, i) => `<div class="adm-lk-s" data-i="${i}">
+                    <div class="adm-lk-sor"><input type="text" class="adm-lk-n" placeholder="Gomb neve" value="${escM(l.n || "")}"><input type="text" class="adm-lk-u" placeholder="https://…" value="${escM(l.url || "")}">
+                        <button type="button" class="btn adm-lk-ki${admLkNyit === l.id ? " on" : ""}" data-lkki="${escM(l.id)}" title="Ki láthatja">👁 ${hanyan(l.id)} / ${employees.length}</button>
+                        <button type="button" class="btn" data-lkfel2="${i}" title="Feljebb"${i ? "" : " disabled"}>↑</button><button type="button" class="btn adm-lk-tor" data-lktor2="${i}" title="Törlés">✕</button></div>
+                    ${admLkNyit === l.id ? `<div class="adm-lk-jog"><div class="adm-lk-jf"><span>Ki láthatja a(z) „${escM(l.n || "link")}” gombot?</span><button type="button" class="btn" data-lkmind="1">Mindenki</button><button type="button" class="btn" data-lkmind="0">Senki</button></div>
+                        <div class="adm-page-chips">${employees.map(e => `<button type="button" class="adm-page-chip${latja(e.uid, l.id) ? " on" : ""}" data-lkuid="${escM(e.uid)}">${escM(e.name || e.email)}</button>`).join("") || '<span style="color:var(--muted);font-size:12px">Még nincs bejelentkezett munkatárs.</span>'}</div></div>` : ""}
+                </div>`).join("") : '<p style="color:var(--muted);font-size:13px">Még nincs link. Adj hozzá egyet lent.</p>'}</div>
+                <div class="adm-lk-lab"><button type="button" class="btn" data-lkuj2>+ Új link</button><span class="adm-lk-uzi" role="status"></span><button type="button" class="btn primary" data-lkment2>Mentés</button></div>
+            </div></div>`;
+        };
+        const olvas = () => host.querySelectorAll(".adm-lk-s").forEach(r => { const l = lista[+r.dataset.i]; if(!l) return; l.n = r.querySelector(".adm-lk-n").value.trim(); l.url = r.querySelector(".adm-lk-u").value.trim(); });
+        const uzi = t => { const u = host.querySelector(".adm-lk-uzi"); if(u) u.textContent = t || ""; };
+        const jogMent = async (uids, id, lat) => {
+            const cur = pa(), next = Object.assign({}, cur);
+            const minden = [...window.sfLapLista().map(x => x[0]), "_privkapcs"];
+            uids.forEach(uid => { const b = new Set(cur[uid] != null ? cur[uid] : (cur._ujAlapTiltva ? minden : [])); if(lat) b.delete("lk_" + id); else b.add("lk_" + id); next[uid] = [...b]; });
+            await saveAppConfig({ pageAccess: next });
+            currentConfig = Object.assign({}, currentConfig, { pageAccess: next }); window._admCfg = currentConfig;
+            if(typeof window.sfApplyPageAccess === "function") window.sfApplyPageAccess(next);
+        };
+        rajz();
+        host.onclick = async e => {
+            const t = e.target;
+            if(t.closest("[data-lkuj2]")){ olvas(); const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5); lista.push({ id, n: "", url: "" }); rajz(); const u = host.querySelectorAll(".adm-lk-n"); u[u.length - 1]?.focus(); return; }
+            const f = t.closest("[data-lkfel2]"); if(f){ olvas(); const i = +f.dataset.lkfel2; [lista[i - 1], lista[i]] = [lista[i], lista[i - 1]]; rajz(); return; }
+            const d = t.closest("[data-lktor2]"); if(d){ olvas(); const i = +d.dataset.lktor2; if(lista[i].n && !confirm(`Törlöd a(z) „${lista[i].n}” linket?`)) return; lista.splice(i, 1); rajz(); return; }
+            const k = t.closest("[data-lkki]"); if(k){ olvas(); admLkNyit = admLkNyit === k.dataset.lkki ? null : k.dataset.lkki; rajz(); return; }
+            const c = t.closest("[data-lkuid]");
+            if(c && admLkNyit){ olvas(); c.disabled = true; try { await jogMent([c.dataset.lkuid], admLkNyit, !c.classList.contains("on")); } catch(err){ alert("Nem sikerült menteni: " + (err.message || err)); } rajz(); return; }
+            const m = t.closest("[data-lkmind]");
+            if(m && admLkNyit){ olvas(); try { await jogMent(employees.map(x => x.uid), admLkNyit, m.dataset.lkmind === "1"); } catch(err){ alert("Nem sikerült menteni: " + (err.message || err)); } rajz(); return; }
+            if(t.closest("[data-lkment2]")){
+                olvas(); lista = lista.filter(l => l.n || l.url);
+                if(lista.some(l => !l.n || !linkUrl(l.url))){ uzi("Minden linknek kell név és érvényes cím."); rajz(); uzi("Minden linknek kell név és érvényes cím."); return; }
+                lista.forEach(l => l.url = linkUrl(l.url)); sfLinkek = lista.map(l => ({ ...l }));
+                try { await linkekMent(); rajz(); uzi("Mentve ✓"); } catch(err){ uzi("Nem sikerült menteni: " + (err.message || err)); }
+            }
+        };
+    }
     async function renderAdmPanel(tab){
         const cont = document.getElementById("admPanels"); if(!cont) return;
         if(tab===0) await renderAdmUsers(cont);
@@ -48912,9 +48982,9 @@ Vállalkozás nyitásának átbeszélése`, '']
         const mgrOpts = employees.filter(e2 => e2.uid !== emp.uid).map(e2 => `<option value="${e2.uid}"${e2.uid===mgrUid?' selected':''}>${escM(e2.name||e2.email)}</option>`).join('');
         const chip = ([key,label,teljes]) => `<button type="button" class="adm-page-chip${blocked.has(key)?'':' on'}" data-pgkey="${key}"
             title="${teljes ? escM(teljes) + ' – ' : ''}${blocked.has(key)?'Kikapcsolva – kattints a bekapcsoláshoz':'Bekapcsolva – kattints a kikapcsoláshoz'}">${escM(label)}</button>`;
-        const csoportok = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','Stoa']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t);
+        const csoportok = [['ovb','Sikerfüzet'],['mind','Közös'],['priv','Stoa']].map(([t, cim]) => { const l = lapok.filter(x => x[2] === t && !String(x[0]).startsWith('lk_'));
             return l.length ? `<div class="adm-page-csop"><span>${cim}</span><div class="adm-page-chips">${l.map(chip).join('')}</div></div>` : ''; }).join('')
-            + `<div class="adm-page-csop"><span>Menü</span><div class="adm-page-chips">${chip(['_privkapcs', 'Privát mód kapcsoló'])}</div></div>`
+            + (lapok.some(x => String(x[0]).startsWith('lk_')) ? `<div class="adm-page-csop"><span>Linkek</span><div class="adm-page-chips">${lapok.filter(x => String(x[0]).startsWith('lk_')).map(chip).join('')}</div></div>` : '')
             + (pziLista.length ? `<div class="adm-page-csop"><span>Prezentációk</span><div class="adm-page-chips">${pziLista.map(chip).join('')}</div></div>` : '');
         const db = lathatoDb(emp.uid);
         cont.innerHTML = `<div class="card"><div class="card-body adm-hr">
