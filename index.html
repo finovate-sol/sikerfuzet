@@ -11121,6 +11121,32 @@ html:not(.sf-sotet) body:not(.sf-privat) #sideViewSikerfuzet .stat-num { color:v
 html:not(.sf-sotet) body:not(.sf-privat) #sideViewSikerfuzet .stats-grid .stat { background:#fff !important; border:1px solid var(--border) !important; }
 html:not(.sf-sotet) body:not(.sf-privat) .het-db { background:var(--ovb-cr) !important; color:#fff !important; }
 html:not(.sf-sotet) body:not(.sf-privat), html:not(.sf-sotet) body:not(.sf-privat) .main { background:#eef1f5 !important; }
+</style><style>
+/* köszöntő sor a kezdőlap tetején (mindig legfelül, a Teendők doboz fölött) */
+#page-home:not([hidden]) { display:flex; flex-direction:column; }
+.sf-udv { order:-1; display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:14px 22px 12px; }
+.sf-udv h1 { margin:0; font-size:24px; font-weight:800; color:var(--navy); letter-spacing:-.01em; }
+.sf-udv > span { font-size:14px; font-weight:700; color:var(--muted); white-space:nowrap; }
+body.sf-privat .sf-udv { display:none; }
+/* Ügyfelek nézet táblázata */
+.ugy-tw { overflow:auto; height:100%; }
+.ugy-t { width:100%; border-collapse:collapse; font-size:13px; }
+.ugy-t th { text-transform:none; letter-spacing:0; position:sticky; top:0; z-index:1; background:var(--card, #fff); text-align:left; font-size:12px; font-weight:800; color:var(--navy); padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.ugy-t td { padding:8px 10px; border-bottom:1px solid #f0f2f6; white-space:nowrap; }
+.ugy-t tbody tr { cursor:pointer; } .ugy-t tbody tr:hover td:not(.mv) { background:#f6f8fb; }
+.ugy-t .nv { font-weight:800; color:var(--navy); } .ugy-t .pt { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:1px; }
+.ugy-t .hl, .ugy-t .jg { color:var(--muted); max-width:160px; overflow:hidden; text-overflow:ellipsis; } .ugy-t .sz { text-align:right; }
+.ugy-t .mv.g { background:#c6e6a6; } .ugy-t .mv.p { background:#ec93b8; } .ugy-t .mv.y { background:#f6d97e; } .ugy-t .mv { font-weight:600; }
+.ugy-t tfoot td { position:sticky; bottom:0; background:#f6f8fb; font-weight:800; color:var(--navy); border-top:1px solid var(--border); }
+.ugy-t tfoot .ossz { color:#c4123a; }
+/* jobb panel 3-2-1: kékesszürke fejlécsáv, bordó darabszám, Portál-színű eredmény-kapcsoló (zöld / rózsaszín / sárga) */
+html:not(.sf-sotet) body:not(.sf-privat) #sideViewSikerfuzet .sav-321 > .hv-k-fej { background:var(--ovb-hd); margin:-14px -12px 10px; padding:10px 14px; }
+html:not(.sf-sotet) body:not(.sf-privat) #sideViewSikerfuzet .sav-321 > .hv-k-fej h3 { font-weight:800; color:var(--navy); }
+html:not(.sf-sotet) body:not(.sf-privat) #sideViewSikerfuzet .het-db { background:var(--ovb-cr) !important; color:#fff !important; }
+html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .ok.on { background:var(--ovb-zold) !important; color:#1f5a14 !important; }
+html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .no.on { background:var(--ovb-rozsa) !important; color:#7a0f3a !important; }
+html:not(.sf-sotet) body:not(.sf-privat) :is(#sideViewSikerfuzet, .s3-havi) .s3-seg .pending.on { background:var(--ovb-sarga) !important; color:#5c4300 !important; }
+@media (max-width:1000px){ .sf-udv { display:none; } }
 </style>
 </head>
 <body>
@@ -11404,6 +11430,7 @@ html:not(.sf-sotet) body:not(.sf-privat), html:not(.sf-sotet) body:not(.sf-priva
 
         <!-- KEZDŐOLDAL -->
         <div id="page-home" class="page">
+        <div class="sf-udv" id="sfUdv"><h1>Üdv a Sikerfüzetben<span id="sfUdvNev"></span>!</h1><span id="sfUdvDatum"></span></div>
         <div class="content">
 
             <!-- ===== LEFT COLUMN ===== -->
@@ -17826,6 +17853,23 @@ function renderHaviBody(){
 // ha sem itt, sem a felhőben nincs terv (így új eszközön sem zár le tévesen).
 const hzVanTerv = h => !!(h && (String(h.celES || '').trim() || h.rogzitve || String(h.rang || '').trim() || (Array.isArray(h.formula) && h.formula.some(v => String(v ?? '').trim()))));
 let hzOk = {}, hzFut = false, hzLep = 0, hzAdat = null;
+// A kezdőlap köszöntő sora: „Üdv a Sikerfüzetben, Márk!” és a mai dátum
+(function sfUdv(){
+    const NAP = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+    const frissit = () => {
+        const n = document.getElementById('sfUdvNev'), d = document.getElementById('sfUdvDatum'); if(!n || !d) return;
+        const u = window.sfCurrentUser, un = document.getElementById('userName'), nev = ((u && u.displayName) || (un && un.textContent) || '').trim();
+        // magyar névsorrend: a keresztnév a végén
+        const kn = nev ? nev.split(/\s+/).pop() : '';
+        n.textContent = kn ? ', ' + kn : '';
+        const m = new Date(), nap = NAP[m.getDay()];
+        d.textContent = `${nap[0].toUpperCase() + nap.slice(1)}, ${m.getFullYear()}. ${HU_MONTHS_FULL[m.getMonth()].toLowerCase()} ${m.getDate()}.`;
+    };
+    frissit(); setInterval(frissit, 30000); document.addEventListener('visibilitychange', frissit);
+    // a belépett felhasználó neve kicsit később érkezik – addig sűrűbben nézzük
+    let p = 0; const t = setInterval(() => { frissit(); if(++p > 30 || (document.getElementById('sfUdvNev') || {}).textContent) clearInterval(t); }, 1000);
+    window.sfUdvFrissit = frissit;
+})();
 // A kezdőlap teendő-sávjai (havi terv, Erfolgsjournal, naptár, jóváhagyás…) egy összecsukható „Teendők” dobozba kerülnek
 (function sfTeendok(){
     const h = document.getElementById('page-home'); if(!h) return;
@@ -40696,6 +40740,32 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
     // ===== Listás (agenda) nézet – a nézetváltóból a "Napló" kikerült,
     // ezt a megjelenítést már csak az "Ügyfelek" nézet használja. =====
+    // Ügyfelek nézet: Portál-stílusú táblázat – egy sor egy ügyfél-időpont, színes megvalósulás-cellával, alul összesítő
+    function renderUgyfelTabla(grid, now, events){
+        const sorok = events.map(ev => {
+            const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date || "") + "T00:00:00");
+            const { clean, status } = parseValidation(ev.summary), sp = splitEventTitle(clean);
+            const jegyzet = String(ev.description || "").split("\n").map(x => x.trim()).filter(x => x && !/^Ügyfél:/.test(x))[0] || "";
+            const mult = (ev.end && ev.end.dateTime ? new Date(ev.end.dateTime) : ds) < now;
+            const all = status === "yes" ? ["g", "Megtörtént"] : status === "no" ? ["p", "Elmaradt"] : mult ? ["y", "Még nincs"] : ["", "Tervezett"];
+            return { ev, ds, nev: sp.base || clean, tip: sp.type, eh: sp.units ? +sp.units : 0, jegyzet, all, hex: eventColorHex(ev, clean) };
+        }).sort((a, b) => a.ds - b.ds);
+        if (!sorok.length){ grid.innerHTML = `<div class="ag-empty">Nincs ügyfél-időpont ebben az időszakban.</div>`; return; }
+        const nap = d => `${huDow(d)} ${d.getDate()}.` + (ugyIdo.tip !== "het" ? ` ${HU_MONTHS[d.getMonth()]}` : "");
+        const db = {}; sorok.forEach(x => { const k = x.tip ? (x.tip.suffix || x.tip.label) : "?"; db[k] = (db[k] || 0) + 1; });
+        const n = k => sorok.filter(x => x.all[0] === k).length, ehOssz = sorok.reduce((a, x) => a + x.eh, 0);
+        grid.innerHTML = `<div class="ugy-tw"><table class="ugy-t"><thead><tr><th>Ügyfél</th><th>Típus</th><th>Dátum</th><th>Helyszín</th><th>Jegyzet</th><th class="sz">EH</th><th>Megvalósulás</th></tr></thead><tbody>
+            ${sorok.map(x => `<tr data-event-id="${escM(x.ev.id || "")}" data-title="${escM(x.ev.summary || "")}">
+                <td class="nv">${escM(x.nev)}</td>
+                <td><i class="pt" style="background:${x.hex}"></i>${escM(x.tip ? x.tip.label : "")}</td>
+                <td class="dt">${escM(nap(x.ds))}${x.ev.start.dateTime ? ` · ${pad2(x.ds.getHours())}:${pad2(x.ds.getMinutes())}` : ""}</td>
+                <td class="hl">${escM(x.ev.location || "")}</td>
+                <td class="jg">${escM(x.jegyzet)}</td>
+                <td class="sz">${x.eh || "–"}</td>
+                <td class="mv ${x.all[0]}">${x.all[1]}</td></tr>`).join("")}
+            </tbody><tfoot><tr><td>Összesen · ${sorok.length} időpont</td><td colspan="3">${Object.entries(db).map(([k, v]) => `${escM(k)} ${v}`).join(" · ")}</td><td></td>
+                <td class="sz ossz">${ehOssz || "–"}</td><td>✓ ${n("g")} · ✕ ${n("p")} · ? ${n("y")}</td></tr></tfoot></table></div>`;
+    }
     function renderAgenda(grid, now, events, emptyMsg, tasks){
         const items = events.map(ev => {
             const ds = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date((ev.start.date||"")+"T00:00:00");
@@ -42228,7 +42298,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             else if (viewMode === "month") renderMonth(grid, now, events, inRange);
             else if (viewMode === "clients"){
                 const CLIENT_RE = /\((E|TA|SZ|F1|F2)\)/;
-                renderAgenda(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")), "Nincs ügyfél-időpont ezen a héten.", []);
+                renderUgyfelTabla(grid, now, events.filter(ev => CLIENT_RE.test(ev.summary || "")));
             }
             else renderAgenda(grid, now, events, null, inRange);
             };
