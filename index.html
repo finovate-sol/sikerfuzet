@@ -50635,6 +50635,13 @@ input.tvc-sw:checked { background:#2563eb; } input.tvc-sw:checked::after { left:
 .tvc-cs-s > span { display:block; height:74px; border-radius:8px; background-size:cover; background-position:center; }
 .tvc-cs-s input { border:1px solid var(--border); border-radius:8px; padding:6px 8px; font:inherit; font-size:12px; color:var(--navy); min-width:0; }
 .tvc-cs-s .tvc-x { background:rgba(255,255,255,.9); right:10px; top:10px; }
+.tvc-sabcs { font-size:11.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#64748b; margin:12px 0 6px; }
+.tvc-sab { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+.tvc-sab button { display:flex; flex-direction:column; gap:4px; border:2px solid transparent; border-radius:11px; background:none; padding:3px; font:inherit; cursor:pointer; text-align:left; color:var(--navy); }
+.tvc-sab button span { position:relative; display:block; aspect-ratio:3 / 2; border-radius:8px; background-size:cover; background-position:center; }
+.tvc-sab button span i { position:absolute; right:6px; top:6px; width:22px; height:22px; border-radius:50%; background:#2563eb; color:#fff; font-style:normal; font-size:12px; font-weight:800; display:grid; place-items:center; }
+.tvc-sab button b { font-size:12px; font-weight:650; padding:0 2px; }
+.tvc-sab button:hover span { filter:brightness(1.05); } .tvc-sab button.on { border-color:#2563eb; background:#f5f8ff; } .tvc-sab button:disabled { opacity:.4; cursor:default; }
 .tvc-celfel { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:120px; border:1.5px dashed #9fb4d6; border-radius:12px; background:#f5f8ff; color:#2563eb; cursor:pointer; text-align:center; padding:8px; }
 .tvc-celfel.over { border-color:#2563eb; background:#e6efff; } .tvc-celfel span { font-size:26px; line-height:1; font-weight:300; } .tvc-celfel b { font-size:12.5px; } .tvc-celfel small { font-size:11px; color:var(--muted); }
 .tvc-celv button.on { border-color:#2563eb; background:#f5f8ff; } .tvc-celv button:disabled { opacity:.45; cursor:default; }
@@ -52185,7 +52192,6 @@ async function tvSzbFajlok(files){
 const tvSzbHely = m => { const b = { x: 28, y: 180, w: 539, h: 842 - 180 - 54 }, k = Math.min(b.w / m.w, b.h / m.h), w = m.w * k, h = m.h * k; return { x: b.x + (b.w - w) / 2, y: b.y, w, h, s: k }; };
 // ---- v2: ügyfél a nyilvántartásból (elemzőfüzet), célok, meglévő termékek felülvizsgálata, KGFB / lakásbiztosítás képek ----
 let tvUgyfelI = -1;            // a kiválasztott ügyfél (registry index) – csak a munkamenetre
-let tvCelKiv = null;           // a Célok oldal céljai (EF_CELOK kulcsok); null = az elemzőfüzet alapján automatikusan
 let tvFelulv = [];             // [{ n, regi, uj }] – éves díjak Ft-ban
 const tvKepek = { kgfb: [], lakasb: [] };   // feltöltött kalkuláció-képek: { id, kep, w, h }
 const TV_KEP_NEV = { kgfb: 'KGFB', lakasb: 'Lakásbiztosítás' };
@@ -52197,10 +52203,22 @@ function tvCelokAuto(){
     const tobbi = EF_CELOK.map(c => c[0]).filter(k => !kiv.includes(k) && (parseFloat(a['cel.' + k]) || 0) >= 2).sort((x, y) => (parseFloat(a['cel.' + y]) || 0) - (parseFloat(a['cel.' + x]) || 0));
     return [...kiv, ...tobbi].slice(0, 4);
 }
-let tvCelSajat = [];           // saját képek a Célok kollázshoz: { id, kep, w, h, n (felirat) }
+let tvCelSajat = [];           // a Célok kollázs képei (sorrendben): { id, kep, n (felirat), sab (sablon kulcs) }
 const TV_CEL_MAX = 5;
-const tvCelok = () => (tvCelKiv || tvCelokAuto()).slice(0, Math.max(0, Math.min(4, TV_CEL_MAX - tvCelSajat.length)));
-const tvCelDb = () => tvCelok().length + tvCelSajat.length;
+const tvCelDb = () => tvCelSajat.length;
+// sablonképek (prezi/tervezet/sablon – Unsplash, szabad felhasználás) és a meglévő célképek
+const TV_SABLON = [
+    ['Lakás', [['sablon/lakas-1', 'Saját lakás'], ['sablon/lakas-2', 'Otthonos lakás'], ['sablon/lakas-3', 'Új lakás'], ['sablon/lakas-4', 'Tágas otthon']]],
+    ['Ház', [['sablon/haz-1', 'Családi ház'], ['sablon/haz-2', 'Medencés ház'], ['sablon/haz-3', 'Ház a természetben'], ['sablon/haz-4', 'Modern ház']]],
+    ['Nyaralás', [['sablon/nyaralas-1', 'Tengerparti nyaralás'], ['sablon/nyaralas-2', 'Álomnyaralás'], ['sablon/nyaralas-3', 'Utazás a hegyekbe'], ['sablon/nyaralas-4', 'Kalandos utazás']]],
+    ['Autó', [['sablon/auto-1', 'Új autó'], ['sablon/auto-2', 'Prémium autó'], ['sablon/auto-3', 'Álomautó'], ['sablon/auto-4', 'Sportautó']]],
+    ['Család és jövő', [['cel-csalad', 'Család biztonsága'], ['cel-gyerek', 'Gyerekek jövője'], ['cel-nyugdij', 'Gondtalan nyugdíj'], ['cel-megtakaritas', 'Megtakarítás'], ['cel-befektetes', 'Befektetés'], ['cel-otthon', 'Saját otthon'], ['cel-utazas', 'Utazás']]]
+];
+const tvSabUrl = k => `prezi/tervezet/${k}.jpg`;
+const tvSabNev = k => { for(const [, l] of TV_SABLON){ const x = l.find(y => y[0] === k); if(x) return x[1]; } return ''; };
+const tvSabAdd = k => { if(tvCelSajat.length >= TV_CEL_MAX || tvCelSajat.some(x => x.sab === k)) return; tvCelSajat.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), kep: tvSabUrl(k), n: tvSabNev(k), sab: k }); };
+// ügyfél választásakor az elemzőfüzet céljaiból javasolt sablonok (ha a kollázs még üres)
+const TV_CEL_SAB = { lakas: 'sablon/haz-1', gyerek: 'cel-gyerek', nyugdij: 'cel-nyugdij', kiadas: 'sablon/nyaralas-1', toke: 'cel-befektetes', ado: 'cel-megtakaritas', vedelem: 'cel-csalad', egeszseg: 'cel-csalad', vagyonved: 'cel-otthon' };
 // kép beolvasása kicsinyítve (JPEG dataURL)
 async function tvKepBeolvas(f, max){
     const url = URL.createObjectURL(f), im = await new Promise((ok, hiba) => { const i = new Image(); i.onload = () => ok(i); i.onerror = hiba; i.src = url; });
@@ -52243,8 +52261,9 @@ function tvFelulvBetolt(){
 }
 function tvUgyfelValaszt(i){
     tvUgyfelI = i; const r = registry[i]; if(!r) return;
-    tvAlap.ugyfel = r.name || tvAlap.ugyfel; tvCelKiv = null; tvFelulv = tvFelulvBetolt();
-    if(tvCelokAuto().length) tvAlap.opc.celok = true;
+    tvAlap.ugyfel = r.name || tvAlap.ugyfel; tvFelulv = tvFelulvBetolt();
+    if(!tvCelSajat.length) tvCelokAuto().forEach(k => TV_CEL_SAB[k] && tvSabAdd(TV_CEL_SAB[k]));
+    if(tvCelSajat.length) tvAlap.opc.celok = true;
     if(tvFelulv.length) tvAlap.opc.felulv = true;
     tvMent(); renderTervezet();
 }
@@ -52262,11 +52281,8 @@ async function tvKepFel(fajta, files){
 }
 // ---- v2 oldalak ----
 function tvCelokLap(lab){
-    const l = [...tvCelok(), ...tvCelSajat]; if(!l.length) return '';
-    const a = tvEfA() || {}, kiv = Array.isArray(a['cel.kiv']) ? a['cel.kiv'] : [];
-    const cs = k => { if(typeof k !== 'string') return `<div class="cc" style="background-image:url('${k.kep}')">${k.n ? `<div class="cc-n">${esc(k.n)}</div>` : ''}</div>`;
-        const j = EF_CELOK.findIndex(c => c[0] === k), c = EF_CELOK[j], fo = kiv.indexOf(k);
-        return `<div class="cc" style="background-image:url('elemzo/cel${j + 1}.jpg')">${fo >= 0 ? `<span class="cc-fo">★ ${fo + 1}. legfontosabb</span>` : ''}<div class="cc-n">${esc(c[1])}</div></div>`; };
+    const l = tvCelSajat.slice(0, TV_CEL_MAX); if(!l.length) return '';
+    const cs = k => `<div class="cc" style="background-image:url('${k.kep}')">${k.n ? `<div class="cc-n">${esc(k.n)}</div>` : ''}</div>`;
     return `<div class="tvp">${tvFej('CÉLOK', 'Az Ön céljai')}
         <p class="cc-be">Az elemzés során az alábbi célokat fogalmaztuk meg közösen – a tervezet ezek elérését szolgálja.</p>
         <div class="cc-racs n${l.length}">${l.map(cs).join('')}</div>
@@ -52821,7 +52837,7 @@ function renderTervezet(){
     const RESZEK = [
         ['egyedi', '✨', 'k', 'Egyedi ajánlat', 'kiemelt jelölés a borítón'],
         ['eloszo', '📝', 'l', 'Előszó', 'a fő üzenetek kiemelve'],
-        ['celok', '🎯', 't', 'Célok', tvCelDb() ? `${tvCelDb()} kép: ` + [...tvCelok().map(k => ((EF_CELOK.find(c => c[0] === k) || [])[1] || '').split(/[ (,]/).slice(0, 2).join(' ')), ...tvCelSajat.map(x => x.n || 'saját kép')].join(' · ') : 'válassz célokat vagy tölts fel képeket', 'celok', 'Célok és képek'],
+        ['celok', '🎯', 't', 'Célok', tvCelDb() ? `${tvCelDb()} kép: ` + tvCelSajat.map(x => x.n || 'saját kép').join(' · ') : 'válassz sablonképeket vagy tölts fel sajátot', 'celok', 'Képek kiválasztása'],
         ['felulv', '💰', 'y', 'Meglévő termékek felülvizsgálata', tvFelulv.length ? `${tvFelulv.length} szerződés · ${tvFt(Math.max(0, tvFelulv.map(tvFvSor).reduce((t, x) => t + (x.m || 0), 0)))} Ft/év megtakarítás` : 'az elemzőfüzet banki, biztosítói oldaláról', 'felulv', 'Táblázat szerkesztése'],
         oszCs.length ? ['osz', '⚖️', 't', 'Összehasonlítás', oszCs.filter(([k]) => tvAlap.oszTema[k] !== false).map(([k, l]) => `${TV_OSZ_TEMA[k]} · ${l.length} termék`).join(', ') || 'nincs téma kiválasztva', 'osz', 'Ajánlott: ' + oszCs.map(([k]) => oszAjNev(k)).join(', ')] : null,
         ['kesobb', '⏳', 'y', '„Ha később indítja”', vanKesobb ? 'a kalkulációból' : 'nincs a kalkulációban', '', '', !vanKesobb],
@@ -52839,13 +52855,12 @@ function renderTervezet(){
             <b>${cim}</b><small>${esc(al)}</small>${pop && on ? `<button type="button" class="tvc-link" data-tvpop="${pop}">⚙ ${popSz}</button>` : ''}</label>`; };
     const bekapcs = RESZEK.filter(r => o[r[0]] && !r[7]).length;
     const POP = {
-        celok: ['Célok – a kollázs képei', `<p class="tvc-pop-al"><b>Saját képek</b> – a felirat a kép alján jelenik meg (pl. „Családi ház a Balatonnál”).</p>
+        celok: ['Célok – a kollázs képei', `<p class="tvc-pop-al"><b>A kollázs képei (${tvCelDb()} / ${TV_CEL_MAX})</b> – a sorrend az oldalon is ez; az első kép a legnagyobb. A felirat a kép alján jelenik meg.</p>
             <div class="tvc-celv sajat">${tvCelSajat.map(x => `<div class="tvc-cs-s"><button type="button" class="tvc-x" data-tvcelsx="${x.id}" title="Eltávolítás">×</button><span style="background-image:url('${x.kep}')"></span><input data-tvcelsn="${x.id}" value="${esc(x.n || '')}" placeholder="Felirat (nem kötelező)"></div>`).join('')}
-                ${tvCelSajat.length < TV_CEL_MAX ? `<label class="tvc-celfel" data-tvcelfel><span>+</span><b>Kép feltöltése</b><small>húzd ide vagy kattints · több is mehet</small><input type="file" data-tvcelfajl accept="image/*" multiple hidden></label>` : ''}</div>
-            <p class="tvc-pop-al" style="margin-top:14px"><b>Az elemzőfüzet céljai</b> – összesen legfeljebb ${TV_CEL_MAX} kép kerül az oldalra.${tvEfA() ? ' Alapból az elemzőfüzet ★ legfontosabb és legmagasabb pontszámú céljai.' : ' Ügyfél kiválasztásával az elemzőfüzetből töltődnek.'}</p>
-            <div class="tvc-celv">${EF_CELOK.map(([k, n], j) => { const on = tvCelok().includes(k), pt = tvEfA() ? tvEfA()['cel.' + k] : null;
-                return `<button type="button" data-tvcelv="${k}" class="${on ? 'on' : ''}"${!on && (tvCelok().length >= 4 || tvCelDb() >= TV_CEL_MAX) ? ' disabled' : ''}><span style="background-image:url('elemzo/cel${j + 1}.jpg')"></span><b>${esc(n)}</b>${pt != null && pt !== '' ? `<small>${esc(pt)} pont</small>` : ''}</button>`; }).join('')}</div>
-            ${tvCelKiv ? '<button type="button" class="tvc-link" data-tvcelv="">↺ Vissza az automatikus választáshoz</button>' : ''}`],
+                ${tvCelSajat.length < TV_CEL_MAX ? `<label class="tvc-celfel" data-tvcelfel><span>+</span><b>Saját kép feltöltése</b><small>húzd ide vagy kattints · több is mehet</small><input type="file" data-tvcelfajl accept="image/*" multiple hidden></label>` : ''}</div>
+            <p class="tvc-pop-al" style="margin-top:16px"><b>Sablon képek</b> – kattints a kép hozzáadásához${tvCelDb() >= TV_CEL_MAX ? ' (elérted a legfeljebb 5 képet)' : ''}.</p>
+            ${TV_SABLON.map(([cs, l]) => `<div class="tvc-sabcs">${cs}</div><div class="tvc-sab">${l.map(([k, n]) => { const on = tvCelSajat.some(x => x.sab === k);
+                return `<button type="button" data-tvsab="${k}" class="${on ? 'on' : ''}"${!on && tvCelDb() >= TV_CEL_MAX ? ' disabled' : ''} title="${on ? 'Kivétel a kollázsból' : 'Hozzáadás a kollázshoz'}"><span style="background-image:url('${tvSabUrl(k)}')">${on ? '<i>✓</i>' : ''}</span><b>${esc(n)}</b></button>`; }).join('')}</div>`).join('')}`],
         felulv: ['Meglévő termékek felülvizsgálata', `<p class="tvc-pop-al">Éves díjak forintban. Az „Új éves díj” a kiváltó ajánlat díja – ebből számolja a megtakarítást.</p>
             <table class="tvc-fv"><thead><tr><th>Termék</th><th>Társaság</th><th>Jelenlegi díj / év</th><th>Új díj / év</th><th></th></tr></thead><tbody>
             ${tvFelulv.map((x, i) => { if(x.t == null){ x.t = x.n || ''; x.tars = ''; }
@@ -53250,7 +53265,7 @@ document.addEventListener('change', e => {
             URL.revokeObjectURL(im.src); tvAlap.cel = 'sajat'; tvCelKezi = true; tvMent(); renderTervezet(); };
         im.src = URL.createObjectURL(f); return; }
     if(e.target.matches && e.target.matches('[data-tvelem="nev"]')){ renderTervezet(); return; }
-    if(e.target.matches && e.target.matches('[data-tvugyf]')){ const i = +e.target.value; if(i >= 0) tvUgyfelValaszt(i); else { tvUgyfelI = -1; tvCelKiv = null; tvFelulv = []; renderTervezet(); } return; }
+    if(e.target.matches && e.target.matches('[data-tvugyf]')){ const i = +e.target.value; if(i >= 0) tvUgyfelValaszt(i); else { tvUgyfelI = -1; tvFelulv = []; renderTervezet(); } return; }
     if(e.target.dataset && /\|(regi|uj)$/.test(e.target.dataset.tvfv || '')){ const x = tvFelulv[+e.target.dataset.tvfv.split('|')[0]], k = e.target.dataset.tvfv.split('|')[1]; if(x && x[k] != null) e.target.value = tvFt(x[k]); return; }
     if(e.target.matches && e.target.matches('select[data-tvfvuj]')){ const t = e.target.value; if(!t) return; const x = { t, tars: '', regi: null, uj: null }; x.n = tvFvNev(x); tvFelulv.push(x); tvAlap.opc.felulv = true; renderTervezet();
         setTimeout(() => { const l = document.querySelectorAll('[data-tvfv$="|tars"]'); l[l.length - 1]?.focus(); }, 0); return; }
@@ -53312,7 +53327,7 @@ document.addEventListener('click', e => {
         tvOszAjanl[k] = a ? a._kid : ''; renderTervezet(); return; }
     const csx = e.target.closest('[data-tvcelsx]'); if(csx){ tvCelSajat = tvCelSajat.filter(x => x.id !== csx.dataset.tvcelsx); renderTervezet(); return; }
     const kx = e.target.closest('[data-tvkepx]'); if(kx){ e.preventDefault(); const [f, id] = kx.dataset.tvkepx.split('|'); tvKepek[f] = tvKepek[f].filter(x => x.id !== id); if(!tvKepek[f].length) tvAlap.opc[f] = false; renderTervezet(); return; }
-    const cv = e.target.closest('[data-tvcelv]'); if(cv){ const k = cv.dataset.tvcelv; if(!k) tvCelKiv = null; else { const l = tvCelok().slice(), j = l.indexOf(k); if(j >= 0) l.splice(j, 1); else if(l.length < 4 && tvCelDb() < TV_CEL_MAX) l.push(k); tvCelKiv = l; } renderTervezet(); return; }
+    const sb = e.target.closest('[data-tvsab]'); if(sb){ const k = sb.dataset.tvsab; if(tvCelSajat.some(x => x.sab === k)) tvCelSajat = tvCelSajat.filter(x => x.sab !== k); else { tvSabAdd(k); tvAlap.opc.celok = true; } renderTervezet(); return; }
     const fx = e.target.closest('[data-tvfvx]'); if(fx){ tvFelulv.splice(+fx.dataset.tvfvx, 1); renderTervezet(); return; }
     if(e.target.closest('[data-tvfvtolt]')){ tvFelulv = tvFelulvBetolt(); renderTervezet(); return; }
     const sx = e.target.closest('[data-tvszbx]'); if(sx){ tvSzb = tvSzb.filter(x => x.id !== sx.dataset.tvszbx); renderTervezet(); return; }
