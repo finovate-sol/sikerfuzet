@@ -50490,7 +50490,16 @@ Vállalkozás nyitásának átbeszélése`, '']
 @media (max-width:600px){ .tv-pdf-d { width:100vw; height:100dvh; border-radius:0; } .tv-pdf-f a.btn { display:none; } }
 .tv-lk-mozg button { width:24px; height:24px; border:1px solid #d6dde8; background:rgba(255,255,255,.95); border-radius:7px; font:inherit; font-weight:800; color:#1f3b63; cursor:pointer; padding:0; line-height:1; }
 .tv-gombok { display:flex; gap:8px; margin-top:12px; } .tv-gombok .btn { flex:1; justify-content:center; }
-.tv-lk { position:relative; }
+.tv-lk { position:relative; } #tvLapok .tv-sk { cursor:zoom-in; }
+#tvNagy { position:fixed; inset:0; z-index:9500; background:rgba(15,23,42,.84); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; gap:18px; padding:60px 20px 24px; }
+#tvNagy .tvn-lap { position:relative; overflow:hidden; background:#fff; border-radius:6px; box-shadow:0 20px 60px rgba(0,0,0,.45); flex:none; }
+#tvNagy .tvn-lap > .tvp { transform-origin:0 0; position:absolute; left:0; top:0; }
+#tvNagy .tvn-fej { position:absolute; left:0; right:0; top:0; height:52px; display:flex; align-items:center; gap:12px; padding:0 20px; color:#fff; }
+#tvNagy .tvn-fej b { font-size:15px; } #tvNagy .tvn-fej small { opacity:.7; font-size:13px; flex:1; }
+#tvNagy .tvn-x { border:0; background:rgba(255,255,255,.14); color:#fff; width:36px; height:36px; border-radius:50%; font-size:22px; line-height:1; cursor:pointer; }
+#tvNagy .tvn-ny { flex:none; width:46px; height:46px; border-radius:50%; border:0; background:rgba(255,255,255,.92); color:#16243a; font-size:26px; font-weight:700; line-height:1; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+#tvNagy .tvn-ny:disabled { opacity:.25; cursor:default; }
+#tvNagy .tvn-x:hover { background:rgba(255,255,255,.28); }
 .tv-lk-ki { position:absolute; top:8px; right:8px; z-index:2; border:1px solid #d6dde8; background:rgba(255,255,255,.94); color:#b42318; font:inherit; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; cursor:pointer; box-shadow:0 2px 6px rgba(0,20,50,.12); opacity:.85; }
 .tv-lk-ki:hover, .tv-lk.ki .tv-lk-ki { opacity:1; }
 .tv-lk.ki .tv-lk-ki { color:#1f5fd0; }
@@ -52750,6 +52759,33 @@ function tvElonezet(){
             }
         } catch(e){} });
 }
+// Előnézet: egy oldalra kattintva nagyban (lapozható ‹ ›, Esc / háttér: bezárás)
+function tvNagy(i){
+    const lapok = [...document.querySelectorAll('#tvLapok .tv-sk')]; let ov = document.getElementById('tvNagy');
+    if(i == null || !lapok[i]){ if(ov) ov.remove(); return; }
+    const sk = lapok[i], lk = sk.closest('.tv-lk'), nev = lk ? (lk.querySelector(':scope > span:last-child')?.textContent || '') : '';
+    const W = Math.floor(Math.min((innerHeight - 110) * 595 / 842, innerWidth - 140, 900)), H = Math.round(W * 842 / 595);
+    if(!ov){ ov = document.createElement('div'); ov.id = 'tvNagy'; document.body.appendChild(ov); }
+    ov.dataset.i = i;
+    ov.innerHTML = `<div class="tvn-fej"><b>${esc(nev)}</b><small>${i + 1} / ${lapok.length}</small><button type="button" class="tvn-x" data-tvnagy="x" title="Bezárás (Esc)">×</button></div>
+        <button type="button" class="tvn-ny bal" data-tvnagy="${i - 1}" title="Előző oldal"${i ? '' : ' disabled'}>‹</button>
+        <div class="tvn-lap" style="width:${W}px;height:${H}px"></div>
+        <button type="button" class="tvn-ny jobb" data-tvnagy="${i + 1}" title="Következő oldal"${i < lapok.length - 1 ? '' : ' disabled'}>›</button>`;
+    const cel = ov.querySelector('.tvn-lap'), klon = sk.cloneNode(true);
+    // a vásznak tartalma nem klónozódik – átmásoljuk
+    const reg = sk.querySelectorAll('canvas'); klon.querySelectorAll('canvas').forEach((c, j) => { c.width = reg[j].width; c.height = reg[j].height; c.getContext('2d').drawImage(reg[j], 0, 0); });
+    [...klon.childNodes].forEach(n => cel.appendChild(n));
+    cel.querySelectorAll(':scope > .tvp').forEach(p => p.style.transform = `scale(${W / 595})`);
+}
+document.addEventListener('click', e => {
+    const n = e.target.closest && e.target.closest('[data-tvnagy]');
+    if(n){ tvNagy(n.dataset.tvnagy === 'x' ? null : +n.dataset.tvnagy); return; }
+    if(e.target.id === 'tvNagy'){ tvNagy(null); return; }
+    const sk = e.target.closest && e.target.closest('#tvLapok .tv-sk'); if(!sk) return;
+    tvNagy([...document.querySelectorAll('#tvLapok .tv-sk')].indexOf(sk));
+});
+document.addEventListener('keydown', e => { const ov = document.getElementById('tvNagy'); if(!ov) return; const i = +ov.dataset.i;
+    if(e.key === 'Escape') tvNagy(null); else if(e.key === 'ArrowLeft' && i > 0) tvNagy(i - 1); else if(e.key === 'ArrowRight') tvNagy(i + 1); else return; e.preventDefault(); });
 let tvPdfLibP = null;
 const tvPdfLib = () => window.PDFLib ? Promise.resolve(window.PDFLib) : (tvPdfLibP || (tvPdfLibP = new Promise((ok, hiba) => {
     const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
