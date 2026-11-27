@@ -11320,7 +11320,7 @@ html body #sideViewSikerfuzet .hl-ka-tel .hl-hiv { height:36px; display:inline-f
 html body #sideViewSikerfuzet .hl-ka-tel { min-height:56px; }
 html body #sideViewSikerfuzet .hl-ka-e button { height:44px; padding:0; }
 html body #sideViewSikerfuzet .hl-e { width:32px; height:32px; border-radius:10px; font-size:14px; }
-html body #sideViewSikerfuzet .hl-sor { min-height:58px; } html body #sideViewSikerfuzet .mt-sor { min-height:46px; }
+html body #sideViewSikerfuzet .hl-sor { min-height:58px; } html body #sideViewSikerfuzet .mt-sor { min-height:42px; }
 html body #sideViewSikerfuzet .hl-av.kicsi { width:32px; height:32px; }
 /* ===== egységes eszköztár-elemek: 36 px magas, 10 px lekerekítés, azonos keret és betű ===== */
 @media (min-width:1001px){
@@ -11427,7 +11427,12 @@ html body #sideViewSikerfuzet > #hlKartya { flex:1.15 1 0 !important; } html bod
 .hl-pill { font-style:normal; flex:none; font-size:11.5px; font-weight:700; color:#2e7d32; background:#ecf8ee; border:1px solid #a8dcb2; border-radius:7px; padding:0 7px; line-height:18px; }
 .mt-ful button i { font-style:normal; font-size:10.5px; font-weight:800; color:#fff; background:#c4123a; border-radius:4px; padding:0 4px; margin-left:3px; } .mt-ful button i:empty { display:none; }
 .hl-kesz { padding:18px 6px; color:var(--muted); text-align:center; font-size:13px; }
-.mt-sor { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #f0f2f6; cursor:grab; }
+.mt-sor { display:flex; align-items:center; gap:10px; padding:9px 10px; margin-bottom:4px; border-radius:10px; background:#f6f8fb; cursor:grab; }
+.mt-sor:hover { background:#eef2f8; }
+.mt-nap { display:flex; align-items:baseline; gap:8px; margin:12px 2px 6px; } .mt-nap:first-child { margin-top:2px; }
+.mt-nap b { font-size:14px; font-weight:800; color:var(--navy); } .mt-nap span { font-size:11.5px; font-weight:600; color:var(--muted); } .mt-nap.lej b { color:#c4123a; }
+.mt-ido { width:38px; flex:none; font-size:11.5px; font-weight:800; color:var(--muted); }
+.mt-dot { width:9px; height:9px; border-radius:50%; background:var(--lc); flex:none; }
 .mt-kor { width:20px; height:20px; border-radius:50%; border:2px solid #b9c3d3; background:#fff; color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center; cursor:pointer; padding:0; flex:none; }
 .mt-sor.kesz .mt-kor { background:var(--blue); border-color:var(--blue); }
 .mt-c { flex:1; min-width:0; font-weight:600; color:var(--navy); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .mt-sor.kesz .mt-c { text-decoration:line-through; color:var(--muted); }
@@ -45006,10 +45011,21 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             .sort((a, b) => { const da = taskDue(a), db = taskDue(b); if(!!da !== !!db) return da ? -1 : 1; return taskSortKey(a, b); });
         const kesz = gtTasks.filter(t => taskIsDone(t) && (mtKeszMa.has(t.id) || String(t.completed || "").slice(0, 10) === ma));
         const o = document.getElementById("mtOssz"); if(o) o.textContent = `${kesz.length} / ${kesz.length + nyit.length} kész`;
-        const sor = (t, done) => { const d = taskDue(t), tm = d ? taskTimeLabel(d) : "", lj = d && d.ymd < ma && !done;
-            const al = done ? "" : !d ? "" : lj ? fdNapSzo(d.ymd).toLowerCase() : d.ymd === ma ? (tm || "ma") : d.ymd === holnap ? "holnap" + (tm ? " " + tm : "") : fdNapSzo(d.ymd).toLowerCase() + (tm ? " " + tm : "");
-            return `<div class="mt-sor${done ? " kesz" : ""}" data-sbfdid="${escM(t.id)}" draggable="true" title="Húzd a naptárba – időpontot kap"><button type="button" class="mt-kor" data-mtpipa="${escM(t.id)}" aria-label="${done ? "Visszaállítás" : "Kész"}">${done ? "✓" : ""}</button><span class="mt-c" data-mtnyit="${escM(t.id)}">${escM(t.title || "(névtelen)")}</span><em class="${lj ? "lej" : ""}">${escM(al)}</em></div>`; };
-        box.innerHTML = kesz.length + nyit.length ? kesz.map(t => sor(t, true)).join("") + nyit.map(t => sor(t, false)).join("") : `<div class="hl-kesz">${mind ? "Nincs nyitott teendő. 🎉" : "Mára nincs teendő. 🎉"}</div>`;
+        // a Feladatok oldallal azonos, napokra bontott letisztult lista: napfejléc, sorban pipa · idő · cím · lista-pötty
+        const sor = (t, done) => { const d = taskDue(t), tm = d ? taskTimeLabel(d) : "", li = gtLists.find(x => x.id === t.listId);
+            return `<div class="mt-sor${done ? " kesz" : ""}" data-sbfdid="${escM(t.id)}" draggable="true" title="Húzd a naptárba – időpontot kap" style="--lc:${fdListColor(t.listId)}"><button type="button" class="mt-kor" data-mtpipa="${escM(t.id)}" aria-label="${done ? "Visszaállítás" : "Kész"}">${done ? "✓" : ""}</button>${tm ? `<span class="mt-ido">${escM(tm)}</span>` : ""}<span class="mt-c" data-mtnyit="${escM(t.id)}">${escM(t.title || "(névtelen)")}</span><i class="mt-dot" title="${escM(li ? li.title : "")}"></i></div>`; };
+        const HN = ["vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat"];
+        const fej = (n, al, lej) => `<div class="mt-nap${lej ? " lej" : ""}"><b>${escM(n)}</b><span>${escM(al)}</span></div>`;
+        const ro = ymd => new Date(ymd + "T12:00:00").toLocaleDateString("hu-HU", { month: "short", day: "numeric" });
+        const gr = {}; nyit.forEach(t => { const d = taskDue(t), k = !d ? "~" : d.ymd < ma ? "!" : d.ymd; (gr[k] = gr[k] || []).push(t); });
+        let html = "";
+        if(gr["!"]) html += fej("Lejárt", `${gr["!"].length} feladat`, true) + gr["!"].map(t => sor(t, false)).join("");
+        if(kesz.length || gr[ma]) html += fej("Ma", `${HN[new Date(ma + "T12:00:00").getDay()]}, ${ro(ma)}`) + kesz.map(t => sor(t, true)).join("") + (gr[ma] || []).map(t => sor(t, false)).join("");
+        Object.keys(gr).filter(k => k !== "!" && k !== "~" && k !== ma).sort().forEach(k => { const d = new Date(k + "T12:00:00"), nap = Math.round((d - new Date(ma + "T12:00:00")) / 864e5);
+            const nagy = k === holnap ? "Holnap" : nap > 1 && nap < 7 ? HN[d.getDay()].replace(/^./, c => c.toUpperCase()) : ro(k).replace(/^./, c => c.toUpperCase());
+            html += fej(nagy, nap > 1 && nap < 7 ? ro(k) : HN[d.getDay()]) + gr[k].map(t => sor(t, false)).join(""); });
+        if(gr["~"]) html += fej("Határidő nélkül", `${gr["~"].length} feladat`) + gr["~"].map(t => sor(t, false)).join("");
+        box.innerHTML = html || `<div class="hl-kesz">${mind ? "Nincs nyitott teendő. 🎉" : "Mára nincs teendő. 🎉"}</div>`;
         const mi = document.getElementById("psMiniT"); if(mi) mi.textContent = nyit.filter(t => { const d = taskDue(t); return d && d.ymd <= ma; }).length || "";
     }
     window.sfMai = renderMai;
