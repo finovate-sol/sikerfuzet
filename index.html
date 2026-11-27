@@ -11185,7 +11185,9 @@ html:not(.sf-sotet) body:not(.sf-privat), html:not(.sf-sotet) body:not(.sf-priva
   html body #page-feladatok .fx .pg-rec.fx-t.fx-s2 { display:flex !important; align-items:center; gap:12px; padding:10px 14px !important; margin:0 0 4px !important; border:0 !important; border-radius:12px !important; background:#fff !important; box-shadow:0 1px 2px rgba(27,42,74,.05) !important; }
   html body #page-feladatok .fx .pg-rec.fx-s2 > * { padding:0 !important; background:none !important; }
   html body #page-feladatok .fx .pg-rec.fx-s2 .fd-check { order:0; padding:0 !important; }
-  html body #page-feladatok .fx .pg-rec.fx-s2 .fx-n3-ido { order:1; display:block; width:40px; flex:none; font-size:12px; font-weight:800; color:var(--muted); }
+  html body #page-feladatok .fx .pg-rec.fx-s2 .fx-n3-ido { order:1; display:block; width:96px; flex:none; font-size:12px; font-weight:800; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  html body #page-feladatok .fx .pg-rec.fx-s2 .fx-n3-ido.lej { color:#c4123a; }
+  html body #page-feladatok #fxSz-ma .fx-n3-ido, html body #page-feladatok #fxSz-ma + .fx-sorok .fx-n3-ido { width:44px; }
   html body #page-feladatok .fx .fx-sorok:not(:has(.fx-n3-ido:not(:empty))) .fx-n3-ido { display:none; }
   html body #page-feladatok .fx .pg-rec.fx-s2 .fx-s2-t { order:2; flex:1; min-width:0; }
   html body #page-feladatok .fx .pg-rec.fx-s2 .pg-rec-name { font-size:14.5px !important; font-weight:600 !important; }
@@ -11431,7 +11433,7 @@ html body #sideViewSikerfuzet > #hlKartya { flex:1.15 1 0 !important; } html bod
 .mt-sor:hover { background:#eef2f8; }
 .mt-nap { display:flex; align-items:baseline; gap:8px; margin:12px 2px 6px; } .mt-nap:first-child { margin-top:2px; }
 .mt-nap b { font-size:14px; font-weight:800; color:var(--navy); } .mt-nap span { font-size:11.5px; font-weight:600; color:var(--muted); } .mt-nap.lej b { color:#c4123a; }
-.mt-ido { width:38px; flex:none; font-size:11.5px; font-weight:800; color:var(--muted); }
+.mt-ido { width:38px; flex:none; font-size:11.5px; font-weight:800; color:var(--muted); white-space:nowrap; } .mt-ido.d { width:78px; overflow:hidden; text-overflow:ellipsis; } .mt-ido.lej { color:#c4123a; }
 .mt-dot { width:9px; height:9px; border-radius:50%; background:var(--lc); flex:none; }
 .mt-kor { width:20px; height:20px; border-radius:50%; border:2px solid #b9c3d3; background:#fff; color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center; cursor:pointer; padding:0; flex:none; }
 .mt-sor.kesz .mt-kor { background:var(--blue); border-color:var(--blue); }
@@ -44307,7 +44309,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             ...taskTags(t).map(x => `#${escM(x)}`)].filter(Boolean).join(" · ");
         return `<div class="pg-rec fx-t fx-s2 fd-row${done ? " done" : ""}${fdOpenId === t.id ? " open" : ""}${varo ? " fd-pipalva" : ""}${lej ? " lej" : ""}" data-fdrow="${escM(t.id)}" data-fdsrc="${escM(t.listId || "")}" draggable="true" style="--lc:${fdListColor(t.listId)}">
             <label class="fd-check" title="Kész"><input type="checkbox" data-fdtoggle="${escM(t.id)}"${done || varo ? " checked" : ""} aria-label="Kész"></label>
-            <span class="fx-n3-ido">${escM(tm || "")}</span>
+            <span class="fx-n3-ido${lej ? " lej" : ""}">${escM(mai ? (tm || "") : due ? (() => { const d = new Date(due.ymd + "T12:00:00"); const r = due.ymd === fdYmdL(fdPlusz(1)) ? "holnap" : due.ymd === fdYmdL(fdPlusz(-1)) ? "tegnap" : d.toLocaleDateString("hu-HU", due.ymd.slice(0, 4) === ma.slice(0, 4) ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" }); return r + (tm ? " " + tm : ""); })() : "")}</span>
             <span class="fx-n3-ik">${prio ? `<b class="p${{ "Magas": 3, "Közepes": 2, "Alacsony": 1 }[prio]}" title="${escM(prio)} prioritás">⚑</b>` : ""}${rp ? `<i title="${escM(FD_REPEAT_LABEL(rp))}">↻</i>` : ""}</span>
             <i class="fx-n3-dot" title="${escM(l ? l.title : "")}"></i>
             <span class="fx-col fx-c-hat${lej ? " lej" : mai ? " ma" : ""}">${due ? escM(fdNapSzo(due.ymd)) + (lej && napja > 1 ? ` (${napja} napja)` : "") : "—"}</span>
@@ -44433,13 +44435,11 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const evszam = ymd => ymd.slice(0, 4) !== ma.slice(0, 4) ? " " + ymd.slice(0, 4) + "." : "";
             if(lnap.length) napok.push(["lej", "Lejárt", `${lnap.length} feladat`, lnap]);
             if(mnap.length) napok.push(["ma", "Ma", `${HETNAP[new Date(ma + "T12:00:00").getDay()]}, ${hosszu(ma)}`, mnap]);
-            if(hnap.length) napok.push(["holnap", "Holnap", `${HETNAP[new Date(holnap + "T12:00:00").getDay()]}, ${hosszu(holnap)}`, hnap]);
-            const kn = {}; knap.forEach(t => { const y = taskDue(t).ymd; (kn[y] = kn[y] || []).push(t); });
-            Object.keys(kn).sort().forEach(y => { const big = nagy(y), d = new Date(y + "T12:00:00");
-                napok.push(["kes", big + evszam(y), /^[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+$/.test(big) ? hosszu(y) : HETNAP[d.getDay()], kn[y]]); });
-            if(nn.length) napok.push(["nincs", "Határidő nélkül", `${nn.length} feladat`, nn]);
+            const kes = hnap.concat(knap).sort(taskSortKey).concat(nn);
+            if(kes.length) napok.push(["kes", "Később", `${kes.length} feladat`, kes]);
+
         }
-        const idoSz = { lej: ["lej"], ma: ["ma"], holnap: ["holnap"], kes: ["kes", "nincs"] }[fxIdo];
+        const idoSz = { lej: ["lej"], ma: ["ma"], holnap: ["kes"], kes: ["kes"] }[fxIdo];
         const thead = `<div class="fx-thead" aria-hidden="true"><span></span><span>Feladat</span><span>Határidő</span><span>Idő</span><span>Ismétlés</span><span>Lista</span><span>Prioritás</span></div>`;
         const torzs = (fdFilter === "kesz" ? szakaszok.filter(x => x[2].length).map(([k, n, l]) => [k, n, "", l]) : napok.filter(x => !idoSz || idoSz.includes(x[0]))).map(([k, n, al, l]) =>
             `<div class="pg-group fx-cim fx-nap${k === "lej" ? " lej" : ""}" id="fxSz-${k}"><span>${escM(n)}</span><span>${escM(al || String(l.length))}</span></div>
@@ -45012,19 +45012,19 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         const kesz = gtTasks.filter(t => taskIsDone(t) && (mtKeszMa.has(t.id) || String(t.completed || "").slice(0, 10) === ma));
         const o = document.getElementById("mtOssz"); if(o) o.textContent = `${kesz.length} / ${kesz.length + nyit.length} kész`;
         // a Feladatok oldallal azonos, napokra bontott letisztult lista: napfejléc, sorban pipa · idő · cím · lista-pötty
-        const sor = (t, done) => { const d = taskDue(t), tm = d ? taskTimeLabel(d) : "", li = gtLists.find(x => x.id === t.listId);
-            return `<div class="mt-sor${done ? " kesz" : ""}" data-sbfdid="${escM(t.id)}" draggable="true" title="Húzd a naptárba – időpontot kap" style="--lc:${fdListColor(t.listId)}"><button type="button" class="mt-kor" data-mtpipa="${escM(t.id)}" aria-label="${done ? "Visszaállítás" : "Kész"}">${done ? "✓" : ""}</button>${tm ? `<span class="mt-ido">${escM(tm)}</span>` : ""}<span class="mt-c" data-mtnyit="${escM(t.id)}">${escM(t.title || "(névtelen)")}</span><i class="mt-dot" title="${escM(li ? li.title : "")}"></i></div>`; };
+        const sor = (t, done, datum) => { const d = taskDue(t), li = gtLists.find(x => x.id === t.listId);
+            let tm = d ? taskTimeLabel(d) : "";
+            if(datum && d){ const r = d.ymd === holnap ? "holnap" : d.ymd === fdYmdL(fdPlusz(-1)) ? "tegnap" : new Date(d.ymd + "T12:00:00").toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); tm = r + (tm ? " " + tm : ""); }
+            return `<div class="mt-sor${done ? " kesz" : ""}" data-sbfdid="${escM(t.id)}" draggable="true" title="Húzd a naptárba – időpontot kap" style="--lc:${fdListColor(t.listId)}"><button type="button" class="mt-kor" data-mtpipa="${escM(t.id)}" aria-label="${done ? "Visszaállítás" : "Kész"}">${done ? "✓" : ""}</button>${tm || datum ? `<span class="mt-ido${datum ? " d" : ""}${d && d.ymd < ma && !done ? " lej" : ""}">${escM(tm)}</span>` : ""}<span class="mt-c" data-mtnyit="${escM(t.id)}">${escM(t.title || "(névtelen)")}</span><i class="mt-dot" title="${escM(li ? li.title : "")}"></i></div>`; };
         const HN = ["vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat"];
         const fej = (n, al, lej) => `<div class="mt-nap${lej ? " lej" : ""}"><b>${escM(n)}</b><span>${escM(al)}</span></div>`;
         const ro = ymd => new Date(ymd + "T12:00:00").toLocaleDateString("hu-HU", { month: "short", day: "numeric" });
-        const gr = {}; nyit.forEach(t => { const d = taskDue(t), k = !d ? "~" : d.ymd < ma ? "!" : d.ymd; (gr[k] = gr[k] || []).push(t); });
+        const lejL = nyit.filter(t => { const d = taskDue(t); return d && d.ymd < ma; }), maL = nyit.filter(t => { const d = taskDue(t); return d && d.ymd === ma; });
+        const kesL = nyit.filter(t => { const d = taskDue(t); return !d || d.ymd > ma; });
         let html = "";
-        if(gr["!"]) html += fej("Lejárt", `${gr["!"].length} feladat`, true) + gr["!"].map(t => sor(t, false)).join("");
-        if(kesz.length || gr[ma]) html += fej("Ma", `${HN[new Date(ma + "T12:00:00").getDay()]}, ${ro(ma)}`) + kesz.map(t => sor(t, true)).join("") + (gr[ma] || []).map(t => sor(t, false)).join("");
-        Object.keys(gr).filter(k => k !== "!" && k !== "~" && k !== ma).sort().forEach(k => { const d = new Date(k + "T12:00:00"), nap = Math.round((d - new Date(ma + "T12:00:00")) / 864e5);
-            const nagy = k === holnap ? "Holnap" : nap > 1 && nap < 7 ? HN[d.getDay()].replace(/^./, c => c.toUpperCase()) : ro(k).replace(/^./, c => c.toUpperCase());
-            html += fej(nagy, nap > 1 && nap < 7 ? ro(k) : HN[d.getDay()]) + gr[k].map(t => sor(t, false)).join(""); });
-        if(gr["~"]) html += fej("Határidő nélkül", `${gr["~"].length} feladat`) + gr["~"].map(t => sor(t, false)).join("");
+        if(lejL.length) html += fej("Lejárt", `${lejL.length} feladat`, true) + lejL.map(t => sor(t, false, true)).join("");
+        if(kesz.length || maL.length) html += fej("Ma", `${HN[new Date(ma + "T12:00:00").getDay()]}, ${ro(ma)}`) + kesz.map(t => sor(t, true)).join("") + maL.map(t => sor(t, false)).join("");
+        if(kesL.length) html += fej("Később", `${kesL.length} feladat`) + kesL.map(t => sor(t, false, true)).join("");
         box.innerHTML = html || `<div class="hl-kesz">${mind ? "Nincs nyitott teendő. 🎉" : "Mára nincs teendő. 🎉"}</div>`;
         const mi = document.getElementById("psMiniT"); if(mi) mi.textContent = nyit.filter(t => { const d = taskDue(t); return d && d.ymd <= ma; }).length || "";
     }
