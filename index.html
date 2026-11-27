@@ -11487,7 +11487,14 @@ html body #sideViewSikerfuzet > #hlKartya { flex:1.15 1 0 !important; } html bod
 .hl-utj, .hl-sor .hl-sj { font-size:12px; color:var(--muted); font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hl-jb { width:32px; height:32px; flex:none; border:1px solid #e3e8ef; border-radius:10px; background:#fff; color:var(--muted); font-size:14px; cursor:pointer; margin-right:6px; }
 .hl-jb:hover, .hl-jb.on { border-color:var(--blue); color:var(--blue); }
-.hl-sjm { display:flex; gap:6px; padding:0 0 10px 42px; } .hl-sjm input { flex:1; }
+.hl-sor .hl-s2 { display:flex; align-items:baseline; gap:8px; min-width:0; white-space:nowrap; }
+.hl-sor .hl-tel { flex:none; white-space:nowrap; font-size:12.5px; color:var(--muted,#6b7280); }
+.hl-sor select.hl-tsel { appearance:none; -webkit-appearance:none; cursor:pointer; height:20px; min-width:0; font-family:inherit; text-align:center; text-align-last:center; padding:0 7px; margin:0; box-shadow:none; }
+.hl-sor select.hl-tsel:hover, .hl-sor select.hl-tsel:focus { border-color:#2e7d32; outline:none; }
+.hl-sor select.hl-tsel.ures { color:var(--muted,#6b7280); background:transparent; border-style:dashed; border-color:#cbd5e1; font-weight:600; }
+.hl-sor .hl-s2 .hl-sj { min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+.hl-sjm { display:flex; gap:6px; padding:2px 0 10px; width:100%; } .hl-sjm input { flex:1; min-width:0; }
+.hl-utj[data-hljszerk], .hl-sor .hl-sj { cursor:pointer; } .hl-utj span { font-style:normal; font-weight:700; color:var(--blue); margin-left:6px; font-size:11.5px; } .hl-sor .hl-sj:hover { color:var(--blue); }
 .hl-sjm button { height:36px; border:0; border-radius:10px; background:var(--blue); color:#fff; font:inherit; font-size:13px; font-weight:800; padding:0 14px; cursor:pointer; }
 .hl-kesz { padding:18px 6px; color:var(--muted); text-align:center; font-size:13px; }
 .mt-sor { display:flex; align-items:center; gap:10px; padding:9px 10px; margin-bottom:4px; border-radius:10px; background:#f6f8fb; cursor:grab; }
@@ -13000,8 +13007,15 @@ let hlJNyit = null;
 // jegyzet a hívásról: a 3-2-1 jegyzet-mezőjébe és az ügyfél adatlapjának jegyzetei közé is
 function hlJegyMent(l, gi, text){
     const r = registry[+gi], t = String(text || '').trim(); if(!r || !t) return false;
-    r[HET_MEZO[l].j] = t; store.save('sf_registry', registry); persistReg(+gi);
-    if(typeof cliAddNote === 'function') cliAddNote(+gi, `📞 Hívás (${l === 'karr' ? 'Karrierem' : '3-2-1'}): ${t}`);
+    const elo = `📞 Hívás (${l === 'karr' ? 'Karrierem' : '3-2-1'}): `, idK = HET_MEZO[l].j + 'Id';
+    r[HET_MEZO[l].j] = t;
+    const meglevo = r[idK] && Array.isArray(r.jegyzetek) && r.jegyzetek.find(n => n.id === r[idK]);
+    if(meglevo){ meglevo.text = elo + t; meglevo.edited = new Date().toISOString();
+        store.save('sf_registry', registry); persistReg(+gi);
+        if(r.id && typeof window.sfSaveClient === 'function') window.sfSaveClient(r.id, { jegyzetek: r.jegyzetek }); }
+    else { store.save('sf_registry', registry);
+        if(typeof cliAddNote === 'function' && cliAddNote(+gi, elo + t)){ const l2 = registry[+gi].jegyzetek || []; if(l2.length) registry[+gi][idK] = l2[l2.length - 1].id; store.save('sf_registry', registry); }
+        persistReg(+gi); }
     return true;
 }
 document.addEventListener('keydown', e => {
@@ -13032,16 +13046,19 @@ function hlRender(){
             <div class="hl-ka-t"><i class="hl-av">${esc(hlMono(kov.r.name))}</i><div><span class="hl-ka-k">Következő hívás · ${hely} / ${nyit.length}${kes[kov.gi] ? ' · újra' : ''}</span>
                 <b class="hl-kn" data-hlnev="${kov.gi}">${esc(kov.r.name || '(névtelen)')}</b>${tip(kov) ? `<span class="hl-tag">${esc(tip(kov))}</span>` : ''}${kov.l === 'karr' ? '<span class="hl-tag">Karrier</span>' : ''}</div></div>
             <div class="hl-ka-tel"><b>${kov.r.phone ? esc(szam(kov.r.phone)) : '<span style="color:var(--muted);font-weight:600">Nincs telefonszám</span>'}</b>${kov.r.phone ? `<a class="hl-hiv" href="tel:${esc(String(kov.r.phone).replace(/\s/g, ''))}" draggable="false">📞 Hívás</a>` : ''}</div>
-            <div class="hl-ka-j">${kov.r[HET_MEZO[kov.l].j] ? `<div class="hl-utj">📝 ${esc(kov.r[HET_MEZO[kov.l].j])}</div>` : ''}<input type="text" class="hl-jegy" data-hljegy="${kov.l}:${kov.gi}" placeholder="Jegyzet a hívásról… (Enter: mentés)" maxlength="300"></div>
+            <div class="hl-ka-j">${kov.r[HET_MEZO[kov.l].j] ? `<div class="hl-utj" data-hljszerk title="Kattints a módosításhoz">📝 ${esc(kov.r[HET_MEZO[kov.l].j])} <span>✎ módosítás</span></div>` : ''}<input type="text" class="hl-jegy" data-hljegy="${kov.l}:${kov.gi}" placeholder="Jegyzet a hívásról… (Enter: mentés)" maxlength="300"></div>
             <div class="hl-ka-e"><button type="button" class="g" data-hl="${kov.l}:${kov.gi}:ok">✓ Lebeszélve</button><button type="button" class="p" data-hl="${kov.l}:${kov.gi}:no">✕ Nem</button><button type="button" class="y" data-hlk="${kov.gi}">⏱ Később</button></div></div>`
         : `<div class="hl-kesz">${sor.length ? '🎉 Mindenkit felhívtál ezen a héten.' : hlFul === 'karr' ? 'Még nincs TP-vel jelölt MT-jelölt – a 2 órás füzetben jelölhető.' : 'Még nincs TP-vel jelölt ügyfél – a 10 perces füzetben jelölhető.'}</div>`)
         + (tobbi.length ? `<div class="hl-st">Sorban</div><div class="hl-lista">${tobbi.map(x => { const j = JEL[e(x)] || JEL.pending, kv = { pending: 'ok', ok: 'no', no: 'pending' }[e(x)];
-            return (hlJNyit === x.gi ? '' : '') + `<div class="hl-sor" ${huz(x)}><i class="hl-av kicsi">${esc(hlMono(x.r.name))}</i><span class="hl-sn"><span class="hl-sn1"><b data-hlnev="${x.gi}">${esc(x.r.name || '(névtelen)')}</b>${tip(x) ? `<em class="hl-pill">${esc(tip(x))}</em>` : ''}</span>${x.r.phone ? `<small>${esc(x.r.phone)}</small>` : ''}${x.r[HET_MEZO[x.l].j] ? `<small class="hl-sj">📝 ${esc(x.r[HET_MEZO[x.l].j])}</small>` : ''}</span><button type="button" class="hl-jb${hlJNyit === x.gi ? ' on' : ''}" data-hljnyit="${x.gi}" title="Jegyzet a hívásról">✎</button><button type="button" class="hl-e ${j[0]}" data-hl="${x.l}:${x.gi}:${kv}" title="${j[2]} – kattints a váltáshoz">${j[1]}</button></div>` + (hlJNyit === x.gi ? `<div class="hl-sjm"><input type="text" class="hl-jegy" data-hljegy="${x.l}:${x.gi}" placeholder="Jegyzet a hívásról… (Enter: mentés)" maxlength="300"><button type="button" data-hljment="${x.l}:${x.gi}">Mentés</button></div>` : ''); }).join('')}</div>` : '');
+            return (hlJNyit === x.gi ? '' : '') + `<div class="hl-sor" ${huz(x)}><i class="hl-av kicsi">${esc(hlMono(x.r.name))}</i><span class="hl-sn"><span class="hl-sn1"><b data-hlnev="${x.gi}">${esc(x.r.name || '(névtelen)')}</b><select class="hl-pill hl-tsel${tip(x) ? '' : ' ures'}" data-hltip="${x.l}:${x.gi}" style="width:calc(${(tip(x) || '+ típus').length}ch + 16px)" title="Típus – kattints a módosításhoz" aria-label="Típus"><option value="">+ típus</option>${HET_CEL[x.l].map(([k, n]) => `<option value="${k}"${tip(x) === k ? ' selected' : ''} title="${n}">${k}</option>`).join('')}</select>${x.r.phone ? `<small class="hl-tel">${esc(x.r.phone)}</small>` : ''}</span>${x.r[HET_MEZO[x.l].j] ? `<small class="hl-s2"><span class="hl-sj" title="${esc(x.r[HET_MEZO[x.l].j])}">📝 ${esc(x.r[HET_MEZO[x.l].j])}</span></small>` : ''}</span><button type="button" class="hl-jb${hlJNyit === x.gi ? ' on' : ''}" data-hljnyit="${x.gi}" title="Jegyzet a hívásról">✎</button><button type="button" class="hl-e ${j[0]}" data-hl="${x.l}:${x.gi}:${kv}" title="${j[2]} – kattints a váltáshoz">${j[1]}</button></div>` + (hlJNyit === x.gi ? `<div class="hl-sjm"><input type="text" class="hl-jegy" data-hljegy="${x.l}:${x.gi}" value="${esc(x.r[HET_MEZO[x.l].j] || '')}" placeholder="Jegyzet a hívásról… (Enter: mentés)" maxlength="300"><button type="button" data-hljment="${x.l}:${x.gi}">Mentés</button></div>` : ''); }).join('')}</div>` : '');
 }
 document.addEventListener('click', e => {
     const k = e.target.closest && e.target.closest('#hlKartya'); if(!k) return;
+    const js = e.target.closest('[data-hljszerk]');
+    if(js){ const inp = js.parentElement.querySelector('.hl-jegy'), [l, gi] = inp.dataset.hljegy.split(':'); inp.value = registry[+gi][HET_MEZO[l].j] || ''; inp.focus(); inp.select(); return; }
+    const sj = e.target.closest('.hl-sor .hl-sj'); if(sj){ const b = sj.closest('.hl-sor').querySelector('[data-hljnyit]'); if(b) b.click(); return; }
     const jn = e.target.closest('[data-hljnyit]');
-    if(jn){ hlJNyit = hlJNyit === +jn.dataset.hljnyit ? null : +jn.dataset.hljnyit; hlRender(); setTimeout(() => document.querySelector('#hlKartya .hl-sjm input')?.focus(), 0); return; }
+    if(jn){ hlJNyit = hlJNyit === +jn.dataset.hljnyit ? null : +jn.dataset.hljnyit; hlRender(); setTimeout(() => { const i = document.querySelector('#hlKartya .hl-sjm input'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 0); return; }
     const jm = e.target.closest('[data-hljment]');
     if(jm){ const [l, gi] = jm.dataset.hljment.split(':'), inp = jm.parentElement.querySelector('input'); if(hlJegyMent(l, gi, inp.value)){ hlJNyit = null; hlRender(); } return; }
     const b = e.target.closest('[data-hl]');
@@ -13054,6 +13071,13 @@ document.addEventListener('click', e => {
     const kb = e.target.closest('[data-hlk]');
     if(kb){ const kes = hlKesobb(); kes[kb.dataset.hlk] = Date.now(); store.save('sf_hl_kesobb', kes); hlRender(); return; }
     const nv = e.target.closest('[data-hlnev]'); if(nv && typeof ugyModalNyit === 'function') ugyModalNyit(+nv.dataset.hlnev);
+});
+// Hívólista: a típus (E/TA/SZ, F1/F2) a sorban módosítható
+document.addEventListener('change', e => {
+    const t = e.target.closest && e.target.closest('select[data-hltip]'); if(!t) return;
+    const [l, gi] = t.dataset.hltip.split(':'); const r = registry[+gi]; if(!r) return;
+    if(t.value) r[HET_MEZO[l].c] = t.value; else delete r[HET_MEZO[l].c];
+    store.save('sf_registry', registry); persistReg(+gi); renderMoney(); renderCareer();
 });
 document.addEventListener('dragstart', e => {
     const el = e.target.closest && e.target.closest('#hlKartya [data-regidx]'); if(!el) return;
