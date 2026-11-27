@@ -44253,7 +44253,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         // Egységes sor (a Stoa Feladatokkal azonos felépítés): pipa balra, cím a prioritás-jellel, alatta a jegyzet
         // első sora, majd egy sorban: nap · idő · ismétlés · lista (a lista saját színével) · címkék
         const jel = { "Magas": "!!!", "Közepes": "!!", "Alacsony": "!" }[prio] || "";
-        const jegyzet = String(t.notes || "").split("\n").map(x => x.trim()).find(Boolean) || "";
+        // a PG Modul listáján a notes belső adat (JSON) – abból csak a valódi jegyzet látszódjon
+        const jegyzet = (() => { if(isPgTask(t)){ try { return String((pgMeta(t) || {}).note || "").split("\n").map(x => x.trim()).find(Boolean) || ""; } catch(_){ return ""; } }
+            const n = String(t.notes || "").split("\n").map(x => x.trim()).find(Boolean) || ""; return /^\{".*\}$/.test(n) ? "" : n; })();
         // a Ma és a Holnap csoportban a nap neve fölösleges (a csoport címe mondja)
         const csopNap = fdFilter !== "kesz" && due && !done && (due.ymd === ma || due.ymd === fdYmdL(fdPlusz(1)));
         const napSzo = due && !csopNap ? fdNapSzo(due.ymd) + (lej && napja > 1 && !tm ? ` (${napja} napja)` : "") : "";
