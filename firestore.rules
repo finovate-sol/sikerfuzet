@@ -10,9 +10,12 @@ rules_version = '2';
 //  ALAPELVEK
 //  1. Belépni csak az allowlistán szereplő email tud – ugyanaz a kapu, amit az
 //     auth.js is használ. Minden szabály erre épül (isUser()).
-//  2. Ami csapatszintű (ügyféllista, munkatársak, INFO időpontok, "Ki lesz a
-//     következő"), azt minden belépett munkatárs olvashatja – az app is így
-//     működik, kliensoldalon szűr.
+//  2. Ami csapatszintű (ügyféllista, munkatársak, Negyedéves / Incentive, a
+//     csapat beállításai és hozzáférés-térképe), azt a SAJÁT CSAPATÁN belül
+//     minden belépett munkatárs olvashatja. A csapat az allowlist-bejegyzés
+//     „team” mezője (hiánya = 'alap'). A fő admin minden csapatot elér.
+//     Közös marad (config/*): rangok, INFO- és szemináriumidőpontok,
+//     prezentációk, tervezet-adatok.
 //  3. Ami személyes (havi/éves terv, pénzügyek, struktúra-rajz, karrier-létra),
 //     azt a saját gazdája, a felettesei a hozzáférés-térkép szerint, és az
 //     admin éri el.
@@ -142,9 +145,12 @@ service cloud.firestore {
     // Belépett munkatársak profilja. Mindenki látja a csapatot (névválasztók,
     // "Kezelő" oszlop, hozzáférés-beállítás), de csak a sajátját írja –
     // ezt a loginWithGoogle() teszi minden belépéskor.
+    // Csapatonként: a munkatárs a saját csapata tagjait látja (listázni csak team-szűréssel).
+    // A „team” mezőt a saját profiljába csak a valódi csapatát írhatja (az allowlist szerint).
     match /employees/{userId} {
-      allow read:   if isUser();
-      allow write:  if isUser() && (uid() == userId || isAdmin());
+      allow get:    if isUser() && (isAdmin() || uid() == userId || resource.data.get('team', 'alap') == myTeam());
+      allow list:   if isUser() && (isAdmin() || resource.data.team == myTeam());
+      allow write:  if isUser() && (isAdmin() || (uid() == userId && request.resource.data.get('team', 'alap') == myTeam()));
     }
 
     // Megosztott app-konfiguráció (INFO időpontok, rangok, fontos infók,
@@ -238,20 +244,29 @@ service cloud.firestore {
     // telefon oldalnak a teljes lista kell, az app kliensoldalon szűr), írni
     // a gazdája, a felettese és az admin – beleértve az átadást is, ezért
     // vizsgáljuk a régi ÉS az új gazdát.
+    // Az ügyféllista csapatonként: a csapat tagjai látják (listázni csak team-szűréssel), új ügyfél
+    // csak a saját csapatba kerülhet, és a csapata nem írható át (a fő admin kivétel).
     match /clients/{clientId} {
-      allow read:   if isUser();
-      allow create: if canAccess(request.resource.data.ownerUid);
+      allow get:    if isUser() && (isAdmin() || resource.data.get('team', 'alap') == myTeam());
+      allow list:   if isUser() && (isAdmin() || resource.data.team == myTeam());
+      allow create: if canAccess(request.resource.data.ownerUid)
+                    && (isAdmin() || request.resource.data.team == myTeam());
       allow update: if canAccess(resource.data.ownerUid)
-                    && canAccess(request.resource.data.ownerUid);
-      allow delete: if canAccess(resource.data.ownerUid);
+                    && canAccess(request.resource.data.ownerUid)
+                    && (isAdmin() || (resource.data.get('team', 'alap') == myTeam()
+                                      && request.resource.data.get('team', 'alap') == myTeam()));
+      allow delete: if canAccess(resource.data.ownerUid)
+                    && (isAdmin() || resource.data.get('team', 'alap') == myTeam());
     }
 
     // "Ki lesz a következő" – negyedéves, közös csapatoldal. Mindenki látja,
     // de vezetni csak a vezetők (akiknek van beosztottjuk a hozzáférés-
     // térképen) és az admin tudják.
+    // Csapatonként: az alap csapat a régi kulcsokon ("2026_Q4", "inc_…"), a többi "{csapat}~{kulcs}" alatt.
+    function kovCsapat(key) { return key.split('~').size() > 1 ? key.split('~')[0] : 'alap'; }
     match /kov_quarters/{key} {
-      allow read:  if isUser();
-      allow write: if isUser() && (isAdmin() || isLeader());
+      allow read:  if isUser() && (isAdmin() || kovCsapat(key) == myTeam());
+      allow write: if isUser() && (isAdmin() || ((isLeader() || isTeamAdmin()) && kovCsapat(key) == myTeam()));
     }
 
     // ========================================================================

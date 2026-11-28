@@ -25732,7 +25732,13 @@ function kovFromRaw(raw){
 }
 // Megosztott, Firestore-alapú negyedéves adat – localStorage csak gyors induláshoz/
 // tartalék offline cache-ként (ha nincs Firebase konfigurálva, csak azt használjuk).
+// A szeminárium időpontja / helyszíne közös (config/app.szeminarium), a résztvevők csapatonként külön.
 async function loadKov(){
+    const d = await loadKovCsapat(), sz = (((window._admCfg || {}).szeminarium) || {})[kovKey()];
+    if(sz){ d.idopont = sz.idopont || d.idopont; d.helyszin = sz.helyszin || d.helyszin; }
+    return d;
+}
+async function loadKovCsapat(){
     const key=kovKey();
     if(window.sfIsConfigured && typeof window.sfGetKovQuarter==='function'){
         try {
@@ -39070,7 +39076,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getTeamAppConfig, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=98";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getTeamAppConfig, getAllEmployees, migralCsapat3, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=99";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -39173,7 +39179,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             // Az app-ikon (Admin → Ikon). A fejben lévő szkript a helyi másolatból
             // már beállította valamelyiket; ez a közös, mérvadó értékkel írja felül.
             if (typeof window.sfApplyIconLinks === "function") window.sfApplyIconLinks(cfg && cfg.appIcon);
-            if (isAdmin(user)) setupAdminPanel();
+            if (isAdmin(user)){ setupAdminPanel();
+                // csapatok 3. lépés: a régi (csapat nélküli) ügyfelek és munkatársak az alap csapatba – egyszer
+                migralCsapat3().then(r => { if(r && !r.kesz) console.info('Csapat-átköltöztetés kész:', r); }).catch(e => console.warn('Csapat-átköltöztetés sikertelen:', e)); }
             if (typeof window.sfOnConfig === "function") window.sfOnConfig();
         });
         // Vezető-jogosultság megállapítása a megosztott hozzáférés-térképből
@@ -49576,7 +49584,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                         ${l.map(sor).join('') || '<div style="color:var(--muted);font-size:12px;padding:6px 0;">Még nincs felhasználó.</div>'}</div>`; }).join('')
                 + `<div class="adm-add-row adm-cs-uj"><input type="email" id="admEmailInp" placeholder="új felhasználó e-mail-címe">${fo ? `<select class="adm-cs-sel" id="admCsTeam">${tOpts('alap')}</select>` : ''}<select class="adm-cs-sel" id="admCsSzerep"><option value="tag">Tag</option><option value="admin">Csapat-admin</option></select><button class="btn primary" id="admEmailAdd">Meghívás</button></div>`
                 + (fo ? `<div class="adm-add-row adm-cs-uj"><input id="admCsUjNev" placeholder="új csapat neve (pl. Kovács csapat)"><button class="btn" id="admCsUj">+ Csapat</button></div>
-                    <p class="adm-cs-figy">⚠ A beállítások és a hozzáférések már csapatonként külön vannak, de az adatok (ügyfelek, munkatárslista, Negyedéves / Incentive) szétválasztása a következő lépésben készül el – addig egy másik csapat tagjai is látják ezeket, ezért őket még ne hívd meg.</p>` : '');
+                    <p class="adm-cs-figy">⚠ A csapatok szétválasztása elkészült, de élesben csak a Firebase-szabályok közzététele után lép életbe (Firestore Database → Rules → a firestore.rules tartalma → Publish). Amíg nem tetted közzé, a másik csapatot ne hívd meg.</p>` : '');
             const inp = body.querySelector('#admEmailInp'), addBtn = body.querySelector('#admEmailAdd');
             const doAdd = async () => { const email = inp.value.trim().toLowerCase(); if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ inp.focus(); return; }
                 if(users.some(u => u.email === email)){ alert('Ez a cím már a listán van.'); return; }
@@ -49627,7 +49635,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         // melyik csapat hozzáféréseit állítjuk: a csapat-admin a sajátjáét, a fő admin választhat
         const sajatCs = window.sfTeam || 'alap', csT = window.sfIsAdmin ? (admHozzTeam || sajatCs) : sajatCs, sajatT = csT === sajatCs;
         let employees, accessMap, allowedEmails, tc, csapatok = [];
-        try { [employees, accessMap, allowedEmails, tc, csapatok] = await Promise.all([getEmployees(), getAccessMap(csT), listTeamUsers(csT).then(l => l.map(u => u.email)),
+        try { [employees, accessMap, allowedEmails, tc, csapatok] = await Promise.all([window.sfIsAdmin ? getAllEmployees() : getEmployees(), getAccessMap(csT), listTeamUsers(csT).then(l => l.map(u => u.email)),
                 sajatT ? Promise.resolve(currentConfig || {}) : getTeamAppConfig(csT), window.sfIsAdmin ? getTeams().catch(() => []) : Promise.resolve([])]); }
         catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
         tc = tc || {};
@@ -49803,7 +49811,8 @@ Vállalkozás nyitásának átbeszélése`, '']
             try { raw = await window.sfGetKovQuarter(key); } catch(e){ console.warn(e); }
         }
         if(!raw) raw = store.load(key, null) || {};
-        const idopont = raw.idopont || '', helyszin = raw.helyszin || '';
+        const kozos = ((currentConfig && currentConfig.szeminarium) || {})[key] || {};
+        const idopont = kozos.idopont || raw.idopont || '', helyszin = kozos.helyszin || raw.helyszin || '';
         cont.innerHTML = `<div class="card"><div class="card-body">
             <div class="adm-section-title">Szeminárium időpontja és helyszíne</div>
             <p style="color:var(--muted);font-size:12px;margin:-4px 0 14px;">A "Ki lesz a következő" oldalon a munkatársak csak megtekintik – itt, negyedévenként te szerkesztheted.</p>
@@ -49834,6 +49843,10 @@ Vállalkozás nyitásának átbeszélése`, '']
                 store.save(key, Object.assign({}, raw, { idopont:newIdopont, helyszin:newHelyszin }));
                 if(window.sfIsConfigured && typeof window.sfSaveKovQuarter==='function'){
                     await window.sfSaveKovQuarter(key, { idopont:newIdopont, helyszin:newHelyszin });
+                    // közös: minden csapat ugyanazt az időpontot látja
+                    const szem = Object.assign({}, (currentConfig && currentConfig.szeminarium) || {}, { [key]: { idopont:newIdopont, helyszin:newHelyszin } });
+                    await saveAppConfig({ szeminarium: szem });
+                    currentConfig = Object.assign({}, currentConfig, { szeminarium: szem }); window._admCfg = currentConfig;
                 }
                 // Ha épp ez a negyedév van nyitva a "Ki lesz a következő" oldalon, frissítjük ott is élőben.
                 if(typeof kovAnchor!=='undefined' && kovAnchor.year===admKovAnchor.year && kovAnchor.q===admKovAnchor.q && kovData){

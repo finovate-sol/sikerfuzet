@@ -7,7 +7,7 @@ import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp, increment
+    initializeFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, collection, query, where, serverTimestamp, increment, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
@@ -172,14 +172,16 @@ export async function saveKarrierLetra(uid, data){
 }
 
 // Megosztott "Ki lesz a következő" adatok, negyedévenként – kov_quarters/{year}_Q{q}
+// Negyedéves / Incentive: az alap csapat a régi kulcsokon, a többi csapat „{csapat}~{kulcs}” alatt.
+const kovKulcs = k => myTeamId() === ALAP_CSAPAT ? k : myTeamId() + "~" + k;
 export async function getKovQuarter(key){
     if(!isConfigured || !db) return null;
-    try { const snap = await getDoc(doc(db, "kov_quarters", key)); return snap.exists() ? (snap.data() || null) : null; }
+    try { const snap = await getDoc(doc(db, "kov_quarters", kovKulcs(key))); return snap.exists() ? (snap.data() || null) : null; }
     catch(e){ console.warn("Ki lesz következő olvasás sikertelen:", e); return null; }
 }
 export async function saveKovQuarter(key, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "kov_quarters", key), data, { merge: true });
+    await setDoc(doc(db, "kov_quarters", kovKulcs(key)), data, { merge: true });
 }
 
 // Munkatársak napi/heti tevékenység-számlálói (pl. "10 perces füzet", "2 órás füzet")
@@ -216,8 +218,10 @@ export async function addLapNap(uid, name, ho, nap, d){
 // Tervezet-jóváhagyás (és más) bejegyzések listája típus szerint (activity_timers, col mező)
 export async function listActivityByCol(col){
     if(!isConfigured || !db) return [];
-    const snap = await getDocs(query(collection(db, "activity_timers"), where("col", "==", col)));
-    return snap.docs.map(d => Object.assign({ _id: d.id }, d.data()));
+    const [snap, emps] = await Promise.all([getDocs(query(collection(db, "activity_timers"), where("col", "==", col))), getEmployees()]);
+    // csak a saját csapat munkatársaié (a dokumentum-azonosító eleje a gazda uid-ja)
+    const csap = new Set(emps.map(e => e.uid));
+    return snap.docs.filter(d => !emps.length || csap.has(d.id.split("_")[0])).map(d => Object.assign({ _id: d.id }, d.data()));
 }
 export async function getActivityTimer(key){
     if(!isConfigured || !db) return null;
@@ -228,10 +232,39 @@ export async function getActivityTimer(key){
 // Megosztott csapat-ügyféllista – collection "clients". Minden dokumentum egy
 // ügyfél; a munkatárs csak a saját (ownerUid) ügyfeleit látja, a vezető/admin
 // mindet – ezt a szűrést az index.html végzi a lekért teljes listán.
+// ---- Csapatonkénti adatok (3. lépés) ----
+// Az ügyfelek és a munkatársak „team” mezőt kapnak; az app csak a saját csapatáét kéri le.
+// Az átköltöztetést (a régi, csapat nélküli dokumentumok → 'alap') a fő admin első belépése végzi;
+// amíg ez nincs kész (config/app.csapatMigr3), az alap csapat szűretlenül olvas, hogy semmi ne tűnjön el.
+let migr3 = null;
+async function migr3Kesz(){
+    if(migr3 === null){ try { const s = await getDoc(doc(db, "config", "app")); migr3 = !!(s.exists() && (s.data() || {}).csapatMigr3); } catch(e){ migr3 = false; } }
+    return migr3;
+}
+async function csapatLekerdezes(gyujt){
+    const t = myTeamId();
+    return (t !== ALAP_CSAPAT || await migr3Kesz()) ? query(collection(db, gyujt), where("team", "==", t)) : collection(db, gyujt);
+}
+// A fő admin egyszeri átköltöztetése. Visszaadja, hány dokumentum kapott csapatjelölést.
+export async function migralCsapat3(){
+    if(!isConfigured || !db) return null;
+    if(await migr3Kesz()) return { kesz: true };
+    const ki = { ugyfel: 0, munkatars: 0 };
+    for(const [gyujt, kulcs] of [["clients", "ugyfel"], ["employees", "munkatars"]]){
+        const snap = await getDocs(collection(db, gyujt)), hiany = snap.docs.filter(d => !(d.data() || {}).team);
+        for(let i = 0; i < hiany.length; i += 400){
+            const b = writeBatch(db); hiany.slice(i, i + 400).forEach(d => b.set(d.ref, { team: ALAP_CSAPAT }, { merge: true })); await b.commit();
+        }
+        ki[kulcs] = hiany.length;
+    }
+    await setDoc(doc(db, "config", "app"), { csapatMigr3: true }, { merge: true });
+    migr3 = true;
+    return ki;
+}
 export async function getClients(){
     if(!isConfigured || !db) return [];
     try {
-        const snap = await getDocs(collection(db, "clients"));
+        const snap = await getDocs(await csapatLekerdezes("clients"));
         window.sfClientsError = "";
         return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     } catch(e){
@@ -244,7 +277,7 @@ export async function getClients(){
 }
 export async function addClient(data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    const ref = await addDoc(collection(db, "clients"), data);
+    const ref = await addDoc(collection(db, "clients"), Object.assign({}, data, { team: (data && data.team) || myTeamId() }));
     return ref.id;
 }
 export async function saveClient(id, data){
@@ -672,10 +705,11 @@ export async function saveBedSablon(data){
 // Belépett munkatársak (employees/{uid}) – a loginWithGoogle() hozza létre/
 // frissíti minden belépéskor. Az Admin "Csapat szerepkörök" fülének ez a
 // forrása (valódi, bejelentkezett fiókok, névvel).
-export async function getEmployees(){
+// A saját csapat munkatársai (a fő admin a getAllEmployees-zel mindenkit lát – Beállítások → Hozzáférés).
+export async function getEmployees(osszes){
     if(!isConfigured || !db) return [];
     try {
-        const snap = await getDocs(collection(db, "employees"));
+        const snap = await getDocs(osszes ? collection(db, "employees") : await csapatLekerdezes("employees"));
         // A Google-ből jövő nevet (name) minden belépés felülírja; az admin által
         // beállított név (nevKezi – pl. becenév vagy javított név) ezért külön mezőben
         // van, és ha van, az app mindenhol azt használja.
@@ -683,6 +717,7 @@ export async function getEmployees(){
             if(x.nevKezi){ x.googleName = x.name || ""; x.name = x.nevKezi; } return x; });
     } catch(e){ console.warn("Munkatársak olvasása sikertelen:", e); return []; }
 }
+export const getAllEmployees = () => getEmployees(true);
 // Admin: a munkatárs megjelenített neve (üres = vissza a Google-névre).
 export async function saveEmployeeName(uid, nev){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");

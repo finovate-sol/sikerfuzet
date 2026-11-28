@@ -26,7 +26,7 @@ await env.withSecurityRulesDisabled(async c => {
   // Márk pedig a csúcs (ő az admin is).
   await setDoc(doc(d,'config','access'), { [ADAM]: MARK, [ZSOLT]: ADAM, [JUNIOR]: ZSOLT });
   await setDoc(doc(d,'config','app'), { infoDates: [] });
-  await setDoc(doc(d,'employees',ADAM), { name:'Siliga Ádám' });
+  await setDoc(doc(d,'employees',ADAM), { name:'Siliga Ádám', team:'alap' });
   await setDoc(doc(d,'penzugyek',ZSOLT), { kezdo:{} });
   await setDoc(doc(d,'celok',ZSOLT), { vizio:{y1:'privát'}, goals:[] });
   await setDoc(doc(d,'structures',ZSOLT), { tree:{} });
@@ -34,8 +34,10 @@ await env.withSecurityRulesDisabled(async c => {
   await setDoc(doc(d,'havi_terv',`${ZSOLT}_2026_8`), { x:1 });
   await setDoc(doc(d,'eves_terv',`${ADAM}_2026`), { x:1 });
   await setDoc(doc(d,'activity_timers',`${ZSOLT}_10p_2026-09-13`), { seconds:120 });
-  await setDoc(doc(d,'clients','c1'), { name:'Ügyfél', ownerUid: ZSOLT });
+  await setDoc(doc(d,'clients','c1'), { name:'Ügyfél', ownerUid: ZSOLT, team:'alap' });
+  await setDoc(doc(d,'clients','cb1'), { name:'B ügyfél', ownerUid: 'u-bori', team:'b' });
   await setDoc(doc(d,'kov_quarters','2026_Q3'), { x:1 });
+  await setDoc(doc(d,'kov_quarters','b~2026_Q3'), { x:2 });
   // Ádám PG-je Zsolttal + a belőle jövő akcióterv
   await setDoc(doc(d,'pg','pg1'),   { type:'szemelyes', leaderUid: ADAM, mtUid: ZSOLT, highlight:'TITKOS JEGYZET' });
   await setDoc(doc(d,'pg','pgm1'),  { type:'szemelyes', leaderUid: MARK, mtUid: ADAM, highlight:'Márk jegyzete' });
@@ -75,7 +77,8 @@ await T('az allowlistára csak az admin vehet fel', setDoc(doc(adam,'allowed_use
 await T('az admin felvehet az allowlistára', setDoc(doc(mark,'allowed_users','uj@ovb.hu'),{a:1}), 'ok');
 
 // ---------- 2. employees / config ----------
-await T('munkatárs látja a csapatot', getDocs(collection(zsolt,'employees')), 'ok');
+await T('munkatárs látja a csapatát (team-szűréssel)', getDocs(query(collection(zsolt,'employees'), where('team','==','alap'))), 'ok');
+await T('szűretlen munkatárslistázás tiltott', getDocs(collection(zsolt,'employees')), 'fail');
 await T('mindenki írja a SAJÁT profilját', setDoc(doc(zsolt,'employees',ZSOLT),{name:'Kovács Zsolt'},{merge:true}), 'ok');
 await T('más profilját nem írhatja át', setDoc(doc(zsolt,'employees',ADAM),{name:'hekk'},{merge:true}), 'fail');
 await T('mindenki olvassa a config/app-ot', getDoc(doc(zsolt,'config','app')), 'ok');
@@ -129,7 +132,8 @@ await T('számláló: más nevében nem írható', setDoc(doc(adam,'activity_tim
 await T('számláló: sajátot ír', setDoc(doc(zsolt,'activity_timers',`${ZSOLT}_10p_2026-09-14`),{seconds:1}), 'ok');
 
 // ---------- 4. Csapatszintű ----------
-await T('ügyféllista: teljes listázás minden munkatársnak megy', getDocs(collection(zsolt,'clients')), 'ok');
+await T('ügyféllista: a csapat listája minden tagnak megy (team-szűréssel)', getDocs(query(collection(zsolt,'clients'), where('team','==','alap'))), 'ok');
+await T('ügyféllista: szűretlen listázás tiltott', getDocs(collection(zsolt,'clients')), 'fail');
 await T('ügyfél: a gazdája írja', setDoc(doc(zsolt,'clients','c1'),{name:'Új név'},{merge:true}), 'ok');
 await T('ügyfél: idegen nem írja', setDoc(doc(other,'clients','c1'),{name:'hekk'},{merge:true}), 'fail');
 await T('ügyfél: a felettes írja', setDoc(doc(adam,'clients','c1'),{name:'Vezető átírta'},{merge:true}), 'ok');
@@ -281,6 +285,27 @@ await T('csapat-admin NEM írja más csapat beállításait', setDoc(doc(bela,'t
 await T('más csapat tagja NEM olvassa a beállításokat', getDoc(doc(zsolt,'team_config','b')), 'fail');
 await T('a közös config/app-ot a csapat-admin NEM írja', setDoc(doc(bela,'config','app'), { ranks:{} }, { merge:true }), 'fail');
 await T('a fő admin írja más csapat beállításait', setDoc(doc(mark,'team_config','b'), { szintek:{} }, { merge:true }), 'ok');
+// ---------- csapatonkénti adatok ----------
+await T('B csapattag látja a csapata ügyfeleit', getDocs(query(collection(bori,'clients'), where('team','==','b'))), 'ok');
+await T('B csapattag NEM listázhatja az alap csapat ügyfeleit', getDocs(query(collection(bori,'clients'), where('team','==','alap'))), 'fail');
+await T('B csapattag NEM olvashat alap ügyfelet', getDoc(doc(bori,'clients','c1')), 'fail');
+await T('alap munkatárs NEM olvashat B ügyfelet', getDoc(doc(zsolt,'clients','cb1')), 'fail');
+await T('a fő admin olvassa a B ügyfelet', getDoc(doc(mark,'clients','cb1')), 'ok');
+await T('B csapattag ügyfelet csak a saját csapatába vehet fel', setDoc(doc(bori,'clients','cb2'), { name:'X', ownerUid:'u-bori', team:'b' }), 'ok');
+await T('B csapattag NEM vehet fel ügyfelet csapat nélkül', setDoc(doc(bori,'clients','cb3'), { name:'X', ownerUid:'u-bori' }), 'fail');
+await T('B csapattag NEM vehet fel ügyfelet más csapatba', setDoc(doc(bori,'clients','cb4'), { name:'X', ownerUid:'u-bori', team:'alap' }), 'fail');
+await T('ügyfél csapata nem írható át', setDoc(doc(bori,'clients','cb2'), { team:'alap' }, { merge:true }), 'fail');
+await T('B csapattag látja a csapata munkatársait', getDocs(query(collection(bori,'employees'), where('team','==','b'))), 'ok');
+await T('B csapattag NEM látja az alap munkatársakat', getDocs(query(collection(bori,'employees'), where('team','==','alap'))), 'fail');
+await T('B csapattag NEM olvashat alap munkatárs-profilt', getDoc(doc(bori,'employees',ADAM)), 'fail');
+await T('saját profilba nem írható idegen csapat', setDoc(doc(bori,'employees','u-bori'), { team:'alap' }, { merge:true }), 'fail');
+await T('saját profil a saját csapattal írható', setDoc(doc(bori,'employees','u-bori'), { team:'b', name:'Bori' }, { merge:true }), 'ok');
+await T('B csapattag olvassa a csapata negyedévét', getDoc(doc(bori,'kov_quarters','b~2026_Q3')), 'ok');
+await T('B csapattag NEM olvassa az alap negyedévet', getDoc(doc(bori,'kov_quarters','2026_Q3')), 'fail');
+await T('alap munkatárs NEM olvassa a B negyedévet', getDoc(doc(zsolt,'kov_quarters','b~2026_Q3')), 'fail');
+await T('B csapat-admin írja a csapata negyedévét', setDoc(doc(bela,'kov_quarters','b~2026_Q4'), { x:1 }), 'ok');
+await T('B csapat-admin NEM írja az alap negyedévet', setDoc(doc(bela,'kov_quarters','2026_Q4'), { x:1 }), 'fail');
+await T('B csapattag (nem vezető) NEM írja a negyedévet', setDoc(doc(bori,'kov_quarters','b~2026_Q4'), { x:2 }), 'fail');
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 
