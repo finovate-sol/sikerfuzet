@@ -42171,7 +42171,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     // Két oldal: Saját és Csapat. Minden naptár az egyikhez tartozik (a Naptárak ablakban húzással áttehető);
     // a naptárnézet a kiválasztott oldal bekapcsolt naptárait mutatja.
     let calCsop = {}; try { calCsop = JSON.parse(localStorage.getItem("sf_cal_csop") || "{}") || {}; } catch(e){ calCsop = {}; }
-    let calNezet = (() => { try { return localStorage.getItem("sf_cal_nezet") === "csapat" ? "csapat" : "sajat"; } catch(e){ return "sajat"; } })();
+    // „mind”: a saját és a csapat naptárai egyszerre
+    let calNezet = (() => { try { const v = localStorage.getItem("sf_cal_nezet"); return v === "csapat" || v === "mind" ? v : "sajat"; } catch(e){ return "sajat"; } })();
+    const calNezetBe = c => calNezet === "mind" || calCsopOf(c) === calNezet;
     const calFoE = c => calOwnId ? c.id === calOwnId : c.primary;
     const calCsopOf = c => calCsop[c.id] || (calFoE(c) || c.iras ? "sajat" : "csapat");
     let calFelhoKesz = false;
@@ -42484,7 +42486,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
     function calAtfedok(){
         if (!calLista) return [];
         const aktiv = calOwnId || "";
-        return calLista.filter(c => calBe(c) && !(aktiv ? c.id === aktiv : c.primary) && calCsopOf(c) === calNezet);
+        return calLista.filter(c => calBe(c) && !(aktiv ? c.id === aktiv : c.primary) && calNezetBe(c));
     }
     // Típus-szűrő a naptárra: Mind / Ügyfél / Felvételi (eszközönként megjegyezve)
     let calSzur = (() => { try { return localStorage.getItem("sf_cal_szur") || "mind"; } catch(_){ return "mind"; } })();
@@ -42529,7 +42531,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         let sw = document.getElementById("calNezetSw");
         if (!sw){ sw = document.createElement("div"); sw.id = "calNezetSw"; sw.className = "cal-nezet-sw"; sw.setAttribute("role", "tablist"); btn.after(sw);
             sw.addEventListener("click", e => { const b = e.target.closest("[data-calnez]"); if (!b || b.dataset.calnez === calNezet) return; calNezet = b.dataset.calnez; try { localStorage.setItem("sf_cal_nezet", calNezet); } catch(_){} calFelhoMent(); renderCalLayersBtn(); initCalendar(); }); }
-        sw.innerHTML = [["sajat", "Saját"], ["csapat", "Csapat"]].map(([k, n]) => `<button type="button" role="tab" data-calnez="${k}" class="${calNezet === k ? "on" : ""}" aria-selected="${calNezet === k}">${n}</button>`).join("");
+        sw.innerHTML = [["sajat", "Saját", "Csak a saját naptáraid"], ["csapat", "Csapat", "Csak a csapat naptárai"], ["mind", "Mind", "A saját és a csapat naptárai együtt"]].map(([k, n, t]) => `<button type="button" role="tab" data-calnez="${k}" class="${calNezet === k ? "on" : ""}" aria-selected="${calNezet === k}" title="${t}">${n}</button>`).join("");
         const own = window.sfCurrentUser && window.sfCurrentUser.uid;
         const viewingOther = window.sfViewedUid && window.sfViewedUid !== own;
         btn.hidden = !!viewingOther; sw.hidden = !!viewingOther;   // a lista betöltése alatt is látszik (korábban ilyenkor eltűnt)
@@ -42550,7 +42552,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             <div class="modal-body" id="calLyBody"><div class="cal-ly-ures">Betöltés…</div></div>
             <div class="modal-foot"><button class="btn" data-lyle style="margin-right:auto">Google Naptár leválasztása</button><button class="btn primary" data-lyok>Kész</button></div></div>`;
         document.body.appendChild(overlay);
-        let valtozott = false, lyFul = calNezet;
+        let valtozott = false, lyFul = calNezet === "mind" ? "sajat" : calNezet;
         const bezar = () => { overlay.remove(); if (valtozott){ renderCalLayersBtn(); initCalendar(); } };
         const body = overlay.querySelector("#calLyBody");
         const rajzol = () => {
@@ -42799,7 +42801,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
             const atfedok = sajatNezet ? calAtfedok() : [];
             // a fő (aktív) naptár is kikapcsolható a Naptárak ablakban – ilyenkor az eseményei nem kellenek
             const fo = sajatNezet && calLista ? calLista.find(c => calOwnId ? c.id === calOwnId : c.primary) : null;
-            const foRejtve = !!(fo && ((fo.id in calLathato && !calLathato[fo.id]) || calCsopOf(fo) !== calNezet));
+            const foRejtve = !!(fo && ((fo.id in calLathato && !calLathato[fo.id]) || !calNezetBe(fo)));
             const tolt = (tS, tE) => Promise.all([
                 foRejtve ? Promise.resolve([]) : fetchEvents(token, tS, tE),
                 ownCal ? tasksForCalendar() : Promise.resolve([]),
