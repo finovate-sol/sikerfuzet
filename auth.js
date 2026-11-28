@@ -72,6 +72,37 @@ export async function addAllowedUser(email){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await setDoc(doc(db, ALLOWLIST, email.toLowerCase().trim()), { added: serverTimestamp() });
 }
+// ---- Csapatok ----
+// Minden felhasználó egy csapathoz tartozik (allowed_users/{email}.team, hiánya = 'alap').
+// szerep: 'admin' = csapat-admin (a saját csapatába hívhat meg, kinevezhet csapat-admint).
+export const ALAP_CSAPAT = "alap";
+let myAllowData = null;   // a belépett felhasználó allowlist-bejegyzése (isEmailAllowed tölti)
+export function getMyTeamInfo(){ const d = myAllowData || {}; return { team: d.team || ALAP_CSAPAT, szerep: d.szerep || "tag" }; }
+// A csapat felhasználói { email, team, szerep }. team nélkül (fő admin) mindenki.
+export async function listTeamUsers(team){
+    if(!isConfigured || !db) return [];
+    const q = team ? query(collection(db, ALLOWLIST), where("team", "==", team)) : collection(db, ALLOWLIST);
+    const snap = await getDocs(q);
+    return snap.docs.map(d => { const x = d.data() || {}; return { email: d.id, team: x.team || ALAP_CSAPAT, szerep: x.szerep || "tag", vanTeam: !!x.team }; });
+}
+// Felvétel / módosítás (merge): { team, szerep }
+export async function setAllowedUser(email, adat){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    const id = String(email || "").toLowerCase().trim(); if(!id) throw new Error("Hiányzó e-mail-cím.");
+    const ref = doc(db, ALLOWLIST, id);
+    const ki = { team: adat.team || ALAP_CSAPAT, szerep: adat.szerep === "admin" ? "admin" : "tag" };
+    if(adat.uj) ki.added = serverTimestamp();
+    await setDoc(ref, ki, { merge: true });
+}
+export async function getTeams(){
+    if(!isConfigured || !db) return [];
+    const snap = await getDocs(collection(db, "teams"));
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+}
+export async function saveTeam(id, data){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, "teams", id), data, { merge: true });
+}
 export async function removeAllowedUser(email){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
     await deleteDoc(doc(db, ALLOWLIST, email.toLowerCase().trim()));
@@ -710,6 +741,7 @@ async function isEmailAllowed(email, attempt) {
     if (!email) return false;
     try {
         const snap = await getDoc(doc(db, ALLOWLIST, email.toLowerCase()));
+        myAllowData = snap.exists() ? (snap.data() || {}) : null;
         return snap.exists();
     } catch (e) {
         if (!attempt){
@@ -793,6 +825,7 @@ async function ensureEmployeeProfile(user, attempt) {
             email: user.email || "",
             name: user.displayName || "",
             photoURL: user.photoURL || "",
+            team: (myAllowData && myAllowData.team) || ALAP_CSAPAT,
             lastLogin: serverTimestamp()
         }, { merge: true });
     } catch (e) {

@@ -55,6 +55,15 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/allowed_users/$(myEmail()));
     }
 
+    // ---------- csapatok ----------
+    // Minden felhasználó egy csapathoz tartozik: az allowlist-bejegyzésében a „team”
+    // mező (hiánya = 'alap', a régi bejegyzések). A „szerep: admin” csapat-admint jelöl:
+    // ő a SAJÁT csapatába hívhat meg felhasználót, és nevezhet ki csapat-admint.
+    // A fő admin (isAdmin) minden csapatot kezel.
+    function myAllow() { return get(/databases/$(database)/documents/allowed_users/$(myEmail())).data; }
+    function myTeam() { return myAllow().get('team', 'alap'); }
+    function isTeamAdmin() { return isUser() && (isAdmin() || myAllow().get('szerep', '') == 'admin'); }
+
     // ---------- hozzáférés-térkép (ki kinek a beosztottja) ----------
     // A config/access egyetlen dokumentum: { beosztott uid: felettes uid }.
     // A szabálynyelv nem ismer ciklust, ezért a felettes-láncot kézzel
@@ -93,11 +102,25 @@ service cloud.firestore {
     // ========================================================================
 
     // Az allowlist. A belépéskor mindenki CSAK a saját email-címéhez tartozó
-    // dokumentumot kérdezheti le (létezik-e) – a teljes lista már admin-jog.
+    // dokumentumot kérdezheti le (létezik-e). A fő admin mindet kezeli; a csapat-admin
+    // csak a saját csapatáét (listázni csak team == saját csapat szűréssel tud),
+    // és csak a saját csapatába vehet fel – mást nem tehet át más csapatba.
     match /allowed_users/{email} {
-      allow get:    if signedIn() && request.auth.token.email != null && myEmail() == email;
-      allow list:   if isAdmin();
-      allow write:  if isAdmin();
+      allow get:    if signedIn() && request.auth.token.email != null
+                    && (myEmail() == email || isAdmin()
+                        || (isTeamAdmin() && resource.data.get('team', 'alap') == myTeam()));
+      allow list:   if isAdmin() || (isTeamAdmin() && resource.data.team == myTeam());
+      allow create: if isAdmin() || (isTeamAdmin() && request.resource.data.team == myTeam());
+      allow update: if isAdmin() || (isTeamAdmin() && resource.data.get('team', 'alap') == myTeam()
+                                     && request.resource.data.team == myTeam());
+      allow delete: if isAdmin() || (isTeamAdmin() && resource.data.get('team', 'alap') == myTeam()
+                                     && email != myEmail());
+    }
+
+    // A csapatok (név). Mindenki olvassa (a saját csapata nevét kiírjuk), csak a fő admin írja.
+    match /teams/{teamId} {
+      allow read:  if isUser();
+      allow write: if isAdmin();
     }
 
     // Belépett munkatársak profilja. Mindenki látja a csapatot (névválasztók,

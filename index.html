@@ -10934,6 +10934,15 @@
         .mn-kosd .mn-u { margin:0; }
         .mn-kosd .mn-kosd-g { font-weight:700; color:var(--blue); }
 /* Negyedéves / Incentive: nézetváltó, Group, Incentive */
+.adm-cs-blokk { border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+.adm-cs-fej { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; } .adm-cs-fej b { font-size:14px; color:var(--navy); } .adm-cs-fej small { font-size:12px; color:var(--muted); }
+.adm-cs-nev { border:1px solid transparent; border-radius:8px; padding:4px 6px; font:inherit; font-size:14px; font-weight:800; color:var(--navy); background:transparent; min-width:0; width:220px; } .adm-cs-nev:hover, .adm-cs-nev:focus { border-color:var(--border); background:#fff; outline:none; }
+.adm-cs-sor { display:flex; align-items:center; gap:8px; } .adm-cs-sor .adm-user-email { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.adm-cs-te { font-style:normal; font-size:10.5px; font-weight:800; color:#2563eb; background:#eef4ff; border-radius:5px; padding:1px 6px; margin-left:4px; }
+.adm-cs-sel { border:1px solid var(--border); border-radius:8px; padding:5px 8px; font:inherit; font-size:12.5px; color:var(--navy); background:#fff; }
+.adm-cs-sz.fo { font-size:11.5px; font-weight:800; color:#b45309; background:#fef3c7; border-radius:6px; padding:3px 8px; }
+.adm-cs-uj { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; } .adm-cs-uj input { flex:1; min-width:180px; }
+.adm-cs-figy { font-size:12px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:8px 10px; margin:12px 0 0; }
 .kov-nezet-sw { display:inline-flex; gap:3px; padding:3px; border-radius:10px; background:#eef1f5; margin-left:4px; }
 .kov-nezet-sw button { height:30px; padding:0 12px; border:0; border-radius:8px; background:transparent; font:inherit; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; }
 .kov-nezet-sw button.on { background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(27,42,74,.12); }
@@ -17869,7 +17878,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         // mindkét rész beállításai látszanak, bármelyik részből nyitod (a Sikerfüzet-pontok csak adminnak)
         // az épp aktív rész csoportja kerül felülre (privátban a SZEM, a Sikerfüzetben a Sikerfüzet)
         const priv = document.body.classList.contains('sf-privat'), sajat = priv ? 'priv' : 'ovb';
-        const csop = BL_SZEK.filter(c => !c[3] || adm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        // a csapat-admin (nem fő admin) a Sikerfüzet-csoportból csak a „Felhasználók” pontot látja
+        const csapAdm = !adm && !!window.sfIsTeamAdmin;
+        const csop = BL_SZEK.map(c => c[3] && !adm && csapAdm ? [c[0], c[1].filter(x => x[0] === 'fh'), c[2], c[3]] : c).filter(c => !c[3] || adm || csapAdm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
         if(blSzek === 'ikonok') blSzek = 'megj';
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
@@ -39059,7 +39070,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=96";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=97";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -39136,7 +39147,9 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
         // visszatérés a Google átirányításos naptár-összekötéséből
         gcalVisszateresFeldolgoz().then(r => { if (!r) return; if (r.ok){ silentState = null; initCalendar(); } else alert("Nem sikerült összekötni a naptárat: " + r.hiba); }).catch(() => {});
         setTimeout(() => { try { calFelhoBetolt(); } catch(e){} }, 0);
-        window.sfIsAdmin = isAdmin(user); document.body.classList.toggle('sf-adm', !!window.sfIsAdmin);   // már itt kell (pl. a Pénzügyek kategória-szűrője), nem csak a hozzáférés-térkép után
+        window.sfIsAdmin = isAdmin(user); document.body.classList.toggle('sf-adm', !!window.sfIsAdmin);
+        // csapat: a belépéskor olvasott allowlist-bejegyzésből (team, szerep: 'admin' = csapat-admin)
+        { const ti = getMyTeamInfo(); window.sfTeam = ti.team; window.sfIsTeamAdmin = !!window.sfIsAdmin || ti.szerep === 'admin'; }   // már itt kell (pl. a Pénzügyek kategória-szűrője), nem csak a hozzáférés-térkép után
         getAppConfig().then(cfg => {
             currentConfig = cfg || {};
             window._admCfg = currentConfig;
@@ -48593,7 +48606,9 @@ Vállalkozás nyitásának átbeszélése`, '']
     window.sfAdmSzekcio = async function(k, host){
         const ket = () => { host.innerHTML = '<div></div><div></div>'; return [host.children[0], host.children[1]]; };
         const biztos = async (f, el) => { try { await f(el); } catch(e){ console.warn('Beállítás betöltése sikertelen:', e); el.innerHTML = '<div class="card"><div class="card-body" style="color:var(--red)">Nem sikerült betölteni: ' + escM(e.message || String(e)) + '</div></div>'; } };
-        if(k === 'fh'){ const [a, b] = ket(); await biztos(renderAdmUsers, a); await biztos(renderAdmRoles, b); }
+        if(k === 'fh'){
+            if(!window.sfIsAdmin){ await biztos(renderAdmUsers, host); return; }   // csapat-admin: csak a saját csapata felhasználói
+            const [a, b] = ket(); await biztos(renderAdmUsers, a); await biztos(renderAdmRoles, b); }
         else if(k === 'rang') renderAdmRanks(host);
         else if(k === 'info'){ const [a, b] = ket(); await biztos(renderAdmDates, a); await biztos(renderAdmSeminar, b); }
         else if(k === 'fontos') renderAdmInfos(host);
@@ -49531,28 +49546,60 @@ Vállalkozás nyitásának átbeszélése`, '']
         }));
     }
 
+    // Felhasználók és csapatok. A fő admin minden csapatot lát és kezel (csapat létrehozása, átnevezése,
+    // felhasználó áthelyezése); a csapat-admin csak a saját csapatába hív meg, és ott nevez ki csapat-admint.
     async function renderAdmUsers(cont){
-        cont.innerHTML = `<div class="card"><div class="card-body"><div class="adm-section-title">Hozzáférési lista</div><div id="admUserList" style="min-height:40px;"><em style="color:var(--muted);font-size:12px;">Betöltés…</em></div><div class="adm-add-row"><input id="admEmailInp" type="email" placeholder="email@example.com" autocomplete="off"><button class="btn primary" id="admEmailAdd" style="background:var(--blue);color:#fff;border-color:var(--blue);">Hozzáadás</button></div></div></div>`;
-        const list = document.getElementById("admUserList");
-        const inp = document.getElementById("admEmailInp");
-        const addBtn = document.getElementById("admEmailAdd");
+        const fo = !!window.sfIsAdmin, sajat = window.sfTeam || 'alap', enEmail = String((window.sfCurrentUser && window.sfCurrentUser.email) || '').toLowerCase();
+        cont.innerHTML = `<div class="card"><div class="card-body"><div class="adm-section-title">${fo ? 'Csapatok és felhasználók' : 'A csapatod felhasználói'}</div>
+            <p style="color:var(--muted);font-size:12px;margin:-4px 0 12px;">${fo ? 'Minden felhasználó egy csapathoz tartozik. A <b>csapat-admin</b> a saját csapatába hívhat meg felhasználót és nevezhet ki további csapat-admint.' : 'Ide hívhatsz meg új felhasználót a csapatodba (az e-mail-címével – Google-fiókkal lép be), és kinevezhetsz csapat-admint.'}</p>
+            <div id="admUserBody"><em style="color:var(--muted);font-size:12px;">Betöltés…</em></div></div></div>`;
+        const body = cont.querySelector('#admUserBody');
         const reload = async () => {
-            const users = await getAllowedUsers();
-            list.innerHTML = users.length ? users.map(u=>`<div class="adm-user-row"><span class="adm-user-email">${escM(u)}</span><button class="adm-user-del" data-email="${escM(u)}" title="Törlés"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>`).join('') : `<div style="color:var(--muted);font-size:12px;padding:8px 0;">Nincs felvett felhasználó.</div>`;
-            list.querySelectorAll('[data-email]').forEach(b=>b.addEventListener('click', async()=>{
-                if(!confirm('Eltávolítod: '+b.dataset.email+'?')) return;
-                try { await removeAllowedUser(b.dataset.email); gcalTorolEmail(b.dataset.email); await reload(); } catch(e){ alert('Hiba: '+(e.message||e)); }
-            }));
+            let users = [], teams = [];
+            try { [users, teams] = await Promise.all([listTeamUsers(fo ? null : sajat), getTeams().catch(() => [])]); }
+            catch(e){ body.innerHTML = `<div style="color:var(--red)">Nem sikerült betölteni: ${escM(e.message || e)}</div>`; return; }
+            if(fo){
+                // egyszeri átállás: a régi (csapat nélküli) bejegyzések az alap csapatba kerülnek – így a csapat-admin szűrt lekérdezése is látja őket
+                for(const u of users.filter(x => !x.vanTeam)){ try { await setAllowedUser(u.email, { team: 'alap', szerep: u.szerep }); u.vanTeam = true; } catch(_){} }
+                if(!teams.some(t => t.id === 'alap')){ try { await saveTeam('alap', { nev: 'Alap csapat' }); teams.push({ id: 'alap', nev: 'Alap csapat' }); } catch(_){} }
+            }
+            const tNev = id => (teams.find(t => t.id === id) || {}).nev || (id === 'alap' ? 'Alap csapat' : id);
+            const csapatok = fo ? [...new Set(['alap', ...teams.map(t => t.id), ...users.map(u => u.team)])] : [sajat];
+            const tOpts = akt => csapatok.map(id => `<option value="${escM(id)}"${id === akt ? ' selected' : ''}>${escM(tNev(id))}</option>`).join('');
+            const sor = u => { const en = u.email === enEmail, foAdm = fo && en;
+                return `<div class="adm-user-row adm-cs-sor"><span class="adm-user-email">${escM(u.email)}${en ? ' <em class="adm-cs-te">te</em>' : ''}</span>
+                    ${foAdm ? '<span class="adm-cs-sz fo">Fő admin</span>' : `<select class="adm-cs-sel" data-csszerep="${escM(u.email)}" title="Szerep"${en ? ' disabled' : ''}><option value="tag"${u.szerep !== 'admin' ? ' selected' : ''}>Tag</option><option value="admin"${u.szerep === 'admin' ? ' selected' : ''}>Csapat-admin</option></select>`}
+                    ${fo && !en ? `<select class="adm-cs-sel" data-csteam="${escM(u.email)}" title="Csapat">${tOpts(u.team)}</select>` : ''}
+                    ${en ? '' : `<button class="adm-user-del" data-csdel="${escM(u.email)}" title="Eltávolítás"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg></button>`}</div>`; };
+            body.innerHTML = csapatok.map(id => { const l = users.filter(u => u.team === id).sort((x, y) => (y.szerep === 'admin') - (x.szerep === 'admin') || x.email.localeCompare(y.email));
+                    return `<div class="adm-cs-blokk"><div class="adm-cs-fej">${fo ? `<input class="adm-cs-nev" data-csnev="${escM(id)}" value="${escM(tNev(id))}" title="A csapat neve – kattints az átnevezéshez">` : `<b>${escM(tNev(id))}</b>`}<small>${l.length} felhasználó · ${l.filter(u => u.szerep === 'admin').length} csapat-admin</small></div>
+                        ${l.map(sor).join('') || '<div style="color:var(--muted);font-size:12px;padding:6px 0;">Még nincs felhasználó.</div>'}</div>`; }).join('')
+                + `<div class="adm-add-row adm-cs-uj"><input type="email" id="admEmailInp" placeholder="új felhasználó e-mail-címe">${fo ? `<select class="adm-cs-sel" id="admCsTeam">${tOpts('alap')}</select>` : ''}<select class="adm-cs-sel" id="admCsSzerep"><option value="tag">Tag</option><option value="admin">Csapat-admin</option></select><button class="btn primary" id="admEmailAdd">Meghívás</button></div>`
+                + (fo ? `<div class="adm-add-row adm-cs-uj"><input id="admCsUjNev" placeholder="új csapat neve (pl. Kovács csapat)"><button class="btn" id="admCsUj">+ Csapat</button></div>
+                    <p class="adm-cs-figy">⚠ Az adatok csapatonkénti szétválasztása (ügyfelek, munkatársak, beállítások) a következő lépésben készül el – addig egy másik csapat tagjai is látják a közös adatokat, ezért őket még ne hívd meg.</p>` : '');
+            const inp = body.querySelector('#admEmailInp'), addBtn = body.querySelector('#admEmailAdd');
+            const doAdd = async () => { const email = inp.value.trim().toLowerCase(); if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ inp.focus(); return; }
+                if(users.some(u => u.email === email)){ alert('Ez a cím már a listán van.'); return; }
+                addBtn.disabled = true;
+                try { await setAllowedUser(email, { team: fo ? body.querySelector('#admCsTeam').value : sajat, szerep: body.querySelector('#admCsSzerep').value, uj: true }); await reload(); }
+                catch(e){ alert('Nem sikerült: ' + (e.message || e)); addBtn.disabled = false; } };
+            addBtn.addEventListener('click', doAdd);
+            inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); doAdd(); } });
+            body.querySelectorAll('[data-csszerep]').forEach(sl => sl.addEventListener('change', async () => { const u = users.find(x => x.email === sl.dataset.csszerep);
+                try { await setAllowedUser(u.email, { team: u.team, szerep: sl.value }); u.szerep = sl.value; await reload(); } catch(e){ alert('Nem sikerült: ' + (e.message || e)); await reload(); } }));
+            body.querySelectorAll('[data-csteam]').forEach(sl => sl.addEventListener('change', async () => { const u = users.find(x => x.email === sl.dataset.csteam);
+                if(!confirm(`${u.email} átkerül ide: ${tNev(sl.value)}?`)){ sl.value = u.team; return; }
+                try { await setAllowedUser(u.email, { team: sl.value, szerep: u.szerep }); await reload(); } catch(e){ alert('Nem sikerült: ' + (e.message || e)); await reload(); } }));
+            body.querySelectorAll('[data-csdel]').forEach(b => b.addEventListener('click', async () => { if(!confirm('Eltávolítod: ' + b.dataset.csdel + '? Ezután nem tud belépni.')) return;
+                try { await removeAllowedUser(b.dataset.csdel); gcalTorolEmail(b.dataset.csdel); await reload(); } catch(e){ alert('Hiba: ' + (e.message || e)); } }));
+            body.querySelectorAll('[data-csnev]').forEach(i => i.addEventListener('change', async () => { const v = i.value.trim(); if(!v) return;
+                try { await saveTeam(i.dataset.csnev, { nev: v }); } catch(e){ alert('Nem sikerült: ' + (e.message || e)); } }));
+            const ujCs = body.querySelector('#admCsUj');
+            if(ujCs) ujCs.addEventListener('click', async () => { const nev = body.querySelector('#admCsUjNev').value.trim(); if(!nev) return;
+                const id = nev.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) + '-' + Math.random().toString(36).slice(2, 6);
+                try { await saveTeam(id, { nev }); await reload(); } catch(e){ alert('Nem sikerült: ' + (e.message || e)); } });
         };
         await reload();
-        const doAdd = async () => {
-            const email = inp.value.trim(); if(!email) return;
-            addBtn.disabled = true;
-            try { await addAllowedUser(email); inp.value=''; await reload(); } catch(e){ alert('Hiba: '+(e.message||e)); }
-            finally { addBtn.disabled = false; inp.focus(); }
-        };
-        addBtn.addEventListener('click', doAdd);
-        inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } });
     }
 
     // Csapat szerepkörök: ki vezető / munkatárs, és ki kinek a beosztottja.

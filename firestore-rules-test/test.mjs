@@ -42,9 +42,15 @@ await env.withSecurityRulesDisabled(async c => {
   // Zsolt PG-je a beosztottjával – Ádám a nagyfelettes, de NEM admin
   await setDoc(doc(d,'pg','pgz1'),  { type:'szemelyes', leaderUid: ZSOLT, mtUid: JUNIOR, highlight:'Zsolt jegyzete' });
   await setDoc(doc(d,'penzugyek',JUNIOR), { kezdo:{} });
+  // csapatok: Béla a „b” csapat adminja, Bori a csapattagja; a régi bejegyzések (team nélkül) az 'alap' csapat
+  await setDoc(doc(d,'allowed_users','bela@ovb.hu'), { team:'b', szerep:'admin' });
+  await setDoc(doc(d,'allowed_users','bori@ovb.hu'), { team:'b', szerep:'tag' });
+  await setDoc(doc(d,'teams','b'), { nev:'B csapat' });
   await setDoc(doc(d,'pg_akcio','ak1'), { mtUid: ZSOLT, leaderUid: ADAM, text:'Eredeti feladat', done:false, taskId:'', updated:'x' });
 });
 
+const bela = ctx('u-bela', 'bela@ovb.hu');   // a „b” csapat adminja
+const bori = ctx('u-bori', 'bori@ovb.hu');   // a „b” csapat tagja
 const out_ = [];
 const T = async (name, p, expect) => {
   try { await (expect === 'ok' ? assertSucceeds(p) : assertFails(p)); out_.push('✓ ' + name); }
@@ -230,11 +236,32 @@ await T('privát kép: a gazdája feltölti',       setDoc(doc(zsolt,'privat',ZS
 await T('privát kép: a gazdája törli',          deleteDoc(doc(zsolt,'privat',ZSOLT + '_kep_k1')), 'ok');
 await T('privát: kívülálló nem fér hozzá',       getDoc(doc(out,'privat',ZSOLT + '_celok')), 'fail');
 
+// ---------- csapatok ----------
+await T('csapat-admin listázza a SAJÁT csapatát (szűrt lekérdezés)', getDocs(query(collection(bela,'allowed_users'), where('team','==','b'))), 'ok');
+await T('csapat-admin NEM listázhat szűretlenül', getDocs(collection(bela,'allowed_users')), 'fail');
+await T('csapat-admin NEM listázhatja más csapatát', getDocs(query(collection(bela,'allowed_users'), where('team','==','alap'))), 'fail');
+await T('csapat-admin felvehet a saját csapatába', setDoc(doc(bela,'allowed_users','ujb@ovb.hu'), { team:'b', szerep:'tag' }), 'ok');
+await T('csapat-admin kinevezhet csapat-admint a saját csapatába', setDoc(doc(bela,'allowed_users','uj2@ovb.hu'), { team:'b', szerep:'admin' }), 'ok');
+await T('csapat-admin NEM vehet fel más csapatba', setDoc(doc(bela,'allowed_users','uj3@ovb.hu'), { team:'alap' }), 'fail');
+await T('csapat-admin NEM írhatja át más csapat tagját', setDoc(doc(bela,'allowed_users','zsolt@ovb.hu'), { team:'b' }), 'fail');
+await T('csapat-admin NEM törölheti más csapat tagját', deleteDoc(doc(bela,'allowed_users','zsolt@ovb.hu')), 'fail');
+await T('csapat-admin törölheti a saját csapata tagját', deleteDoc(doc(bela,'allowed_users','ujb@ovb.hu')), 'ok');
+await T('csapat-admin önmagát nem törölheti', deleteDoc(doc(bela,'allowed_users','bela@ovb.hu')), 'fail');
+await T('csapattag NEM listázhatja a csapatát', getDocs(query(collection(bori,'allowed_users'), where('team','==','b'))), 'fail');
+await T('csapattag NEM vehet fel senkit', setDoc(doc(bori,'allowed_users','x@ovb.hu'), { team:'b' }), 'fail');
+await T('régi (team nélküli) felhasználó nem csapat-admin', setDoc(doc(adam,'allowed_users','x@ovb.hu'), { team:'alap' }), 'fail');
+await T('fő admin bármelyik csapatba felvehet', setDoc(doc(mark,'allowed_users','x@ovb.hu'), { team:'b', szerep:'tag' }), 'ok');
+await T('fő admin mindent listáz', getDocs(collection(mark,'allowed_users')), 'ok');
+await T('a csapatok nevét bármely belépett olvassa', getDoc(doc(bori,'teams','b')), 'ok');
+await T('csapatot csak a fő admin hoz létre', setDoc(doc(bela,'teams','c'), { nev:'C' }), 'fail');
+await T('fő admin csapatot hoz létre', setDoc(doc(mark,'teams','c'), { nev:'C' }), 'ok');
+
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 
 await env.cleanup();
 console.log(out_.join('\n'));
 const bad = out_.filter(l => l.startsWith('✗'));
+
 console.log(`\n${out_.length - bad.length}/${out_.length} teszt zöld` + (bad.length ? ' — BUKÓ VAN' : ''));
 process.exit(bad.length ? 1 : 0);
