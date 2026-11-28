@@ -46,6 +46,12 @@ await env.withSecurityRulesDisabled(async c => {
   await setDoc(doc(d,'allowed_users','bela@ovb.hu'), { team:'b', szerep:'admin' });
   await setDoc(doc(d,'allowed_users','bori@ovb.hu'), { team:'b', szerep:'tag' });
   await setDoc(doc(d,'teams','b'), { nev:'B csapat' });
+  // a „b” csapat saját térképe: Bori Béla beosztottja; és Bori havi terve
+  await setDoc(doc(d,'team_access','b'), { 'u-bori': 'u-bela' });
+  await setDoc(doc(d,'havi_terv','u-bori_2026_11'), { x:1 });
+  await setDoc(doc(d,'team_config','b'), { pageAccess:{} });
+  await setDoc(doc(d,'team_config','b~linkek'), { lista:[] });
+  await setDoc(doc(d,'employees','u-bori'), { name:'Bori', team:'b' });
   await setDoc(doc(d,'pg_akcio','ak1'), { mtUid: ZSOLT, leaderUid: ADAM, text:'Eredeti feladat', done:false, taskId:'', updated:'x' });
 });
 
@@ -256,6 +262,25 @@ await T('a csapatok nevét bármely belépett olvassa', getDoc(doc(bori,'teams',
 await T('csapatot csak a fő admin hoz létre', setDoc(doc(bela,'teams','c'), { nev:'C' }), 'fail');
 await T('fő admin csapatot hoz létre', setDoc(doc(mark,'teams','c'), { nev:'C' }), 'ok');
 
+// ---------- csapatonkénti térkép és beállítások ----------
+await T('csapat-admin olvassa a saját térképét', getDoc(doc(bela,'team_access','b')), 'ok');
+await T('csapat-admin írja a saját térképét', setDoc(doc(bela,'team_access','b'), { 'u-bori':'u-bela' }), 'ok');
+await T('csapat-admin NEM írja más csapat térképét', setDoc(doc(bela,'team_access','alap'), { x:'y' }), 'fail');
+await T('csapat-admin NEM olvassa más csapat térképét', getDoc(doc(bela,'team_access','alap')), 'fail');
+await T('csapattag olvassa a csapata térképét', getDoc(doc(bori,'team_access','b')), 'ok');
+await T('csapattag NEM írja a térképet', setDoc(doc(bori,'team_access','b'), { 'u-bori':'' }), 'fail');
+await T('csapat-admin (felettes) látja a beosztottja havi tervét', getDoc(doc(bela,'havi_terv','u-bori_2026_11')), 'ok');
+await T('más csapat vezetője NEM látja a havi tervét', getDoc(doc(adam,'havi_terv','u-bori_2026_11')), 'fail');
+await T('a fő admin látja más csapat havi tervét', getDoc(doc(mark,'havi_terv','u-bori_2026_11')), 'ok');
+await T('csapattag olvassa a csapata beállításait', getDoc(doc(bori,'team_config','b')), 'ok');
+await T('csapattag olvassa a csapata linkjeit', getDoc(doc(bori,'team_config','b~linkek')), 'ok');
+await T('csapattag NEM írja a beállításokat', setDoc(doc(bori,'team_config','b'), { x:1 }), 'fail');
+await T('csapat-admin írja a csapata beállításait', setDoc(doc(bela,'team_config','b'), { pageAccess:{} }, { merge:true }), 'ok');
+await T('csapat-admin írja a csapata linkjeit', setDoc(doc(bela,'team_config','b~linkek'), { lista:[] }), 'ok');
+await T('csapat-admin NEM írja más csapat beállításait', setDoc(doc(bela,'team_config','alap'), { x:1 }), 'fail');
+await T('más csapat tagja NEM olvassa a beállításokat', getDoc(doc(zsolt,'team_config','b')), 'fail');
+await T('a közös config/app-ot a csapat-admin NEM írja', setDoc(doc(bela,'config','app'), { ranks:{} }, { merge:true }), 'fail');
+await T('a fő admin írja más csapat beállításait', setDoc(doc(mark,'team_config','b'), { szintek:{} }, { merge:true }), 'ok');
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 

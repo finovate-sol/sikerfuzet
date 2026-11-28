@@ -35,30 +35,59 @@ const ALLOWLIST = "allowed_users";
 const ADMIN_EMAIL = "szecsimark@gmail.com";
 export function isAdmin(user){ return !!user && String(user.email||"").toLowerCase() === ADMIN_EMAIL; }
 
-// Megosztott app-konfiguráció (config/app dokumentum)
+// Megosztott app-konfiguráció (config/app dokumentum) + a csapat saját beállításai.
+// Csapatonként külön (team_config/{csapat}): oldaljogok, szintek, Fontos infók, INFO-résztvevők, közös naptárak.
+// Közös marad (config/app): rangok/ráták, INFO-időpontok, app-ikon, naptárstílus.
+// Az alap csapat – amíg nincs saját dokumentuma, illetve kulcsonként – a régi config/app értékeit örökli.
+export const CSAPAT_KULCSOK = ["pageAccess", "szintek", "importantInfos", "infoParticipants", "sharedCalendars"];
+// csapatonkénti config-dokumentumok (team_config/{csapat}~{id}); a többi config/{id} közös marad
+export const CSAPAT_DOKOK = ["linkek", "szem", "sablonok_kozos"];
+const myTeamId = () => (myAllowData && myAllowData.team) || ALAP_CSAPAT;
+async function appConfigCsapatra(team){
+    const [aS, tS] = await Promise.all([getDoc(doc(db, "config", "app")), getDoc(doc(db, "team_config", team)).catch(() => null)]);
+    const app = aS.exists() ? (aS.data() || {}) : {}, t = tS && tS.exists() ? (tS.data() || {}) : {};
+    const ki = Object.assign({}, app);
+    CSAPAT_KULCSOK.forEach(k => { if(k in t) ki[k] = t[k]; else if(team !== ALAP_CSAPAT) delete ki[k]; });
+    return ki;
+}
 export async function getAppConfig(){
     if(!isConfigured || !db) return {};
-    try { const snap = await getDoc(doc(db, "config", "app")); return snap.exists() ? (snap.data() || {}) : {}; }
+    try { return await appConfigCsapatra(myTeamId()); }
     catch(e){ console.warn("config olvasás sikertelen:", e); return {}; }
+}
+// a fő admin egy másik csapat beállításait is olvashatja
+export async function getTeamAppConfig(team){
+    if(!isConfigured || !db) return {};
+    return appConfigCsapatra(team || myTeamId());
 }
 // Közös (csapatszintű) dokumentumok a config gyűjteményben – pl. a Tudásbázis és a
 // prezentáció-sablonok: mindenki olvassa, csak az admin írja (lásd firestore.rules).
 // Hiba esetén dob – a hívó dönti el, hogy a helyi másolattal megy-e tovább.
 export async function getConfigDoc(id){
     if(!isConfigured || !db) return null;
+    if(CSAPAT_DOKOK.includes(id)){
+        const team = myTeamId(), t = await getDoc(doc(db, "team_config", team + "~" + id));
+        if(t.exists()) return t.data() || null;
+        if(team !== ALAP_CSAPAT) return null;   // az alap csapat a régi közös dokumentumot örökli
+    }
     const snap = await getDoc(doc(db, "config", id));
     return snap.exists() ? (snap.data() || null) : null;
 }
 export async function saveConfigDoc(id, data){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    if(CSAPAT_DOKOK.includes(id)){ await setDoc(doc(db, "team_config", myTeamId() + "~" + id), data); return; }
     await setDoc(doc(db, "config", id), data);
 }
 export async function saveInfoDates(dates){
     return saveAppConfig({ infoDates: dates });
 }
-export async function saveAppConfig(obj){
+// A csapatkulcsok a csapat dokumentumába (team: a fő admin más csapatét is írhatja), a többi a közösbe.
+export async function saveAppConfig(obj, team){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "config", "app"), obj, { merge: true });
+    const cs = {}, koz = {};
+    Object.entries(obj || {}).forEach(([k, v]) => { (CSAPAT_KULCSOK.includes(k) ? cs : koz)[k] = v; });
+    if(Object.keys(cs).length) await setDoc(doc(db, "team_config", team || myTeamId()), cs, { merge: true });
+    if(Object.keys(koz).length) await setDoc(doc(db, "config", "app"), koz, { merge: true });
 }
 
 export async function getAllowedUsers(){
@@ -232,14 +261,20 @@ export async function deleteClient(id){
 // függetlenül a Struktúra (org-chart) rajztól, ami mostantól csak egy
 // vizuális tervező modul. Alak: config/access dokumentum = { [uid]: "felettes uid" }
 // (hiányzó kulcs / üres string = nincs felettese).
-export async function getAccessMap(){
+// Csapatonként külön térkép: team_access/{csapat}. Az alap csapat, amíg nincs sajátja, a régi config/access-t használja.
+export async function getAccessMap(team){
     if(!isConfigured || !db) return {};
-    try { const snap = await getDoc(doc(db, "config", "access")); return snap.exists() ? (snap.data() || {}) : {}; }
-    catch(e){ console.warn("Hozzáférés-térkép olvasása sikertelen:", e); return {}; }
+    const t = team || myTeamId();
+    try {
+        const snap = await getDoc(doc(db, "team_access", t));
+        if(snap.exists()) return snap.data() || {};
+        if(t !== ALAP_CSAPAT) return {};
+        const regi = await getDoc(doc(db, "config", "access")); return regi.exists() ? (regi.data() || {}) : {};
+    } catch(e){ console.warn("Hozzáférés-térkép olvasása sikertelen:", e); return {}; }
 }
-export async function saveAccessMap(map){
+export async function saveAccessMap(map, team){
     if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
-    await setDoc(doc(db, "config", "access"), map);
+    await setDoc(doc(db, "team_access", team || myTeamId()), map);
 }
 // Egy uid összes láncolt (közvetlen + közvetett) beosztottja a hozzáférés-térkép alapján.
 export function getSubordinateUids(uid, accessMap){

@@ -17878,9 +17878,9 @@ window.sfTemaTeteje = () => (window.SF_TEMAK[window.sfTema()] || window.SF_TEMAK
         // mindkét rész beállításai látszanak, bármelyik részből nyitod (a Sikerfüzet-pontok csak adminnak)
         // az épp aktív rész csoportja kerül felülre (privátban a SZEM, a Sikerfüzetben a Sikerfüzet)
         const priv = document.body.classList.contains('sf-privat'), sajat = priv ? 'priv' : 'ovb';
-        // a csapat-admin (nem fő admin) a Sikerfüzet-csoportból csak a „Felhasználók” pontot látja
+        // a csapat-admin (nem fő admin) a Sikerfüzet-csoportból a Felhasználók, Linkek és Fontos infók pontot látja
         const csapAdm = !adm && !!window.sfIsTeamAdmin;
-        const csop = BL_SZEK.map(c => c[3] && !adm && csapAdm ? [c[0], c[1].filter(x => x[0] === 'fh'), c[2], c[3]] : c).filter(c => !c[3] || adm || csapAdm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
+        const csop = BL_SZEK.map(c => c[3] && !adm && csapAdm ? [c[0], c[1].filter(x => ['fh', 'linkek', 'fontos'].includes(x[0])), c[2], c[3]] : c).filter(c => !c[3] || adm || csapAdm).slice().sort((a, b) => (b[2] === sajat) - (a[2] === sajat)), mind = csop.flatMap(c => c[1].map(x => x[0]));
         if(blSzek === 'ikonok') blSzek = 'megj';
         if(blSzek && !mind.includes(blSzek)) blSzek = null;
         const mob = blMobil(), akt = blSzek || (mob ? null : 'megj');
@@ -39070,7 +39070,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=97";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getTeamAppConfig, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=98";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -48607,7 +48607,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         const ket = () => { host.innerHTML = '<div></div><div></div>'; return [host.children[0], host.children[1]]; };
         const biztos = async (f, el) => { try { await f(el); } catch(e){ console.warn('Beállítás betöltése sikertelen:', e); el.innerHTML = '<div class="card"><div class="card-body" style="color:var(--red)">Nem sikerült betölteni: ' + escM(e.message || String(e)) + '</div></div>'; } };
         if(k === 'fh'){
-            if(!window.sfIsAdmin){ await biztos(renderAdmUsers, host); return; }   // csapat-admin: csak a saját csapata felhasználói
+            if(!window.sfIsAdmin){ const [a, b] = ket(); await biztos(renderAdmUsers, a); await biztos(renderAdmRoles, b); return; }   // csapat-admin: a saját csapata
             const [a, b] = ket(); await biztos(renderAdmUsers, a); await biztos(renderAdmRoles, b); }
         else if(k === 'rang') renderAdmRanks(host);
         else if(k === 'info'){ const [a, b] = ket(); await biztos(renderAdmDates, a); await biztos(renderAdmSeminar, b); }
@@ -48627,7 +48627,7 @@ Vállalkozás nyitásának átbeszélése`, '']
     async function renderAdmLinkek(host){
         host.innerHTML = sfVaz();
         let employees = [];
-        try { employees = ((await getEmployees()) || []).filter(e => e.email && e.uid).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), "hu")); } catch(_){}
+        try { employees = ((await getEmployees()) || []).filter(e => e.email && e.uid && (e.team || 'alap') === (window.sfTeam || 'alap')).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), "hu")); } catch(_){}
         let lista = (Array.isArray(sfLinkek) ? sfLinkek : []).map(l => ({ ...l }));
         const pa = () => (currentConfig && currentConfig.pageAccess) || {};
         // akinek még nincs bejegyzése: új munkatársnál (alapból minden ki) semmit nem lát, régebbinél mindent
@@ -49576,7 +49576,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                         ${l.map(sor).join('') || '<div style="color:var(--muted);font-size:12px;padding:6px 0;">Még nincs felhasználó.</div>'}</div>`; }).join('')
                 + `<div class="adm-add-row adm-cs-uj"><input type="email" id="admEmailInp" placeholder="új felhasználó e-mail-címe">${fo ? `<select class="adm-cs-sel" id="admCsTeam">${tOpts('alap')}</select>` : ''}<select class="adm-cs-sel" id="admCsSzerep"><option value="tag">Tag</option><option value="admin">Csapat-admin</option></select><button class="btn primary" id="admEmailAdd">Meghívás</button></div>`
                 + (fo ? `<div class="adm-add-row adm-cs-uj"><input id="admCsUjNev" placeholder="új csapat neve (pl. Kovács csapat)"><button class="btn" id="admCsUj">+ Csapat</button></div>
-                    <p class="adm-cs-figy">⚠ Az adatok csapatonkénti szétválasztása (ügyfelek, munkatársak, beállítások) a következő lépésben készül el – addig egy másik csapat tagjai is látják a közös adatokat, ezért őket még ne hívd meg.</p>` : '');
+                    <p class="adm-cs-figy">⚠ A beállítások és a hozzáférések már csapatonként külön vannak, de az adatok (ügyfelek, munkatárslista, Negyedéves / Incentive) szétválasztása a következő lépésben készül el – addig egy másik csapat tagjai is látják ezeket, ezért őket még ne hívd meg.</p>` : '');
             const inp = body.querySelector('#admEmailInp'), addBtn = body.querySelector('#admEmailAdd');
             const doAdd = async () => { const email = inp.value.trim().toLowerCase(); if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ inp.focus(); return; }
                 if(users.some(u => u.email === email)){ alert('Ez a cím már a listán van.'); return; }
@@ -49621,24 +49621,32 @@ Vállalkozás nyitásának átbeszélése`, '']
     // Hozzáférés: munkatársanként egy kártya; rákattintva egy szinttel beljebb a beállításai
     // (felettes, látható oldalak, prezentációk). Az új munkatársnál alapból minden ki van kapcsolva
     // (pageAccess._ujAlapTiltva) – a meglévők beállításai az átálláskor megmaradtak.
-    let admHozzUid = null;
+    let admHozzUid = null, admHozzTeam = null;
     async function renderAdmRoles(cont){
         cont.innerHTML = sfVaz();
-        let employees, accessMap, allowedEmails;
-        try { [employees, accessMap, allowedEmails] = await Promise.all([getEmployees(), getAccessMap(), getAllowedUsers()]); }
+        // melyik csapat hozzáféréseit állítjuk: a csapat-admin a sajátjáét, a fő admin választhat
+        const sajatCs = window.sfTeam || 'alap', csT = window.sfIsAdmin ? (admHozzTeam || sajatCs) : sajatCs, sajatT = csT === sajatCs;
+        let employees, accessMap, allowedEmails, tc, csapatok = [];
+        try { [employees, accessMap, allowedEmails, tc, csapatok] = await Promise.all([getEmployees(), getAccessMap(csT), listTeamUsers(csT).then(l => l.map(u => u.email)),
+                sajatT ? Promise.resolve(currentConfig || {}) : getTeamAppConfig(csT), window.sfIsAdmin ? getTeams().catch(() => []) : Promise.resolve([])]); }
         catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
-        employees = (employees||[]).filter(e => e.email).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'hu'));
+        tc = tc || {};
+        // a csapat beállításainak mentése (a saját csapatnál az élő konfigurációt is frissíti)
+        const tcMent = async x => { await saveAppConfig(x, csT); tc = Object.assign({}, tc, x);
+            if(sajatT){ currentConfig = Object.assign({}, currentConfig, x); window._admCfg = currentConfig; } };
+        const csTag = new Set(allowedEmails.map(x => String(x).toLowerCase()));
+        employees = (employees||[]).filter(e => e.email && ((e.team || 'alap') === csT || csTag.has(String(e.email).toLowerCase()))).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'hu'));
         // A meghívottak közül azok, akik még nem léptek be egyszer sem (nincs uid-juk) – halványan, beállítás nélkül.
         const loggedInEmails = new Set(employees.map(e => String(e.email||'').toLowerCase()));
         const pendingEmails = (allowedEmails||[]).filter(email => !loggedInEmails.has(String(email||'').toLowerCase()))
             .sort((a,b)=>String(a).localeCompare(String(b),'hu'));
         // Egyszeri átállás „alapból minden ki”-re: a már meglévő munkatársak (akiknek eddig nem volt
         // bejegyzésük = mindent láttak) üres tiltólistát kapnak, így náluk semmi nem változik.
-        let pageAccess = (currentConfig && currentConfig.pageAccess) || {};
+        let pageAccess = tc.pageAccess || {};
         if(!pageAccess._ujAlapTiltva){
             const next = Object.assign({}, pageAccess, { _ujAlapTiltva: true });
             employees.forEach(emp => { if(!next[emp.uid]) next[emp.uid] = []; });
-            try { await saveAppConfig({ pageAccess: next }); currentConfig = Object.assign({}, currentConfig, { pageAccess: next }); window._admCfg = currentConfig; pageAccess = next; }
+            try { await tcMent({ pageAccess: next }); pageAccess = next; }
             catch(e){ console.warn('Hozzáférés-átállás:', e); }
         }
         // a prezentáció-sablonok (beépítettek + közös saját sablonok) – munkatársanként kapcsolhatók
@@ -49653,7 +49661,7 @@ Vállalkozás nyitásának átbeszélése`, '']
         const lapok = window.sfLapLista();
         const osszesKulcs = [...lapok.map(x => x[0]), '_privkapcs', ...pziLista.map(x => x[0])];
         // a tényleges tiltólista: a mentett, vagy (bejegyzés nélküli új munkatársnál) minden
-        const tiltott = uid => { const pa = (currentConfig && currentConfig.pageAccess) || {};
+        const tiltott = uid => { const pa = tc.pageAccess || {};
             return new Set(pa[uid] ? pa[uid] : (pa._ujAlapTiltva ? osszesKulcs : [])); };
         const lathatoDb = uid => { const b = tiltott(uid); return lapok.filter(x => !b.has(x[0])).length; };
         const nevOf = uid => { const e = employees.find(x => x.uid === uid); return e ? (e.name || e.email) : ''; };
@@ -49666,14 +49674,15 @@ Vállalkozás nyitásának átbeszélése`, '']
                 return `<button type="button" class="adm-hk" data-hkuid="${emp.uid}">
                     <span class="adm-hk-av">${monogram(emp.name || emp.email)}</span>
                     <span class="adm-hk-t"><b>${escM(emp.name || '(névtelen)')}</b><small>${escM(emp.email)}</small>
-                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${({ mt: 'MT', tanacsado: 'Tanácsadó', vezeto: 'Vezető' })[(((currentConfig && currentConfig.szintek) || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')] || 'MT'}</small></span>
+                        <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${({ mt: 'MT', tanacsado: 'Tanácsadó', vezeto: 'Vezető' })[((tc.szintek || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')] || 'MT'}</small></span>
                     <span class="adm-hk-all ${db ? 'van' : 'nincs'}">${db ? `${db} / ${lapok.length} oldal` : 'Nincs hozzáférés'}</span><em>›</em></button>`; };
             const fuggo = email => `<div class="adm-hk fuggo"><span class="adm-hk-av">${monogram(email)}</span><span class="adm-hk-t"><b>${escM(email)}</b><small>Meghívva, még nem lépett be – belépés után állítható</small></span></div>`;
             cont.innerHTML = `<div class="card"><div class="card-body">
-                <div class="adm-section-title">Hozzáférés</div>
+                <div class="adm-section-title">Hozzáférés${csapatok.length > 1 ? `<select class="adm-cs-sel adm-hk-team" data-hkteam title="Melyik csapat hozzáféréseit állítod">${[...new Set(['alap', ...csapatok.map(t => t.id)])].map(id => `<option value="${escM(id)}"${id === csT ? ' selected' : ''}>${escM((csapatok.find(t => t.id === id) || {}).nev || (id === 'alap' ? 'Alap csapat' : id))}</option>`).join('')}</select>` : ''}</div>
                 <p style="color:var(--muted);font-size:12px;margin:-4px 0 14px;">Koppints egy munkatársra a beállításaihoz: ki a felettese, mely oldalakat és prezentációkat látja. Az <b>új munkatársnál alapból minden ki van kapcsolva</b> – a bedolgozás alatt te adod meg a hozzáféréseit. Az adminra (rád) ez nem vonatkozik.</p>
                 <div class="adm-hk-racs">${employees.map(kartya).join('') + pendingEmails.map(fuggo).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0;">Még nincs bejelentkezett munkatárs.</div>'}</div>
             </div></div>`;
+            const hkT = cont.querySelector('[data-hkteam]'); if(hkT) hkT.addEventListener('change', () => { admHozzTeam = hkT.value; admHozzUid = null; renderAdmRoles(cont); });
             cont.querySelectorAll('[data-hkuid]').forEach(b => b.addEventListener('click', () => { admHozzUid = b.dataset.hkuid; renderAdmRoles(cont); cont.scrollIntoView({ block: 'start' }); }));
             return;
         }
@@ -49693,27 +49702,26 @@ Vállalkozás nyitásának átbeszélése`, '']
         cont.innerHTML = `<div class="card"><div class="card-body adm-hr">
             <button type="button" class="adm-hr-vissza" data-hkvissza>‹ Vissza a munkatársakhoz</button>
             <div class="adm-hr-fej"><span class="adm-hk-av nagy">${monogram(emp.name || emp.email)}</span>
-                <div class="adm-role-name" data-uid="${emp.uid}"><div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span><button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button></div>
+                <div class="adm-role-name" data-uid="${emp.uid}"><div class="adm-nev"><span>${escM(emp.name||'(névtelen)')}</span>${window.sfIsAdmin ? `<button type="button" class="adm-nev-g" data-nevszerk title="Név szerkesztése (pl. becenév)" aria-label="Név szerkesztése">✎</button>` : ''}</div>
                 <div class="adm-role-email">${escM(emp.email)}${emp.googleName ? ` · Google-név: ${escM(emp.googleName)}` : ''}</div></div></div>
             <label class="adm-hr-mezo"><span>Felettese</span><select class="adm-role-sel" data-af="manager"><option value="">— nincs felettese —</option>${mgrOpts}</select></label>
-            ${(() => { const sz = ((currentConfig && currentConfig.szintek) || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'MT';
+            ${(() => { const sz = (tc.szintek || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'MT';
                 return `<label class="adm-hr-mezo"><span>Szint</span><select class="adm-role-sel" data-af="szint"><option value=""${sz ? '' : ' selected'}>Automatikus (most: ${auto})</option><option value="mt"${sz === 'mt' ? ' selected' : ''}>MT – a tervezetét a vezető hagyja jóvá</option><option value="tanacsado"${sz === 'tanacsado' ? ' selected' : ''}>Tanácsadó – nem kell jóváhagyás</option><option value="vezeto"${sz === 'vezeto' ? ' selected' : ''}>Vezető – nem kell jóváhagyás, ő hagyja jóvá az MT-két</option></select></label>`; })()}
             <div class="adm-hr-lbl"><b>Hozzáférések</b><span data-hkdb>${db ? `${db} / ${lapok.length} oldal bekapcsolva` : 'Semmi nincs bekapcsolva – a munkatárs csak a „vezetőd megadja a hozzáféréseket” üzenetet látja.'}</span>
                 <span class="adm-hr-gyors"><button type="button" class="btn" data-hkmind="be">Mind be</button><button type="button" class="btn" data-hkmind="ki">Mind ki</button></span></div>
             <div class="adm-role-pages">${csoportok}</div>
         </div></div>`;
         const ment = async uj => {
-            const cur = (currentConfig && currentConfig.pageAccess) || {};
+            const cur = tc.pageAccess || {};
             const next = Object.assign({}, cur, { [emp.uid]: [...uj] });   // üres lista is megmarad: „mindent lát”
-            await saveAppConfig({ pageAccess: next });
-            currentConfig = Object.assign({}, currentConfig, { pageAccess: next }); window._admCfg = currentConfig;
-            if (typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess(next);
+            await tcMent({ pageAccess: next });
+            if (sajatT && typeof window.sfApplyPageAccess === 'function') window.sfApplyPageAccess(next);
         };
         cont.querySelector('[data-hkvissza]').addEventListener('click', () => { admHozzUid = null; renderAdmRoles(cont); });
         cont.querySelectorAll('[data-hkmind]').forEach(b => b.addEventListener('click', async () => {
             b.disabled = true; try { await ment(b.dataset.hkmind === 'be' ? [] : osszesKulcs); renderAdmRoles(cont); } catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); b.disabled = false; } }));
         // Név szerkesztése: a Google néha rosszul hozza át, vagy becenevet használtok.
-        cont.querySelector('[data-nevszerk]').addEventListener('click', ev => {
+        cont.querySelector('[data-nevszerk]')?.addEventListener('click', ev => {
             const box = ev.currentTarget.closest('.adm-nev');
             box.innerHTML = `<input class="adm-nev-in" value="${escM(emp.name||'')}" maxlength="60" aria-label="Megjelenített név"><button type="button" class="btn primary adm-nev-ok">Mentés</button><button type="button" class="btn adm-nev-x">Mégse</button>`;
             const inp = box.querySelector('input'); inp.focus(); inp.select();
@@ -49731,9 +49739,9 @@ Vállalkozás nyitásának átbeszélése`, '']
         });
         const szSel = cont.querySelector('[data-af="szint"]');
         if (szSel) szSel.addEventListener('change', async () => {
-            const cur = (currentConfig && currentConfig.szintek) || {}, next = Object.assign({}, cur);
+            const cur = tc.szintek || {}, next = Object.assign({}, cur);
             if (szSel.value) next[emp.uid] = szSel.value; else delete next[emp.uid];
-            try { await saveAppConfig({ szintek: next }); currentConfig = Object.assign({}, currentConfig, { szintek: next }); window._admCfg = currentConfig; }
+            try { await tcMent({ szintek: next }); }
             catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); }
         });
         const sel = cont.querySelector('[data-af="manager"]');
@@ -49745,7 +49753,7 @@ Vállalkozás nyitásának átbeszélése`, '']
             }
             const newMap = Object.assign({}, accessMap);
             if(newVal) newMap[emp.uid] = newVal; else delete newMap[emp.uid];
-            try { await saveAccessMap(newMap); accessMap = newMap; }
+            try { await saveAccessMap(newMap, csT); accessMap = newMap; if(sajatT) window.sfAccessMap = newMap; }
             catch(e){ alert('Hiba: '+(e.message||e)); }
         });
         // Oldalak / prezentációk ki-be kapcsolása.

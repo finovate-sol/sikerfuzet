@@ -68,10 +68,15 @@ service cloud.firestore {
     // A config/access egyetlen dokumentum: { beosztott uid: felettes uid }.
     // A szabálynyelv nem ismer ciklust, ezért a felettes-láncot kézzel
     // bontjuk ki 5 szintig – ennél mélyebb struktúránál bővítsd a sort.
+    // Csapatonként külön térkép (team_access/{csapat}); az alap csapat, amíg nincs
+    // saját dokumentuma, a régi config/access-t használja.
     function accessMap() {
-      return exists(/databases/$(database)/documents/config/access)
-        ? get(/databases/$(database)/documents/config/access).data
-        : {};
+      let t = myTeam();
+      return exists(/databases/$(database)/documents/team_access/$(t))
+        ? get(/databases/$(database)/documents/team_access/$(t)).data
+        : (t == 'alap' && exists(/databases/$(database)/documents/config/access)
+            ? get(/databases/$(database)/documents/config/access).data
+            : {});
     }
     function isManagerOf(target) {
       let m  = accessMap();
@@ -115,6 +120,17 @@ service cloud.firestore {
                                      && request.resource.data.team == myTeam());
       allow delete: if isAdmin() || (isTeamAdmin() && resource.data.get('team', 'alap') == myTeam()
                                      && email != myEmail());
+    }
+
+    // A csapat hozzáférés-térképe (ki kinek a beosztottja) és beállításai (team_config/{csapat},
+    // team_config/{csapat}~{dokumentum}). A csapat tagjai olvassák, a csapat-admin és a fő admin írja.
+    match /team_access/{teamId} {
+      allow read:  if isUser() && (isAdmin() || myTeam() == teamId);
+      allow write: if isAdmin() || (isTeamAdmin() && myTeam() == teamId);
+    }
+    match /team_config/{key} {
+      allow read:  if isUser() && (isAdmin() || myTeam() == key.split('~')[0]);
+      allow write: if isAdmin() || (isTeamAdmin() && myTeam() == key.split('~')[0]);
     }
 
     // A csapatok (név). Mindenki olvassa (a saját csapata nevét kiírjuk), csak a fő admin írja.
