@@ -16780,7 +16780,7 @@ function tpEredHtml(lista){
     if(!lista.length) return '<div class="card"><div class="card-body hv-ures-sz">Még nincs mentett telefonparty-eredmény. Az aktuális hét állása automatikusan mentődik, amikor megnyitod az Aktuális fület.</div></div>';
     // hónapokra csoportosítva: a hét ahhoz a hónaphoz tartozik, amelyikbe a péntek utáni OVB-hét esik
     const csop = new Map();
-    lista.forEach(([k, h]) => { const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 1); const m = haviWeekForDate(d).monthDate;
+    lista.forEach(([k, h]) => { const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 3); const m = haviWeekForDate(d).monthDate;
         const hk = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`; if(!csop.has(hk)) csop.set(hk, { m, l: [] }); csop.get(hk).l.push([k, h]); });
     const fej = '<tr><th>Hét</th><th>Potenciál</th><th>Kontaktus</th><th>Lebeszélve</th><th>Nem sikerült</th><th>Még nem</th><th>Cél</th><th>Teljesítés</th><th></th></tr>';
     const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>';
@@ -16806,7 +16806,7 @@ function tpEredHtml(lista){
 }
 const tpHavi = {};
 // A telefonparty ablaka: a legutóbbi péntektől a következő hét vasárnapjáig (10 nap – a hétvégék átfedésben vannak).
-// A „jövő hét” (cél, KW) az az OVB-hét, amelyik a péntek utáni szombattal kezdődik.
+// A „jövő hét” (cél, KW) az az OVB-hét, amelyik a péntek utáni hétfővel kezdődik.
 function tpAblak(){
     const ma = new Date(); ma.setHours(0, 0, 0, 0);
     const tol = new Date(ma); tol.setDate(ma.getDate() - (ma.getDay() - 5 + 7) % 7);
@@ -16814,7 +16814,7 @@ function tpAblak(){
     return { tol, ig };
 }
 function tpKovHet(){
-    const { tol } = tpAblak(), szo = new Date(tol); szo.setDate(tol.getDate() + 1);
+    const { tol } = tpAblak(), szo = new Date(tol); szo.setDate(tol.getDate() + 3);
     const m = haviWeekForDate(szo);
     return { ho: new Date(m.monthDate.getFullYear(), m.monthDate.getMonth(), 1), w: m.weekIdx };
 }
@@ -18137,7 +18137,7 @@ function loadHavi(d){
     const raw = store.load(haviKey(d), null);
     const b = blankHavi();
     if(!raw) return b;
-    b.nev=raw.nev||""; b.rang=raw.rang||""; b.celPenz=raw.celPenz||""; b.celES=raw.celES||"";
+    b.nev=raw.nev||""; b.rang=raw.rang||""; b.celPenz=String(raw.celPenz||"").replace(/\D/g,""); b.celES=raw.celES||"";
     b.csapatFt=raw.csapatFt||""; b.csapatEH=raw.csapatEH||""; b.note=raw.note||""; b.rogzitve=raw.rogzitve||"";
     if(Array.isArray(raw.formula)) for(let i=0;i<8;i++) b.formula[i]=raw.formula[i]??"";
     if(Array.isArray(raw.weeks)) for(let w=0;w<6 && w<raw.weeks.length;w++){
@@ -18183,22 +18183,30 @@ function saveHavi(){
     }
 }
 function haviNum(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+// pénzösszeg ponttal tagolva: 1000000 → „1.000.000” (a tárolt érték csak számjegy)
+const haviPenzFmt = v => { const n = String(v ?? '').replace(/\D/g, ''); return n ? n.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''; };
+// gépelés közben tagol, a kurzor a helyén marad (a kurzor előtti számjegyek száma szerint)
+function haviPenzMezo(t){
+    const elotte = t.value.slice(0, t.selectionStart || 0).replace(/\D/g, '').length, f = haviPenzFmt(t.value);
+    t.value = f; let i = 0, db = 0; while(i < f.length && db < elotte){ if(/\d/.test(f[i])) db++; i++; }
+    try { t.setSelectionRange(i, i); } catch(e){}
+    return f.replace(/\D/g, '');
+}
 let haviWeekCount = 5;
 // Az adott hónap első keddje (OVB heti rendszer)
 function firstTuesday(y, m){ const d=new Date(y, m, 1); d.setDate(1 + ((2 - d.getDay() + 7) % 7)); return d; }
-// Az Erfolgsjournal hetei szombattól péntekig tartanak, és a hét ahhoz a
-// hónaphoz tartozik, amelyikbe a keddje esik. A hónap első hete tehát az első
-// keddet tartalmazó hét – ugyanazok a hetek, mint régen, csak 3 nappal korábban
-// kezdődnek, így a már beírt heti adatok a helyükön maradnak.
-function haviKezdet(y, m){ const d = firstTuesday(y, m); d.setDate(d.getDate() - 3); return d; }
-// KW-szám: a hét keddjének ISO hete (így számol az Erfolgsjournal is)
+// A hetek hétfőtől vasárnapig tartanak (ISO-hét, pl. KW 49 = 2026.11.30. – 12.06.), és a hét ahhoz a
+// hónaphoz tartozik, amelyikbe a keddje esik. A hónap első hete tehát az első keddet tartalmazó hét –
+// ugyanazok a hetek (sorszám, KW), mint korábban, így a már beírt heti adatok a helyükön maradnak.
+function haviKezdet(y, m){ const d = firstTuesday(y, m); d.setDate(d.getDate() - 1); return d; }
+// KW-szám: a hét keddjének ISO hete
 function haviKW(start){
-    const t = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 3);
+    const t = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
     const cs = new Date(t); cs.setDate(t.getDate() + 2);   // a kedd hetének csütörtökje
     const jan1 = new Date(cs.getFullYear(), 0, 1);
     return 1 + Math.floor(Math.round((cs - jan1) / 86400000) / 7);
 }
-// A havi terv időszaka: első szombat-hét → következő hónap első szombat-hete (4-6 hét)
+// A havi terv időszaka: az első keddet tartalmazó héttől a következő hónap ilyen hetéig (4-6 hét)
 function haviPeriod(d){
     const start = haviKezdet(d.getFullYear(), d.getMonth());
     const nextStart = haviKezdet(d.getFullYear(), d.getMonth() + 1);
@@ -18339,7 +18347,7 @@ function renderHaviBody(){
                     : `<button type="button" class="btn hv-rogzit" data-hvrogzit>Rögzítés</button>`}</div>
         <div class="hv-celok-r">
             <label><span>Rang</span><select data-hf="rang"${dis}><option value="">—</option>${rankOpts}</select></label>
-            <label><span>Célom pénzben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celPenz" value="${esc(haviData.celPenz)}"${dis}><em>Ft</em></div></label>
+            <label><span>Célom pénzben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celPenz" value="${esc(haviPenzFmt(haviData.celPenz))}"${dis}><em>Ft</em></div></label>
             <label><span>Célom ES-ben</span><div class="hv-mezo"><input type="text" inputmode="numeric" data-hf="celES" value="${esc(haviData.celES)}"${dis}><em>EH</em></div></label>
         </div>
         <div class="hv-k-fej hv-k-al"><h3>Havi képlet</h3><span class="hv-megj" id="hvTortMegj">${haviTortMegj()}</span></div>
@@ -18495,7 +18503,7 @@ function hzRajz(){
         <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="tovabb"${hzAdat.rang ? '' : ' disabled'}>Tovább</button></div>`;
     else if(hzLep === 2) t = `${pont}<h2>Mennyi a célod ebben a hónapban?</h2><p>Egységben (EH) – ebből bontjuk le a heti célokat.</p>
         <label class="hz-mezo"><input type="text" inputmode="decimal" data-hzf="celES" value="${esc(hzAdat.celES)}" placeholder="pl. 120" autofocus><em>EH</em></label>
-        <label class="hz-mezo kicsi"><input type="text" inputmode="numeric" data-hzf="celPenz" value="${esc(hzAdat.celPenz)}" placeholder="Célom pénzben (nem kötelező)"><em>Ft</em></label>
+        <label class="hz-mezo kicsi"><input type="text" inputmode="numeric" data-hzf="celPenz" value="${esc(haviPenzFmt(hzAdat.celPenz))}" placeholder="Célom pénzben (nem kötelező)"><em>Ft</em></label>
         <div class="hz-gombok"><button type="button" class="hz-masod" data-hz="vissza">Vissza</button><button type="button" class="hz-fo" data-hz="tovabb"${haviNum(hzAdat.celES) > 0 ? '' : ' disabled'}>Tovább</button></div>`;
     else t = `${pont}<h2>A havi képleted</h2><p>${hzAdat.javasolt ? 'Az elmúlt hónapjaid arányai alapján javasoltuk – írd át nyugodtan.' : 'Add meg, hány kontaktra, időpontra… van szükséged a célhoz.'} A heti célok ebből számolódnak, egyenletesen elosztva.</p>
         <div class="hz-keplet">${HAVI_METRICS.map((mm, i) => `<label><span>${mm === 'Egység' ? 'ES' : mm}</span><input type="text" inputmode="numeric" data-hzk="${i}" value="${esc(hzAdat.formula[i])}"></label>`).join('')}</div>
@@ -18505,7 +18513,7 @@ function hzRajz(){
 }
 document.addEventListener('input', e => {
     const z = e.target.closest && e.target.closest('#hvZar'); if(!z || !hzAdat) return;
-    if(e.target.dataset.hzf){ hzAdat[e.target.dataset.hzf] = e.target.value; const g = z.querySelector('[data-hz="tovabb"]'); if(g && e.target.dataset.hzf === 'celES') g.disabled = !(haviNum(e.target.value) > 0); if(e.target.dataset.hzf === 'celES') hzAdat.formula = Array(8).fill(''); }
+    if(e.target.dataset.hzf){ hzAdat[e.target.dataset.hzf] = e.target.dataset.hzf === 'celPenz' ? haviPenzMezo(e.target) : e.target.value; const g = z.querySelector('[data-hz="tovabb"]'); if(g && e.target.dataset.hzf === 'celES') g.disabled = !(haviNum(e.target.value) > 0); if(e.target.dataset.hzf === 'celES') hzAdat.formula = Array(8).fill(''); }
     if(e.target.dataset.hzk !== undefined) hzAdat.formula[+e.target.dataset.hzk] = e.target.value;
 });
 document.addEventListener('click', e => {
@@ -18683,7 +18691,7 @@ function haviTablaFrissit(){
 let haviNezet = 'ho', hetHo = null, hetIdx = 0;
 function hetKezd(ho, w){ const k = haviKezdet(ho.getFullYear(), ho.getMonth()); k.setDate(k.getDate() + w * 7); return k; }
 function hetKulcsResz(ho, w){
-    const s = hetKezd(ho, w), cs = new Date(s); cs.setDate(s.getDate() + 5);   // a kedd hetének csütörtökje → ISO-év
+    const s = hetKezd(ho, w), cs = new Date(s); cs.setDate(s.getDate() + 3);   // a hét csütörtökje → ISO-év
     return `${cs.getFullYear()}_${String(haviKW(s)).padStart(2, '0')}`;
 }
 window.sfHetMutat = function(ho, w){
@@ -18707,8 +18715,8 @@ const TP_IDO = { penz: 'tpIdo', karr: 'karrierTpIdo' };
 function tpCiklusKezd(d){ const x = new Date(d || Date.now()); const k = new Date(x); k.setHours(TP_RESET_ORA, 0, 0, 0);
     k.setDate(k.getDate() - ((k.getDay() - 4 + 7) % 7)); if(k > x) k.setDate(k.getDate() - 7); return k; }
 const tpCiklusKulcs = d => { const k = tpCiklusKezd(d); return `${k.getFullYear()}-${String(k.getMonth() + 1).padStart(2, '0')}-${String(k.getDate()).padStart(2, '0')}`; };
-// egy (múltbeli) OVB-hét (szombattól) ciklusa: amelyikbe a hét szerdája esik
-const tpHetCiklus = (ho, w) => { const s = hetKezd(ho, w), sze = new Date(s); sze.setDate(s.getDate() + 4); sze.setHours(12); return tpCiklusKulcs(sze); };
+// egy (múltbeli) OVB-hét (hétfőtől) ciklusa: amelyikbe a hét szerdája esik
+const tpHetCiklus = (ho, w) => { const s = hetKezd(ho, w), sze = new Date(s); sze.setDate(s.getDate() + 2); sze.setHours(12); return tpCiklusKulcs(sze); };
 let tpCiklusFut = false;
 window.sfTpCiklusEllenoriz = async function(){
     if(tpCiklusFut || typeof prvBetolt !== 'function' || !window.sfCurrentUser) return;
@@ -18988,11 +18996,11 @@ document.getElementById('haviBody').addEventListener('input', e=>{
     const t=e.target;
     if(t.dataset.hf!==undefined){
         const f=t.dataset.hf;
-        haviData[f]=t.value;
+        haviData[f] = f==='celPenz' ? haviPenzMezo(t) : t.value;
         const rate=haviRate();
-        if(f==='celES' && rate>0){ haviData.celPenz=Math.round(haviNum(t.value)*rate); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviData.celPenz; }
-        else if(f==='celPenz' && rate>0){ haviData.celES=Math.round(haviNum(t.value)/rate); const ee=document.querySelector('#haviBody [data-hf="celES"]'); if(ee) ee.value=haviData.celES; }
-        else if(f==='rang' && rate>0){ haviData.celPenz=Math.round(haviNum(haviData.celES)*rate); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviData.celPenz; }
+        if(f==='celES' && rate>0){ haviData.celPenz=String(Math.round(haviNum(t.value)*rate)); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviPenzFmt(haviData.celPenz); }
+        else if(f==='celPenz' && rate>0){ haviData.celES=Math.round(haviNum(haviData.celPenz)/rate); const ee=document.querySelector('#haviBody [data-hf="celES"]'); if(ee) ee.value=haviData.celES; }
+        else if(f==='rang' && rate>0){ haviData.celPenz=String(Math.round(haviNum(haviData.celES)*rate)); const pe=document.querySelector('#haviBody [data-hf="celPenz"]'); if(pe) pe.value=haviPenzFmt(haviData.celPenz); }
         saveHavi(); return;
     }
     if(t.id==='haviNote'){ haviData.note=t.value; saveHavi(); return; }
