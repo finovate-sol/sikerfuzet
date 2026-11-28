@@ -39,7 +39,7 @@ export function isAdmin(user){ return !!user && String(user.email||"").toLowerCa
 // Csapatonként külön (team_config/{csapat}): oldaljogok, szintek, Fontos infók, INFO-résztvevők, közös naptárak.
 // Közös marad (config/app): rangok/ráták, INFO-időpontok, app-ikon, naptárstílus.
 // Az alap csapat – amíg nincs saját dokumentuma, illetve kulcsonként – a régi config/app értékeit örökli.
-export const CSAPAT_KULCSOK = ["pageAccess", "szintek", "importantInfos", "infoParticipants", "sharedCalendars"];
+export const CSAPAT_KULCSOK = ["pageAccess", "szintek", "importantInfos", "infoParticipants", "sharedCalendars", "zaroltak"];
 // csapatonkénti config-dokumentumok (team_config/{csapat}~{id}); a többi config/{id} közös marad
 export const CSAPAT_DOKOK = ["linkek", "szem", "sablonok_kozos"];
 const myTeamId = () => (myAllowData && myAllowData.team) || ALAP_CSAPAT;
@@ -112,7 +112,7 @@ export async function listTeamUsers(team){
     if(!isConfigured || !db) return [];
     const q = team ? query(collection(db, ALLOWLIST), where("team", "==", team)) : collection(db, ALLOWLIST);
     const snap = await getDocs(q);
-    return snap.docs.map(d => { const x = d.data() || {}; return { email: d.id, team: x.team || ALAP_CSAPAT, szerep: x.szerep || "tag", vanTeam: !!x.team }; });
+    return snap.docs.map(d => { const x = d.data() || {}; return { email: d.id, team: x.team || ALAP_CSAPAT, szerep: x.szerep || "tag", vanTeam: !!x.team, zarolva: !!x.zarolva }; });
 }
 // Felvétel / módosítás (merge): { team, szerep }
 export async function setAllowedUser(email, adat){
@@ -122,6 +122,27 @@ export async function setAllowedUser(email, adat){
     const ki = { team: adat.team || ALAP_CSAPAT, szerep: adat.szerep === "admin" ? "admin" : "tag" };
     if(adat.uj) ki.added = serverTimestamp();
     await setDoc(ref, ki, { merge: true });
+}
+// Kilépett munkatárs: a belépése zárolva (az allowlist-bejegyzés megmarad, így az adatai is).
+export async function setAllowedZarolas(email, zarolva){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    await setDoc(doc(db, ALLOWLIST, String(email).toLowerCase().trim()), zarolva ? { zarolva: true, zarolvaAt: serverTimestamp() } : { zarolva: false }, { merge: true });
+}
+// Egy munkatárs ügyfelei (10 perces) és jelöltjei (2 órás, mt) – az átadáshoz
+export async function getClientsOf(uid, team){
+    if(!isConfigured || !db) return [];
+    const snap = await getDocs(query(collection(db, "clients"), where("team", "==", team || myTeamId()), where("ownerUid", "==", uid)));
+    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+}
+// Átadás: a megadott bejegyzések új kezelőt kapnak (a korábbi kezelő megjegyezve)
+export async function atadUgyfelek(ids, cel, tol){
+    if(!isConfigured || !db) throw new Error("A Firebase nincs beállítva.");
+    for(let i = 0; i < ids.length; i += 400){
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach(id => b.set(doc(db, "clients", id), { ownerUid: cel.uid, ownerName: cel.name || "", ownerEmail: cel.email || "",
+            atadva: { tolUid: tol.uid, tolNev: tol.name || "", at: Date.now() } }, { merge: true }));
+        await b.commit();
+    }
 }
 export async function getTeams(){
     if(!isConfigured || !db) return [];
@@ -812,7 +833,8 @@ async function isEmailAllowed(email, attempt) {
     try {
         const snap = await getDoc(doc(db, ALLOWLIST, email.toLowerCase()));
         myAllowData = snap.exists() ? (snap.data() || {}) : null;
-        return snap.exists();
+        // a zárolt (kilépett) munkatárs nem léphet be – az adatai megmaradnak
+        return snap.exists() && !(myAllowData && myAllowData.zarolva);
     } catch (e) {
         if (!attempt){
             await new Promise(r => setTimeout(r, 900));

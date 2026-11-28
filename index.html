@@ -10934,6 +10934,12 @@
         .mn-kosd .mn-u { margin:0; }
         .mn-kosd .mn-kosd-g { font-weight:700; color:var(--blue); }
 /* Negyedéves / Incentive: nézetváltó, Group, Incentive */
+.adm-kilep { border:1px solid #fde2e2; background:#fff8f8; border-radius:12px; padding:10px 12px; margin:10px 0 14px; } .adm-kilep.zar { border-color:#e5e7eb; background:#f8fafc; }
+.adm-kilep .adm-hr-lbl { margin:0 0 8px; } .adm-kilep-s { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px; } .adm-kilep-s > b { font-size:13px; color:var(--navy); margin-right:2px; }
+.adm-zar-btn { color:#b42318; border-color:#f4c7c3; } .adm-atad-info { display:block; font-size:12px; color:var(--muted); }
+.adm-hk-all.zar { background:#f1f5f9; color:#64748b; } .adm-cs-sor.zar .adm-user-email { color:var(--muted); }
+.adm-cs-zar { font-style:normal; font-size:10.5px; font-weight:800; color:#64748b; background:#f1f5f9; border-radius:5px; padding:1px 6px; margin-left:4px; }
+.kt-kilep { font-style:normal; font-size:10px; font-weight:800; color:#b42318; background:#fef2f2; border-radius:5px; padding:0 5px; margin-left:5px; }
 .adm-cs-blokk { border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
 .adm-cs-fej { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; } .adm-cs-fej b { font-size:14px; color:var(--navy); } .adm-cs-fej small { font-size:12px; color:var(--muted); }
 .adm-cs-nev { border:1px solid transparent; border-radius:8px; padding:4px 6px; font:inherit; font-size:14px; font-weight:800; color:var(--navy); background:transparent; min-width:0; width:220px; } .adm-cs-nev:hover, .adm-cs-nev:focus { border-color:var(--border); background:#fff; outline:none; }
@@ -26530,13 +26536,15 @@ function rowMatchesFilters(r){
 // munkatársra (window.sfEmployeesList a modul-scriptből érkezik).
 // Kezelő / Tanácsadó cella: a kezelő avatarja + neve, alatta a tanácsadó (munkatárs)
 const regRovidNev = n => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length > 2 ? `${p[0]} ${p.slice(1).map(x => x[0] + '.').join(' ')}` : p.join(' '); };
+// kilépett (zárolt) munkatárs – a csapat beállításaiból (Beállítások → Hozzáférés → Kilépés)
+const regZarolt = uid => !!uid && !!((((window._admCfg || {}).zaroltak) || {})[uid]);
 function regKtHtml(i, r, open, lk){
     const kez = r.ownerName || r.ownerEmail || '', ac = kez ? avatarColor(kez) : null;
     const tan = `<input class="reg-mt-inline" data-ri="${i}" data-rf="munkatars" value="${esc(r.munkatars)}" placeholder="—"${lk}>`;
     return `<div class="kt-dob">
         <span class="kt-av"${ac ? ` style="background:${ac.bg};color:${ac.fg};"` : ''} title="Kezelő: ${esc(kez || '—')}">${kez ? esc(regInitials(kez)) : '?'}</span>
         <div class="kt-sorok">
-            <div class="kt-k" title="Kezelő"><i>Kezelő</i>${open ? regKezeloControl(i, r, false) : `<b title="${esc(kez)}">${esc(regRovidNev(kez) || '—')}</b>`}</div>
+            <div class="kt-k" title="Kezelő"><i>Kezelő</i>${open ? regKezeloControl(i, r, false) : `<b title="${esc(kez)}">${esc(regRovidNev(kez) || '—')}</b>`}${regZarolt(r.ownerUid) ? '<em class="kt-kilep" title="A kezelő kilépett – a Beállítások → Hozzáférés részben adhatod át az ügyfeleit">kilépett</em>' : ''}</div>
             <div class="kt-t" title="Tanácsadó"><i>Tanácsadó</i>${tan}</div>
         </div></div>`;
 }
@@ -26546,7 +26554,7 @@ function regKezeloControl(i, r, locked){
     }
     const employees = window.sfEmployeesList || [];
     const curUid = r.ownerUid || '';
-    let opts = employees.map(e => `<option value="${esc(e.uid)}"${e.uid===curUid?' selected':''}>${esc(e.name||e.email)}</option>`).join('');
+    let opts = employees.filter(e => e.uid === curUid || !regZarolt(e.uid)).map(e => `<option value="${esc(e.uid)}"${e.uid===curUid?' selected':''}>${esc(e.name||e.email)}${regZarolt(e.uid) ? ' (kilépett)' : ''}</option>`).join('');
     if(curUid && !employees.some(e=>e.uid===curUid)){
         opts = `<option value="${esc(curUid)}" selected>${esc(r.ownerName || r.ownerEmail || 'Ismeretlen')}</option>` + opts;
     } else if(!curUid){
@@ -39076,7 +39084,7 @@ document.addEventListener('click', e => { const a = e.target.closest('.nav a[dat
 
 <!-- ===== BELÉPÉS-VÉDELEM + GOOGLE NAPTÁR (Firebase) ===== -->
 <script type="module">
-    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getTeamAppConfig, getAllEmployees, migralCsapat3, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=99";
+    import { requireAuth, logout, isConfigured, getCalendarToken, silentCalendarToken, hasAutoConnect, reconnectCalendar, reconnectCalendarTartalek, gcalVisszateresFeldolgoz, disconnectCalendar, gcalTorolEmail, connectTasks, connectCalendarList, getBedolgozas, saveBedolgozas, deleteBedolgozas, getBedSablon, saveBedSablon, getBedVezetoi, saveBedVezetoi, saveEmployeeName, getAppConfig, saveInfoDates, saveAppConfig, getConfigDoc, saveConfigDoc, isAdmin, getAllowedUsers, addAllowedUser, removeAllowedUser, getMyTeamInfo, listTeamUsers, setAllowedUser, getTeams, saveTeam, getTeamAppConfig, getAllEmployees, migralCsapat3, setAllowedZarolas, getClientsOf, atadUgyfelek, getStructure, saveStructure, getKarrierLetra, saveKarrierLetra, getKovQuarter, saveKovQuarter, getClients, addClient, saveClient, deleteClient, getEmployees, saveActivityTimer, addActivityNap, addPreziNap, addLapNap, listActivityByCol, getActivityTimer, getAccessMap, saveAccessMap, isLeaderByAccess, getSubordinateUids, getHaviTerv, saveHaviTerv, getEvesTerv, saveEvesTerv, getPenzugyek, getPenzugyekStrict, savePenzugyek, getPzTranz, getPzTranzStrict, savePzTranz, getEdzesStrict, saveEdzes, stravaHivas, getPGs, addPG, savePG, deletePG, getAkciok, addAkcio, saveAkcio, deleteAkcio, getCelok, saveCelok, getPrivatStrict, savePrivat, deletePrivat, uploadCelKep, deleteCelKep, addCelImage, getCelImage, deleteCelImageDoc, getTaskMeta, saveTaskMeta, getNotes, addNote, saveNote, deleteNote, uploadNoteImage, deleteNoteImage, addNoteImage, getNoteImage, deleteNoteImageDoc, addPzSzamla, getPzSzamla, deletePzSzamla, getOnismeret, deleteOnismeret } from "./auth.js?v=100";
     const DEFAULT_RANKS = { R1:225, R2:425, R3:675, GST:1012 };
     const RANK_ORDER = ["R1","R2","R3","GST"];
 
@@ -49575,7 +49583,7 @@ Vállalkozás nyitásának átbeszélése`, '']
             const csapatok = fo ? [...new Set(['alap', ...teams.map(t => t.id), ...users.map(u => u.team)])] : [sajat];
             const tOpts = akt => csapatok.map(id => `<option value="${escM(id)}"${id === akt ? ' selected' : ''}>${escM(tNev(id))}</option>`).join('');
             const sor = u => { const en = u.email === enEmail, foAdm = fo && en;
-                return `<div class="adm-user-row adm-cs-sor"><span class="adm-user-email">${escM(u.email)}${en ? ' <em class="adm-cs-te">te</em>' : ''}</span>
+                return `<div class="adm-user-row adm-cs-sor${u.zarolva ? ' zar' : ''}"><span class="adm-user-email">${escM(u.email)}${en ? ' <em class="adm-cs-te">te</em>' : ''}${u.zarolva ? ' <em class="adm-cs-zar">🔒 kilépett</em>' : ''}</span>
                     ${foAdm ? '<span class="adm-cs-sz fo">Fő admin</span>' : `<select class="adm-cs-sel" data-csszerep="${escM(u.email)}" title="Szerep"${en ? ' disabled' : ''}><option value="tag"${u.szerep !== 'admin' ? ' selected' : ''}>Tag</option><option value="admin"${u.szerep === 'admin' ? ' selected' : ''}>Csapat-admin</option></select>`}
                     ${fo && !en ? `<select class="adm-cs-sel" data-csteam="${escM(u.email)}" title="Csapat">${tOpts(u.team)}</select>` : ''}
                     ${en ? '' : `<button class="adm-user-del" data-csdel="${escM(u.email)}" title="Eltávolítás"><svg class="del-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg></button>`}</div>`; };
@@ -49634,8 +49642,8 @@ Vállalkozás nyitásának átbeszélése`, '']
         cont.innerHTML = sfVaz();
         // melyik csapat hozzáféréseit állítjuk: a csapat-admin a sajátjáét, a fő admin választhat
         const sajatCs = window.sfTeam || 'alap', csT = window.sfIsAdmin ? (admHozzTeam || sajatCs) : sajatCs, sajatT = csT === sajatCs;
-        let employees, accessMap, allowedEmails, tc, csapatok = [];
-        try { [employees, accessMap, allowedEmails, tc, csapatok] = await Promise.all([window.sfIsAdmin ? getAllEmployees() : getEmployees(), getAccessMap(csT), listTeamUsers(csT).then(l => l.map(u => u.email)),
+        let employees, accessMap, allowedEmails, tc, csapatok = [], csZarolt = new Set();
+        try { [employees, accessMap, allowedEmails, tc, csapatok] = await Promise.all([window.sfIsAdmin ? getAllEmployees() : getEmployees(), getAccessMap(csT), listTeamUsers(csT).then(l => { csZarolt = new Set(l.filter(u => u.zarolva).map(u => u.email)); return l.map(u => u.email); }),
                 sajatT ? Promise.resolve(currentConfig || {}) : getTeamAppConfig(csT), window.sfIsAdmin ? getTeams().catch(() => []) : Promise.resolve([])]); }
         catch(e){ cont.innerHTML = `<div class="card"><div class="card-body">Hiba: ${escM(e.message||e)}</div></div>`; return; }
         tc = tc || {};
@@ -49683,7 +49691,7 @@ Vállalkozás nyitásának átbeszélése`, '']
                     <span class="adm-hk-av">${monogram(emp.name || emp.email)}</span>
                     <span class="adm-hk-t"><b>${escM(emp.name || '(névtelen)')}</b><small>${escM(emp.email)}</small>
                         <small>${mgr ? `Felettese: ${escM(nevOf(mgr))}` : 'Nincs felettese'} · ${({ mt: 'MT', tanacsado: 'Tanácsadó', vezeto: 'Vezető' })[((tc.szintek || {})[emp.uid]) || (Object.values(accessMap).includes(emp.uid) ? 'vezeto' : 'mt')] || 'MT'}</small></span>
-                    <span class="adm-hk-all ${db ? 'van' : 'nincs'}">${db ? `${db} / ${lapok.length} oldal` : 'Nincs hozzáférés'}</span><em>›</em></button>`; };
+                    ${csZarolt.has(String(emp.email).toLowerCase()) ? '<span class="adm-hk-all zar">🔒 Kilépett</span>' : `<span class="adm-hk-all ${db ? 'van' : 'nincs'}">${db ? `${db} / ${lapok.length} oldal` : 'Nincs hozzáférés'}</span>`}<em>›</em></button>`; };
             const fuggo = email => `<div class="adm-hk fuggo"><span class="adm-hk-av">${monogram(email)}</span><span class="adm-hk-t"><b>${escM(email)}</b><small>Meghívva, még nem lépett be – belépés után állítható</small></span></div>`;
             cont.innerHTML = `<div class="card"><div class="card-body">
                 <div class="adm-section-title">Hozzáférés${csapatok.length > 1 ? `<select class="adm-cs-sel adm-hk-team" data-hkteam title="Melyik csapat hozzáféréseit állítod">${[...new Set(['alap', ...csapatok.map(t => t.id)])].map(id => `<option value="${escM(id)}"${id === csT ? ' selected' : ''}>${escM((csapatok.find(t => t.id === id) || {}).nev || (id === 'alap' ? 'Alap csapat' : id))}</option>`).join('')}</select>` : ''}</div>
@@ -49715,6 +49723,15 @@ Vállalkozás nyitásának átbeszélése`, '']
             <label class="adm-hr-mezo"><span>Felettese</span><select class="adm-role-sel" data-af="manager"><option value="">— nincs felettese —</option>${mgrOpts}</select></label>
             ${(() => { const sz = (tc.szintek || {})[emp.uid] || '', auto = Object.values(accessMap).includes(emp.uid) ? 'Vezető' : 'MT';
                 return `<label class="adm-hr-mezo"><span>Szint</span><select class="adm-role-sel" data-af="szint"><option value=""${sz ? '' : ' selected'}>Automatikus (most: ${auto})</option><option value="mt"${sz === 'mt' ? ' selected' : ''}>MT – a tervezetét a vezető hagyja jóvá</option><option value="tanacsado"${sz === 'tanacsado' ? ' selected' : ''}>Tanácsadó – nem kell jóváhagyás</option><option value="vezeto"${sz === 'vezeto' ? ' selected' : ''}>Vezető – nem kell jóváhagyás, ő hagyja jóvá az MT-két</option></select></label>`; })()}
+            ${(() => { const en = emp.uid === (window.sfCurrentUser && window.sfCurrentUser.uid), foAdm = String(emp.email).toLowerCase() === 'szecsimark@gmail.com';
+                if(en || foAdm) return '';
+                const zar = csZarolt.has(String(emp.email).toLowerCase()), celAlap = mgrUid || (window.sfCurrentUser && window.sfCurrentUser.uid) || '';
+                return `<div class="adm-kilep${zar ? ' zar' : ''}"><div class="adm-hr-lbl"><b>Kilépés</b><span>${zar ? 'A belépése zárolva. Az adatai megmaradtak – a felettesei és a fő admin továbbra is rálátnak (pl. „ránézés” a nézetére), az ügyfelei a csapatnál maradnak.' : 'Ha kilép: zárold a belépését. Az adatai megmaradnak, az ügyfeleit és jelöltjeit pedig átadhatod a vezetőnek.'}</span></div>
+                    <div class="adm-kilep-s"><button type="button" class="btn${zar ? '' : ' adm-zar-btn'}" data-hkzar>${zar ? 'Zárolás feloldása' : '🔒 Belépés zárolása'}</button></div>
+                    <div class="adm-kilep-s adm-atad"><b>Átadás</b><select class="adm-role-sel" data-atadcel>${employees.filter(e2 => e2.uid !== emp.uid && !csZarolt.has(String(e2.email).toLowerCase())).map(e2 => `<option value="${e2.uid}"${e2.uid === celAlap ? ' selected' : ''}>${escM(e2.name || e2.email)}${e2.uid === mgrUid ? ' (felettese)' : ''}</option>`).join('')}</select>
+                        <select class="adm-role-sel" data-ataddtip><option value="mind">10 perces és 2 órás</option><option value="10p">Csak 10 perces (ügyfelek)</option><option value="2o">Csak 2 órás (jelöltek)</option></select>
+                        <button type="button" class="btn primary" data-atadgo disabled>Átadás</button></div>
+                    <small class="adm-atad-info" data-atadinfo>Bejegyzések betöltése…</small></div>`; })()}
             <div class="adm-hr-lbl"><b>Hozzáférések</b><span data-hkdb>${db ? `${db} / ${lapok.length} oldal bekapcsolva` : 'Semmi nincs bekapcsolva – a munkatárs csak a „vezetőd megadja a hozzáféréseket” üzenetet látja.'}</span>
                 <span class="adm-hr-gyors"><button type="button" class="btn" data-hkmind="be">Mind be</button><button type="button" class="btn" data-hkmind="ki">Mind ki</button></span></div>
             <div class="adm-role-pages">${csoportok}</div>
@@ -49728,6 +49745,35 @@ Vállalkozás nyitásának átbeszélése`, '']
         cont.querySelector('[data-hkvissza]').addEventListener('click', () => { admHozzUid = null; renderAdmRoles(cont); });
         cont.querySelectorAll('[data-hkmind]').forEach(b => b.addEventListener('click', async () => {
             b.disabled = true; try { await ment(b.dataset.hkmind === 'be' ? [] : osszesKulcs); renderAdmRoles(cont); } catch(e){ alert('Nem sikerült menteni: ' + (e.message || e)); b.disabled = false; } }));
+        // ---- Kilépés: zárolás és átadás ----
+        const zarBtn = cont.querySelector('[data-hkzar]');
+        if(zarBtn) zarBtn.addEventListener('click', async () => {
+            const zar = csZarolt.has(String(emp.email).toLowerCase());
+            if(!confirm(zar ? `Feloldod ${emp.name || emp.email} belépését?` : `Zárolod ${emp.name || emp.email} belépését? Nem tud többé belépni, de az adatai megmaradnak.`)) return;
+            zarBtn.disabled = true;
+            try { await setAllowedZarolas(emp.email, !zar);
+                const zl = Object.assign({}, tc.zaroltak || {}); if(zar) delete zl[emp.uid]; else zl[emp.uid] = Date.now();
+                await tcMent({ zaroltak: zl }); renderAdmRoles(cont); }
+            catch(e){ alert('Nem sikerült: ' + (e.message || e)); zarBtn.disabled = false; }
+        });
+        const atadInfo = cont.querySelector('[data-atadinfo]'), atadGo = cont.querySelector('[data-atadgo]');
+        if(atadInfo){
+            let sajatBej = [];
+            const frissit = () => { const tip = cont.querySelector('[data-ataddtip]').value, l = sajatBej.filter(r => tip === 'mind' || (tip === '2o') === !!r.mt);
+                atadGo.disabled = !l.length || !cont.querySelector('[data-atadcel]').value; atadGo.textContent = l.length ? `Átadás (${l.length})` : 'Átadás';
+                atadInfo.textContent = `${sajatBej.filter(r => !r.mt).length} ügyfél a 10 perces füzetben · ${sajatBej.filter(r => r.mt).length} jelölt a 2 órás füzetben`; return l; };
+            getClientsOf(emp.uid, csT).then(l => { sajatBej = l; frissit(); }).catch(e => { atadInfo.textContent = 'Nem sikerült betölteni: ' + (e.message || e); });
+            cont.querySelectorAll('[data-ataddtip], [data-atadcel]').forEach(x => x.addEventListener('change', frissit));
+            atadGo.addEventListener('click', async () => {
+                const l = frissit(), celUid = cont.querySelector('[data-atadcel]').value, cel = employees.find(x => x.uid === celUid); if(!l.length || !cel) return;
+                if(!confirm(`${l.length} bejegyzés átkerül ${cel.name || cel.email} kezelésébe. Mehet?`)) return;
+                atadGo.disabled = true; atadGo.textContent = 'Átadás…';
+                try { await atadUgyfelek(l.map(r => r.id), { uid: cel.uid, name: cel.name || '', email: cel.email || '' }, { uid: emp.uid, name: emp.name || emp.email });
+                    if(sajatT && typeof loadAndDistributeClients === 'function') loadAndDistributeClients().catch(() => {});
+                    sajatBej = sajatBej.filter(r => !l.includes(r)); frissit(); atadInfo.textContent = `✓ ${l.length} bejegyzés átadva: ${cel.name || cel.email}. ` + atadInfo.textContent; }
+                catch(e){ alert('Nem sikerült az átadás: ' + (e.message || e)); frissit(); }
+            });
+        }
         // Név szerkesztése: a Google néha rosszul hozza át, vagy becenevet használtok.
         cont.querySelector('[data-nevszerk]')?.addEventListener('click', ev => {
             const box = ev.currentTarget.closest('.adm-nev');

@@ -48,8 +48,12 @@ await env.withSecurityRulesDisabled(async c => {
   await setDoc(doc(d,'allowed_users','bela@ovb.hu'), { team:'b', szerep:'admin' });
   await setDoc(doc(d,'allowed_users','bori@ovb.hu'), { team:'b', szerep:'tag' });
   await setDoc(doc(d,'teams','b'), { nev:'B csapat' });
+  // kilépett (zárolt) munkatárs a B csapatban, Béla beosztottja
+  await setDoc(doc(d,'allowed_users','kilepett@ovb.hu'), { team:'b', szerep:'tag', zarolva:true });
+  await setDoc(doc(d,'havi_terv','u-kilep_2026_11'), { x:1 });
+  await setDoc(doc(d,'clients','ck1'), { name:'Kilépett ügyfele', ownerUid:'u-kilep', team:'b' });
   // a „b” csapat saját térképe: Bori Béla beosztottja; és Bori havi terve
-  await setDoc(doc(d,'team_access','b'), { 'u-bori': 'u-bela' });
+  await setDoc(doc(d,'team_access','b'), { 'u-bori': 'u-bela', 'u-kilep': 'u-bela' });
   await setDoc(doc(d,'havi_terv','u-bori_2026_11'), { x:1 });
   await setDoc(doc(d,'team_config','b'), { pageAccess:{} });
   await setDoc(doc(d,'team_config','b~linkek'), { lista:[] });
@@ -59,6 +63,7 @@ await env.withSecurityRulesDisabled(async c => {
 
 const bela = ctx('u-bela', 'bela@ovb.hu');   // a „b” csapat adminja
 const bori = ctx('u-bori', 'bori@ovb.hu');   // a „b” csapat tagja
+const kilep = ctx('u-kilep', 'kilepett@ovb.hu');   // zárolt (kilépett) munkatárs
 const out_ = [];
 const T = async (name, p, expect) => {
   try { await (expect === 'ok' ? assertSucceeds(p) : assertFails(p)); out_.push('✓ ' + name); }
@@ -140,7 +145,8 @@ await T('ügyfél: a felettes írja', setDoc(doc(adam,'clients','c1'),{name:'Vez
 await T('ügyfél: átadás a csapaton belül megy', setDoc(doc(adam,'clients','c1'),{ownerUid:ADAM},{merge:true}), 'ok');
 await T('ügyfél: kívülre nem adható át', setDoc(doc(adam,'clients','c1'),{ownerUid:OTHER},{merge:true}), 'fail');
 await T('ügyfél: idegen nevére nem hozható létre', setDoc(doc(zsolt,'clients','c9'),{ownerUid:OTHER}), 'fail');
-await T('ügyfél: sajátot létrehoz', setDoc(doc(zsolt,'clients','c9'),{ownerUid:ZSOLT}), 'ok');
+await T('ügyfél: sajátot létrehoz (a csapatával)', setDoc(doc(zsolt,'clients','c9'),{ownerUid:ZSOLT, team:'alap'}), 'ok');
+await T('ügyfél: csapat nélkül nem hozható létre', setDoc(doc(zsolt,'clients','c9x'),{ownerUid:ZSOLT}), 'fail');
 await T('Ki lesz a következő: vezető írja', setDoc(doc(zsolt,'kov_quarters','2026_Q3'),{x:2},{merge:true}), 'ok');
 await T('Ki lesz a következő: admin írja', setDoc(doc(mark,'kov_quarters','2026_Q3'),{x:3},{merge:true}), 'ok');
 await T('Ki lesz a következő: beosztott nélküli csak olvassa', getDoc(doc(other,'kov_quarters','2026_Q3')), 'ok');
@@ -268,7 +274,7 @@ await T('fő admin csapatot hoz létre', setDoc(doc(mark,'teams','c'), { nev:'C'
 
 // ---------- csapatonkénti térkép és beállítások ----------
 await T('csapat-admin olvassa a saját térképét', getDoc(doc(bela,'team_access','b')), 'ok');
-await T('csapat-admin írja a saját térképét', setDoc(doc(bela,'team_access','b'), { 'u-bori':'u-bela' }), 'ok');
+await T('csapat-admin írja a saját térképét', setDoc(doc(bela,'team_access','b'), { 'u-bori':'u-bela', 'u-kilep':'u-bela' }), 'ok');
 await T('csapat-admin NEM írja más csapat térképét', setDoc(doc(bela,'team_access','alap'), { x:'y' }), 'fail');
 await T('csapat-admin NEM olvassa más csapat térképét', getDoc(doc(bela,'team_access','alap')), 'fail');
 await T('csapattag olvassa a csapata térképét', getDoc(doc(bori,'team_access','b')), 'ok');
@@ -306,6 +312,15 @@ await T('alap munkatárs NEM olvassa a B negyedévet', getDoc(doc(zsolt,'kov_qua
 await T('B csapat-admin írja a csapata negyedévét', setDoc(doc(bela,'kov_quarters','b~2026_Q4'), { x:1 }), 'ok');
 await T('B csapat-admin NEM írja az alap negyedévet', setDoc(doc(bela,'kov_quarters','2026_Q4'), { x:1 }), 'fail');
 await T('B csapattag (nem vezető) NEM írja a negyedévet', setDoc(doc(bori,'kov_quarters','b~2026_Q4'), { x:2 }), 'fail');
+// ---------- zárolt (kilépett) munkatárs ----------
+await T('a zárolt munkatárs semmit nem lát (ügyfél)', getDoc(doc(kilep,'clients','ck1')), 'fail');
+await T('a zárolt munkatárs a saját havi tervét sem látja', getDoc(doc(kilep,'havi_terv','u-kilep_2026_11')), 'fail');
+await T('a zárolt munkatárs a saját allowlist-bejegyzését látja (belépéskor)', getDoc(doc(kilep,'allowed_users','kilepett@ovb.hu')), 'ok');
+await T('a felettes látja a zárolt munkatárs havi tervét', getDoc(doc(bela,'havi_terv','u-kilep_2026_11')), 'ok');
+await T('a csapat-admin átadja a zárolt munkatárs ügyfelét magának', setDoc(doc(bela,'clients','ck1'), { ownerUid:'u-bela' }, { merge:true }), 'ok');
+await T('csapattag (nem admin, nem felettes) NEM adhat át', setDoc(doc(bori,'clients','ck1'), { ownerUid:'u-bori' }, { merge:true }), 'fail');
+await T('a csapat-admin zárolhat a csapatában', setDoc(doc(bela,'allowed_users','bori@ovb.hu'), { team:'b', zarolva:true }, { merge:true }), 'ok');
+await T('a csapat-admin feloldhatja a zárolást', setDoc(doc(bela,'allowed_users','bori@ovb.hu'), { team:'b', zarolva:false }, { merge:true }), 'ok');
 // ---------- 9. ismeretlen kollekció ----------
 await T('ismeretlen kollekció tiltott', setDoc(doc(mark,'valami_mas','x'),{a:1}), 'fail');
 

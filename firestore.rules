@@ -52,10 +52,12 @@ service cloud.firestore {
     // Belépett ÉS az allowlistán szereplő felhasználó. Ez az app tényleges
     // kapuja: a Google-fiókkal bárki be tud jelentkezni, de csak az láthat
     // bármit is, akit az Admin → Felhasználók fülön felvettél.
+    // A zárolt (kilépett) munkatárs bejegyzése megmarad (zarolva: true), de semmit nem érhet el.
     function isUser() {
       return signedIn()
           && request.auth.token.email != null
-          && exists(/databases/$(database)/documents/allowed_users/$(myEmail()));
+          && exists(/databases/$(database)/documents/allowed_users/$(myEmail()))
+          && get(/databases/$(database)/documents/allowed_users/$(myEmail())).data.get('zarolva', false) != true;
     }
 
     // ---------- csapatok ----------
@@ -251,8 +253,8 @@ service cloud.firestore {
       allow list:   if isUser() && (isAdmin() || resource.data.team == myTeam());
       allow create: if canAccess(request.resource.data.ownerUid)
                     && (isAdmin() || request.resource.data.team == myTeam());
-      allow update: if canAccess(resource.data.ownerUid)
-                    && canAccess(request.resource.data.ownerUid)
+      // a kezelő felettese – vagy a csapat-admin a csapatán belül (pl. kilépett munkatárs átadása) – írhatja
+      allow update: if ((canAccess(resource.data.ownerUid) && canAccess(request.resource.data.ownerUid)) || isTeamAdmin())
                     && (isAdmin() || (resource.data.get('team', 'alap') == myTeam()
                                       && request.resource.data.get('team', 'alap') == myTeam()));
       allow delete: if canAccess(resource.data.ownerUid)
